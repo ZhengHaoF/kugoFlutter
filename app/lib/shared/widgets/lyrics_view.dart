@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 
-class LyricsView extends StatelessWidget {
+class LyricsView extends StatefulWidget {
   const LyricsView({
     super.key,
     required this.lines,
@@ -19,25 +19,63 @@ class LyricsView extends StatelessWidget {
   /// When true, only shows current ± 1 lines (player bottom preview).
   final bool compact;
 
+  @override
+  State<LyricsView> createState() => _LyricsViewState();
+}
+
+class _LyricsViewState extends State<LyricsView> {
+  final _controller = ScrollController();
+  int _lastActive = -1;
+
   int get activeIndex {
     var active = 0;
-    for (var i = 0; i < lines.length; i++) {
-      if (lines[i].timeMs <= positionMs) active = i;
+    for (var i = 0; i < widget.lines.length; i++) {
+      if (widget.lines[i].timeMs <= widget.positionMs) active = i;
     }
     return active;
   }
 
   @override
+  void didUpdateWidget(covariant LyricsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.compact &&
+        widget.lines.isNotEmpty &&
+        activeIndex != _lastActive) {
+      _lastActive = activeIndex;
+      _scrollToActive();
+    }
+  }
+
+  void _scrollToActive() {
+    if (!_controller.hasClients) return;
+    final target = (activeIndex * 56.0 - 120).clamp(
+      0.0,
+      _controller.position.maxScrollExtent,
+    );
+    _controller.animateTo(
+      target,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (lines.isEmpty) {
+    if (widget.lines.isEmpty) {
       return Center(
         child: Text('暂无歌词', style: KugoTypography.caption),
       );
     }
 
-    if (compact) {
-      final start = (activeIndex - 1).clamp(0, lines.length - 1);
-      final visible = lines.skip(start).take(3).toList();
+    if (widget.compact) {
+      final start = (activeIndex - 1).clamp(0, widget.lines.length - 1);
+      final visible = widget.lines.skip(start).take(3).toList();
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -55,13 +93,18 @@ class LyricsView extends StatelessWidget {
     }
 
     return ListView.builder(
-      controller: ScrollController(),
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xl, vertical: 12),
-      itemCount: lines.length,
+      controller: _controller,
+      padding: const EdgeInsets.symmetric(
+        horizontal: KugoSpacing.xl,
+        vertical: 12,
+      ),
+      itemCount: widget.lines.length,
       itemBuilder: (context, index) {
         final isActive = index == activeIndex;
         return GestureDetector(
-          onTap: onTapLine == null ? null : () => onTapLine!(lines[index].timeMs),
+          onTap: widget.onTapLine == null
+              ? null
+              : () => widget.onTapLine!(widget.lines[index].timeMs),
           behavior: HitTestBehavior.opaque,
           child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 180),
@@ -69,7 +112,7 @@ class LyricsView extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
-                lines[index].text,
+                widget.lines[index].text,
                 textAlign: TextAlign.center,
               ),
             ),
@@ -80,11 +123,11 @@ class LyricsView extends StatelessWidget {
   }
 
   TextStyle _lineStyle(bool active) {
-    return KugoTypography.body.copyWith(
+    return TextStyle(
       fontSize: active ? 18 : 15,
-      height: 1.55,
-      color: active ? KugoColors.textPrimary : KugoColors.textTertiary,
-      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+      fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+      color: active ? KugoColors.textPrimary : KugoColors.textSecondary,
+      height: 1.35,
     );
   }
 }

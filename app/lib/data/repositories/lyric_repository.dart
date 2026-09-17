@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugo_client.dart';
 import '../../core/models/track.dart';
@@ -25,11 +27,8 @@ class LyricRepository {
           'timelength': track.durationMs,
         },
       );
-      // lyrics.kugou.com may return JSON with unquoted keys — read as text.
       final raw = await _client.getText(searchUrl);
-      final candidates = <({String id, String accessKey})>[
-        ..._parseCandidatesLoose(raw),
-      ];
+      final candidates = _parseCandidatesLoose(raw);
       if (candidates.isEmpty) {
         try {
           final searchJson = await _client.getJson(searchUrl);
@@ -38,34 +37,36 @@ class LyricRepository {
       }
       if (candidates.isEmpty) return const [];
 
-      for (final c in candidates) {
-        final raw = await _download(c.id, c.accessKey);
-        if (raw.trim().isEmpty) continue;
-        final lines = parseLrc(raw);
+      // Only try the best 1–2 candidates (EchoMusic uses proposal / first).
+      final limited = candidates.take(2).toList();
+      for (final c in limited) {
+        final body = await _download(c.id, c.accessKey);
+        if (body.trim().isEmpty) continue;
+        final lrc = _extractLrcText(body);
+        final lines = parseLrc(lrc);
         if (lines.isNotEmpty) return lines;
       }
     } catch (_) {}
     return const [];
   }
 
+  /// Prefer highest-score candidate (first in list from kugou).
   List<({String id, String accessKey})> _parseCandidatesLoose(String raw) {
     final result = <({String id, String accessKey})>[];
-    // Matches both quoted and unquoted JSON-ish fields.
     final block = RegExp(
       'id\\s*:\\s*"?([0-9]+)"?[\\s\\S]{0,400}?accesskey\\s*:\\s*"?([0-9A-Fa-f]+)"?',
       caseSensitive: false,
     );
     for (final m in block.allMatches(raw)) {
       result.add((id: m.group(1)!, accessKey: m.group(2)!));
-      if (result.length >= 3) break;
+      if (result.length >= 2) break;
     }
     if (result.isEmpty) {
       final ids = RegExp('id\\s*:\\s*"?([0-9]{4,})"')
           .allMatches(raw)
           .map((m) => m.group(1)!)
           .toSet();
-      final limited = ids.take(3);
-      for (final id in limited) {
+      for (final id in ids.take(2)) {
         result.add((id: id, accessKey: ''));
       }
     }
@@ -75,18 +76,55 @@ class LyricRepository {
   List<({String id, String accessKey})> _parseCandidates(dynamic data) {
     if (data is! Map) return const [];
     final map = Map<String, dynamic>.from(data);
+    // Prefer official proposal when present.
+    final proposal = (map['proposal'] ?? '').toString();
     final list = map['candidates'];
-    if (list is! List) return const [];
     final result = <({String id, String accessKey})>[];
-    for (final item in list) {
-      if (item is! Map) continue;
-      final id = (item['id'] ?? '').toString();
-      final key = (item['accesskey'] ?? item['access_key'] ?? '').toString();
-      if (id.isNotEmpty) {
-        result.add((id: id, accessKey: key));
+    if (list is List) {
+      for (final item in list) {
+        if (item is! Map) continue;
+        final id = (item['id'] ?? item['download_id'] ?? '').toString();
+        final key =
+            (item['accesskey'] ?? item['access_key'] ?? '').toString();
+        if (id.isNotEmpty) {
+          result.add((id: id, accessKey: key));
+        }
+        if (result.length >= 2) break;
       }
     }
-    return result;
+    if (proposal.isNotEmpty && result.every((e) => e.id != proposal)) {
+      result.insert(0, (id: proposal, accessKey: result.isEmpty ? '' : result.first.accessKey));
+    }
+    return result.take(2).toList();
+  }
+
+  /// Download returns JSON with base64 `content`, or plain LRC text.
+  String _extractLrcText(String body) {
+    final trimmed = body.trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        final map = jsonDecode(trimmed);
+        if (map is Map) {
+          final content = map['content'];
+          if (content is String && content.isNotEmpty) {
+            try {
+              return utf8.decode(base64.decode(content));
+            } catch (_) {
+              return content;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    // Already plain LRC (or base64 blob without JSON wrapper).
+    if (trimmed.contains('[00:') || trimmed.contains('[ti:') || trimmed.contains('[ar:')) {
+      return trimmed;
+    }
+    try {
+      final decoded = utf8.decode(base64.decode(trimmed));
+      if (decoded.contains('[')) return decoded;
+    } catch (_) {}
+    return trimmed;
   }
 
   Future<String> _download(String id, String accessKey) {

@@ -40,19 +40,22 @@ class _HomePageState extends ConsumerState<HomePage> {
     List<PlaylistBrief> playlists = const [];
     List<Track> songs = const [];
     var filtered = false;
+    var denied = false;
+
+    // Square often returns "Access Deny"; fall back to public rank boards.
     try {
-      playlists = await playlistRepository.fetchSquare(pageSize: 8);
+      playlists = await playlistRepository.fetchHomeCards(take: 6);
     } catch (e) {
-      if (e.toString().contains('URL过滤') || e.toString().contains('拦截')) {
-        filtered = true;
-      }
+      final msg = e.toString();
+      if (msg.contains('URL过滤') || msg.contains('拦截')) filtered = true;
+      if (msg.contains('Access Deny')) denied = true;
     }
     try {
       songs = await searchRepository.searchSongs('热门', pageSize: 8);
     } catch (e) {
-      if (e.toString().contains('URL过滤') || e.toString().contains('拦截')) {
-        filtered = true;
-      }
+      final msg = e.toString();
+      if (msg.contains('URL过滤') || msg.contains('拦截')) filtered = true;
+      if (msg.contains('Access Deny')) denied = true;
     }
 
     if (!mounted) return;
@@ -62,9 +65,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       _songs = songs;
       _loading = false;
       if (playlists.isEmpty && songs.isEmpty) {
-        _error = filtered
-            ? '当前网络被网关拦截（URL过滤），无法访问酷狗。\n请换手机热点 / 关闭路由器「上网行为管理」后重试。'
-            : '首页数据加载失败，请检查网络后重试';
+        if (filtered) {
+          _error = '当前网络被网关拦截（URL过滤），无法访问酷狗。\n请换手机热点 / 关闭路由器「上网行为管理」后重试。';
+        } else if (denied) {
+          _error = '酷狗接口拒绝访问（Access Deny）。\n稍后重试，或检查是否触发风控。';
+        } else {
+          _error = '首页数据加载失败，请检查网络后重试';
+        }
       }
     });
   }
@@ -104,6 +111,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
                 const SizedBox(height: KugoSpacing.lg),
                 _SearchPill(onTap: () => context.push('/search')),
+                const SizedBox(height: KugoSpacing.md),
+                _DailyEntryTile(onTap: () => context.push('/daily')),
               ],
             ),
           ),
@@ -182,6 +191,65 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 140)),
       ],
+    );
+  }
+}
+
+class _DailyEntryTile extends StatelessWidget {
+  const _DailyEntryTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final label = '${now.month}月${now.day}日 · 每日推荐';
+
+    return Material(
+      color: KugoColors.surface,
+      borderRadius: BorderRadius.circular(KugoRadius.card),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(KugoRadius.card),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: KugoColors.accentGradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.today_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: KugoTypography.body.copyWith(fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '按日轮换歌单 · 点开即听',
+                      style: KugoTypography.caption.copyWith(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: KugoColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

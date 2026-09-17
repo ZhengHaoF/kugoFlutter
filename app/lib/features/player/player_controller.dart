@@ -44,6 +44,8 @@ class PlayerState {
 
   bool get isPlaying => display == PlayerDisplayState.playing;
 
+  bool get isLoading => display == PlayerDisplayState.loading;
+
   int get durationMs => current?.durationMs ?? 0;
 
   PlayerState copyWith({
@@ -81,6 +83,7 @@ class PlayerController extends Notifier<PlayerState> {
 
   KugoMediaBridge? _bridge;
   StreamSubscription<void>? _posSub;
+  StreamSubscription<bool>? _playingSub;
   StreamSubscription<PlayerIdleReason>? _completeSub;
   QueueStore? _store;
   int _seq = 0;
@@ -96,6 +99,21 @@ class PlayerController extends Notifier<PlayerState> {
       state = state.copyWith(positionMs: pos.inMilliseconds);
       _bridge?.updatePosition(pos);
     });
+    // Keep UI icon in sync with the real engine (just_audio) playing flag.
+    _playingSub = _engine.playingStream.listen((playing) {
+      if (state.display == PlayerDisplayState.loading ||
+          state.display == PlayerDisplayState.error ||
+          state.display == PlayerDisplayState.idle) {
+        return;
+      }
+      if (playing && state.display != PlayerDisplayState.playing) {
+        state = state.copyWith(display: PlayerDisplayState.playing);
+        _syncBridge();
+      } else if (!playing && state.display == PlayerDisplayState.playing) {
+        state = state.copyWith(display: PlayerDisplayState.paused);
+        _syncBridge();
+      }
+    });
     _completeSub = _engine.completionStream.listen((reason) {
       if (reason == PlayerIdleReason.completed) {
         _onCompleted();
@@ -106,6 +124,7 @@ class PlayerController extends Notifier<PlayerState> {
 
     ref.onDispose(() {
       _posSub?.cancel();
+      _playingSub?.cancel();
       _completeSub?.cancel();
       _demoTimer?.cancel();
       _sleepTimer?.cancel();
@@ -216,29 +235,39 @@ class PlayerController extends Notifier<PlayerState> {
     if (seq != state.seq) return;
 
     if (resolved == null) {
-      _onPlayError(message: '无法获取播放地址');
+      final msg = _playRepo.lastError.isNotEmpty
+          ? _playRepo.lastError
+          : '无法获取播放地址';
+      _onPlayError(message: msg);
       return;
     }
 
     var ok = false;
+    Object? lastError;
     for (final url in resolved.allUrls) {
       try {
         await _engine.playUrl(
           url,
           headers: {
-            'User-Agent': 'kugo/0.1',
-            'Referer': 'https://www.kugou.com/',
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            'Referer': 'http://www.kugou.com/',
           },
         );
         ok = true;
         break;
-      } catch (_) {
+      } catch (e) {
+        lastError = e;
         continue;
       }
     }
     if (seq != state.seq) return;
     if (!ok) {
-      _onPlayError(message: '播放失败');
+      final engineMsg = lastError?.toString().split('\n').first ?? '';
+      final msg = engineMsg.isEmpty
+          ? '播放失败：源不可播（VIP/防盗链/网络）'
+          : '播放失败：$engineMsg';
+      _onPlayError(message: msg);
       return;
     }
     _failStreak = 0;

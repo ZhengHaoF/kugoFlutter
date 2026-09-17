@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../data/storage/queue_store.dart';
 
 enum AppQuality { standard, hq, sq, hiRes }
 
@@ -113,6 +116,17 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setLyricTranslation(bool v) async {
     state = state.copyWith(lyricTranslation: v);
     await _save(_kLyricTr, v);
+  }
+
+  /// Clear in-memory image cache + play history. Returns bytes freed estimate label.
+  Future<String> clearImageAndHistoryCache() async {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    try {
+      final store = await QueueStore.open();
+      await store.clearAll();
+    } catch (_) {}
+    return '已清理图片缓存与播放历史';
   }
 
   Future<void> _save(String key, Object value) async {

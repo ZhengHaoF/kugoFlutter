@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/api/kugo_client.dart';
 import 'core/api/network_log.dart';
+import 'data/repositories/play_repository.dart';
 import 'features/debug/network_log_provider.dart';
 import 'features/player/audio_service_handler.dart';
 import 'features/player/player_controller.dart';
@@ -25,9 +26,12 @@ Future<void> main() async {
   final player = container.read(playerControllerProvider.notifier);
 
   // Pipe Dio interceptor logs into Riverpod network log list.
-  kugoClient.setLogSink((NetworkLog log) {
+  void sink(NetworkLog log) {
     container.read(networkLogProvider.notifier).addLog(log);
-  });
+  }
+
+  kugoClient.setLogSink(sink);
+  PlayRepository.logSink = sink;
 
   final handler = await AudioService.init(
     builder: () => KugoAudioHandler(player),

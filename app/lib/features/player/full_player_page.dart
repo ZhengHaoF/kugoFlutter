@@ -78,6 +78,11 @@ class FullPlayerPage extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
+                      onPressed: () => _openSongDetail(context, track),
+                      tooltip: '歌曲详情',
+                      icon: const Icon(Icons.info_outline_rounded),
+                    ),
+                    IconButton(
                       onPressed: () => _showQueueSheet(context, ref),
                       icon: const Icon(Icons.queue_music_rounded),
                     ),
@@ -151,6 +156,29 @@ class FullPlayerPage extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: KugoTypography.caption,
                     ),
+                    if (player.display == PlayerDisplayState.error) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          player.errorCode.isEmpty
+                              ? '播放失败，可点下一首重试'
+                              : player.errorCode,
+                          style: KugoTypography.caption.copyWith(
+                            color: const Color(0xFFFF8A9A),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
@@ -222,16 +250,34 @@ class FullPlayerPage extends ConsumerWidget {
                               gradient: KugoColors.accentGradient,
                               shape: BoxShape.circle,
                             ),
-                            child: IconButton(
-                              onPressed: controller.togglePlay,
-                              icon: Icon(
-                                player.isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                size: 36,
-                                color: Colors.white,
-                              ),
-                            ),
+                            child: player.isLoading
+                                ? const Padding(
+                                    padding: EdgeInsets.all(20),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : IconButton(
+                                    onPressed: controller.togglePlay,
+                                    icon: AnimatedSwitcher(
+                                      duration:
+                                          const Duration(milliseconds: 160),
+                                      transitionBuilder: (child, anim) =>
+                                          ScaleTransition(
+                                        scale: anim,
+                                        child: child,
+                                      ),
+                                      child: Icon(
+                                        player.isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        key: ValueKey(player.isPlaying),
+                                        size: 36,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                           ),
                           IconButton(
                             onPressed: controller.next,
@@ -283,6 +329,23 @@ class FullPlayerPage extends ConsumerWidget {
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  void _openSongDetail(BuildContext context, Track track) {
+    final q = <String, String>{
+      'id': track.id,
+      'name': track.name,
+      'artist': track.artist,
+      'album': track.album,
+      'cover': track.coverUrl,
+      'hash': track.hash,
+      'mixSongId': track.mixSongId,
+      'duration': '${track.durationMs}',
+    };
+    final qs = q.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    context.push('/song?$qs');
   }
 
   static String _modeLabel(PlayerLoopMode mode) => switch (mode) {

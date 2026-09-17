@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../features/auth/auth_token_holder.dart';
@@ -23,7 +25,22 @@ bool looksLikeUrlFilter(dynamic body) {
   return s.contains('URL过滤') ||
       s.contains('access control policy') ||
       s.contains('disable.htm') ||
-      s.contains('plc_name');
+      s.contains('plc_name') ||
+      s.contains('Access Deny');
+}
+
+/// Kugou often serves JSON with `Content-Type: text/html`.
+/// Dio keeps those bodies as [String]; decode when possible.
+dynamic decodeKugoBody(dynamic data) {
+  if (data is! String) return data;
+  final trimmed = data.trim();
+  if (trimmed.isEmpty) return data;
+  if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return data;
+  try {
+    return jsonDecode(trimmed);
+  } on FormatException {
+    return data;
+  }
 }
 
 typedef NetworkLogSink = void Function(NetworkLog log);
@@ -138,13 +155,15 @@ class KugoClient {
     try {
       final res = await _dio.get<dynamic>(url, queryParameters: query);
       if (looksLikeUrlFilter(res.data)) {
+        final denied = res.data is String &&
+            (res.data as String).contains('Access Deny');
         throw KugoApiException(
-          '网络网关拦截（URL过滤），无法访问酷狗接口',
+          denied ? '接口拒绝访问（Access Deny）' : '网络网关拦截（URL过滤），无法访问酷狗接口',
           code: res.statusCode,
-          filtered: true,
+          filtered: !denied,
         );
       }
-      return res.data;
+      return decodeKugoBody(res.data);
     } on DioException catch (e) {
       throw KugoApiException(
         e.message ?? 'network error',

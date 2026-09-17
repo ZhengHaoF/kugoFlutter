@@ -61,22 +61,30 @@ class MiniPlayerBar extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => ref
-                        .read(playerControllerProvider.notifier)
-                        .togglePlay(),
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 160),
-                      transitionBuilder: (child, anim) =>
-                          ScaleTransition(scale: anim, child: child),
-                      child: Icon(
-                        player.isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        key: ValueKey(player.isPlaying),
-                        color: KugoColors.textPrimary,
-                        size: 34,
-                      ),
-                    ),
+                    onPressed: player.isLoading
+                        ? null
+                        : () => ref
+                            .read(playerControllerProvider.notifier)
+                            .togglePlay(),
+                    icon: player.isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 160),
+                            transitionBuilder: (child, anim) =>
+                                ScaleTransition(scale: anim, child: child),
+                            child: Icon(
+                              player.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              key: ValueKey(player.isPlaying),
+                              color: KugoColors.textPrimary,
+                              size: 34,
+                            ),
+                          ),
                   ),
                   IconButton(
                     onPressed: () =>

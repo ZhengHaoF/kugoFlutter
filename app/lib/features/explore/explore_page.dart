@@ -188,10 +188,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               ),
             ),
           if (_rankings.isNotEmpty) ...[
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: SectionHeader(
                 title: '排行榜',
                 showAccent: true,
+                actionLabel: _rankings.isEmpty ? null : '全部',
+                onAction: _rankings.isEmpty ? null : () => context.push('/ranks'),
               ),
             ),
             SliverToBoxAdapter(

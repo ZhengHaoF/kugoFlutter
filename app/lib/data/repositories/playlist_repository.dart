@@ -49,6 +49,7 @@ class PlaylistRepository {
   }
 
   /// Square / category playlists (best-effort public).
+  /// Many CDNs now return plain `Access Deny ! No Actions !` for this path.
   Future<List<PlaylistBrief>> fetchSquare({int page = 1, int pageSize = 20}) async {
     try {
       final url = buildUrl(
@@ -68,6 +69,14 @@ class PlaylistRepository {
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Home hero / recommend cards: rank boards are reliably public.
+  Future<List<PlaylistBrief>> fetchHomeCards({int take = 6}) async {
+    final square = await fetchSquare(pageSize: take);
+    if (square.isNotEmpty) return square.take(take).toList();
+    final ranks = await fetchRankList();
+    return ranks.take(take).toList();
   }
 
   Future<List<PlaylistBrief>> fetchRankList() async {

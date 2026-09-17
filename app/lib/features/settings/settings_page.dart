@@ -105,6 +105,30 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           _Section(
+            title: '缓存',
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.cleaning_services_outlined,
+                  color: KugoColors.textSecondary,
+                ),
+                title: const Text('清理图片缓存与播放历史', style: KugoTypography.body),
+                subtitle: const Text(
+                  '不影响登录与我喜欢；队列本地副本会一并清空',
+                  style: KugoTypography.caption,
+                ),
+                onTap: () async {
+                  final msg = await controller.clearImageAndHistoryCache();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(msg)),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          _Section(
             title: '关于',
             children: const [
               ListTile(

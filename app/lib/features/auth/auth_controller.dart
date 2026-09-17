@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
+import '../../data/repositories/login_repository.dart';
+import '../../data/storage/device_identity.dart';
 import 'auth_token_holder.dart';
 
 class AuthUser {
@@ -22,8 +22,6 @@ class AuthUser {
   final String token;
   final String avatarUrl;
   final bool isVip;
-
-  /// True when created without a real gateway login (offline / blocked).
   final bool isLocalDemo;
 
   AuthUser copyWith({
@@ -69,6 +67,9 @@ class AuthUser {
 
 enum LoginStatus { unknown, guest, loading, logged, error }
 
+/// QR poll status exposed to UI.
+enum QrPhase { idle, loading, waiting, scanned, expired, success, error }
+
 class AuthState {
   const AuthState({
     this.status = LoginStatus.unknown,
@@ -76,15 +77,19 @@ class AuthState {
     this.errorMessage = '',
     this.smsCountdown = 0,
     this.restored = false,
+    this.qrPhase = QrPhase.idle,
+    this.qrContentUrl = '',
+    this.qrKey = '',
   });
 
   final LoginStatus status;
   final AuthUser? user;
   final String errorMessage;
   final int smsCountdown;
-
-  /// True after prefs restore finished (guest or logged).
   final bool restored;
+  final QrPhase qrPhase;
+  final String qrContentUrl;
+  final String qrKey;
 
   bool get isLogged => status == LoginStatus.logged && user != null;
   bool get isGuest => status == LoginStatus.guest;
@@ -95,6 +100,9 @@ class AuthState {
     String? errorMessage,
     int? smsCountdown,
     bool? restored,
+    QrPhase? qrPhase,
+    String? qrContentUrl,
+    String? qrKey,
   }) {
     return AuthState(
       status: status ?? this.status,
@@ -102,12 +110,14 @@ class AuthState {
       errorMessage: errorMessage ?? this.errorMessage,
       smsCountdown: smsCountdown ?? this.smsCountdown,
       restored: restored ?? this.restored,
+      qrPhase: qrPhase ?? this.qrPhase,
+      qrContentUrl: qrContentUrl ?? this.qrContentUrl,
+      qrKey: qrKey ?? this.qrKey,
     );
   }
 }
 
-/// 手机号+验证码登录；网关不可达时降级为本地演示会话。
-/// 游客模式完全可用：搜索/浏览/播放不依赖登录。
+/// Real gateway login only — never invents a local session on failure.
 class AuthController extends Notifier<AuthState> {
   static const _kUser = 'auth.user.v1';
   static const _kGuest = 'auth.guest.v1';
@@ -115,10 +125,15 @@ class AuthController extends Notifier<AuthState> {
 
   SharedPreferences? _prefs;
   Timer? _countdownTimer;
+  Timer? _qrTimer;
+  int _qrGeneration = 0;
 
   @override
   AuthState build() {
-    ref.onDispose(() => _countdownTimer?.cancel());
+    ref.onDispose(() {
+      _countdownTimer?.cancel();
+      _qrTimer?.cancel();
+    });
     unawaited(_restore());
     return const AuthState();
   }
@@ -126,6 +141,8 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _restore() async {
     try {
       _prefs = await SharedPreferences.getInstance();
+      // Align device mid/guid/dfid BEFORE attaching token so play-sign key matches.
+      await DeviceIdentity.ensure();
       final raw = _prefs?.getString(_kUser);
       if (raw != null && raw.isNotEmpty) {
         final map = <String, dynamic>{};
@@ -149,7 +166,6 @@ class AuthController extends Notifier<AuthState> {
           return;
         }
       }
-      // Default: guest (first launch or explicit guest).
       await _prefs?.setBool(_kGuest, true);
       AuthTokenHolder.instance.clear();
       state = const AuthState(status: LoginStatus.guest, restored: true);
@@ -158,7 +174,6 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// Mark onboarding seen (guest-first).
   Future<void> markSeen() async {
     try {
       await _prefs?.setBool(_kSeen, true);
@@ -173,8 +188,8 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// 游客继续：可完整使用公开接口，不绑定账号。
   Future<void> continueAsGuest() async {
+    stopQrPolling();
     AuthTokenHolder.instance.clear();
     state = const AuthState(status: LoginStatus.guest, restored: true);
     try {
@@ -184,39 +199,92 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {}
   }
 
-  /// 发送验证码。优先走网关；失败仍启动倒计时并提示「演示模式」。
+  // --- QR ---
+
+  Future<void> startQrLogin() async {
+    stopQrPolling();
+    final gen = ++_qrGeneration;
+    state = state.copyWith(
+      qrPhase: QrPhase.loading,
+      qrContentUrl: '',
+      qrKey: '',
+      errorMessage: '',
+      status: state.status == LoginStatus.logged
+          ? LoginStatus.logged
+          : LoginStatus.guest,
+    );
+    final created = await loginRepository.createQrLogin();
+    if (gen != _qrGeneration) return;
+    if (created == null) {
+      state = state.copyWith(
+        qrPhase: QrPhase.error,
+        errorMessage: loginRepository.lastError.isEmpty
+            ? '获取二维码失败'
+            : loginRepository.lastError,
+      );
+      return;
+    }
+    state = state.copyWith(
+      qrPhase: QrPhase.waiting,
+      qrContentUrl: created.contentUrl,
+      qrKey: created.key,
+    );
+    _qrTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      unawaited(_pollQr(gen, created.key));
+    });
+  }
+
+  Future<void> _pollQr(int gen, String key) async {
+    if (gen != _qrGeneration) return;
+    final res = await loginRepository.checkQrLogin(key);
+    if (gen != _qrGeneration || res == null) return;
+    switch (res.status) {
+      case 0:
+        state = state.copyWith(qrPhase: QrPhase.expired);
+        stopQrPolling();
+      case 2:
+        state = state.copyWith(qrPhase: QrPhase.scanned);
+      case 4:
+        final session = res.session;
+        if (session == null) {
+          state = state.copyWith(
+            qrPhase: QrPhase.error,
+            errorMessage: '扫码成功但未返回会话',
+          );
+          stopQrPolling();
+          return;
+        }
+        stopQrPolling();
+        await _completeLogin(session);
+      default:
+        state = state.copyWith(qrPhase: QrPhase.waiting);
+    }
+  }
+
+  void stopQrPolling() {
+    _qrTimer?.cancel();
+    _qrTimer = null;
+    _qrGeneration++;
+  }
+
+  // --- SMS ---
+
   Future<bool> sendSmsCode(String phone) async {
     if (!_isValidPhone(phone)) {
       state = state.copyWith(errorMessage: '请输入 11 位手机号');
       return false;
     }
     state = state.copyWith(errorMessage: '');
-
-    var ok = false;
-    var hint = '';
-    try {
-      final url = buildUrl(
-        KugoEndpoints.mobileCdn,
-        '/api/v3/captcha/sent',
-        {'mobile': phone.trim(), 'type': 'login'},
-      );
-      final data = await kugoClient.getJson(url);
-      final s = data.toString();
-      if (s.contains('{') && !s.contains('URL过滤')) {
-        ok = true;
-      } else {
-        hint = '（网关未返回可用验证码通道）';
-      }
-    } catch (e) {
-      hint = '（网关不可达，已进入演示模式）';
-    }
-
-    _startCountdown();
+    final ok = await loginRepository.sendSmsCode(phone.trim());
     if (!ok) {
       state = state.copyWith(
-        errorMessage: '验证码接口暂不可用$hint。网络受限时请用游客模式',
+        errorMessage: loginRepository.lastError.isEmpty
+            ? '发送验证码失败'
+            : loginRepository.lastError,
       );
+      return false;
     }
+    _startCountdown();
     return true;
   }
 
@@ -234,10 +302,10 @@ class AuthController extends Notifier<AuthState> {
     });
   }
 
-  /// 手机号 + 验证码登录。仅走真实网关，失败不创建本地会话。
   Future<bool> loginWithSms({
     required String phone,
     required String code,
+    String userid = '',
   }) async {
     if (!_isValidPhone(phone)) {
       state = state.copyWith(errorMessage: '请输入 11 位手机号');
@@ -247,70 +315,95 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(errorMessage: '请输入至少 4 位验证码');
       return false;
     }
-
     state = state.copyWith(status: LoginStatus.loading, errorMessage: '');
-
-    AuthUser? remote;
-    String failMsg = '登录失败';
-    try {
-      final url = buildUrl(
-        KugoEndpoints.mobileCdn,
-        '/api/v3/login/cellphone',
-        {'mobile': phone.trim(), 'code': code.trim()},
-      );
-      final data = await kugoClient.getJson(url);
-      if (data is Map) {
-        final map = Map<String, dynamic>.from(data);
-        final body = map['data'] is Map
-            ? Map<String, dynamic>.from(map['data'] as Map)
-            : map;
-        final uid = (body['userid'] ?? body['user_id'] ?? '').toString();
-        final token = (body['token'] ?? '').toString();
-        final err = (body['error_code'] ?? body['errcode'] ?? '').toString();
-        if (uid.isNotEmpty || token.isNotEmpty) {
-          remote = AuthUser(
-            userId: uid.isEmpty ? phone.trim() : uid,
-            nickname:
-                (body['username'] ?? body['nickname'] ?? '用户').toString(),
-            token: token,
-            isVip: body['vip'] == 1 || body['isvip'] == 1,
-            isLocalDemo: false,
-          );
-        } else if (err.isNotEmpty && err != '0') {
-          failMsg = '网关返回错误 code=$err';
-        } else {
-          failMsg = '网关未返回有效账号信息';
-        }
-      } else {
-        failMsg = '登录接口响应异常';
-      }
-    } catch (e) {
-      final msg = e.toString();
-      if (msg.contains('URL过滤') ||
-          msg.contains('Handshake') ||
-          msg.contains('timeout') ||
-          msg.contains('Connection')) {
-        failMsg = '登录网关不可达（网络受限）。可使用游客模式继续听歌';
-      } else {
-        failMsg = '登录失败：${msg.split('\n').first}';
-      }
-    }
-
-    if (remote == null) {
+    final session = await loginRepository.loginWithSms(
+      mobile: phone.trim(),
+      code: code.trim(),
+      userid: userid,
+    );
+    if (session == null) {
       state = state.copyWith(
         status: LoginStatus.error,
-        errorMessage: failMsg,
+        errorMessage: loginRepository.lastError.isEmpty
+            ? '登录失败'
+            : loginRepository.lastError,
       );
       return false;
     }
+    await _completeLogin(session);
+    return true;
+  }
 
-    AuthTokenHolder.instance.setSession(
-      token: remote.token,
-      userId: remote.userId,
+  // --- Password ---
+
+  Future<bool> loginWithPassword({
+    required String username,
+    required String password,
+  }) async {
+    if (username.trim().isEmpty || password.isEmpty) {
+      state = state.copyWith(errorMessage: '请输入账号和密码');
+      return false;
+    }
+    state = state.copyWith(status: LoginStatus.loading, errorMessage: '');
+    final session = await loginRepository.loginWithPassword(
+      username: username.trim(),
+      password: password,
     );
-    state = AuthState(status: LoginStatus.logged, user: remote, restored: true);
+    if (session == null) {
+      state = state.copyWith(
+        status: LoginStatus.error,
+        errorMessage: loginRepository.lastError.isEmpty
+            ? '登录失败'
+            : loginRepository.lastError,
+      );
+      return false;
+    }
+    await _completeLogin(session);
+    return true;
+  }
+
+  Future<void> _completeLogin(LoginSession session) async {
+    AuthTokenHolder.instance.setSession(
+      token: session.token,
+      userId: session.userId,
+      t1: session.t1,
+    );
+
+    var nickname = session.nickname.isEmpty ? '用户' : session.nickname;
+    var avatarUrl = session.avatarUrl;
+    var isVip = session.isVip;
+
+    // Enrich profile (nickname / avatar) from user detail.
     try {
-      final encoded = remote
+      final profile = await loginRepository.fetchMyInfo(
+        token: session.token,
+        userId: session.userId,
+      );
+      if (profile != null) {
+        if (profile.nickname.isNotEmpty && profile.nickname != '用户') {
+          nickname = profile.nickname;
+        }
+        if (profile.avatarUrl.isNotEmpty) avatarUrl = profile.avatarUrl;
+        isVip = profile.isVip || isVip;
+      }
+    } catch (_) {}
+
+    final user = AuthUser(
+      userId: session.userId,
+      nickname: nickname,
+      token: session.token,
+      avatarUrl: avatarUrl,
+      isVip: isVip,
+      isLocalDemo: false,
+    );
+    state = AuthState(
+      status: LoginStatus.logged,
+      user: user,
+      restored: true,
+      qrPhase: QrPhase.success,
+    );
+    try {
+      final encoded = user
           .toJson()
           .entries
           .map((e) =>
@@ -320,10 +413,52 @@ class AuthController extends Notifier<AuthState> {
       await _prefs?.remove(_kGuest);
       await _prefs?.setBool(_kSeen, true);
     } catch (_) {}
-    return true;
+  }
+
+  /// Re-fetch profile (avatar / nickname) when opening 我的.
+  Future<void> refreshProfile() async {
+    final user = state.user;
+    if (!state.isLogged || user == null || user.token.isEmpty) return;
+    try {
+      final profile = await loginRepository.fetchMyInfo(
+        token: user.token,
+        userId: user.userId,
+      );
+      if (profile == null) return;
+      final next = user.copyWith(
+        nickname: profile.nickname.isEmpty ? user.nickname : profile.nickname,
+        avatarUrl:
+            profile.avatarUrl.isEmpty ? user.avatarUrl : profile.avatarUrl,
+        isVip: profile.isVip || user.isVip,
+      );
+      if (next.nickname == user.nickname &&
+          next.avatarUrl == user.avatarUrl &&
+          next.isVip == user.isVip) {
+        return;
+      }
+      AuthTokenHolder.instance.setSession(
+        token: next.token,
+        userId: next.userId,
+      );
+      state = AuthState(
+        status: LoginStatus.logged,
+        user: next,
+        restored: true,
+      );
+      try {
+        final encoded = next
+            .toJson()
+            .entries
+            .map((e) =>
+                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent('${e.value}')}')
+            .join('&');
+        await _prefs?.setString(_kUser, encoded);
+      } catch (_) {}
+    } catch (_) {}
   }
 
   Future<void> logout() async {
+    stopQrPolling();
     AuthTokenHolder.instance.clear();
     state = const AuthState(status: LoginStatus.guest, restored: true);
     try {
@@ -332,7 +467,6 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {}
   }
 
-  /// Called when a request returns 401 — keep guest browse, drop invalid session.
   Future<void> onUnauthorized() async {
     if (!state.isLogged) return;
     await logout();

@@ -17,10 +17,41 @@ int _i2(Object? a, Object? b) {
   return x != 0 ? x : _i(b);
 }
 
-String kugouCover(String? hashOrFile, {String size = '400'}) {
-  final f = _s(hashOrFile).toLowerCase();
-  if (f.isEmpty) return 'mock://cover';
+/// EchoMusic-style cover normalization: `{size}` → 400, http→https, old CDN host swap.
+String normalizeCoverUrl(String raw, {String size = '400'}) {
+  var cover = raw.trim();
+  if (cover.isEmpty) return 'mock://cover';
+  if (cover.startsWith('//')) cover = 'https:$cover';
+  cover = cover.replaceAll('{size}', size);
+  cover = cover.replaceFirst('http://', 'https://');
+  cover = cover.replaceFirst('c1.kgimg.com', 'imge.kugou.com');
+  if (cover.startsWith('https://') || cover.startsWith('mock://')) return cover;
+  if (cover.startsWith('http://')) return cover;
+  // Bare hash / relative path → soft collection CDN
+  final f = cover.toLowerCase();
   return 'https://imge.kugou.com/soft/collection/$size/$f';
+}
+
+String kugouCover(String? hashOrFile, {String size = '400'}) {
+  return normalizeCoverUrl(_s(hashOrFile), size: size);
+}
+
+String _pickCover(Map<String, dynamic> json) {
+  final trans = json['trans_param'];
+  final transMap = trans is Map ? Map<String, dynamic>.from(trans) : const <String, dynamic>{};
+  final candidates = <String>[
+    _s(json['album_sizable_cover']),
+    _s(json['sizable_cover']),
+    _s(json['cover']),
+    _s(json['pic']),
+    _s(json['img']),
+    _s(json['imgurl']),
+    _s(transMap['union_cover']),
+  ];
+  for (final c in candidates) {
+    if (c.isNotEmpty) return c;
+  }
+  return '';
 }
 
 Track mapMobileSearchSong(Map<String, dynamic> json) {
@@ -37,14 +68,14 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
   final albumName = _s(json['album_name'], _s(json['albumname']));
   final privilege = json['privilege'];
   final isVip = privilege is Map ? _i(privilege['vip_type']) > 0 : false;
-  final coverRaw = _s(json['cover'], _s(json['pic'], hash));
+  final coverRaw = _pickCover(json);
 
   return Track(
     id: id.isEmpty ? hash : id,
     name: name,
     artist: artist.isEmpty ? '未知歌手' : artist,
     album: albumName,
-    coverUrl: kugouCover(coverRaw.isEmpty ? hash : coverRaw),
+    coverUrl: normalizeCoverUrl(coverRaw.isEmpty ? hash : coverRaw),
     durationMs: duration,
     hash: hash,
     albumId: albumId,
@@ -58,11 +89,12 @@ PlaylistBrief mapPlaylistInfo(Map<String, dynamic> json) {
     json['global_collection_id'],
     _s(json['specialid'], _s(json['id'])),
   );
-  final name = _s(json['name'], _s(json['specialname'], '歌单'));
-  final pic = _s(json['pic'], _s(json['imgurl'], _s(json['cover'])));
-  final cover = pic.startsWith('http')
-      ? pic
-      : kugouCover(pic.isEmpty ? id : pic);
+  final name = _s(
+    json['name'],
+    _s(json['specialname'], _s(json['rankname'], '歌单')),
+  );
+  final pic = _pickCover(json);
+  final cover = normalizeCoverUrl(pic.isEmpty ? id : pic);
   final count = _i2(json['songcount'], json['song_count']);
   final intro = _s(json['intro'], _s(json['info']));
   final play = _i2(json['playcount'], json['listen_num']);
@@ -84,10 +116,4 @@ String formatCount(int n) {
     return '${(n / 10000).toStringAsFixed(1)}万';
   }
   return '$n';
-}
-
-String normalizeCoverUrl(String raw) {
-  if (raw.isEmpty) return 'mock://cover';
-  if (raw.startsWith('http')) return raw;
-  return kugouCover(raw);
 }

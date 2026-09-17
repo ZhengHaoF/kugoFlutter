@@ -60,9 +60,7 @@ class CatalogRepository {
 
       final name = _s(data?['albumname'], _s(data?['name'], '专辑'));
       final coverRaw = _s(data?['cover'], _s(data?['imgurl'], id));
-      final cover = coverRaw.startsWith('http')
-          ? coverRaw
-          : kugouCover(coverRaw.isEmpty ? id : coverRaw);
+      final cover = normalizeCoverUrl(coverRaw.isEmpty ? id : coverRaw);
       final artist = _s(data?['singername'], _s(data?['author'], ''));
       final publish = _s(data?['publish_time'], _s(data?['publishtime']));
       final intro = _s(data?['intro'], _s(data?['description']));
@@ -126,9 +124,7 @@ class CatalogRepository {
 
       final name = _s(data?['singername'], _s(data?['name'], '歌手'));
       final avatarRaw = _s(data?['avatar'], _s(data?['imgurl'], id));
-      final avatar = avatarRaw.startsWith('http')
-          ? avatarRaw
-          : kugouCover(avatarRaw.isEmpty ? id : avatarRaw);
+      final avatar = normalizeCoverUrl(avatarRaw.isEmpty ? id : avatarRaw);
       final intro = _s(data?['intro'], _s(data?['description']));
       final fans = _i(data?['fans_count'] ?? data?['fans']);
 

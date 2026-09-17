@@ -8,11 +8,24 @@ import '../../features/likes/likes_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authControllerProvider.notifier).refreshProfile();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final likesCount = ref.watch(likesProvider).length;
     final user = auth.user;
@@ -22,6 +35,7 @@ class ProfilePage extends ConsumerWidget {
     final displaySub = auth.isLogged
         ? (user!.isVip ? '概念会员' : '已登录')
         : '未登录 · 公开内容可用';
+    final avatarUrl = user?.avatarUrl ?? '';
 
     return ListView(
       physics: const BouncingScrollPhysics(
@@ -50,11 +64,16 @@ class ProfilePage extends ConsumerWidget {
                 child: Row(
                   children: [
                     CoverBox(
-                      seed: user?.avatarUrl.isNotEmpty == true
-                          ? user!.avatarUrl
-                          : 'avatar-guest',
+                      seed: avatarUrl.isNotEmpty ? avatarUrl : 'avatar-guest',
                       size: 64,
                       radius: 999,
+                      child: avatarUrl.isNotEmpty
+                          ? null
+                          : const Icon(
+                              Icons.person_rounded,
+                              color: Colors.white70,
+                              size: 32,
+                            ),
                     ),
                     const SizedBox(width: KugoSpacing.md),
                     Expanded(
