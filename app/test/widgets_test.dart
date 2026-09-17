@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/shared/widgets/common.dart';
 import 'package:kugo/shared/widgets/cover_box.dart';
