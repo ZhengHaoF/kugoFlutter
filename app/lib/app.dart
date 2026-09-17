@@ -1,0 +1,134 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import 'core/theme/kugo_theme.dart';
+import 'features/album/album_detail_page.dart';
+import 'features/artist/artist_detail_page.dart';
+import 'features/auth/login_page.dart';
+import 'features/explore/explore_page.dart';
+import 'features/fm/personal_fm_page.dart';
+import 'features/history/history_page.dart';
+import 'features/home/home_page.dart';
+import 'features/likes/likes_page.dart';
+import 'features/player/full_player_page.dart';
+import 'features/playlist/playlist_detail_page.dart';
+import 'features/profile/profile_page.dart';
+import 'features/search/search_page.dart';
+import 'features/settings/settings_page.dart';
+import 'shared/shell/root_shell.dart';
+
+final _routerProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    initialLocation: '/home',
+    routes: [
+      GoRoute(
+        path: '/player',
+        pageBuilder: (context, state) => const MaterialPage(
+          fullscreenDialog: true,
+          child: FullPlayerPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/search',
+        pageBuilder: (context, state) =>
+            MaterialPage(child: const SearchPage()),
+      ),
+      GoRoute(
+        path: '/playlist/:id',
+        pageBuilder: (context, state) => MaterialPage(
+          child: PlaylistDetailPage(id: state.pathParameters['id'] ?? ''),
+        ),
+      ),
+      GoRoute(
+        path: '/album/:id',
+        pageBuilder: (context, state) => MaterialPage(
+          child: AlbumDetailPage(id: state.pathParameters['id'] ?? ''),
+        ),
+      ),
+      GoRoute(
+        path: '/artist/:id',
+        pageBuilder: (context, state) => MaterialPage(
+          child: ArtistDetailPage(id: state.pathParameters['id'] ?? ''),
+        ),
+      ),
+      GoRoute(
+        path: '/login',
+        pageBuilder: (context, state) => const MaterialPage(
+          fullscreenDialog: true,
+          child: LoginPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/settings',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: SettingsPage()),
+      ),
+      GoRoute(
+        path: '/history',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: HistoryPage()),
+      ),
+      GoRoute(
+        path: '/fm',
+        pageBuilder: (context, state) => const MaterialPage(
+          fullscreenDialog: true,
+          child: PersonalFmPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/likes',
+        pageBuilder: (context, state) => const MaterialPage(child: LikesPage()),
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return RootShell(
+            location: state.uri.path,
+            child: navigationShell,
+          );
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/explore',
+                builder: (context, state) => const ExplorePage(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfilePage(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ],
+  );
+});
+
+class KugoApp extends ConsumerWidget {
+  const KugoApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(_routerProvider);
+    return MaterialApp.router(
+      title: 'kugo',
+      debugShowCheckedModeBanner: false,
+      theme: buildKugoTheme(),
+      routerConfig: router,
+    );
+  }
+}

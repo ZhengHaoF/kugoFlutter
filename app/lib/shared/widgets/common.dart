@@ -1,0 +1,342 @@
+import 'package:flutter/material.dart';
+
+import '../../core/models/track.dart';
+import '../../core/theme/kugo_tokens.dart';
+import 'cover_box.dart';
+
+class SectionHeader extends StatelessWidget {
+  const SectionHeader({
+    super.key,
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+    this.showAccent = false,
+  });
+
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool showAccent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        KugoSpacing.lg,
+        KugoSpacing.xl,
+        KugoSpacing.lg,
+        KugoSpacing.md,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: KugoTypography.section),
+              if (showAccent) ...[
+                const SizedBox(height: 6),
+                Container(
+                  width: 28,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    gradient: KugoColors.accentGradient,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const Spacer(),
+          if (actionLabel != null)
+            TextButton(
+              onPressed: onAction,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionLabel!,
+                    style: KugoTypography.caption.copyWith(fontSize: 13),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: KugoColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class QualityBadge extends StatelessWidget {
+  const QualityBadge({super.key, required this.label, this.gradient = false});
+
+  final String label;
+  final bool gradient;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        gradient: gradient ? KugoColors.accentGradient : null,
+        color: gradient ? null : KugoColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: KugoColors.textPrimary,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+class TrackTile extends StatelessWidget {
+  const TrackTile({
+    super.key,
+    required this.track,
+    this.trailing,
+    this.onTap,
+    this.onArtistTap,
+    this.isPlaying = false,
+    this.index,
+  });
+
+  final Track track;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final VoidCallback? onArtistTap;
+  final bool isPlaying;
+  final int? index;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = KugoTypography.body.copyWith(
+      color: isPlaying ? KugoColors.primary : KugoColors.textPrimary,
+    );
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KugoSpacing.lg,
+          vertical: 10,
+        ),
+        child: Row(
+          children: [
+            if (index != null)
+              SizedBox(
+                width: 28,
+                child: Text(
+                  '${index!}',
+                  textAlign: TextAlign.center,
+                  style: KugoTypography.caption.copyWith(
+                    color: isPlaying
+                        ? KugoColors.primary
+                        : KugoColors.textTertiary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            Stack(
+              children: [
+                CoverBox(seed: track.coverUrl, size: 52),
+                if (isPlaying)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(KugoRadius.cover),
+                      ),
+                      child: const Icon(
+                        Icons.equalizer_rounded,
+                        color: KugoColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: KugoSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: GestureDetector(
+                          onTap: onArtistTap,
+                          child: Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: KugoTypography.caption.copyWith(
+                              color: onArtistTap == null
+                                  ? KugoColors.textSecondary
+                                  : KugoColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (track.isVip) ...[
+                        const SizedBox(width: 6),
+                        const QualityBadge(label: 'VIP', gradient: true),
+                      ] else if (track.quality != 'SQ') ...[
+                        const SizedBox(width: 6),
+                        QualityBadge(label: track.quality),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null)
+              trailing!
+            else
+              Text(
+                track.durationLabel,
+                style: KugoTypography.caption.copyWith(
+                  color: KugoColors.textTertiary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PlaylistCard extends StatelessWidget {
+  const PlaylistCard({
+    super.key,
+    required this.playlist,
+    this.width = 120,
+    this.onTap,
+  });
+
+  final PlaylistBrief playlist;
+  final double width;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CoverBox(
+                    seed: playlist.coverUrl,
+                    size: width,
+                    radius: KugoRadius.card,
+                  ),
+                  if (playlist.playCountLabel.isNotEmpty &&
+                      !playlist.playCountLabel.contains('/'))
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(KugoRadius.chip),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                            Text(
+                              playlist.playCountLabel,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              playlist.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: KugoTypography.body.copyWith(fontSize: 13, height: 1.3),
+            ),
+            if (playlist.description.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                playlist.description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: KugoTypography.caption,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class GlassSurface extends StatelessWidget {
+  const GlassSurface({
+    super.key,
+    required this.child,
+    this.radius = KugoRadius.card,
+    this.padding = const EdgeInsets.all(KugoSpacing.md),
+  });
+
+  final Widget child;
+  final double radius;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: KugoColors.surface,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: KugoColors.divider),
+      ),
+      child: child,
+    );
+  }
+}
