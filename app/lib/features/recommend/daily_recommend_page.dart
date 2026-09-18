@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/recommend_repository.dart';
+import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
@@ -20,6 +21,8 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
   List<Track> _tracks = const [];
   bool _loading = true;
   String _error = '';
+  bool _personalized = false;
+  bool _needLogin = false;
 
   @override
   void initState() {
@@ -32,42 +35,58 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
       _loading = true;
       _error = '';
     });
-    List<Track> tracks = const [];
-    var filtered = false;
-    try {
-      tracks = await recommendRepository.fetchDaily();
-    } catch (e) {
-      if (e.toString().contains('拦截') || e.toString().contains('URL过滤')) {
-        filtered = true;
-      }
-    }
+    final result = await recommendRepository.fetchDaily();
     if (!mounted) return;
     setState(() {
-      _tracks = tracks;
+      _tracks = result.tracks;
+      _personalized = result.personalized;
+      _needLogin = result.needLogin;
+      _error = result.error;
       _loading = false;
-      if (tracks.isEmpty) {
-        _error = filtered
-            ? '当前网络被网关拦截（URL过滤），无法访问酷狗。\n请换手机热点后重试。'
-            : '每日推荐加载失败，请检查网络后重试';
-      }
     });
+  }
+
+  String get _subtitle {
+    if (_personalized) return '为你量身定制的每日歌单';
+    if (_needLogin && _tracks.isNotEmpty) return '登录后可获取个性化每日推荐';
+    if (_needLogin && _tracks.isEmpty) return '登录后查看今日推荐';
+    if (_tracks.isNotEmpty) return '今日公开歌单';
+    return '';
   }
 
   @override
   Widget build(BuildContext context) {
     final player = ref.watch(playerControllerProvider);
+    final auth = ref.watch(authControllerProvider);
     final dateLabel = recommendRepository.dateLabel();
-    final mood = recommendRepository.moodLabel();
     final day = DateTime.now().day.toString().padLeft(2, '0');
     final month = DateTime.now().month.toString().padLeft(2, '0');
+    final loggedIn = auth.isLogged;
+
+    // Login success → reload so personalized daily recommend can refresh.
+    ref.listen(authControllerProvider, (prev, next) {
+      final wasLogged = prev?.isLogged ?? false;
+      if (!wasLogged && next.isLogged && !_loading) {
+        _load();
+      }
+    });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('每日推荐')),
+      appBar: AppBar(
+        title: const Text('每日推荐'),
+        actions: [
+          if (_needLogin && !loggedIn)
+            TextButton(
+              onPressed: () => context.push('/login'),
+              child: const Text('登录'),
+            ),
+        ],
+      ),
       body: AsyncBody(
         loading: _loading,
         hasError: !_loading && _tracks.isEmpty && _error.isNotEmpty,
         isEmpty: !_loading && _tracks.isEmpty && _error.isEmpty,
-        emptyMessage: '今日暂无推荐',
+        emptyMessage: _needLogin ? '登录后查看每日推荐' : '今日暂无推荐',
         errorMessage: _error,
         onRetry: _load,
         child: Column(
@@ -119,14 +138,16 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                         Text(dateLabel, style: KugoTypography.section),
                         const SizedBox(height: 4),
                         Text(
-                          '今日主题 · $mood',
+                          _subtitle,
                           style: KugoTypography.caption,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${_tracks.length} 首',
+                          _personalized
+                              ? '${_tracks.length} 首 · 个性化推荐'
+                              : '${_tracks.length} 首',
                           style: KugoTypography.caption.copyWith(
                             color: KugoColors.textTertiary,
                           ),
@@ -149,6 +170,23 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                 ],
               ),
             ),
+            if (_needLogin && _tracks.isEmpty && !_loading)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  KugoSpacing.lg,
+                  KugoSpacing.sm,
+                  KugoSpacing.lg,
+                  0,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/login'),
+                    icon: const Icon(Icons.login_rounded, size: 18),
+                    label: const Text('去登录，获取个性化每日推荐'),
+                  ),
+                ),
+              ),
             Expanded(
               child: ListView.builder(
                 physics: const BouncingScrollPhysics(

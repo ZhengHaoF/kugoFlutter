@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/api/kugo_client.dart';
 import '../../core/api/kugo_sign.dart';
 import '../../core/api/network_log.dart';
+import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../data/storage/device_identity.dart';
 import '../../features/auth/auth_token_holder.dart';
@@ -75,6 +76,73 @@ class PlayRepository {
         validateStatus: (c) => c != null && c >= 200 && c < 500,
       ),
     );
+  }
+
+  /// 查询歌曲可用音质（mobilecdn `/api/v3/song/info` → `extra` 字段）。
+  /// 失败返回 null。
+  Future<({List<RelateGood> goods, bool catalogComplete})?> fetchRelateGoods(
+    Track track,
+  ) async {
+    final hash = track.hash.trim().toLowerCase();
+    if (hash.isEmpty) return null;
+    try {
+      final res = await _dio.get<dynamic>(
+        'http://mobilecdn.kugou.com/api/v3/song/info',
+        queryParameters: {
+          'hash': hash,
+          if (track.albumId.isNotEmpty) 'album_id': track.albumId,
+          'format': 'json',
+        },
+      );
+      final decoded = decodeKugoBody(res.data?.toString() ?? '');
+      if (decoded is! Map) return null;
+      final map = Map<String, dynamic>.from(decoded);
+      final data = map['data'];
+      final payload = data is Map
+          ? Map<String, dynamic>.from(data)
+          : <String, dynamic>{};
+      final complete = payload.containsKey('relate_goods') ||
+          payload.containsKey('relateGoods') ||
+          map.containsKey('relate_goods') ||
+          map.containsKey('relateGoods');
+      final goods = AudioQualityUtil.buildRelateGoods({
+        ...map,
+        ...payload,
+        'extra': payload['extra'] ?? map['extra'],
+      });
+      return (goods: goods, catalogComplete: complete);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 向下兼容解析：按候选音质依次请求 `/v5/url`，返回首次成功结果。
+  Future<ResolvedAudio?> resolveUrlWithFallback(
+    Track track, {
+    required List<String> qualityCandidates,
+    String? ppageId,
+  }) async {
+    final candidates = qualityCandidates.isEmpty
+        ? <String>['128']
+        : qualityCandidates;
+    ResolvedAudio? best;
+    String? firstError;
+    for (final q in candidates) {
+      final resolved = await resolveUrl(track, quality: q, ppageId: ppageId);
+      if (resolved != null) {
+        best = ResolvedAudio(
+          url: resolved.url,
+          backupUrls: resolved.backupUrls,
+          quality: q,
+        );
+        break;
+      }
+      firstError ??= lastError;
+    }
+    if (best == null && firstError != null && firstError.isNotEmpty) {
+      lastError = firstError;
+    }
+    return best;
   }
 
   Future<ResolvedAudio?> resolveUrl(
@@ -213,10 +281,11 @@ class PlayRepository {
       final status = map['status'] ?? 0;
       final urls = _extractUrls(map);
       if (urls.isNotEmpty) {
+        final reported = _extractQuality(map) ?? (quality.isEmpty ? '128' : quality);
         return ResolvedAudio(
           url: urls.first,
           backupUrls: urls.skip(1).toList(),
-          quality: quality.isEmpty ? '128k' : quality,
+          quality: reported,
         );
       }
 
@@ -238,6 +307,38 @@ class PlayRepository {
       lastError = e.message ?? '网络错误';
       return null;
     }
+  }
+
+  /// Best-effort quality token from `/v5/url` payload.
+  String? _extractQuality(Map<String, dynamic> map) {
+    Object? node = map['data'] is Map ? map['data'] : map;
+    if (node is! Map) return null;
+    final m = Map<String, dynamic>.from(node);
+    for (final key in ['quality', 'Quality', 'extname', 'fileHead']) {
+      final v = m[key];
+      if (v == null || v is Map || v is List) continue;
+      final t = v.toString().trim().toLowerCase();
+      if (t.isEmpty || t == 'null') continue;
+      // extname flac/mp3 → rough map when quality missing
+      if (key == 'extname') {
+        if (t == 'flac') return 'flac';
+        if (t == 'mp3') return null;
+      }
+      if (key == 'fileHead') continue;
+      return t;
+    }
+    final qualityObj = m['quality'];
+    if (qualityObj is Map) {
+      final qm = Map<String, dynamic>.from(qualityObj);
+      for (final k in ['value', 'name', 'type', 'id']) {
+        final v = qm[k];
+        if (v != null && v is! Map && v is! List) {
+          final t = v.toString().trim();
+          if (t.isNotEmpty && t != 'null') return t;
+        }
+      }
+    }
+    return null;
   }
 
   List<String> _extractUrls(Map<String, dynamic> map) {

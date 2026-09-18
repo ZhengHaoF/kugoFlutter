@@ -7,9 +7,11 @@ import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/lyrics_view.dart';
+import '../../shared/widgets/quality_sheet.dart';
 
 class FullPlayerPage extends ConsumerStatefulWidget {
   const FullPlayerPage({super.key});
@@ -464,23 +466,46 @@ class _CollapsedPlayerBody extends StatelessWidget {
             ? constraints.maxHeight
             : MediaQuery.sizeOf(context).height;
         final showError = player.display == PlayerDisplayState.error;
-        // Exact chrome budget — never let fixed rows exceed bottomH.
+        // Bottom chrome (meta / progress / controls) stays pinned.
         const metaH = 56.0;
         const sliderH = 48.0;
         const timeH = 22.0;
         const controlsH = 64.0;
         const padTop = KugoSpacing.sm;
-        final chromeH =
-            padTop + metaH + (showError ? 56 : 0) + sliderH + timeH + controlsH;
-        final lyricsH = 56.0;
-        final minBottom = chromeH + lyricsH;
-        var bottomH = (bodyH * 0.44).clamp(minBottom, bodyH * 0.52);
-        if (bottomH < minBottom) bottomH = minBottom;
-        if (bottomH > bodyH - 72) bottomH = (bodyH - 72).clamp(minBottom, bodyH);
-        final coverH = (bodyH - bottomH).clamp(72.0, bodyH);
+        const padBottom = 20.0;
+        final bottomH = padTop +
+            metaH +
+            (showError ? 56 : 0) +
+            sliderH +
+            timeH +
+            controlsH +
+            padBottom;
+        final upperH = (bodyH - bottomH).clamp(120.0, bodyH);
+        // Lyrics sit directly under the cover; split remaining upper space.
+        final coverH = (upperH * 0.62).clamp(72.0, upperH - 48);
+        final lyricsH = upperH - coverH;
+
+        Widget lyrics() {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onExpandLyrics,
+            onVerticalDragEnd: (d) {
+              final v = d.primaryVelocity ?? 0;
+              if (v < -200) onExpandLyrics();
+            },
+            child: ClipRect(
+              child: LyricsView(
+                compact: true,
+                lines: player.lyrics,
+                positionMs: player.positionMs,
+              ),
+            ),
+          );
+        }
 
         return Column(
           children: [
+            // 1) Album cover
             SizedBox(
               height: coverH,
               child: Center(
@@ -513,6 +538,15 @@ class _CollapsedPlayerBody extends StatelessWidget {
                 ),
               ),
             ),
+            // 2) Lyrics — right under the cover
+            SizedBox(
+              height: lyricsH,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                child: lyrics(),
+              ),
+            ),
+            // 3) Track meta + progress + controls
             SizedBox(
               height: bottomH,
               child: Padding(
@@ -520,7 +554,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                   KugoSpacing.lg,
                   padTop,
                   KugoSpacing.lg,
-                  0,
+                  padBottom,
                 ),
                 child: Column(
                   children: [
@@ -608,23 +642,6 @@ class _CollapsedPlayerBody extends StatelessWidget {
                       compact: false,
                       height: controlsH,
                     ),
-                    Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: onExpandLyrics,
-                        onVerticalDragEnd: (d) {
-                          final v = d.primaryVelocity ?? 0;
-                          if (v < -200) onExpandLyrics();
-                        },
-                        child: ClipRect(
-                          child: LyricsView(
-                            compact: true,
-                            lines: player.lyrics,
-                            positionMs: player.positionMs,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -683,12 +700,48 @@ class _TrackMetaRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              QualityBadge(
-                label: track.isVip ? 'VIP' : track.quality,
-                gradient: track.isVip,
-              ),
+              _PlayerQualityChip(track: track),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 播放页可点音质徽章：显示实际解析音质，点击打开切换 sheet。
+class _PlayerQualityChip extends ConsumerWidget {
+  const _PlayerQualityChip({required this.track});
+
+  final Track track;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final player = ref.watch(playerControllerProvider);
+    final preferred = ref.watch(settingsControllerProvider).quality;
+    final resolved = player.resolvedQuality;
+    final display =
+        track.isVip ? 'VIP' : (resolved ?? preferred).badge;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => showQualitySheet(context, ref),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QualityBadge(
+              label: display,
+              gradient: track.isVip,
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.unfold_more_rounded,
+              size: 12,
+              color: KugoColors.textSecondary,
+            ),
+          ],
         ),
       ),
     );
@@ -767,10 +820,7 @@ class _ExpandedLyricsBody extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  QualityBadge(
-                    label: track.isVip ? 'VIP' : track.quality,
-                    gradient: track.isVip,
-                  ),
+                  _PlayerQualityChip(track: track),
                 ],
               ),
             ),
@@ -808,7 +858,7 @@ class _ExpandedLyricsBody extends ConsumerWidget {
               KugoSpacing.lg,
               4,
               KugoSpacing.lg,
-              KugoSpacing.sm,
+              20,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

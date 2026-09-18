@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -121,6 +122,27 @@ class TrackTile extends StatelessWidget {
   final bool isPlaying;
   final int? index;
 
+  /// Catalog quality chip for lists: highest known tag, hide plain SD/SQ-default.
+  static String? _listQualityBadge(Track track) {
+    final available = track.availableQualities;
+    if (available.isNotEmpty) {
+      if (available.length == 1 && available.contains(AppQuality.standard)) {
+        return null;
+      }
+      for (final q in const [
+        AppQuality.hiRes,
+        AppQuality.sq,
+        AppQuality.hq,
+      ]) {
+        if (available.contains(q)) return q.badge;
+      }
+      return null;
+    }
+    final raw = track.quality.trim();
+    if (raw.isEmpty || raw == 'SQ' || raw == 'SD') return null;
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context) {
     final titleStyle = KugoTypography.body.copyWith(
@@ -202,9 +224,9 @@ class TrackTile extends StatelessWidget {
                       if (track.isVip) ...[
                         const SizedBox(width: 6),
                         const QualityBadge(label: 'VIP', gradient: true),
-                      ] else if (track.quality != 'SQ') ...[
+                      ] else if (_listQualityBadge(track) != null) ...[
                         const SizedBox(width: 6),
-                        QualityBadge(label: track.quality),
+                        QualityBadge(label: _listQualityBadge(track)!),
                       ],
                     ],
                   ),

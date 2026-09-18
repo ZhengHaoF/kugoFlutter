@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../data/repositories/lyric_repository.dart';
 import '../../data/repositories/play_repository.dart';
@@ -26,6 +27,7 @@ class PlayerState {
     this.lyrics = const [],
     this.errorCode = '',
     this.seq = 0,
+    this.resolvedQuality,
   });
 
   final List<Track> queue;
@@ -37,6 +39,9 @@ class PlayerState {
   final List<LyricLine> lyrics;
   final String errorCode;
   final int seq;
+
+  /// 实际解析出的音质（EchoMusic resolved quality）；null = 尚未解析成功。
+  final AppQuality? resolvedQuality;
 
   Track? get current =>
       queue.isEmpty || currentIndex < 0 || currentIndex >= queue.length
@@ -59,6 +64,7 @@ class PlayerState {
     List<LyricLine>? lyrics,
     String? errorCode,
     int? seq,
+    AppQuality? Function()? resolvedQuality,
   }) {
     return PlayerState(
       queue: queue ?? this.queue,
@@ -70,6 +76,9 @@ class PlayerState {
       lyrics: lyrics ?? this.lyrics,
       errorCode: errorCode ?? this.errorCode,
       seq: seq ?? this.seq,
+      resolvedQuality: resolvedQuality != null
+          ? resolvedQuality()
+          : this.resolvedQuality,
     );
   }
 }
@@ -265,8 +274,37 @@ class PlayerController extends Notifier<PlayerState> {
 
     _stopDemoTick();
     _sourceReady = false;
-    final quality = ref.read(settingsControllerProvider).qualityParam;
-    final resolved = await _playRepo.resolveUrl(track, quality: quality);
+
+    var liveTrack = track;
+    if (liveTrack.hasHash && liveTrack.availableQualities.isEmpty) {
+      final fetched = await _playRepo.fetchRelateGoods(liveTrack);
+      if (seq != state.seq) return;
+      final goods = fetched?.goods;
+      if (goods != null && goods.isNotEmpty) {
+        final available = AudioQualityUtil.availableFromGoods(goods);
+        liveTrack = liveTrack
+            .copyWith(
+              relateGoods: goods,
+              availableQualities: available,
+              qualityCatalogComplete: fetched?.catalogComplete ?? false,
+            )
+            .withAvailableQualities(available);
+        _patchCurrentTrack(liveTrack);
+      }
+    }
+
+    final preferred =
+        ref.read(settingsControllerProvider).quality;
+    final candidates = AudioQualityUtil.resolveCandidates(
+      preferred: preferred,
+      available: liveTrack.availableQualities,
+      compatibilityMode: true,
+      catalogComplete: liveTrack.qualityCatalogComplete,
+    );
+    final resolved = await _playRepo.resolveUrlWithFallback(
+      liveTrack,
+      qualityCandidates: [for (final q in candidates) q.param],
+    );
     if (seq != state.seq) return;
 
     if (resolved == null) {
@@ -309,14 +347,62 @@ class PlayerController extends Notifier<PlayerState> {
       // User paused while URL was resolving — stop engine, keep paused icon.
       unawaited(_engine.pause());
       _sourceReady = true;
-      state = state.copyWith(display: PlayerDisplayState.paused);
-      _syncBridge(track: track);
+      state = state.copyWith(
+        display: PlayerDisplayState.paused,
+        resolvedQuality: () => resolved.qualityEnum,
+      );
+      _syncBridge(track: liveTrack);
       return;
     }
     _failStreak = 0;
     _sourceReady = true;
-    state = state.copyWith(display: PlayerDisplayState.playing);
-    _syncBridge(track: track);
+    state = state.copyWith(
+      display: PlayerDisplayState.playing,
+      resolvedQuality: () => resolved.qualityEnum,
+    );
+    _syncBridge(track: liveTrack);
+  }
+
+  void _patchCurrentTrack(Track updated) {
+    final q = state.queue.toList();
+    if (state.currentIndex < 0 || state.currentIndex >= q.length) return;
+    q[state.currentIndex] = updated;
+    state = state.copyWith(queue: List.unmodifiable(q));
+  }
+
+  /// Resolve + load the current track into the engine (cold start / failed source).
+  Future<void> reloadCurrent() => _reloadCurrent();
+
+  /// 播放页切换音质：写入默认偏好并立即重载当前曲（对齐 EchoMusic）。
+  Future<void> applyQuality(AppQuality quality) async {
+    final settings = ref.read(settingsControllerProvider.notifier);
+    await settings.setQuality(quality);
+    if (state.current == null) return;
+    // Preserve play intent: if currently paused, stay paused after reload.
+    await _reloadCurrent();
+  }
+
+  /// 打开音质 sheet 前懒加载当前曲可用音质；已知则跳过。
+  Future<Set<AppQuality>> ensureCurrentQualities({bool forceRefresh = false}) async {
+    final track = state.current;
+    if (track == null || !track.hasHash) return const {};
+    if (!forceRefresh && track.availableQualities.isNotEmpty) {
+      return track.availableQualities;
+    }
+    final fetched = await _playRepo.fetchRelateGoods(track);
+    if (fetched == null) return track.availableQualities;
+    final goods = fetched.goods;
+    final available = AudioQualityUtil.availableFromGoods(goods);
+    if (available.isEmpty) return track.availableQualities;
+    final updated = track
+        .copyWith(
+          relateGoods: goods,
+          availableQualities: available,
+          qualityCatalogComplete: fetched.catalogComplete,
+        )
+        .withAvailableQualities(available);
+    _patchCurrentTrack(updated);
+    return updated.availableQualities;
   }
 
   Future<void> _loadLyrics(Track track, int seq) async {
@@ -374,6 +460,7 @@ class PlayerController extends Notifier<PlayerState> {
       positionMs: 0,
       errorCode: '',
       seq: seq,
+      resolvedQuality: () => null,
     );
     _syncBridge();
     await _loadCurrent(seq: seq);

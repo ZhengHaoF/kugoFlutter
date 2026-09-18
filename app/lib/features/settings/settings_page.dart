@@ -33,7 +33,10 @@ class SettingsPage extends ConsumerWidget {
             children: [
               ListTile(
                 title: Text('默认音质', style: KugoTypography.body),
-                subtitle: Text(settings.qualityLabel, style: KugoTypography.caption),
+                subtitle: Text(
+                  '${settings.qualityLabel} · 新歌默认按此解析，播放中可切换',
+                  style: KugoTypography.caption,
+                ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _pickQuality(context, ref),
               ),
@@ -158,12 +161,7 @@ class SettingsPage extends ConsumerWidget {
           for (final q in AppQuality.values)
             ListTile(
               title: Text(
-                switch (q) {
-                  AppQuality.standard => '标准',
-                  AppQuality.hq => '高品',
-                  AppQuality.sq => '无损',
-                  AppQuality.hiRes => 'Hi-Res',
-                },
+                q.label,
                 style: KugoTypography.body,
               ),
               trailing: q == current

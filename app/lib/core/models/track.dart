@@ -1,3 +1,5 @@
+import 'audio_quality.dart';
+
 class Track {
   const Track({
     required this.id,
@@ -11,6 +13,9 @@ class Track {
     this.mixSongId = '',
     this.quality = 'SQ',
     this.isVip = false,
+    this.availableQualities = const {},
+    this.relateGoods = const [],
+    this.qualityCatalogComplete = false,
   });
 
   final String id;
@@ -24,6 +29,13 @@ class Track {
   final String mixSongId;
   final String quality;
   final bool isVip;
+
+  /// 已知可播音质；**空集合 = 未知**（不禁用选项，播放时向下 resolve）。
+  final Set<AppQuality> availableQualities;
+  final List<RelateGood> relateGoods;
+
+  /// true = 接口给出了完整音质目录（relate_goods）；false = 仅从 hash 字段推断。
+  final bool qualityCatalogComplete;
 
   String get durationLabel {
     final total = Duration(milliseconds: durationMs);
@@ -46,6 +58,9 @@ class Track {
     String? mixSongId,
     String? quality,
     bool? isVip,
+    Set<AppQuality>? availableQualities,
+    List<RelateGood>? relateGoods,
+    bool? qualityCatalogComplete,
   }) {
     return Track(
       id: id ?? this.id,
@@ -59,6 +74,9 @@ class Track {
       mixSongId: mixSongId ?? this.mixSongId,
       quality: quality ?? this.quality,
       isVip: isVip ?? this.isVip,
+      availableQualities: availableQualities ?? this.availableQualities,
+      relateGoods: relateGoods ?? this.relateGoods,
+      qualityCatalogComplete: qualityCatalogComplete ?? this.qualityCatalogComplete,
     );
   }
 }
@@ -97,7 +115,11 @@ class ResolvedAudio {
 
   final String url;
   final List<String> backupUrls;
+
+  /// 请求或响应中的音质 token（128/320/flac/hires…）。
   final String quality;
 
   List<String> get allUrls => [url, ...backupUrls];
+
+  AppQuality? get qualityEnum => AudioQualityUtil.parseQualityToken(quality);
 }

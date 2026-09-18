@@ -5,9 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/cache/cover_cache.dart';
+import '../../core/models/audio_quality.dart';
 import '../../data/storage/queue_store.dart';
 
-enum AppQuality { standard, hq, sq, hiRes }
+export '../../core/models/audio_quality.dart' show AppQuality, AppQualityX;
 
 enum SleepTimerMode { off, m15, m30, m60, custom }
 
@@ -50,20 +51,10 @@ class AppSettings {
         SleepTimerMode.custom => sleepCustomMinutes,
       };
 
-  String get qualityLabel => switch (quality) {
-        AppQuality.standard => '标准',
-        AppQuality.hq => '高品',
-        AppQuality.sq => '无损',
-        AppQuality.hiRes => 'Hi-Res',
-      };
+  String get qualityLabel => quality.label;
 
   /// 概念版 `/v5/url` 的 quality 参数（song_url.js：quality || 128）。
-  String get qualityParam => switch (quality) {
-        AppQuality.standard => '128',
-        AppQuality.hq => '320',
-        AppQuality.sq => 'flac',
-        AppQuality.hiRes => 'hires',
-      };
+  String get qualityParam => quality.param;
 
   AppSettings copyWith({
     AppQuality? quality,

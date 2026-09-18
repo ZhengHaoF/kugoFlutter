@@ -1,3 +1,4 @@
+import '../models/audio_quality.dart';
 import '../models/track.dart';
 
 String _s(Object? v, [String fallback = '']) {
@@ -66,9 +67,25 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
   final duration = _i(json['duration']) * 1000;
   final albumId = _s(json['album_id']);
   final albumName = _s(json['album_name'], _s(json['albumname']));
-  final privilege = json['privilege'];
-  final isVip = privilege is Map ? _i(privilege['vip_type']) > 0 : false;
   final coverRaw = _pickCover(json);
+  final goods = AudioQualityUtil.buildRelateGoods(json);
+  final available = AudioQualityUtil.availableFromGoods(goods);
+  // Mobile search: hash + 320hash + sqhash + privilege/pay_type flags.
+  if (available.isEmpty && hash.isNotEmpty) {
+    available.add(AppQuality.standard);
+  }
+  final catalogComplete =
+      json.containsKey('relate_goods') || json.containsKey('relateGoods');
+  final isVip = _isVipFromJson(json);
+  final highest = available.isEmpty
+      ? null
+      : (available.contains(AppQuality.hiRes)
+          ? 'Hi-Res'
+          : available.contains(AppQuality.sq)
+              ? 'SQ'
+              : available.contains(AppQuality.hq)
+                  ? 'HQ'
+                  : 'SD');
 
   return Track(
     id: id.isEmpty ? hash : id,
@@ -84,8 +101,24 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
       json['mixsongid'],
       _s(json['album_audio_id'], _s(json['audio_id'], id)),
     ),
+    quality: highest ?? _s(json['quality'], 'SQ'),
     isVip: isVip,
+    availableQualities: available.isEmpty ? const {} : Set.of(available),
+    relateGoods: goods,
+    qualityCatalogComplete: catalogComplete,
   );
+}
+
+bool _isVipFromJson(Map<String, dynamic> json) {
+  final privilege = json['privilege'];
+  if (privilege is Map) {
+    return _i(privilege['vip_type']) > 0 || _i(privilege['privilege']) >= 10;
+  }
+  final p = _i(privilege);
+  if (p >= 10) return true;
+  // EchoMusic: privilege===10 && payType===3 → VIP paid.
+  final payType = _i(json['pay_type'] ?? json['payType']);
+  return payType == 3 && p > 0;
 }
 
 PlaylistBrief mapPlaylistInfo(Map<String, dynamic> json) {
@@ -120,4 +153,188 @@ String formatCount(int n) {
     return '${(n / 10000).toStringAsFixed(1)}万';
   }
   return '$n';
+}
+
+Map<String, dynamic> _asMap(Object? v) =>
+    v is Map ? Map<String, dynamic>.from(v) : const <String, dynamic>{};
+
+Object? _pick(List<Object?> values, List<String> keys) {
+  // Key-major: first non-empty value for each key, across source priority.
+  for (final key in keys) {
+    for (final source in values) {
+      if (source is! Map) continue;
+      final map = Map<String, dynamic>.from(source);
+      final v = map[key];
+      if (v == null || v is Map || v is List) continue;
+      final t = v.toString().trim();
+      if (t.isEmpty || t == 'null') continue;
+      return v;
+    }
+  }
+  return null;
+}
+
+String _joinSingers(List<dynamic> singers) {
+  return singers
+      .map((e) {
+        if (e is Map) return _s(e['name'] ?? e['singername'] ?? e['author_name']);
+        return _s(e);
+      })
+      .where((s) => s.isNotEmpty)
+      .join('/');
+}
+
+/// EchoMusic processSongTitle: drop leading `artist - ` from filenames.
+String processSongTitle(String raw) {
+  if (raw.contains(' - ')) {
+    final parts = raw.split(' - ');
+    if (parts.length > 1) {
+      return parts.sublist(1).join(' - ').trim();
+    }
+  }
+  return raw;
+}
+
+/// EchoMusic extractors.ts — everyday/recommend list shapes vary by platform.
+List<dynamic> extractEverydayList(dynamic body) {
+  if (body is List) return body;
+  if (body is! Map) return const [];
+  final map = Map<String, dynamic>.from(body);
+  final data = _asMap(map['data']);
+  final info = _asMap(map['info']);
+  final songs = _asMap(data['songs']);
+  final candidates = <Object?>[
+    data['special_list'],
+    data['list'],
+    data['info'],
+    data['song_list'],
+    data['songlist'],
+    data['songs'],
+    songs['list'],
+    songs['songs'],
+    info['list'],
+    info['songs'],
+    info['songlist'],
+    map['special_list'],
+    map['list'],
+    map['info'],
+    map['song_list'],
+    map['songlist'],
+    map['songs'],
+    map['data'],
+  ];
+  for (final candidate in candidates) {
+    if (candidate is List) return candidate;
+  }
+  return const [];
+}
+
+/// Flatten everyday_song_recommend song objects (base/audio_info/…).
+Track mapEverydaySong(Map<String, dynamic> json) {
+  final base = _asMap(json['base']);
+  final audioInfo = _asMap(json['audio_info']);
+  final recInfo = _asMap(json['rec_song_info']);
+  final albumInfo = _asMap(json['album_info'] ?? json['albuminfo']);
+  final sources = <Object?>[json, base, audioInfo, recInfo, albumInfo];
+
+  final hash = _s(
+    _pick(sources, ['hash', 'hash_128', 'FileHash']),
+  ).toLowerCase();
+  final mixSongId = _s(
+    _pick(sources, [
+      'mixsongid',
+      'MixSongID',
+      'album_audio_id',
+      'audio_id',
+    ]),
+  );
+  final audioId = _s(_pick(sources, ['audio_id', 'songid', 'song_id']));
+
+  String artist = _s(_pick(sources, [
+    'author_name',
+    'singername',
+    'AuthorName',
+  ]));
+  if (artist.isEmpty) {
+    for (final source in sources) {
+      if (source is! Map) continue;
+      final map = Map<String, dynamic>.from(source);
+      final singers = map['singer'] ?? map['singers'];
+      if (singers is List && singers.isNotEmpty) {
+        artist = _joinSingers(singers);
+        if (artist.isNotEmpty) break;
+      }
+    }
+  }
+
+  final rawName = processSongTitle(
+    _s(
+      _pick(sources, [
+        'songname',
+        'audio_name',
+        'name',
+        'filename',
+      ]),
+      '未知歌曲',
+    ),
+  );
+
+  final timeLength = _i(_pick(sources, ['time_length']));
+  final durationRaw = timeLength != 0
+      ? timeLength
+      : _i(_pick(sources, ['timelength', 'duration']));
+  // time_length is already ms; plain duration is usually seconds.
+  final durationMs =
+      timeLength != 0 || durationRaw > 10000 ? durationRaw : durationRaw * 1000;
+
+  final isVip = _isVipFromJson(json);
+
+  final coverRaw = _s(_pick(sources, [
+    'album_sizable_cover',
+    'sizable_cover',
+    'cover',
+    'pic',
+    'img',
+    'imgurl',
+  ]));
+  final trans = _asMap(json['trans_param']);
+  final transCover = _s(trans['union_cover']);
+
+  final goods = <RelateGood>[
+    for (final src in sources)
+      if (src is Map) ...AudioQualityUtil.buildRelateGoods(Map<String, dynamic>.from(src)),
+  ];
+  final available = AudioQualityUtil.availableFromGoods(goods);
+  if (available.isEmpty && hash.isNotEmpty) available.add(AppQuality.standard);
+  final highest = available.isEmpty
+      ? null
+      : (available.contains(AppQuality.hiRes)
+          ? 'Hi-Res'
+          : available.contains(AppQuality.sq)
+              ? 'SQ'
+              : available.contains(AppQuality.hq)
+                  ? 'HQ'
+                  : 'SD');
+
+  return Track(
+    id: mixSongId.isNotEmpty ? mixSongId : (audioId.isNotEmpty ? audioId : hash),
+    name: rawName,
+    artist: artist.isEmpty ? '未知歌手' : artist,
+    album: _s(_pick(sources, ['album_name', 'albumname', 'AlbumName'])),
+    coverUrl: normalizeCoverUrl(
+      coverRaw.isNotEmpty
+          ? coverRaw
+          : (transCover.isNotEmpty ? transCover : hash),
+    ),
+    durationMs: durationMs,
+    hash: hash,
+    albumId: _s(_pick(sources, ['album_id', 'albumid', 'AlbumID'])),
+    mixSongId: mixSongId.isNotEmpty
+        ? mixSongId
+        : _s(_pick(sources, ['audio_id', 'album_audio_id'])),
+    quality: highest ?? 'SQ',
+    isVip: isVip,
+    availableQualities: available.isEmpty ? const {} : Set.of(available),
+    relateGoods: goods,
+  );
 }

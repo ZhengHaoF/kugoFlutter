@@ -29,6 +29,12 @@ abstract final class KugoEndpoints {
   static const rankList = '/api/v3/rank/list';
   static const rankInfo = '/api/v3/rank/info';
 
+  /// Personalized daily recommend (KuGouMusicApi everyday_recommend.js).
+  /// POST gateway + header `x-router: everydayrec.service.kugou.com`.
+  static const gateway = 'https://gateway.kugou.com';
+  static const everydayRecommend = '/everyday_song_recommend';
+  static const everydayRouter = 'everydayrec.service.kugou.com';
+
   /// Song play data (wwwapi).
   static const playData = '/yy/index.php';
 

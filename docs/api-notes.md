@@ -25,7 +25,8 @@ App 已识别该 HTML 并抛出「网络网关拦截」，首页/发现会显示
 
 | 用途 | URL | 参数要点 |
 | --- | --- | --- |
-| 搜索单曲 | `mobilecdn.kugou.com/api/v3/search/song` | `format=json&keyword=&page=&pagesize=&showtype=1` |
+| 搜索单曲 | `mobilecdn.kugou.com/api/v3/search/song` | `format=json&keyword=&page=&pagesize=&showtype=1`；返回 `hash`/`320hash`/`sqhash`/`privilege`/`pay_type*` |
+| 单曲音质 | `mobilecdn.kugou.com/api/v3/song/info` | `hash=&album_id=&format=json` → `data.extra.{128,320,sq}hash` + privilege（播放页懒加载） |
 | 热搜 | `.../api/v3/search/hot` | `format=json&plat=0&count=` |
 | 歌单详情 | `.../api/v3/playlist/info` | `specialid=&page=&pagesize=&format=json` |
 | 榜单列表 | `.../api/v3/rank/list` | `format=json&plat=0` |
@@ -108,6 +109,19 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 | `/api/v3/rank/list` | 可用（首页 Hero / 推荐卡兜底数据源） |
 | `/api/v3/search/song` | 可用 |
 | `/api/v3/search/hot` | 可用 |
+
+### 每日推荐（对齐 EchoMusic / KuGouMusicApi）
+
+| 项 | 值 |
+| --- | --- |
+| 模块 | `module/everyday_recommend.js` |
+| 端点 | `POST https://gateway.kugou.com/everyday_song_recommend` |
+| 路由头 | `x-router: everydayrec.service.kugou.com` |
+| 平台 | lite（`appid=3116` `clientver=11440`），query `platform=ios` |
+| 鉴权 | Cookie + query：`token`/`userid`（登录）+ `dfid`/`mid`/`guid` |
+| 签名 | android：`signatureAndroidParams(params, data: '')` |
+| 响应列表 | `data.list` / `data.songs.list` / `special_list` 等（`extractEverydayList`） |
+| 回落 | 接口失败/未登录时仍用公开榜单+心情词歌池 |
 
 ## 探测脚本
 

@@ -62,7 +62,7 @@ void main() {
     expect(container.read(playerControllerProvider).isPlaying, isFalse);
   });
 
-  test('engine playing=true updates display (no stuck loading)', () async {
+  test('user pause wins over late engine playing=true', () async {
     final engine = FakeAudioPlayer();
     final container = ProviderContainer(
       overrides: [
@@ -78,10 +78,11 @@ void main() {
     expect(container.read(playerControllerProvider).display,
         PlayerDisplayState.paused);
 
+    // Late engine event must not flip the icon against explicit pause.
     await engine.play();
     expect(container.read(playerControllerProvider).display,
-        PlayerDisplayState.playing);
-    expect(container.read(playerControllerProvider).isLoading, isFalse);
+        PlayerDisplayState.paused);
+    expect(container.read(playerControllerProvider).isPlaying, isFalse);
   });
 
   test('demo track toggle after pause resumes without resolve', () async {
