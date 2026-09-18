@@ -28,7 +28,7 @@ flutter build apk --release
 # 产物: build\app\outputs\flutter-apk\app-release.apk
 ```
 
-当前 release 使用 **debug 签名**（便于侧载调试）。正式发布请配置 `key.properties` + 自有 keystore，并改 `build.gradle.kts` 的 `signingConfig`。
+当前已配置 **正式签名**（`android/key.properties` + `upload-keystore.jks`，均不入库）。若需 debug 签名侧载，临时移走 `key.properties` 再构建。详见 [docs/release-signing.md](docs/release-signing.md)。
 
 ## 模块
 
@@ -48,8 +48,11 @@ lib/
 - [x] 游客优先；登录：酷狗扫码 / 手机验证码 / 账号密码（真实网关，失败不造假会话）
 - [x] 私人 FM、我喜欢、播放历史、设置、网络日志调试
 - [x] 每日推荐页（按日轮换公开歌池）、排行榜列表页
-- [x] Release APK（54MB，debug 签名）
-- [ ] M4：集成冒烟、性能调优、正式签名
+- [x] 歌曲详情 + 评论（cmtlist / album_audio_id）
+- [x] M2 真机验收：搜索 → 出声 → 锁屏 → 杀进程恢复队列
+- [x] M4：正式签名 Release APK（`key.properties` + keystore，勿提交）
+- [x] M4：性能主观验收（MuMu 冷启动/滚动/切歌）
+- [ ] 可选：Drift 本地库、歌词画廊抛光、真机性能复测
 
 ### 网络说明
 

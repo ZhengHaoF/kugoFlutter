@@ -60,6 +60,37 @@ App 行为：
 
 **歌词**：download 返回 JSON，`content` 为 **base64 LRC**；只取前 2 个候选，避免刷日志。
 
+## 设备身份（dfid）与风控 20028
+
+2026-09 实测：**未在酷狗注册过的 dfid 会被风控接口拒绝**。
+
+| 请求带的 dfid | `/mcomment/v1/cmtlist` 结果 |
+| --- | --- |
+| 未注册（本地随机，任意长度/格式） | `status=0 err_code=20028` + 响应头 `ssa-code: bj_tx_event_...` |
+| `-`（官方匿名值） | `status=1 err_code=0`，正常返回 |
+| `/risk/v2/r_register_dev` 注册得到的真 dfid | `status=1 err_code=0`，正常返回 |
+
+结论：跟 dfid 的**格式**无关，只跟「服务端认不认这个设备」有关。
+
+App 行为（`lib/data/storage/device_identity.dart`）：
+
+1. 首次启动 POST `https://userservice.kugou.com/risk/v2/r_register_dev` 注册设备，
+   拿真 dfid 存本地（`lib/data/repositories/device_repository.dart`，移植自
+   KuGouMusicApi `module/register_dev.js`）。
+2. 注册失败 → 退化成 `-`（评论等风控接口同样接受）。
+3. 失败后 6 小时内不再重试，避免拖慢启动。
+
+注意点：
+
+- 注册用的 AES 与 `cryptoAesEncrypt` **不同**：key 为随机 6 位小写，
+  `encKey=md5(key)[0:16]`、`iv=md5(key)[16:32]`，输出 base64（`KugoCrypto.playlistAesEncrypt`）。
+- `p` 参数用 **RSAES-PKCS1-V1_5**（`KugoCrypto.rsaEncryptPkcs1`），不是裸 RSA。
+- 签名要把请求体（那段 base64）拼进去：`signatureAndroidParams(params, data: body)`。
+- 播放地址 `/v5/url` **不受影响**：`song_url.js` 本来就用每次随机的 dfid。
+
+`ssa-code` 只在**响应头**里，body 里没有；`SongDetailRepository.lastSsaCode` 会记录它，
+并写进 App 内网络日志，方便以后排查风控问题。
+
 ## 响应形态（映射层）
 
 - **Content-Type 常为 `text/html`**，body 却是 JSON：客户端必须 `jsonDecode` 字符串体（`KugoClient.getJson` 已处理）。

@@ -79,6 +79,55 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDECi0Np2UR87scwrvTr72L6oO01rBbbBPriSDFPxr3
     }
   }
 
+  /// AES-CBC + PKCS7, **base64** output, random 6-char lowercase key.
+  /// Matches KuGouMusicApi `playlistAesEncrypt`:
+  /// key=md5(tempKey)[0:16], iv=md5(tempKey)[16:32].
+  static ({String str, String key}) playlistAesEncrypt(String data) {
+    final tempKey = randomAlnum(6, lower: true);
+    final digest = md5Hex(tempKey);
+    final encrypter = encrypt_pkg.Encrypter(
+      encrypt_pkg.AES(
+        encrypt_pkg.Key.fromUtf8(digest.substring(0, 16)),
+        mode: encrypt_pkg.AESMode.cbc,
+        padding: 'PKCS7',
+      ),
+    );
+    final encrypted = encrypter.encrypt(
+      data,
+      iv: encrypt_pkg.IV.fromUtf8(digest.substring(16, 32)),
+    );
+    return (str: base64.encode(encrypted.bytes), key: tempKey);
+  }
+
+  /// Reverse of [playlistAesEncrypt]. Returns null when key/body is invalid.
+  static String? playlistAesDecrypt(String base64Body, String tempKey) {
+    try {
+      final digest = md5Hex(tempKey);
+      final encrypter = encrypt_pkg.Encrypter(
+        encrypt_pkg.AES(
+          encrypt_pkg.Key.fromUtf8(digest.substring(0, 16)),
+          mode: encrypt_pkg.AESMode.cbc,
+          padding: 'PKCS7',
+        ),
+      );
+      return encrypter.decrypt(
+        encrypt_pkg.Encrypted(base64.decode(base64Body)),
+        iv: encrypt_pkg.IV.fromUtf8(digest.substring(16, 32)),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// RSAES-PKCS1-V1_5, hex output — matches forge `rsaEncrypt2` in crypto.js.
+  static String rsaEncryptPkcs1(String data, {String pem = liteRsaPem}) {
+    final key = _parseRsaPem(pem);
+    final engine = PKCS1Encoding(RSAEngine())
+      ..init(true, PublicKeyParameter<RSAPublicKey>(key));
+    final out = engine.process(Uint8List.fromList(utf8.encode(data)));
+    return _bytesToHex(out);
+  }
+
   /// Raw RSA (no PKCS padding) — matches forge `rsaRawEncrypt` in crypto.js.
   static String rsaEncryptRaw(String data, {String pem = liteRsaPem}) {
     final key = _parseRsaPem(pem);

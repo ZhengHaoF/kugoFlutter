@@ -15,11 +15,15 @@ class CoverBox extends StatelessWidget {
 
   /// Image URL, or any string used as a color-seed fallback.
   final String seed;
+
+  /// Edge length. Use `0` or `double.infinity` to fill the parent box.
   final double size;
   final double radius;
   final Widget? child;
 
-  bool get _fillsParent => size <= 0;
+  /// Infinite/NaN/<=0 all mean "size to parent" — never pass infinity to
+  /// Image.network/SizedBox (release builds gray-out the whole player).
+  bool get _fillsParent => size <= 0 || size.isInfinite || size.isNaN;
 
   bool get _isNetwork {
     final s = seed.trim();
@@ -44,7 +48,14 @@ class CoverBox extends StatelessWidget {
         decoration: fallback,
         child: child == null ? null : Center(child: child),
       );
-      if (_fillsParent) return box;
+      if (_fillsParent) {
+        return SizedBox.expand(
+          child: DecoratedBox(
+            decoration: fallback,
+            child: child == null ? null : Center(child: child),
+          ),
+        );
+      }
       return SizedBox(width: size, height: size, child: box);
     }
 

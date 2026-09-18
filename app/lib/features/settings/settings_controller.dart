@@ -40,6 +40,14 @@ class AppSettings {
         AppQuality.hiRes => 'Hi-Res',
       };
 
+  /// 概念版 `/v5/url` 的 quality 参数（song_url.js：quality || 128）。
+  String get qualityParam => switch (quality) {
+        AppQuality.standard => '128',
+        AppQuality.hq => '320',
+        AppQuality.sq => 'flac',
+        AppQuality.hiRes => 'hires',
+      };
+
   AppSettings copyWith({
     AppQuality? quality,
     SleepTimerMode? sleepMode,

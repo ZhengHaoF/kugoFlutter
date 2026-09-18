@@ -7,6 +7,7 @@ import '../../core/models/track.dart';
 import '../../data/repositories/lyric_repository.dart';
 import '../../data/repositories/play_repository.dart';
 import '../../data/storage/queue_store.dart';
+import '../settings/settings_controller.dart';
 import 'audio_player_port.dart';
 import 'just_audio_player.dart';
 
@@ -88,6 +89,13 @@ class PlayerController extends Notifier<PlayerState> {
   QueueStore? _store;
   int _seq = 0;
   int _failStreak = 0;
+  /// True once this session has a playable engine source for the current track.
+  /// Cold-start restore fills the queue but not the engine — play must resolve URL first.
+  bool _sourceReady = false;
+  /// User/system intent: should audio be playing? Engine events must not flip
+  /// the pause/play icon against this (late `playing=true` after user pause).
+  bool _wantPlaying = false;
+  DateTime? _ignoreEnginePlayUntil;
   Timer? _demoTimer;
   Timer? _sleepTimer;
   int _sleepDeadlineMs = 0;
@@ -99,18 +107,31 @@ class PlayerController extends Notifier<PlayerState> {
       state = state.copyWith(positionMs: pos.inMilliseconds);
       _bridge?.updatePosition(pos);
     });
-    // Keep UI icon in sync with the real engine (just_audio) playing flag.
+    // Sync play/pause UI from engine, but never override an explicit pause.
     _playingSub = _engine.playingStream.listen((playing) {
-      if (state.display == PlayerDisplayState.loading ||
-          state.display == PlayerDisplayState.error ||
+      if (state.display == PlayerDisplayState.error ||
           state.display == PlayerDisplayState.idle) {
+        return;
+      }
+      if (!_wantPlaying) {
+        // User paused (or restored idle) — keep icon on play.
+        if (state.display == PlayerDisplayState.playing) {
+          state = state.copyWith(display: PlayerDisplayState.paused);
+          _syncBridge();
+        }
+        return;
+      }
+      final ignoreUntil = _ignoreEnginePlayUntil;
+      if (ignoreUntil != null && DateTime.now().isBefore(ignoreUntil)) {
         return;
       }
       if (playing && state.display != PlayerDisplayState.playing) {
         state = state.copyWith(display: PlayerDisplayState.playing);
         _syncBridge();
       } else if (!playing && state.display == PlayerDisplayState.playing) {
+        // Engine stopped while we still want audio (e.g. completed handled elsewhere).
         state = state.copyWith(display: PlayerDisplayState.paused);
+        _wantPlaying = false;
         _syncBridge();
       }
     });
@@ -138,6 +159,9 @@ class PlayerController extends Notifier<PlayerState> {
   void clearQueue() {
     _stopDemoTick();
     _seq++;
+    _sourceReady = false;
+    _wantPlaying = false;
+    _ignoreEnginePlayUntil = null;
     state = const PlayerState();
   }
 
@@ -158,6 +182,9 @@ class PlayerController extends Notifier<PlayerState> {
         );
         final index = saved.index.clamp(0, tracks.length - 1);
         final seq = ++_seq;
+        _sourceReady = false;
+        _wantPlaying = false;
+        _ignoreEnginePlayUntil = null;
         state = state.copyWith(
           queue: List.unmodifiable(tracks),
           currentIndex: index,
@@ -184,6 +211,9 @@ class PlayerController extends Notifier<PlayerState> {
     if (tracks.isEmpty) return;
     final index = startIndex.clamp(0, tracks.length - 1);
     final seq = ++_seq;
+    _sourceReady = false;
+    _wantPlaying = true;
+    _ignoreEnginePlayUntil = null;
     state = state.copyWith(
       queue: List.unmodifiable(tracks),
       currentIndex: index,
@@ -219,11 +249,14 @@ class PlayerController extends Notifier<PlayerState> {
     if (track == null) return;
     if (seq != state.seq) return;
 
+    _wantPlaying = true;
+    _ignoreEnginePlayUntil = null;
     state = state.copyWith(display: PlayerDisplayState.loading, errorCode: '');
     _syncBridge();
     unawaited(_loadLyrics(track, seq));
 
     if (!track.hasHash) {
+      _wantPlaying = true;
       state = state.copyWith(display: PlayerDisplayState.playing);
       _startDemoTick();
       _syncBridge(track: track);
@@ -231,7 +264,9 @@ class PlayerController extends Notifier<PlayerState> {
     }
 
     _stopDemoTick();
-    final resolved = await _playRepo.resolveUrl(track);
+    _sourceReady = false;
+    final quality = ref.read(settingsControllerProvider).qualityParam;
+    final resolved = await _playRepo.resolveUrl(track, quality: quality);
     if (seq != state.seq) return;
 
     if (resolved == null) {
@@ -270,7 +305,16 @@ class PlayerController extends Notifier<PlayerState> {
       _onPlayError(message: msg);
       return;
     }
+    if (!_wantPlaying) {
+      // User paused while URL was resolving — stop engine, keep paused icon.
+      unawaited(_engine.pause());
+      _sourceReady = true;
+      state = state.copyWith(display: PlayerDisplayState.paused);
+      _syncBridge(track: track);
+      return;
+    }
     _failStreak = 0;
+    _sourceReady = true;
     state = state.copyWith(display: PlayerDisplayState.playing);
     _syncBridge(track: track);
   }
@@ -290,24 +334,56 @@ class PlayerController extends Notifier<PlayerState> {
     final track = state.current;
     if (track == null) return;
     if (state.isPlaying) {
+      // Intent first so late engine playing=true cannot flip the icon back.
+      _wantPlaying = false;
+      _ignoreEnginePlayUntil =
+          DateTime.now().add(const Duration(milliseconds: 600));
       if (track.hasHash) {
         unawaited(_engine.pause());
       }
       _stopDemoTick();
       state = state.copyWith(display: PlayerDisplayState.paused);
-    } else {
-      if (track.hasHash) {
-        unawaited(_engine.play());
-      } else {
-        _startDemoTick();
-      }
-      state = state.copyWith(display: PlayerDisplayState.playing);
+      _syncBridge();
+      return;
     }
+    _wantPlaying = true;
+    _ignoreEnginePlayUntil = null;
+    if (track.hasHash && !_sourceReady) {
+      // Restored queue after cold start: engine has no URL — resolve first.
+      unawaited(_reloadCurrent());
+      return;
+    }
+    if (track.hasHash) {
+      unawaited(_engine.play());
+    } else {
+      _startDemoTick();
+    }
+    state = state.copyWith(display: PlayerDisplayState.playing);
     _syncBridge();
+  }
+
+  /// Resolve + load the current track into the engine (cold start / failed source).
+  Future<void> _reloadCurrent() async {
+    if (state.current == null) return;
+    final seq = ++_seq;
+    _sourceReady = false;
+    _wantPlaying = true;
+    _ignoreEnginePlayUntil = null;
+    state = state.copyWith(
+      display: PlayerDisplayState.loading,
+      positionMs: 0,
+      errorCode: '',
+      seq: seq,
+    );
+    _syncBridge();
+    await _loadCurrent(seq: seq);
   }
 
   Future<void> next() async {
     if (state.queue.isEmpty) return;
+    _sourceReady = false;
+    _wantPlaying = true;
+    _ignoreEnginePlayUntil = null;
     var index = state.currentIndex + 1;
     if (index >= state.queue.length) {
       if (state.mode == PlayerLoopMode.order) {
@@ -341,6 +417,9 @@ class PlayerController extends Notifier<PlayerState> {
 
   Future<void> previous() async {
     if (state.queue.isEmpty) return;
+    _sourceReady = false;
+    _wantPlaying = true;
+    _ignoreEnginePlayUntil = null;
     var index = state.currentIndex - 1;
     if (index < 0) index = state.queue.length - 1;
     final seq = ++_seq;

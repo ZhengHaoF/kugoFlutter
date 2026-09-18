@@ -79,7 +79,11 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
     durationMs: duration,
     hash: hash,
     albumId: albumId,
-    mixSongId: _s(json['mixsongid'], id),
+    // Comments/play prefer album_audio_id; search often omits mixsongid.
+    mixSongId: _s(
+      json['mixsongid'],
+      _s(json['album_audio_id'], _s(json['audio_id'], id)),
+    ),
     isVip: isVip,
   );
 }

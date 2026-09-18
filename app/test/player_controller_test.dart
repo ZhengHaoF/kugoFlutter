@@ -61,4 +61,44 @@ void main() {
     controller.togglePlay();
     expect(container.read(playerControllerProvider).isPlaying, isFalse);
   });
+
+  test('engine playing=true updates display (no stuck loading)', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+
+    await controller.playQueue([_t('a')]);
+    controller.togglePlay();
+    expect(container.read(playerControllerProvider).display,
+        PlayerDisplayState.paused);
+
+    await engine.play();
+    expect(container.read(playerControllerProvider).display,
+        PlayerDisplayState.playing);
+    expect(container.read(playerControllerProvider).isLoading, isFalse);
+  });
+
+  test('demo track toggle after pause resumes without resolve', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+
+    await controller.playQueue([_t('a')]);
+    controller.togglePlay();
+    expect(container.read(playerControllerProvider).isPlaying, isFalse);
+    controller.togglePlay();
+    expect(container.read(playerControllerProvider).isPlaying, isTrue);
+  });
 }

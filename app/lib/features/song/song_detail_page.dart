@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../data/repositories/search_repository.dart';
 import '../../data/repositories/song_detail_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -41,6 +42,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   String _error = '';
   int _page = 1;
   bool _hasMore = true;
+  String? _resolvedMixId;
 
   Track get _track => Track(
         id: widget.id,
@@ -50,13 +52,87 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
         coverUrl: widget.coverUrl,
         durationMs: widget.durationMs,
         hash: widget.hash,
-        mixSongId: widget.mixSongId,
+        mixSongId: _resolvedMixId ?? widget.mixSongId,
       );
 
   @override
   void initState() {
     super.initState();
     _load(reset: true);
+  }
+
+  /// cmtlist needs album_audio_id as mixsongid (NOT audio_id).
+  /// EchoMusic: mixSongId || resourceId, with search-backed detailSong.
+  Future<List<String>> _mixSongIdCandidates() async {
+    final out = <String>[];
+    void add(String? v) {
+      if (v == null) return;
+      var s = v.trim();
+      if (s.isEmpty || s == '0' || s.toLowerCase() == 'null') return;
+      // Hash-like values are never valid mixsongid.
+      if (s.length >= 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(s)) return;
+      if (!out.contains(s)) out.add(s);
+    }
+
+    final name = widget.name.trim();
+    final artist = widget.artist.trim();
+    final hash = widget.hash.trim().toLowerCase();
+
+    // Prefer live search album_audio_id — old queue stores audio_id.
+    Future<void> searchOnce(String keyword) async {
+      if (keyword.isEmpty) return;
+      try {
+        final hits = await searchRepository.searchSongs(keyword, pageSize: 10);
+        Track? byHash;
+        Track? byNameArtist;
+        Track? byName;
+        for (final t in hits) {
+          if (hash.isNotEmpty &&
+              t.hash.isNotEmpty &&
+              t.hash.toLowerCase() == hash) {
+            byHash = t;
+            break;
+          }
+        }
+        for (final t in hits) {
+          final nOk = name.isEmpty || t.name == name;
+          final aOk = artist.isEmpty ||
+              t.artist.contains(artist) ||
+              artist.contains(t.artist);
+          if (nOk && aOk) {
+            byNameArtist = t;
+            break;
+          }
+        }
+        for (final t in hits) {
+          if (name.isNotEmpty && t.name == name) {
+            byName = t;
+            break;
+          }
+        }
+        final match = byHash ??
+            byNameArtist ??
+            byName ??
+            (hits.isNotEmpty ? hits.first : null);
+        if (match != null) {
+          add(match.mixSongId);
+          _resolvedMixId ??= match.mixSongId;
+        }
+        // Also collect other album_audio_ids for the same title (covers/Live).
+        for (final t in hits) {
+          if (name.isNotEmpty && t.name.startsWith(name)) add(t.mixSongId);
+        }
+      } catch (_) {}
+    }
+
+    await searchOnce([if (name.isNotEmpty) name, if (artist.isNotEmpty) artist].join(' ').trim());
+    if (out.isEmpty) await searchOnce(name);
+    if (out.isEmpty && hash.isNotEmpty) await searchOnce(hash);
+
+    add(_resolvedMixId);
+    add(widget.mixSongId);
+    add(widget.id);
+    return out;
   }
 
   Future<void> _load({bool reset = false}) async {
@@ -69,18 +145,26 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
         _comments = const [];
       });
     }
-    final mixId = widget.mixSongId.isNotEmpty ? widget.mixSongId : widget.id;
-    final list = await songDetailRepository.fetchComments(
-      mixSongId: mixId,
-      page: _page,
-    );
+
+    final candidates = await _mixSongIdCandidates();
+    var list = const <SongComment>[];
+    var err = '';
+    for (final id in candidates) {
+      list = await songDetailRepository.fetchComments(
+        mixSongId: id,
+        page: _page,
+      );
+      if (list.isNotEmpty) {
+        _resolvedMixId = id;
+        break;
+      }
+      err = songDetailRepository.lastError;
+    }
     if (!mounted) return;
     setState(() {
       _loading = false;
       if (list.isEmpty && _comments.isEmpty) {
-        _error = songDetailRepository.lastError.isEmpty
-            ? '暂无评论'
-            : songDetailRepository.lastError;
+        _error = err.isEmpty ? '暂无评论' : err;
         _hasMore = false;
       } else {
         _comments = reset ? list : [..._comments, ...list];

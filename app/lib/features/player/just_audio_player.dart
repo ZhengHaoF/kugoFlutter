@@ -8,6 +8,8 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
   JustAudioPlayerImpl({AudioPlayer? player})
       : _player = player ?? AudioPlayer() {
     _completionSub = _player.processingStateStream.listen((state) {
+      // Source swap (stop/setUrl) parks in idle — not a load failure.
+      if (_loadingSource) return;
       if (state == ProcessingState.completed) {
         _completion.add(PlayerIdleReason.completed);
       } else if (state == ProcessingState.idle) {
@@ -18,6 +20,7 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
       }
     });
     _player.playbackEventStream.listen((_) {}, onError: (Object e) {
+      if (_loadingSource) return;
       _completion.add(PlayerIdleReason.error);
     });
   }
@@ -26,6 +29,7 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
   final _completion = StreamController<PlayerIdleReason>.broadcast();
   StreamSubscription<ProcessingState>? _completionSub;
   bool _expectingAudio = false;
+  bool _loadingSource = false;
 
   @override
   Stream<Duration> get positionStream => _player.positionStream;
@@ -41,8 +45,11 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
 
   @override
   Future<void> playUrl(String url, {Map<String, String>? headers}) async {
-    _expectingAudio = true;
+    _loadingSource = true;
+    // Intentional stop must not surface as a load error / auto-next.
+    _expectingAudio = false;
     await _player.stop();
+    _expectingAudio = true;
     try {
       if (headers != null && headers.isNotEmpty) {
         await _player.setUrl(url, headers: headers);
@@ -51,6 +58,7 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
       }
     } catch (e) {
       _expectingAudio = false;
+      _loadingSource = false;
       rethrow;
     }
 
@@ -62,21 +70,24 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
             .firstWhere((d) => d != null && d > Duration.zero)
             .timeout(const Duration(seconds: 6));
       } on TimeoutException {
-        _expectingAudio = false;
         // Proceed anyway — progressive stream may still produce audio.
         // Only fail if processing state is clearly idle/error.
         final st = _player.processingState;
         if (st == ProcessingState.idle || st == ProcessingState.completed) {
+          _expectingAudio = false;
+          _loadingSource = false;
           throw StateError('音频源无法加载: ${_host(url)}');
         }
       } on Exception {
         _expectingAudio = false;
+        _loadingSource = false;
         rethrow;
       }
     }
 
     await _player.play();
     _expectingAudio = false;
+    _loadingSource = false;
   }
 
   String _host(String url) {
@@ -96,6 +107,7 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
   @override
   Future<void> stop() {
     _expectingAudio = false;
+    _loadingSource = false;
     return _player.stop();
   }
 

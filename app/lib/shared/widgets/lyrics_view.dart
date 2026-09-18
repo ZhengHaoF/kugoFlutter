@@ -36,13 +36,25 @@ class _LyricsViewState extends State<LyricsView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.compact || widget.lines.isEmpty) return;
+      _lastActive = activeIndex;
+      _scrollToActive();
+    });
+  }
+
+  @override
   void didUpdateWidget(covariant LyricsView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!widget.compact &&
         widget.lines.isNotEmpty &&
-        activeIndex != _lastActive) {
+        (activeIndex != _lastActive || oldWidget.lines.isEmpty)) {
       _lastActive = activeIndex;
-      _scrollToActive();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToActive();
+      });
     }
   }
 
@@ -75,20 +87,28 @@ class _LyricsViewState extends State<LyricsView> {
 
     if (widget.compact) {
       final start = (activeIndex - 1).clamp(0, widget.lines.length - 1);
-      final visible = widget.lines.skip(start).take(3).toList();
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (var i = 0; i < visible.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text(
-                visible[i].text,
-                textAlign: TextAlign.center,
-                style: _lineStyle(start + i == activeIndex),
+      final visible = widget.lines.skip(start).take(2).toList();
+      return ClipRect(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < visible.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: Text(
+                  visible[i].text,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _lineStyle(start + i == activeIndex).copyWith(
+                    fontSize: start + i == activeIndex ? 14 : 13,
+                    height: 1.25,
+                  ),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       );
     }
 

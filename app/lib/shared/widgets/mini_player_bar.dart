@@ -42,22 +42,37 @@ class MiniPlayerBar extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: KugoTypography.body.copyWith(fontSize: 14),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween(
+                            begin: const Offset(0, 0.25),
+                            end: Offset.zero,
+                          ).animate(anim),
+                          child: child,
                         ),
-                        Text(
-                          track.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: KugoTypography.caption,
-                        ),
-                      ],
+                      ),
+                      child: Column(
+                        key: ValueKey(track.id),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            track.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: KugoTypography.body.copyWith(fontSize: 14),
+                          ),
+                          Text(
+                            track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: KugoTypography.caption,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   IconButton(
@@ -72,18 +87,12 @@ class MiniPlayerBar extends ConsumerWidget {
                             height: 22,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 160),
-                            transitionBuilder: (child, anim) =>
-                                ScaleTransition(scale: anim, child: child),
-                            child: Icon(
-                              player.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              key: ValueKey(player.isPlaying),
-                              color: KugoColors.textPrimary,
-                              size: 34,
-                            ),
+                        : Icon(
+                            player.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: KugoColors.textPrimary,
+                            size: 34,
                           ),
                   ),
                   IconButton(
@@ -99,18 +108,23 @@ class MiniPlayerBar extends ConsumerWidget {
             ),
             SizedBox(
               height: 2,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: progress,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          CoverPalette.accentFromSeed(track.coverUrl),
-                          CoverPalette.accentFromSeed(track.coverUrl)
-                              .withValues(alpha: 0.4),
-                        ],
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: progress),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: value.clamp(0.0, 1.0),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            CoverPalette.accentFromSeed(track.coverUrl),
+                            CoverPalette.accentFromSeed(track.coverUrl)
+                                .withValues(alpha: 0.4),
+                          ],
+                        ),
                       ),
                     ),
                   ),

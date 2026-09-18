@@ -15,6 +15,7 @@ class AuthUser {
     this.avatarUrl = '',
     this.isVip = false,
     this.isLocalDemo = false,
+    this.t1 = '',
   });
 
   final String userId;
@@ -23,6 +24,7 @@ class AuthUser {
   final String avatarUrl;
   final bool isVip;
   final bool isLocalDemo;
+  final String t1;
 
   AuthUser copyWith({
     String? userId,
@@ -31,6 +33,7 @@ class AuthUser {
     String? avatarUrl,
     bool? isVip,
     bool? isLocalDemo,
+    String? t1,
   }) {
     return AuthUser(
       userId: userId ?? this.userId,
@@ -39,6 +42,7 @@ class AuthUser {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isVip: isVip ?? this.isVip,
       isLocalDemo: isLocalDemo ?? this.isLocalDemo,
+      t1: t1 ?? this.t1,
     );
   }
 
@@ -49,6 +53,7 @@ class AuthUser {
         'avatarUrl': avatarUrl,
         'isVip': isVip,
         'isLocalDemo': isLocalDemo,
+        't1': t1,
       };
 
   static AuthUser? fromJson(Map<String, dynamic> json) {
@@ -61,6 +66,7 @@ class AuthUser {
       avatarUrl: json['avatarUrl']?.toString() ?? '',
       isVip: json['isVip'] == true,
       isLocalDemo: json['isLocalDemo'] == true,
+      t1: json['t1']?.toString() ?? '',
     );
   }
 }
@@ -127,6 +133,7 @@ class AuthController extends Notifier<AuthState> {
   Timer? _countdownTimer;
   Timer? _qrTimer;
   int _qrGeneration = 0;
+  Completer<void>? _ready;
 
   @override
   AuthState build() {
@@ -134,8 +141,21 @@ class AuthController extends Notifier<AuthState> {
       _countdownTimer?.cancel();
       _qrTimer?.cancel();
     });
-    unawaited(_restore());
+    _ready = Completer<void>();
+    unawaited(
+      _restore().whenComplete(() {
+        final r = _ready;
+        if (r != null && !r.isCompleted) r.complete();
+      }),
+    );
     return const AuthState();
+  }
+
+  /// Wait until local session has been restored into [AuthTokenHolder].
+  Future<void> ensureReady() {
+    final r = _ready;
+    if (r == null) return Future.value();
+    return r.future;
   }
 
   Future<void> _restore() async {
@@ -157,6 +177,7 @@ class AuthController extends Notifier<AuthState> {
           AuthTokenHolder.instance.setSession(
             token: user.token,
             userId: user.userId,
+            t1: user.t1,
           );
           state = AuthState(
             status: LoginStatus.logged,
@@ -395,6 +416,7 @@ class AuthController extends Notifier<AuthState> {
       avatarUrl: avatarUrl,
       isVip: isVip,
       isLocalDemo: false,
+      t1: session.t1,
     );
     state = AuthState(
       status: LoginStatus.logged,

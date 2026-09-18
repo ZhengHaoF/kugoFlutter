@@ -19,9 +19,11 @@ flutter run
 
 ## 当前状态
 
-- M0–M2：深色主题、三 Tab 壳、真源搜索/歌单/专辑/歌手、播放引擎（just_audio + audio_service）、歌词、登录/游客
-- M3：私人 FM、封面取色、设置、我喜欢/历史、每日推荐页、排行榜列表页已完成
-- M4 起步：Release APK（debug 签名）可侧载；集成测试/性能/正式签名待做
+- M0–M3：已完成（UI、真源播放、登录、FM、设置、评论等）
+- M2 真机验收：搜索 → 出声 → 锁屏 → 杀进程恢复队列 已通过
+- M4：正式签名 Release APK 可侧载；性能在模拟器主观验收；analyze 零问题
+
+详见 [工期规划.md](工期规划.md) 与 [app/docs/release-signing.md](app/docs/release-signing.md)。
 
 ## 合规声明
 
