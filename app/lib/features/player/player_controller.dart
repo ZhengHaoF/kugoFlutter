@@ -169,7 +169,7 @@ class PlayerController extends Notifier<PlayerState> {
   Future<void> restoreOrSeed() async {
     try {
       _store = await QueueStore.open();
-      final saved = _store?.loadQueue();
+      final saved = await _store?.loadQueueAsync();
       if (saved != null && saved.queue.isNotEmpty) {
         // Drop legacy mock:// tracks from earlier builds.
         final tracks = saved.queue

@@ -52,7 +52,8 @@ lib/
 - [x] M2 真机验收：搜索 → 出声 → 锁屏 → 杀进程恢复队列
 - [x] M4：正式签名 Release APK（`key.properties` + keystore，勿提交）
 - [x] M4：性能主观验收（MuMu 冷启动/滚动/切歌）
-- [ ] 可选：Drift 本地库、歌词画廊抛光、真机性能复测
+- [x] 本地库：队列/历史使用 **Drift (SQLite)**（自动迁移旧 SharedPreferences）
+- [ ] 可选：歌词画廊抛光、真机性能复测
 
 ### 网络说明
 

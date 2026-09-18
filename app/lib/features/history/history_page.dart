@@ -29,7 +29,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     setState(() => _loading = true);
     try {
       final store = await QueueStore.open();
-      final list = store.loadHistory();
+      final list = await store.loadHistoryAsync();
       if (!mounted) return;
       setState(() {
         _history = list;

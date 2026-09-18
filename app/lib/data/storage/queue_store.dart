@@ -1,114 +1,78 @@
-import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
+import 'kugo_db.dart';
 
-/// Lightweight queue/history persistence (Phase 2; replace with Drift later).
+/// Queue + play-history persistence backed by Drift (SQLite).
+///
+/// Keeps the old sync-looking API used by player/settings/history by
+/// priming in-memory caches on [open] (and after writes).
+/// Legacy SharedPreferences data is imported once.
 class QueueStore {
-  QueueStore(this._prefs);
+  QueueStore._(this._db);
 
-  final SharedPreferences _prefs;
+  final KugoDb _db;
 
-  static const _kQueue = 'player.queue.v1';
-  static const _kIndex = 'player.index.v1';
-  static const _kMode = 'player.mode.v1';
-  static const _kHistory = 'player.history.v1';
+  static KugoDb? _dbCache;
+  static Future<QueueStore>? _opening;
 
-  static Future<QueueStore> open() async {
-    final prefs = await SharedPreferences.getInstance();
-    return QueueStore(prefs);
+  ({List<Track> queue, int index, String mode})? _queueCache;
+  List<Track> _historyCache = const [];
+
+  static Future<QueueStore> open() {
+    return _opening ??= () async {
+      final prefs = await SharedPreferences.getInstance();
+      final db = _dbCache ??= KugoDb();
+      await db.migrateFromPrefs(prefs);
+      final store = QueueStore._(db);
+      await store.prime();
+      return store;
+    }();
+  }
+
+  Future<void> prime() async {
+    try {
+      _queueCache = await _db.readQueue();
+      _historyCache = await _db.readHistory();
+    } catch (_) {
+      _queueCache = null;
+      _historyCache = const [];
+    }
   }
 
   Future<void> saveQueue(List<Track> queue, int index, String mode) async {
-    await _prefs.setString(_kQueue, jsonEncode(queue.map(_encode).toList()));
-    await _prefs.setInt(_kIndex, index);
-    await _prefs.setString(_kMode, mode);
+    await _db.writeQueue(queue, index, mode);
+    _queueCache = (queue: queue, index: index, mode: mode);
   }
 
-  ({List<Track> queue, int index, String mode})? loadQueue() {
-    final raw = _prefs.getString(_kQueue);
-    if (raw == null || raw.isEmpty) return null;
-    try {
-      final list = (jsonDecode(raw) as List)
-          .whereType<Map>()
-          .map((e) => _decode(Map<String, dynamic>.from(e)))
-          .toList();
-      return (
-        queue: list,
-        index: _prefs.getInt(_kIndex) ?? 0,
-        mode: _prefs.getString(_kMode) ?? 'listLoop',
-      );
-    } catch (_) {
-      return null;
-    }
+  /// Sync snapshot (caches filled by [open]/[saveQueue]/[prime]).
+  ({List<Track> queue, int index, String mode})? loadQueue() => _queueCache;
+
+  Future<({List<Track> queue, int index, String mode})?>
+      loadQueueAsync() async {
+    final q = await _db.readQueue();
+    _queueCache = q;
+    return q;
   }
 
   Future<void> appendHistory(Track track) async {
-    final raw = _prefs.getString(_kHistory);
-    final list = <Map<String, dynamic>>[];
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        list.addAll(
-          (jsonDecode(raw) as List)
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e)),
-        );
-      } catch (_) {}
-    }
-    list.removeWhere((e) => e['id'] == track.id);
-    list.insert(0, _encode(track));
-    if (list.length > 200) {
-      list.removeRange(200, list.length);
-    }
-    await _prefs.setString(_kHistory, jsonEncode(list));
+    await _db.appendHistory(track);
+    final next = [track, ..._historyCache.where((t) => t.id != track.id)];
+    _historyCache =
+        next.length > 200 ? next.sublist(0, 200) : List.unmodifiable(next);
   }
 
-  List<Track> loadHistory() {
-    final raw = _prefs.getString(_kHistory);
-    if (raw == null || raw.isEmpty) return const [];
-    try {
-      return (jsonDecode(raw) as List)
-          .whereType<Map>()
-          .map((e) => _decode(Map<String, dynamic>.from(e)))
-          .toList();
-    } catch (_) {
-      return const [];
-    }
+  List<Track> loadHistory() => _historyCache;
+
+  Future<List<Track>> loadHistoryAsync() async {
+    final h = await _db.readHistory();
+    _historyCache = h;
+    return h;
   }
 
   Future<void> clearAll() async {
-    await _prefs.remove(_kQueue);
-    await _prefs.remove(_kIndex);
-    await _prefs.remove(_kMode);
-    await _prefs.remove(_kHistory);
+    await _db.clearAll();
+    _queueCache = null;
+    _historyCache = const [];
   }
-
-  Map<String, dynamic> _encode(Track t) => {
-        'id': t.id,
-        'name': t.name,
-        'artist': t.artist,
-        'album': t.album,
-        'coverUrl': t.coverUrl,
-        'durationMs': t.durationMs,
-        'hash': t.hash,
-        'albumId': t.albumId,
-        'mixSongId': t.mixSongId,
-        'quality': t.quality,
-        'isVip': t.isVip,
-      };
-
-  Track _decode(Map<String, dynamic> j) => Track(
-        id: j['id']?.toString() ?? '',
-        name: j['name']?.toString() ?? '',
-        artist: j['artist']?.toString() ?? '',
-        album: j['album']?.toString() ?? '',
-        coverUrl: j['coverUrl']?.toString() ?? '',
-        durationMs: (j['durationMs'] as num?)?.toInt() ?? 0,
-        hash: j['hash']?.toString() ?? '',
-        albumId: j['albumId']?.toString() ?? '',
-        mixSongId: j['mixSongId']?.toString() ?? '',
-        quality: j['quality']?.toString() ?? 'SQ',
-        isVip: j['isVip'] == true,
-      );
 }
