@@ -81,7 +81,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                   if (brief != null)
                     CoverBox(seed: brief.coverUrl, size: 0, radius: 0)
                   else
-                    const ColoredBox(color: KugoColors.surface),
+                    ColoredBox(color: KugoColors.surface),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(

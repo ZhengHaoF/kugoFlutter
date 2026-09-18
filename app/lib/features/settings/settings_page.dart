@@ -6,6 +6,7 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/debug/network_log_dialog.dart';
 import '../../features/player/player_controller.dart';
+import '../../shared/widgets/common.dart';
 import 'settings_controller.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -31,13 +32,13 @@ class SettingsPage extends ConsumerWidget {
             title: '播放',
             children: [
               ListTile(
-                title: const Text('默认音质', style: KugoTypography.body),
+                title: Text('默认音质', style: KugoTypography.body),
                 subtitle: Text(settings.qualityLabel, style: KugoTypography.caption),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _pickQuality(context, ref),
               ),
               ListTile(
-                title: const Text('定时停止', style: KugoTypography.body),
+                title: Text('定时停止', style: KugoTypography.body),
                 subtitle: Text(
                   settings.sleepMinutes == 0
                       ? '关闭'
@@ -53,12 +54,12 @@ class SettingsPage extends ConsumerWidget {
             title: '歌词与封面',
             children: [
               SwitchListTile(
-                title: const Text('显示翻译', style: KugoTypography.body),
+                title: Text('显示翻译', style: KugoTypography.body),
                 value: settings.lyricTranslation,
                 onChanged: controller.setLyricTranslation,
               ),
               SwitchListTile(
-                title: const Text('仅 Wi-Fi 加载封面', style: KugoTypography.body),
+                title: Text('仅 Wi-Fi 加载封面', style: KugoTypography.body),
                 value: settings.wifiCoverOnly,
                 onChanged: controller.setWifiCoverOnly,
               ),
@@ -90,12 +91,12 @@ class SettingsPage extends ConsumerWidget {
             title: '调试',
             children: [
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.bug_report_outlined,
                   color: KugoColors.textSecondary,
                 ),
-                title: const Text('网络请求日志', style: KugoTypography.body),
-                subtitle: const Text(
+                title: Text('网络请求日志', style: KugoTypography.body),
+                subtitle: Text(
                   '请求/响应/错误 · 测试网络 · 实时探测 · 复制',
                   style: KugoTypography.caption,
                 ),
@@ -108,12 +109,12 @@ class SettingsPage extends ConsumerWidget {
             title: '缓存',
             children: [
               ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.cleaning_services_outlined,
                   color: KugoColors.textSecondary,
                 ),
-                title: const Text('清理图片缓存与播放历史', style: KugoTypography.body),
-                subtitle: const Text(
+                title: Text('清理图片缓存与播放历史', style: KugoTypography.body),
+                subtitle: Text(
                   '不影响登录与我喜欢；队列本地副本会一并清空',
                   style: KugoTypography.caption,
                 ),
@@ -130,7 +131,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           _Section(
             title: '关于',
-            children: const [
+            children: [
               ListTile(
                 title: Text('kugo', style: KugoTypography.body),
                 subtitle: Text(
@@ -148,34 +149,30 @@ class SettingsPage extends ConsumerWidget {
   Future<void> _pickQuality(BuildContext context, WidgetRef ref) async {
     final controller = ref.read(settingsControllerProvider.notifier);
     final current = ref.read(settingsControllerProvider).quality;
-    final selected = await showModalBottomSheet<AppQuality>(
+    final selected = await showKugoBottomSheet<AppQuality>(
       context: context,
-      backgroundColor: KugoColors.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final q in AppQuality.values)
-              ListTile(
-                title: Text(
-                  switch (q) {
-                    AppQuality.standard => '标准',
-                    AppQuality.hq => '高品',
-                    AppQuality.sq => '无损',
-                    AppQuality.hiRes => 'Hi-Res',
-                  },
-                  style: KugoTypography.body,
-                ),
-                trailing: q == current
-                    ? const Icon(Icons.check_rounded, color: KugoColors.primary)
-                    : null,
-                onTap: () => Navigator.pop(context, q),
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          for (final q in AppQuality.values)
+            ListTile(
+              title: Text(
+                switch (q) {
+                  AppQuality.standard => '标准',
+                  AppQuality.hq => '高品',
+                  AppQuality.sq => '无损',
+                  AppQuality.hiRes => 'Hi-Res',
+                },
+                style: KugoTypography.body,
               ),
-          ],
-        ),
+              trailing: q == current
+                  ? Icon(Icons.check_rounded, color: KugoColors.primary)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext, q),
+            ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
     if (selected != null) {
@@ -185,38 +182,34 @@ class SettingsPage extends ConsumerWidget {
 
   Future<void> _pickSleep(BuildContext context, WidgetRef ref) async {
     final controller = ref.read(settingsControllerProvider.notifier);
-    final selected = await showModalBottomSheet<SleepTimerMode>(
+    final selected = await showKugoBottomSheet<SleepTimerMode>(
       context: context,
-      backgroundColor: KugoColors.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text('关闭', style: KugoTypography.body),
-              onTap: () => Navigator.pop(context, SleepTimerMode.off),
-            ),
-            ListTile(
-              title: Text('15 分钟', style: KugoTypography.body),
-              onTap: () => Navigator.pop(context, SleepTimerMode.m15),
-            ),
-            ListTile(
-              title: Text('30 分钟', style: KugoTypography.body),
-              onTap: () => Navigator.pop(context, SleepTimerMode.m30),
-            ),
-            ListTile(
-              title: Text('60 分钟', style: KugoTypography.body),
-              onTap: () => Navigator.pop(context, SleepTimerMode.m60),
-            ),
-            ListTile(
-              title: Text('自定义 45 分钟', style: KugoTypography.body),
-              onTap: () => Navigator.pop(context, SleepTimerMode.custom),
-            ),
-          ],
-        ),
+      builder: (sheetContext) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          ListTile(
+            title: Text('关闭', style: KugoTypography.body),
+            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.off),
+          ),
+          ListTile(
+            title: Text('15 分钟', style: KugoTypography.body),
+            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m15),
+          ),
+          ListTile(
+            title: Text('30 分钟', style: KugoTypography.body),
+            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m30),
+          ),
+          ListTile(
+            title: Text('60 分钟', style: KugoTypography.body),
+            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m60),
+          ),
+          ListTile(
+            title: Text('自定义 45 分钟', style: KugoTypography.body),
+            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.custom),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
     if (selected != null) {

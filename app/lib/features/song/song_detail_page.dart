@@ -339,7 +339,7 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.thumb_up_off_alt_rounded,
                       size: 14,
                       color: KugoColors.textTertiary,

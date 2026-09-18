@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/kugo_theme.dart';
+import 'core/theme/kugo_tokens.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
@@ -17,6 +18,7 @@ import 'features/profile/profile_page.dart';
 import 'features/rank/rank_list_page.dart';
 import 'features/recommend/daily_recommend_page.dart';
 import 'features/search/search_page.dart';
+import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_page.dart';
 import 'features/song/song_detail_page.dart';
 import 'shared/shell/root_shell.dart';
@@ -155,11 +157,34 @@ class KugoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
+    final settings = ref.watch(settingsControllerProvider);
+    final mode = settings.materialThemeMode;
+    final platform = View.of(context).platformDispatcher.platformBrightness;
+    final resolved = switch (mode) {
+      ThemeMode.dark => Brightness.dark,
+      ThemeMode.light => Brightness.light,
+      ThemeMode.system => platform,
+    };
+    final palette = kugoPaletteFor(resolved);
+    KugoThemeBinding.apply(palette);
+    applyKugoSystemUi(resolved);
+
     return MaterialApp.router(
       title: 'kugo',
       debugShowCheckedModeBanner: false,
-      theme: buildKugoTheme(),
+      themeMode: mode,
+      theme: buildKugoTheme(Brightness.light),
+      darkTheme: buildKugoTheme(Brightness.dark),
       routerConfig: router,
+      builder: (context, child) {
+        // Re-apply on every navigator build; rebuild leaves when brightness flips.
+        final brightness = Theme.of(context).brightness;
+        KugoThemeBinding.apply(kugoPaletteFor(brightness));
+        return KeyedSubtree(
+          key: ValueKey('kugo-brightness-$brightness'),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

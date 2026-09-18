@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/likes/likes_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 
@@ -48,7 +49,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         140,
       ),
       children: [
-        const Text('我的', style: KugoTypography.greeting),
+        Text('我的', style: KugoTypography.greeting),
         const SizedBox(height: KugoSpacing.lg),
         GlassSurface(
           padding: const EdgeInsets.all(KugoSpacing.lg),
@@ -108,7 +109,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       color: KugoColors.textSecondary,
                     ),
@@ -191,12 +192,87 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
               const _LinkTile(icon: Icons.timer_outlined, title: '定时停止'),
               const _LinkTile(icon: Icons.music_note_rounded, title: '音质设置'),
-              const _LinkTile(icon: Icons.palette_outlined, title: '主题外观'),
+              _LinkTile(
+                icon: Icons.palette_outlined,
+                title: '主题外观',
+                onTap: () => _showThemeSheet(context),
+              ),
               const _LinkTile(icon: Icons.info_outline_rounded, title: '关于'),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showThemeSheet(BuildContext context) {
+    showKugoBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final current = ref.watch(settingsControllerProvider).themeMode;
+            Widget tile(
+              AppThemeMode value,
+              IconData icon,
+              String title,
+              String sub,
+            ) {
+              final selected = current == value;
+              return ListTile(
+                leading: Icon(
+                  icon,
+                  color: selected
+                      ? KugoColors.primary
+                      : KugoColors.textSecondary,
+                ),
+                title: Text(title, style: KugoTypography.body),
+                subtitle: Text(sub, style: KugoTypography.caption),
+                trailing: selected
+                    ? Icon(Icons.check_rounded, color: KugoColors.primary)
+                    : null,
+                onTap: () async {
+                  await ref
+                      .read(settingsControllerProvider.notifier)
+                      .setThemeMode(value);
+                  if (sheetContext.mounted) {
+                    setSheetState(() {});
+                    Navigator.of(sheetContext).pop();
+                  }
+                },
+              );
+            }
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Text('主题外观', style: KugoTypography.section),
+                const SizedBox(height: 8),
+                tile(
+                  AppThemeMode.dark,
+                  Icons.dark_mode_rounded,
+                  '深色',
+                  '概念版默认深色',
+                ),
+                tile(
+                  AppThemeMode.light,
+                  Icons.light_mode_rounded,
+                  '浅色',
+                  '浅色完整适配',
+                ),
+                tile(
+                  AppThemeMode.system,
+                  Icons.brightness_auto_rounded,
+                  '跟随系统',
+                  '随系统深浅色切换',
+                ),
+                const SizedBox(height: 12),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -257,7 +333,7 @@ class _EntryTile extends StatelessWidget {
       ),
       title: Text(title, style: KugoTypography.body),
       subtitle: Text(subtitle, style: KugoTypography.caption),
-      trailing: const Icon(
+      trailing: Icon(
         Icons.chevron_right_rounded,
         color: KugoColors.textTertiary,
       ),
@@ -278,7 +354,7 @@ class _LinkTile extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: KugoColors.textSecondary),
       title: Text(title, style: KugoTypography.body),
-      trailing: const Icon(
+      trailing: Icon(
         Icons.chevron_right_rounded,
         color: KugoColors.textTertiary,
       ),

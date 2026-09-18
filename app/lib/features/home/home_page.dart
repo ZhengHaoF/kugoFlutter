@@ -242,7 +242,7 @@ class _DailyEntryTile extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 color: KugoColors.textSecondary,
               ),
@@ -271,7 +271,7 @@ class _SearchPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(
             children: [
-              const Icon(Icons.search_rounded, color: KugoColors.textSecondary),
+              Icon(Icons.search_rounded, color: KugoColors.textSecondary),
               const SizedBox(width: 10),
               Text(
                 '搜索歌曲、歌手、专辑',

@@ -20,90 +20,107 @@ class MiniPlayerBar extends ConsumerWidget {
         ? 0.0
         : (player.positionMs / player.durationMs).clamp(0.0, 1.0);
 
+    final isLight = KugoThemeBinding.palette.isLight;
+
     return Material(
-      color: KugoColors.surfaceElevated,
-      elevation: 8,
+      color: KugoColors.surface,
+      elevation: isLight ? 1.5 : 8,
+      shadowColor: isLight
+          ? Colors.black.withValues(alpha: 0.08)
+          : Colors.black.withValues(alpha: 0.45),
       child: InkWell(
         onTap: () => context.push('/player'),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-              child: Row(
-                children: [
-                  Hero(
-                    tag: 'player-cover-${track.id}',
-                    child: CoverBox(
-                      seed: track.coverUrl,
-                      size: 44,
-                      radius: 10,
+            Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: KugoColors.divider),
+                  bottom: BorderSide(color: KugoColors.divider),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                child: Row(
+                  children: [
+                    Hero(
+                      tag: 'player-cover-${track.id}',
+                      child: CoverBox(
+                        seed: track.coverUrl,
+                        size: 44,
+                        radius: 10,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      switchInCurve: Curves.easeOutCubic,
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween(
-                            begin: const Offset(0, 0.25),
-                            end: Offset.zero,
-                          ).animate(anim),
-                          child: child,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween(
+                              begin: const Offset(0, 0.25),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: Column(
+                          key: ValueKey(track.id),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              track.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  KugoTypography.body.copyWith(fontSize: 14),
+                            ),
+                            Text(
+                              track.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: KugoTypography.caption,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        key: ValueKey(track.id),
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            track.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: KugoTypography.body.copyWith(fontSize: 14),
-                          ),
-                          Text(
-                            track.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: KugoTypography.caption,
-                          ),
-                        ],
+                    ),
+                    IconButton(
+                      onPressed: player.isLoading
+                          ? null
+                          : () => ref
+                              .read(playerControllerProvider.notifier)
+                              .togglePlay(),
+                      icon: player.isLoading
+                          ? SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: KugoColors.primary,
+                              ),
+                            )
+                          : Icon(
+                              player.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              color: KugoColors.primary,
+                              size: 34,
+                            ),
+                    ),
+                    IconButton(
+                      onPressed: () =>
+                          ref.read(playerControllerProvider.notifier).next(),
+                      icon: Icon(
+                        Icons.skip_next_rounded,
+                        color: KugoColors.textSecondary,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: player.isLoading
-                        ? null
-                        : () => ref
-                            .read(playerControllerProvider.notifier)
-                            .togglePlay(),
-                    icon: player.isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            player.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: KugoColors.textPrimary,
-                            size: 34,
-                          ),
-                  ),
-                  IconButton(
-                    onPressed: () =>
-                        ref.read(playerControllerProvider.notifier).next(),
-                    icon: const Icon(
-                      Icons.skip_next_rounded,
-                      color: KugoColors.textSecondary,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             SizedBox(

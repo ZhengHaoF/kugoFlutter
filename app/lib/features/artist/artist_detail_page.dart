@@ -78,7 +78,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                   if (artist != null)
                     CoverBox(seed: artist.avatarUrl, size: 0, radius: 0)
                   else
-                    const ColoredBox(color: KugoColors.surface),
+                    ColoredBox(color: KugoColors.surface),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(

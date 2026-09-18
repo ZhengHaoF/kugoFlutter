@@ -78,9 +78,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         parent: AlwaysScrollableScrollPhysics(),
       ),
       slivers: [
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               KugoSpacing.lg,
               KugoSpacing.xl,
               KugoSpacing.lg,
@@ -98,7 +98,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               child: InkWell(
                 onTap: () => context.push('/search'),
                 borderRadius: BorderRadius.circular(KugoRadius.chip),
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   child: Row(
                     children: [
@@ -160,33 +160,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
           )
         else ...[
-          if (_hot.isNotEmpty)
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 52,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: KugoSpacing.lg,
-                    vertical: KugoSpacing.sm,
-                  ),
-                  itemCount: _hot.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    return ActionChip(
-                      label: Text(_hot[index]),
-                      backgroundColor: KugoColors.surface,
-                      labelStyle: KugoTypography.caption.copyWith(fontSize: 13),
-                      side: BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(KugoRadius.chip),
-                      ),
-                      onPressed: () => context.push('/search'),
-                    );
-                  },
-                ),
-              ),
-            ),
           if (_rankings.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SectionHeader(

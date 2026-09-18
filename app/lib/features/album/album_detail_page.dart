@@ -77,7 +77,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                   if (album != null)
                     CoverBox(seed: album.coverUrl, size: 0, radius: 0)
                   else
-                    const ColoredBox(color: KugoColors.surface),
+                    ColoredBox(color: KugoColors.surface),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(

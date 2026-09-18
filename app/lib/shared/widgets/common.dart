@@ -59,7 +59,7 @@ class SectionHeader extends StatelessWidget {
                     style: KugoTypography.caption.copyWith(fontSize: 13),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     size: 16,
                     color: KugoColors.textSecondary,
@@ -90,7 +90,7 @@ class QualityBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
           color: KugoColors.textPrimary,
@@ -159,7 +159,7 @@ class TrackTile extends StatelessWidget {
                         color: Colors.black.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(KugoRadius.cover),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.equalizer_rounded,
                         color: KugoColors.primary,
                         size: 22,
@@ -329,14 +329,60 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final light = KugoThemeBinding.palette.isLight;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
         color: KugoColors.surface,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: KugoColors.divider),
+        boxShadow: light
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: child,
     );
   }
+}
+
+/// Themed bottom sheet chrome — background follows the **current** palette
+/// (do not pass KugoColors into showModalBottomSheet.backgroundColor).
+class KugoSheetChrome extends StatelessWidget {
+  const KugoSheetChrome({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: KugoColors.surfaceElevated,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border.all(color: KugoColors.divider),
+      ),
+      child: child,
+    );
+  }
+}
+
+Future<T?> showKugoBottomSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool isScrollControlled = false,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    isScrollControlled: isScrollControlled,
+    builder: (sheetContext) => KugoSheetChrome(
+      child: SafeArea(child: builder(sheetContext)),
+    ),
+  );
 }

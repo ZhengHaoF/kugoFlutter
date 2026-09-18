@@ -69,7 +69,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                   icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
                     '暂无播放内容\n去搜索或歌单里点一首歌',
@@ -276,67 +276,61 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
   void _showQueueSheet(BuildContext context, WidgetRef ref) {
     final player = ref.read(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
-    showModalBottomSheet<void>(
+    showKugoBottomSheet<void>(
       context: context,
-      backgroundColor: KugoColors.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: KugoColors.textTertiary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      builder: (sheetContext) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: KugoColors.textTertiary,
+                borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(height: 16),
-              Text(
-                '播放队列 · ${player.queue.length} 首',
-                style: KugoTypography.section.copyWith(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: player.queue.length,
-                  itemBuilder: (context, index) {
-                    final track = player.queue[index];
-                    final isCurrent = index == player.currentIndex;
-                    return ListTile(
-                      title: Text(
-                        track.name,
-                        style: KugoTypography.body.copyWith(
-                          color: isCurrent
-                              ? KugoColors.primary
-                              : KugoColors.textPrimary,
-                        ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '播放队列 · ${player.queue.length} 首',
+              style: KugoTypography.section.copyWith(fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: player.queue.length,
+                itemBuilder: (context, index) {
+                  final track = player.queue[index];
+                  final isCurrent = index == player.currentIndex;
+                  return ListTile(
+                    title: Text(
+                      track.name,
+                      style: KugoTypography.body.copyWith(
+                        color: isCurrent
+                            ? KugoColors.primary
+                            : KugoColors.textPrimary,
                       ),
-                      subtitle:
-                          Text(track.artist, style: KugoTypography.caption),
-                      trailing: isCurrent
-                          ? const Icon(
-                              Icons.equalizer_rounded,
-                              color: KugoColors.primary,
-                              size: 18,
-                            )
-                          : null,
-                      onTap: () {
-                        controller.playQueue(player.queue, startIndex: index);
-                        Navigator.of(context).pop();
-                      },
-                    );
-                  },
-                ),
+                    ),
+                    subtitle:
+                        Text(track.artist, style: KugoTypography.caption),
+                    trailing: isCurrent
+                        ? Icon(
+                            Icons.equalizer_rounded,
+                            color: KugoColors.primary,
+                            size: 18,
+                          )
+                        : null,
+                    onTap: () {
+                      controller.playQueue(player.queue, startIndex: index);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -399,7 +393,7 @@ class _TopBar extends StatelessWidget {
                         ),
                       ],
                     )
-                  : const Text(
+                  : Text(
                       key: ValueKey('playing-title'),
                       '正在播放',
                       textAlign: TextAlign.center,
@@ -909,7 +903,7 @@ class _ControlBar extends ConsumerWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               onPressed: controller.previous,
-              icon: const Icon(
+              icon: Icon(
                 Icons.skip_previous_rounded,
                 size: 32,
                 color: KugoColors.textPrimary,
@@ -918,7 +912,7 @@ class _ControlBar extends ConsumerWidget {
             Container(
               width: playSize,
               height: playSize,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: KugoColors.accentGradient,
                 shape: BoxShape.circle,
               ),
@@ -946,7 +940,7 @@ class _ControlBar extends ConsumerWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               onPressed: controller.next,
-              icon: const Icon(
+              icon: Icon(
                 Icons.skip_next_rounded,
                 size: 32,
                 color: KugoColors.textPrimary,

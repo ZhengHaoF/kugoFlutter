@@ -137,9 +137,9 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
                   children: [
                     IconButton(
                       onPressed: () => context.pop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
+                      icon: Icon(Icons.arrow_back_rounded),
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         '私人 FM',
                         textAlign: TextAlign.center,
@@ -321,18 +321,19 @@ class _CircleAction extends StatelessWidget {
     required this.onTap,
     this.label,
     this.large = false,
-    this.accent = KugoColors.primary,
+    this.accent,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final String? label;
   final bool large;
-  final Color accent;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final size = large ? 72.0 : 52.0;
+    final tone = accent ?? KugoColors.primary;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -346,7 +347,7 @@ class _CircleAction extends StatelessWidget {
               shape: BoxShape.circle,
               gradient: large
                   ? LinearGradient(
-                      colors: [accent, accent.withValues(alpha: 0.7)],
+                      colors: [tone, tone.withValues(alpha: 0.7)],
                     )
                   : null,
               color: large ? null : KugoColors.surface.withValues(alpha: 0.75),

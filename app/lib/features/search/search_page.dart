@@ -104,7 +104,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 hintStyle: KugoTypography.caption,
                 filled: true,
                 fillColor: KugoColors.surface,
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
                   color: KugoColors.textSecondary,
                 ),

@@ -292,24 +292,7 @@ class _DockItem extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 2),
-            // Dock indicator dot
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 180),
-              opacity: selected ? 1 : 0,
-              child: Transform.scale(
-                scale: selected ? (0.85 + 0.25 * (scale - 1.0).clamp(0, 0.5)) : 0.6,
-                child: Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                    color: KugoColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               label,
               maxLines: 1,

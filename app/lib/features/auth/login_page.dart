@@ -87,7 +87,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ListView(
               padding: const EdgeInsets.all(KugoSpacing.xl),
               children: [
-                const Text('手机验证码登录', style: KugoTypography.section),
+                Text('手机验证码登录', style: KugoTypography.section),
                 const SizedBox(height: 8),
                 Text(
                   '使用酷狗绑定手机号接收短信验证码',
@@ -129,7 +129,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             : () => controller.sendSmsCode(_phone.text),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: KugoColors.primary,
-                          side: const BorderSide(color: KugoColors.primary),
+                          side: BorderSide(color: KugoColors.primary),
                           shape: RoundedRectangleBorder(
                             borderRadius:
                                 BorderRadius.circular(KugoRadius.chip),
@@ -181,7 +181,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ListView(
               padding: const EdgeInsets.all(KugoSpacing.xl),
               children: [
-                const Text('账号密码登录', style: KugoTypography.section),
+                Text('账号密码登录', style: KugoTypography.section),
                 const SizedBox(height: 8),
                 Text(
                   '酷狗账号 / 手机号 + 密码',
@@ -253,7 +253,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             },
             style: OutlinedButton.styleFrom(
               foregroundColor: KugoColors.textPrimary,
-              side: const BorderSide(color: KugoColors.divider),
+              side: BorderSide(color: KugoColors.divider),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(KugoRadius.chip),
@@ -336,7 +336,7 @@ class _QrLoginView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('酷狗扫码登录', style: KugoTypography.section),
+          Text('酷狗扫码登录', style: KugoTypography.section),
           const SizedBox(height: 8),
           Text(
             '打开手机酷狗扫一扫；登录后可同步喜欢与播放地址权限',

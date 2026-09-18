@@ -27,6 +27,9 @@ class _LyricsViewState extends State<LyricsView> {
   final _controller = ScrollController();
   int _lastActive = -1;
 
+  /// Uniform row height so scroll offset math stays exact.
+  static const double _itemExtent = 52.0;
+
   int get activeIndex {
     var active = 0;
     for (var i = 0; i < widget.lines.length; i++) {
@@ -41,7 +44,7 @@ class _LyricsViewState extends State<LyricsView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || widget.compact || widget.lines.isEmpty) return;
       _lastActive = activeIndex;
-      _scrollToActive();
+      _scrollToActive(animated: false);
     });
   }
 
@@ -58,12 +61,18 @@ class _LyricsViewState extends State<LyricsView> {
     }
   }
 
-  void _scrollToActive() {
+  /// Scroll so the **active line is vertically centered** in the viewport.
+  void _scrollToActive({bool animated = true}) {
     if (!_controller.hasClients) return;
-    final target = (activeIndex * 56.0 - 120).clamp(
-      0.0,
-      _controller.position.maxScrollExtent,
-    );
+    final pos = _controller.position;
+    final viewport = pos.viewportDimension;
+    final lineCenter = activeIndex * _itemExtent + _itemExtent / 2;
+    final target =
+        (lineCenter - viewport / 2).clamp(0.0, pos.maxScrollExtent);
+    if (!animated) {
+      _controller.jumpTo(target);
+      return;
+    }
     _controller.animateTo(
       target,
       duration: const Duration(milliseconds: 280),
@@ -112,33 +121,46 @@ class _LyricsViewState extends State<LyricsView> {
       );
     }
 
-    return ListView.builder(
-      controller: _controller,
-      padding: const EdgeInsets.symmetric(
-        horizontal: KugoSpacing.xl,
-        vertical: 12,
-      ),
-      itemCount: widget.lines.length,
-      itemBuilder: (context, index) {
-        final isActive = index == activeIndex;
-        return GestureDetector(
-          onTap: widget.onTapLine == null
-              ? null
-              : () => widget.onTapLine!(widget.lines[index].timeMs),
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 180),
-            style: _lineStyle(isActive),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Text(
-                widget.lines[index].text,
-                textAlign: TextAlign.center,
+    final viewportPad = _controller.hasClients
+        ? _controller.position.viewportDimension / 2
+        : 200.0;
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: ListView.builder(
+        controller: _controller,
+        // Top/bottom padding ≈ half viewport so first/last lines can center.
+        padding: EdgeInsets.symmetric(
+          horizontal: KugoSpacing.xl,
+          vertical: viewportPad * 0.35,
+        ),
+        itemExtent: _itemExtent,
+        itemCount: widget.lines.length,
+        itemBuilder: (context, index) {
+          final isActive = index == activeIndex;
+          return GestureDetector(
+            onTap: widget.onTapLine == null
+                ? null
+                : () => widget.onTapLine!(widget.lines[index].timeMs),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              height: _itemExtent,
+              child: Center(
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 180),
+                  style: _lineStyle(isActive),
+                  child: Text(
+                    widget.lines[index].text,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
