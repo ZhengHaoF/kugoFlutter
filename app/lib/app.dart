@@ -179,9 +179,12 @@ class KugoApp extends ConsumerWidget {
       builder: (context, child) {
         // Re-apply on every navigator build; rebuild leaves when brightness flips.
         final brightness = Theme.of(context).brightness;
-        KugoThemeBinding.apply(kugoPaletteFor(brightness));
+        final palette = kugoPaletteFor(brightness);
+        KugoThemeBinding.apply(palette);
         return KeyedSubtree(
-          key: ValueKey('kugo-brightness-$brightness'),
+          // Key includes brightness so theme switch remounts shell/pages and
+          // const widgets that use static Kugo tokens pick up new colors.
+          key: ValueKey('kugo-brightness-${brightness.name}'),
           child: child ?? const SizedBox.shrink(),
         );
       },

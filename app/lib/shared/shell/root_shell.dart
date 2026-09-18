@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/kugo_theme.dart';
 import '../../shared/widgets/mini_player_bar.dart';
 
 /// Bottom tabs with macOS Dock-style icon magnify/bounce and a light
@@ -68,6 +68,8 @@ class _RootShellState extends State<RootShell>
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild dock/scaffold colors when MaterialApp theme flips.
+    final kugo = KugoTheme.of(context);
     final index = _indexOf(widget.location);
     // easeOutBack — light Dock bounce without looking springy-cheap.
     final bounceT = CurvedAnimation(
@@ -76,7 +78,7 @@ class _RootShellState extends State<RootShell>
     );
 
     return Scaffold(
-      backgroundColor: KugoColors.bg,
+      backgroundColor: kugo.bg,
       body: Column(
         children: [
           Expanded(
@@ -86,7 +88,10 @@ class _RootShellState extends State<RootShell>
               child: widget.child,
             ),
           ),
-          const MiniPlayerBar(),
+          // Keyed by brightness so const MiniPlayerBar remounts on theme flip.
+          MiniPlayerBar(
+            key: ValueKey('mini-player-${kugo.palette.brightness.name}'),
+          ),
         ],
       ),
       bottomNavigationBar: _DockNavBar(
@@ -220,8 +225,9 @@ class _DockNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Container(
-      color: KugoColors.bg,
+      color: kugo.bg,
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
       child: SafeArea(
         top: false,
@@ -269,6 +275,7 @@ class _DockItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -285,9 +292,7 @@ class _DockItem extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 26,
-                    color: selected
-                        ? KugoColors.primary
-                        : KugoColors.textTertiary,
+                    color: selected ? kugo.primary : kugo.textTertiary,
                   ),
                 ),
               ),
@@ -296,12 +301,10 @@ class _DockItem extends StatelessWidget {
             Text(
               label,
               maxLines: 1,
-              style: KugoTypography.caption.copyWith(
+              style: kugo.caption.copyWith(
                 fontSize: 10,
                 height: 1.1,
-                color: selected
-                    ? KugoColors.primary
-                    : KugoColors.textTertiary,
+                color: selected ? kugo.primary : kugo.textTertiary,
               ),
             ),
           ],

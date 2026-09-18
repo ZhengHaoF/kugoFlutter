@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/likes/likes_controller.dart';
@@ -27,6 +28,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Theme dependency: KugoTypography/KugoColors are static tokens; pages must
+    // rebuild when MaterialApp theme flips or const children keep stale colors.
+    final kugo = KugoTheme.of(context);
+    ref.watch(settingsControllerProvider.select((s) => s.themeMode));
     final auth = ref.watch(authControllerProvider);
     final likesCount = ref.watch(likesProvider).length;
     final user = auth.user;
@@ -49,7 +54,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         140,
       ),
       children: [
-        Text('我的', style: KugoTypography.greeting),
+        Text('我的', style: kugo.greeting),
         const SizedBox(height: KugoSpacing.lg),
         GlassSurface(
           padding: const EdgeInsets.all(KugoSpacing.lg),
@@ -81,7 +86,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(displayName, style: KugoTypography.title),
+                          Text(displayName, style: kugo.title),
                           const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -90,11 +95,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ),
                             decoration: BoxDecoration(
                               gradient: auth.isLogged
-                                  ? KugoColors.accentGradient
+                                  ? kugo.accentGradient
                                   : null,
                               color: auth.isLogged
                                   ? null
-                                  : KugoColors.surfaceElevated,
+                                  : kugo.surfaceElevated,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -111,7 +116,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                     Icon(
                       Icons.chevron_right_rounded,
-                      color: KugoColors.textSecondary,
+                      color: kugo.textSecondary,
                     ),
                   ],
                 ),
@@ -190,14 +195,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 title: '设置',
                 onTap: () => context.push('/settings'),
               ),
-              const _LinkTile(icon: Icons.timer_outlined, title: '定时停止'),
-              const _LinkTile(icon: Icons.music_note_rounded, title: '音质设置'),
+              // Theme-colored tiles must not be const — Flutter skips rebuild
+              // when the const instance is identical after a theme switch.
+              _LinkTile(icon: Icons.timer_outlined, title: '定时停止'),
+              _LinkTile(icon: Icons.music_note_rounded, title: '音质设置'),
               _LinkTile(
                 icon: Icons.palette_outlined,
                 title: '主题外观',
                 onTap: () => _showThemeSheet(context),
               ),
-              const _LinkTile(icon: Icons.info_outline_rounded, title: '关于'),
+              _LinkTile(icon: Icons.info_outline_rounded, title: '关于'),
             ],
           ),
         ),
@@ -211,6 +218,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final kugo = KugoTheme.of(context);
             final current = ref.watch(settingsControllerProvider).themeMode;
             Widget tile(
               AppThemeMode value,
@@ -222,14 +230,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               return ListTile(
                 leading: Icon(
                   icon,
-                  color: selected
-                      ? KugoColors.primary
-                      : KugoColors.textSecondary,
+                  color: selected ? kugo.primary : kugo.textSecondary,
                 ),
-                title: Text(title, style: KugoTypography.body),
-                subtitle: Text(sub, style: KugoTypography.caption),
+                title: Text(title, style: kugo.body),
+                subtitle: Text(sub, style: kugo.caption),
                 trailing: selected
-                    ? Icon(Icons.check_rounded, color: KugoColors.primary)
+                    ? Icon(Icons.check_rounded, color: kugo.primary)
                     : null,
                 onTap: () async {
                   await ref
@@ -247,7 +253,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 12),
-                Text('主题外观', style: KugoTypography.section),
+                Text('主题外观', style: kugo.section),
                 const SizedBox(height: 8),
                 tile(
                   AppThemeMode.dark,
@@ -285,11 +291,12 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Column(
       children: [
-        Text(label, style: KugoTypography.caption),
+        Text(label, style: kugo.caption),
         const SizedBox(height: 4),
-        Text(value, style: KugoTypography.section.copyWith(fontSize: 20)),
+        Text(value, style: kugo.section.copyWith(fontSize: 20)),
       ],
     );
   }
@@ -300,7 +307,7 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: KugoColors.divider);
+    return Container(width: 1, height: 36, color: KugoTheme.of(context).divider);
   }
 }
 
@@ -321,7 +328,12 @@ class _EntryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final kugo = KugoTheme.of(context);
+    final body = kugo.body.copyWith(color: scheme.onSurface);
+    final caption = kugo.caption.copyWith(color: scheme.onSurfaceVariant);
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       leading: Container(
         width: 40,
         height: 40,
@@ -331,11 +343,11 @@ class _EntryTile extends StatelessWidget {
         ),
         child: Icon(icon, color: color, size: 22),
       ),
-      title: Text(title, style: KugoTypography.body),
-      subtitle: Text(subtitle, style: KugoTypography.caption),
+      title: Text(title, style: body),
+      subtitle: Text(subtitle, style: caption),
       trailing: Icon(
         Icons.chevron_right_rounded,
-        color: KugoColors.textTertiary,
+        color: scheme.onSurfaceVariant,
       ),
       onTap: onTap,
     );
@@ -351,12 +363,17 @@ class _LinkTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Prefer Material onSurface so titles stay readable even if static
+    // Kugo tokens are briefly stale during a theme switch.
+    final scheme = Theme.of(context).colorScheme;
+    final kugo = KugoTheme.of(context);
+    final body = kugo.body.copyWith(color: scheme.onSurface);
     return ListTile(
-      leading: Icon(icon, color: KugoColors.textSecondary),
-      title: Text(title, style: KugoTypography.body),
+      leading: Icon(icon, color: scheme.onSurfaceVariant),
+      title: Text(title, style: body),
       trailing: Icon(
         Icons.chevron_right_rounded,
-        color: KugoColors.textTertiary,
+        color: scheme.onSurfaceVariant,
       ),
       onTap: onTap,
     );

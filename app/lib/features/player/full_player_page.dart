@@ -356,61 +356,76 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: expanded
+          ? Column(
+              key: const ValueKey('expanded-title'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  track.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: KugoTypography.section,
+                ),
+                Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: KugoTypography.caption,
+                ),
+              ],
+            )
+          : Text(
+              key: const ValueKey('playing-title'),
+              '正在播放',
+              textAlign: TextAlign.center,
+              style: KugoTypography.section,
+            ),
+    );
+
+    // Stack keeps the title on the true screen center: left has 1 action,
+    // right has 2 — an Expanded between unequal side widths would shift left.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: expanded ? onCollapseLyrics : onCollapsePage,
-            tooltip: expanded ? '收起歌词' : '返回',
-            icon: Icon(
-              expanded
-                  ? Icons.keyboard_arrow_down_rounded
-                  : Icons.keyboard_arrow_down_rounded,
-              size: 32,
+      child: SizedBox(
+        height: 56,
+        child: Stack(
+          children: [
+            Center(child: title),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                onPressed: expanded ? onCollapseLyrics : onCollapsePage,
+                tooltip: expanded ? '收起歌词' : '返回',
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 32,
+                ),
+              ),
             ),
-          ),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: expanded
-                  ? Column(
-                      key: const ValueKey('expanded-title'),
-                      children: [
-                        Text(
-                          track.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: KugoTypography.section,
-                        ),
-                        Text(
-                          track.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: KugoTypography.caption,
-                        ),
-                      ],
-                    )
-                  : Text(
-                      key: ValueKey('playing-title'),
-                      '正在播放',
-                      textAlign: TextAlign.center,
-                      style: KugoTypography.section,
-                    ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: onSongDetail,
+                    tooltip: '歌曲详情',
+                    icon: const Icon(Icons.info_outline_rounded),
+                  ),
+                  IconButton(
+                    onPressed: onQueue,
+                    icon: const Icon(Icons.queue_music_rounded),
+                  ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            onPressed: onSongDetail,
-            tooltip: '歌曲详情',
-            icon: const Icon(Icons.info_outline_rounded),
-          ),
-          IconButton(
-            onPressed: onQueue,
-            icon: const Icon(Icons.queue_music_rounded),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

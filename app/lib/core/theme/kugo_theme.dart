@@ -89,6 +89,8 @@ ThemeData buildKugoTheme(Brightness brightness) {
       onSurface: p.textPrimary,
       error: const Color(0xFFE5484D),
       onError: Colors.white,
+      onSurfaceVariant: p.textSecondary,
+      outline: p.textTertiary,
     ),
     extensions: [KugoTheme(p)],
     splashFactory: InkSparkle.splashFactory,

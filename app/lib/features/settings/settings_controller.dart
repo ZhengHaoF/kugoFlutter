@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/cache/cover_cache.dart';
 import '../../data/storage/queue_store.dart';
 
 enum AppQuality { standard, hq, sq, hiRes }
@@ -155,8 +156,9 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kLyricTr, v);
   }
 
-  /// Clear in-memory image cache + play history. Returns bytes freed estimate label.
+  /// Clear cover disk/memory cache + play history. Returns a status label.
   Future<String> clearImageAndHistoryCache() async {
+    await CoverCache.instance.clear();
     PaintingBinding.instance.imageCache.clear();
     PaintingBinding.instance.imageCache.clearLiveImages();
     try {

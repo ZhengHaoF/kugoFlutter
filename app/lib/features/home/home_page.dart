@@ -127,7 +127,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         else if (_hero.isNotEmpty)
           SliverToBoxAdapter(child: _HeroCarousel(items: _hero)),
         if (!_loading && _songs.isNotEmpty) ...[
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: SectionHeader(
               title: '今日热歌',
               showAccent: true,

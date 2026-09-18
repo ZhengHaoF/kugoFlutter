@@ -15,6 +15,8 @@ import 'features/player/player_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Larger in-memory decode cache; disk cache lives in CoverCache.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 64 << 20; // 64 MB
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

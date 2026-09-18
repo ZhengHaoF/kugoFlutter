@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
+import '../../core/cache/cover_cache.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_tokens.dart';
 
-/// Album/playlist cover. Loads network images; falls back to seed gradient.
-class CoverBox extends StatelessWidget {
+/// Album/playlist cover. Network art is cached on disk via [CoverCache];
+/// falls back to a seed gradient while loading or on error.
+class CoverBox extends StatefulWidget {
   const CoverBox({
     super.key,
     required this.seed,
@@ -21,8 +25,7 @@ class CoverBox extends StatelessWidget {
   final double radius;
   final Widget? child;
 
-  /// Infinite/NaN/<=0 all mean "size to parent" — never pass infinity to
-  /// Image.network/SizedBox (release builds gray-out the whole player).
+  /// Infinite/NaN/<=0 all mean "size to parent".
   bool get _fillsParent => size <= 0 || size.isInfinite || size.isNaN;
 
   bool get _isNetwork {
@@ -31,10 +34,49 @@ class CoverBox extends StatelessWidget {
   }
 
   @override
+  State<CoverBox> createState() => _CoverBoxState();
+}
+
+class _CoverBoxState extends State<CoverBox> {
+  Uint8List? _bytes;
+  String? _resolvedFor;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant CoverBox oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.seed != widget.seed) {
+      _bytes = null;
+      _resolve();
+    }
+  }
+
+  Future<void> _resolve() async {
+    final url = widget.seed.trim();
+    if (!widget._isNetwork) {
+      _resolvedFor = url;
+      if (mounted) setState(() => _bytes = null);
+      return;
+    }
+    // Already showing this URL — skip (cache hits would be free, but avoid setState).
+    if (_resolvedFor == url && _bytes != null) return;
+
+    _resolvedFor = url;
+    final bytes = await CoverCache.instance.get(url);
+    if (!mounted || _resolvedFor != url) return;
+    setState(() => _bytes = bytes);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final colors = CoverPalette.fromSeed(seed);
+    final colors = CoverPalette.fromSeed(widget.seed);
     final fallback = BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(widget.radius),
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -44,42 +86,38 @@ class CoverBox extends StatelessWidget {
     );
 
     Widget placeholder() {
-      final box = DecoratedBox(
-        decoration: fallback,
-        child: child == null ? null : Center(child: child),
-      );
-      if (_fillsParent) {
+      if (widget._fillsParent) {
         return SizedBox.expand(
           child: DecoratedBox(
             decoration: fallback,
-            child: child == null ? null : Center(child: child),
+            child: widget.child == null ? null : Center(child: widget.child),
           ),
         );
       }
-      return SizedBox(width: size, height: size, child: box);
+      final box = DecoratedBox(
+        decoration: fallback,
+        child: widget.child == null ? null : Center(child: widget.child),
+      );
+      return SizedBox(width: widget.size, height: widget.size, child: box);
     }
 
-    if (!_isNetwork) return placeholder();
+    if (!widget._isNetwork) return placeholder();
 
-    final image = Image.network(
-      seed,
+    final bytes = _bytes;
+    if (bytes == null) return placeholder();
+
+    final image = Image.memory(
+      bytes,
+      key: ValueKey(widget.seed),
       fit: BoxFit.cover,
-      width: _fillsParent ? null : size,
-      height: _fillsParent ? null : size,
+      gaplessPlayback: true,
+      width: widget._fillsParent ? null : widget.size,
+      height: widget._fillsParent ? null : widget.size,
       errorBuilder: (context, error, stackTrace) => placeholder(),
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return placeholder();
-      },
-      headers: const {
-        'Referer': 'http://www.kugou.com/',
-        'User-Agent':
-            'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-      },
     );
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(widget.radius),
       child: image,
     );
   }

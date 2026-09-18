@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/cover_palette.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
 import 'cover_box.dart';
 
@@ -12,6 +12,7 @@ class MiniPlayerBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final track = player.current;
     if (track == null) return const SizedBox.shrink();
@@ -20,10 +21,10 @@ class MiniPlayerBar extends ConsumerWidget {
         ? 0.0
         : (player.positionMs / player.durationMs).clamp(0.0, 1.0);
 
-    final isLight = KugoThemeBinding.palette.isLight;
+    final isLight = kugo.palette.isLight;
 
     return Material(
-      color: KugoColors.surface,
+      color: kugo.surface,
       elevation: isLight ? 1.5 : 8,
       shadowColor: isLight
           ? Colors.black.withValues(alpha: 0.08)
@@ -36,8 +37,8 @@ class MiniPlayerBar extends ConsumerWidget {
             Container(
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: KugoColors.divider),
-                  bottom: BorderSide(color: KugoColors.divider),
+                  top: BorderSide(color: kugo.divider),
+                  bottom: BorderSide(color: kugo.divider),
                 ),
               ),
               child: Padding(
@@ -75,17 +76,27 @@ class MiniPlayerBar extends ConsumerWidget {
                               track.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style:
-                                  KugoTypography.body.copyWith(fontSize: 14),
+                              style: kugo.body.copyWith(fontSize: 14),
                             ),
                             Text(
                               track.artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: KugoTypography.caption,
+                              style: kugo.caption,
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: player.isLoading
+                          ? null
+                          : () => ref
+                              .read(playerControllerProvider.notifier)
+                              .previous(),
+                      icon: Icon(
+                        Icons.skip_previous_rounded,
+                        color: kugo.textSecondary,
                       ),
                     ),
                     IconButton(
@@ -100,23 +111,25 @@ class MiniPlayerBar extends ConsumerWidget {
                               height: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: KugoColors.primary,
+                                color: kugo.primary,
                               ),
                             )
                           : Icon(
                               player.isPlaying
                                   ? Icons.pause_rounded
                                   : Icons.play_arrow_rounded,
-                              color: KugoColors.primary,
+                              color: kugo.primary,
                               size: 34,
                             ),
                     ),
                     IconButton(
-                      onPressed: () =>
-                          ref.read(playerControllerProvider.notifier).next(),
+                      onPressed: player.isLoading
+                          ? null
+                          : () =>
+                              ref.read(playerControllerProvider.notifier).next(),
                       icon: Icon(
                         Icons.skip_next_rounded,
-                        color: KugoColors.textSecondary,
+                        color: kugo.textSecondary,
                       ),
                     ),
                   ],

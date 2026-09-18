@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/track.dart';
+import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import 'cover_box.dart';
 
@@ -20,6 +21,7 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         KugoSpacing.lg,
@@ -33,14 +35,14 @@ class SectionHeader extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: KugoTypography.section),
+              Text(title, style: kugo.section),
               if (showAccent) ...[
                 const SizedBox(height: 6),
                 Container(
                   width: 28,
                   height: 3,
                   decoration: BoxDecoration(
-                    gradient: KugoColors.accentGradient,
+                    gradient: kugo.accentGradient,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -56,13 +58,13 @@ class SectionHeader extends StatelessWidget {
                 children: [
                   Text(
                     actionLabel!,
-                    style: KugoTypography.caption.copyWith(fontSize: 13),
+                    style: kugo.caption.copyWith(fontSize: 13),
                   ),
                   const SizedBox(width: 2),
                   Icon(
                     Icons.chevron_right_rounded,
                     size: 16,
-                    color: KugoColors.textSecondary,
+                    color: kugo.textSecondary,
                   ),
                 ],
               ),
@@ -329,14 +331,14 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final light = KugoThemeBinding.palette.isLight;
+    final kugo = KugoTheme.of(context);
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: KugoColors.surface,
+        color: kugo.surface,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: KugoColors.divider),
-        boxShadow: light
+        border: Border.all(color: kugo.divider),
+        boxShadow: kugo.palette.isLight
             ? [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
