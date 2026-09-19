@@ -99,6 +99,7 @@ class PlaylistBrief {
     required this.name,
     required this.coverUrl,
     this.description = '',
+    this.creator = '',
     this.trackCount = 0,
     this.playCountLabel = '',
   });
@@ -107,6 +108,9 @@ class PlaylistBrief {
   final String name;
   final String coverUrl;
   final String description;
+
+  /// Owner nickname; empty for endpoints that don't report one.
+  final String creator;
   final int trackCount;
   final String playCountLabel;
 }

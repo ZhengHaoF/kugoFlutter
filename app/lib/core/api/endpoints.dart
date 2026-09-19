@@ -15,6 +15,12 @@ abstract final class KugoEndpoints {
   static const searchSuggest = '/api/v3/search/suggest';
   static const searchLyric = '/api/v3/search/lyric';
 
+  /// Multi-type search. These are distinct endpoints — `showtype` on
+  /// [searchSong] is a spelling-correction toggle, not a type switch.
+  static const searchSpecial = '/api/v3/search/special';
+  static const searchAlbum = '/api/v3/search/album';
+  static const searchSinger = '/api/v3/search/singer';
+
   /// Playlist info + tracks (no auth, public lists).
   ///
   /// Network note (2026-09): `playlist/info` and `playlist/songs` return

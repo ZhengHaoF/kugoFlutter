@@ -79,17 +79,6 @@ void main() {
   });
 
   group('artistTapFor', () {
-    Widget host(Track track, {VoidCallback? onArtistTap}) => MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => artistTapFor(context, track),
-                child: const Text('go'),
-              ),
-            ),
-          ),
-        );
-
     testWidgets('returns a callback when the track has an artist id',
         (tester) async {
       const track = Track(

@@ -1,4 +1,5 @@
 import '../models/audio_quality.dart';
+import '../models/search_result.dart';
 import '../models/track.dart';
 
 String _s(Object? v, [String fallback = '']) {
@@ -168,11 +169,17 @@ bool _isVipFromJson(Map<String, dynamic> json) {
   return payType == 3 && p > 0;
 }
 
+/// Maps a playlist/`special` payload into [PlaylistBrief].
+///
+/// `id` must stay the **numeric `specialid`** — that is what
+/// `fetchPlaylist` forwards (it strips non-digits and sends `specialid`).
+/// `global_collection_id` looks like `collection_3_509005046_32_0`, and
+/// stripping its non-digits yields a *different*, wrong id, so prefer the
+/// numeric field when the payload offers one.
 PlaylistBrief mapPlaylistInfo(Map<String, dynamic> json) {
-  final id = _s(
-    json['global_collection_id'],
-    _s(json['specialid'], _s(json['id'])),
-  );
+  final numeric = _s(json['specialid'], _s(json['listid']));
+  final fallback = _s(json['global_collection_id'], _s(json['id']));
+  final id = numeric.isNotEmpty ? numeric : fallback;
   final name = _s(
     json['name'],
     _s(json['specialname'], _s(json['rankname'], '歌单')),
@@ -182,13 +189,41 @@ PlaylistBrief mapPlaylistInfo(Map<String, dynamic> json) {
   final count = _i2(json['songcount'], json['song_count']);
   final intro = _s(json['intro'], _s(json['info']));
   final play = _i2(json['playcount'], json['listen_num']);
+  final creator = _s(json['nickname'], _s(json['username'], _s(json['creator'])));
   return PlaylistBrief(
     id: id,
     name: name,
     coverUrl: cover,
     description: intro,
+    creator: creator,
     trackCount: count,
     playCountLabel: play > 0 ? formatCount(play) : '',
+  );
+}
+
+/// Maps a `search/album` item.
+AlbumBrief mapAlbumBrief(Map<String, dynamic> json) {
+  final id = _s(json['albumid'], _s(json['album_id'], _s(json['id'])));
+  final name = _s(json['albumname'], _s(json['album_name'], _s(json['name'], '专辑')));
+  final rawCover = _s(json['imgurl'], _s(json['sizable_cover'], _s(json['cover'])));
+  return AlbumBrief(
+    id: id,
+    name: name,
+    coverUrl: normalizeCoverUrl(rawCover.isEmpty ? id : rawCover),
+    artist: _s(json['singername'], _s(json['singer_name'], _s(json['author_name']))),
+    trackCount: _i2(json['songcount'], json['song_count']),
+    publishDate: _s(json['publishtime'], _s(json['publish_time'])).split(' ').first,
+  );
+}
+
+/// Maps a `search/singer` item — the payload carries only id + name.
+ArtistBrief mapArtistBrief(Map<String, dynamic> json) {
+  return ArtistBrief(
+    id: _s(json['singerid'], _s(json['singer_id'], _s(json['AuthorId']))),
+    name: _s(
+      json['singername'],
+      _s(json['singer_name'], _s(json['AuthorName'], _s(json['name']))),
+    ),
   );
 }
 
