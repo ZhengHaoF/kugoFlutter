@@ -278,7 +278,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   void _showAboutSheet(BuildContext context) => showAboutSheet(context);
 
-  void _showThemeSheet(BuildContext context) {    showKugoBottomSheet<void>(
+  void _showThemeSheet(BuildContext context) {
+    showKugoBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
         return StatefulBuilder(
