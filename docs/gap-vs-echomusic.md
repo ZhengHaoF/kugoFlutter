@@ -36,6 +36,7 @@
 | 3 | ~~「定时停止 / 音质设置 / 关于」不可点~~ | `profile_page.dart` | ✅ **已修（3327499）**：抽出 `shared/widgets/settings_pickers.dart` 共享给设置页与我的页；三个入口带当前值副标题；新增「关于」弹层 |
 | 4 | ~~「歌单」统计数字硬编码 `12`~~ | `profile_page.dart:133` | ✅ **已修（90bd379）两/三步走的第一步**：「我喜欢」已接本地真值；「最近播放」新增 `KugoDb.countHistory()` 走 SQL COUNT 取真值，未就绪显示 `—`；「歌单」仍为 `—` 占位（未登录显「需登录」，已登录显「待接入」）。**第二步**（接 `/user/playlist`）跟随 P1 #7 自建歌单一起做，详见 `docs/profile-stats-plan.md` |
 | 5 | 倍速功能未接线 | `audio_player_port.dart:17` 已定义 `setSpeed` | 接口层已就绪但 UI 无入口，设置页也没有开关 |
+| 5.5 | **「点歌手」入口 100% 加载失败** | 7 处调用点（`search_page.dart:162` 等） | 传的 `track.artist`（歌手**名字**）被当作 `singerid` 用。**实测**：`singer/info?singerid=3520` → 3068 字节正常；`singerid=周杰伦` → `{"status":0,"error":"参数错误"}`。修法需先给 `Track` 加 `artistId`。**独立于搜索改造，可单独提交**，详见 `docs/search-multitab-plan.md` §3.4 |
 
 > 附带修掉一个**全站性**问题：`GlassSurface` 用裸 `Container` 做背景色，导致内部
 > `ListTile` 的 ink splash 找不到最近的 `Material` 祖先 → Flutter 断言 + 涟漪不可见。
@@ -45,7 +46,7 @@
 
 | # | 功能 | EchoMusic 实现 | kugo 现状 | 移动端建议 |
 | --- | --- | --- | --- | --- |
-| 6 | **搜索多维度** | `views/Search.vue`：歌曲/歌手/专辑/歌单/歌词/MV Tab | `search_repository.dart` 仅 `searchSongs` | 加 Tab，扩展 `searchSong` 接口的 `type` 参数 |
+| 6 | **搜索多维度** | `views/Search.vue`：歌曲/歌手/专辑/歌单/歌词/MV Tab | `search_repository.dart` 仅 `searchSongs` | ✅ **已评估（见 `docs/search-multitab-plan.md`）**：**修正原判断**——不是"扩展 `type` 参数"，而是 5 个独立接口；建议做 **4 个 tab**（歌曲/歌单/专辑/歌手），**砍歌词**（接口全 404）与 **MV**（无播放页）；约 2 人日 |
 | 7 | **自建歌单** | 新建/改名/改标签/改简介/改封面/自动封面/自定义排序 | 无 | 移动端价值高，接 `playlist/add` 系列接口 |
 | 8 | **收藏/订阅落库** | 歌单收藏、专辑收藏、歌手关注 | 只有「喜欢」一首歌（本地 + `/likes`） | 补齐 `playlist/subscribe`、`album/collect` 等 |
 | 9 | **评论写入** | 发评论、查看楼层、回复指定评论 | 只读列表（`song_detail_page.dart:260`） | 可后置，但移动端发评体验天然更好 |
