@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/features/player/player_controller.dart';
+import 'package:kugo/features/profile/profile_page.dart';
 import 'package:kugo/shared/widgets/common.dart';
 import 'package:kugo/shared/widgets/mini_player_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
 
@@ -62,5 +64,60 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
     expect(find.byIcon(Icons.pause_rounded), findsNothing);
+  });
+
+  testWidgets('Profile shortcut tiles open their sheets', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: ProfilePage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The link tiles sit below the fold in the default 800x600 test viewport.
+    Future<void> revealTile(String label) async {
+      await tester.scrollUntilVisible(
+        find.text(label),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // Every link tile that used to be a dead `onTap: () {}` entry must now
+    // open a sheet — guards against silently un-wiring them again.
+    await revealTile('音质设置');
+    await tester.tap(find.text('音质设置'));
+    await tester.pumpAndSettle();
+    // Sheet lists every档 with the current one ticked.
+    expect(find.text('无损'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10)); // dismiss sheet
+    await tester.pumpAndSettle();
+
+    await revealTile('定时停止');
+    await tester.tap(find.text('定时停止'));
+    await tester.pumpAndSettle();
+    expect(find.text('15 分钟'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    await revealTile('关于');
+    await tester.tap(find.text('关于'));
+    await tester.pumpAndSettle();
+    expect(find.text('0.1.0'), findsOneWidget);
   });
 }

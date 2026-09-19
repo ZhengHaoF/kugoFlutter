@@ -358,23 +358,19 @@ class GlassSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: kugo.surface,
+    // Material (not a bare Container) so ListTile ink splashes inside the card
+    // paint on this surface instead of reaching for a distant ancestor —
+    // otherwise Flutter asserts and the ripples are invisible.
+    return Material(
+      color: kugo.surface,
+      elevation: kugo.palette.isLight ? 1 : 0,
+      shadowColor: Colors.black.withValues(alpha: 0.12),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: kugo.divider),
-        boxShadow: kugo.palette.isLight
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
+        side: BorderSide(color: kugo.divider),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }

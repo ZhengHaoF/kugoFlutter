@@ -20,6 +20,9 @@ app/**/GeneratedPluginRegistrant.*
 .DS_Store
 Thumbs.db
 
+# Session-local assistant memory / state
+.workbuddy/
+
 # Local scratch / generated (keep docs/design intentionally)
 /generated-*.png
 

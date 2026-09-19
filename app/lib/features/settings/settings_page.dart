@@ -5,9 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/debug/network_log_dialog.dart';
-import '../../features/player/player_controller.dart';
-import '../../shared/widgets/common.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../shared/widgets/settings_pickers.dart';
 import 'settings_controller.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -40,7 +39,7 @@ class SettingsPage extends ConsumerWidget {
                   style: kugo.caption,
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _pickQuality(context, ref),
+                onTap: () => showQualityPicker(context, ref),
               ),
               ListTile(
                 title: Text('定时停止', style: kugo.body),
@@ -51,7 +50,7 @@ class SettingsPage extends ConsumerWidget {
                   style: kugo.caption,
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _pickSleep(context, ref),
+                onTap: () => showSleepPicker(context, ref),
               ),
             ],
           ),
@@ -158,76 +157,6 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _pickQuality(BuildContext context, WidgetRef ref) async {
-    final kugo = KugoTheme.of(context);
-    final controller = ref.read(settingsControllerProvider.notifier);
-    final current = ref.read(settingsControllerProvider).quality;
-    final selected = await showKugoBottomSheet<AppQuality>(
-      context: context,
-      builder: (sheetContext) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          for (final q in AppQuality.values)
-            ListTile(
-              title: Text(
-                q.label,
-                style: kugo.body,
-              ),
-              trailing: q == current
-                  ? Icon(Icons.check_rounded, color: kugo.primary)
-                  : null,
-              onTap: () => Navigator.pop(sheetContext, q),
-            ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-    if (selected != null) {
-      await controller.setQuality(selected);
-    }
-  }
-
-  Future<void> _pickSleep(BuildContext context, WidgetRef ref) async {
-    final kugo = KugoTheme.of(context);
-    final controller = ref.read(settingsControllerProvider.notifier);
-    final selected = await showKugoBottomSheet<SleepTimerMode>(
-      context: context,
-      builder: (sheetContext) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          ListTile(
-            title: Text('关闭', style: kugo.body),
-            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.off),
-          ),
-          ListTile(
-            title: Text('15 分钟', style: kugo.body),
-            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m15),
-          ),
-          ListTile(
-            title: Text('30 分钟', style: kugo.body),
-            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m30),
-          ),
-          ListTile(
-            title: Text('60 分钟', style: kugo.body),
-            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m60),
-          ),
-          ListTile(
-            title: Text('自定义 45 分钟', style: kugo.body),
-            onTap: () => Navigator.pop(sheetContext, SleepTimerMode.custom),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-    if (selected != null) {
-      await controller.setSleep(selected);
-      final minutes = ref.read(settingsControllerProvider).sleepMinutes;
-      ref.read(playerControllerProvider.notifier).setSleepTimer(minutes);
-    }
   }
 }
 

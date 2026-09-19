@@ -9,6 +9,7 @@ import '../../features/likes/likes_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/settings_pickers.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -30,6 +31,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     ref.watch(settingsControllerProvider.select((s) => s.themeMode));
+    final settings = ref.watch(settingsControllerProvider);
     final auth = ref.watch(authControllerProvider);
     final likesCount = ref.watch(likesProvider).length;
     final user = auth.user;
@@ -40,6 +42,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ? (user!.isVip ? '概念会员' : '已登录')
         : '未登录 · 公开内容可用';
     final avatarUrl = user?.avatarUrl ?? '';
+    final sleepLabel = settings.sleepMinutes == 0
+        ? '关闭'
+        : '${settings.sleepMinutes} 分钟';
 
     return ListView(
       physics: const BouncingScrollPhysics(
@@ -199,14 +204,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
               // Theme-colored tiles must not be const — Flutter skips rebuild
               // when the const instance is identical after a theme switch.
-              _LinkTile(icon: Icons.timer_outlined, title: '定时停止'),
-              _LinkTile(icon: Icons.music_note_rounded, title: '音质设置'),
+              _LinkTile(
+                icon: Icons.timer_outlined,
+                title: '定时停止',
+                subtitle: sleepLabel,
+                onTap: () => _showSleepSheet(context),
+              ),
+              _LinkTile(
+                icon: Icons.music_note_rounded,
+                title: '音质设置',
+                subtitle: settings.qualityLabel,
+                onTap: () => _showQualitySheet(context),
+              ),
               _LinkTile(
                 icon: Icons.palette_outlined,
                 title: '主题外观',
+                subtitle: settings.themeModeLabel,
                 onTap: () => _showThemeSheet(context),
               ),
-              _LinkTile(icon: Icons.info_outline_rounded, title: '关于'),
+              _LinkTile(
+                icon: Icons.info_outline_rounded,
+                title: '关于',
+                onTap: () => _showAboutSheet(context),
+              ),
             ],
           ),
         ),
@@ -214,8 +234,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  void _showThemeSheet(BuildContext context) {
-    showKugoBottomSheet<void>(
+  /// 定时停止 / 音质设置 / 关于 reuse the exact pickers the Settings page
+  /// uses, so a change made here is reflected there and vice versa.
+  void _showSleepSheet(BuildContext context) =>
+      showSleepPicker(context, ref);
+
+  void _showQualitySheet(BuildContext context) =>
+      showQualityPicker(context, ref);
+
+  void _showAboutSheet(BuildContext context) => showAboutSheet(context);
+
+  void _showThemeSheet(BuildContext context) {    showKugoBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
         return StatefulBuilder(
@@ -357,10 +386,19 @@ class _EntryTile extends StatelessWidget {
 }
 
 class _LinkTile extends StatelessWidget {
-  const _LinkTile({required this.icon, required this.title, this.onTap});
+  const _LinkTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+  });
 
   final IconData icon;
   final String title;
+
+  /// Shown as a secondary line, and as the trailing value when short enough
+  /// to read as a status (e.g. 「15 分钟」/「HQ」/「深色」).
+  final String? subtitle;
   final VoidCallback? onTap;
 
   @override
@@ -370,9 +408,13 @@ class _LinkTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final kugo = KugoTheme.of(context);
     final body = kugo.body.copyWith(color: scheme.onSurface);
+    final sub = subtitle;
     return ListTile(
       leading: Icon(icon, color: scheme.onSurfaceVariant),
       title: Text(title, style: body),
+      subtitle: sub == null || sub.isEmpty
+          ? null
+          : Text(sub, style: kugo.caption),
       trailing: Icon(
         Icons.chevron_right_rounded,
         color: scheme.onSurfaceVariant,
