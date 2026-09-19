@@ -252,6 +252,39 @@ class PlayerController extends Notifier<PlayerState> {
     _syncBridge();
   }
 
+  /// Release playback on behalf of the system media handler (`stop()` /
+  /// `onTaskRemoved()`), not on behalf of the UI.
+  ///
+  /// The engine is paused and the queue is kept so the user can resume from the
+  /// notification or the app, but [_wantPlaying] is cleared first so the late
+  /// `playing=false` engine event cannot flip the icon back, and the session is
+  /// left in [AudioProcessingState.idle] so Android tears the notification down.
+  ///
+  /// Note the two early returns when the queue is empty: those are the
+  /// *notification swipe-away* and *re-attach* paths. Firing a fresh state into
+  /// the media session there used to re-enter `setState()`, whose idle branch
+  /// calls `deactivateMediaSession()` (and `stopSelf()`), killing the very
+  /// session the new track was about to use.
+  Future<void> stopPlayback() async {
+    _stopDemoTick();
+    _wantPlaying = false;
+    _ignoreEnginePlayUntil = DateTime.now().add(const Duration(seconds: 1));
+    _sourceReady = false;
+    if (state.current != null) {
+      await _engine.pause();
+    }
+    if (state.display == PlayerDisplayState.idle) {
+      // Already stopped — broadcasting again would only churn setState().
+      return;
+    }
+    state = state.copyWith(
+      display: PlayerDisplayState.idle,
+      positionMs: 0,
+      errorCode: '',
+    );
+    _syncBridge();
+  }
+
   /// Public snapshot for media handler / external callers.
   PlayerState get snapshot => state;
 

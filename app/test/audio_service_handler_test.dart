@@ -91,6 +91,109 @@ void main() {
     // position handed to the platform has to move strictly forward.
     await _exercisePositionPushes(engine, handler);
   });
+
+  test('swiping the notification away keeps the session usable', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    await controller.playQueue([_t('a'), _t('b')]);
+    expect(container.read(playerControllerProvider).isPlaying, isTrue);
+
+    // BaseAudioHandler.onNotificationDeleted() delegates to stop(), which drops
+    // the service and deactivates the MediaSession for good. The next play()
+    // would then have a dead session: no notification, no head-unit progress.
+    await handler.onNotificationDeleted();
+    final afterSwipe = handler.playbackState.value;
+    expect(afterSwipe.playing, isFalse);
+    expect(afterSwipe.processingState, AudioProcessingState.idle);
+    expect(handler.mediaItem.value?.title, 'a',
+        reason: 'metadata must survive a notification swipe');
+
+    // The session has to come back for the next track.
+    await handler.play();
+    final resumed = handler.playbackState.value;
+    expect(resumed.processingState, AudioProcessingState.ready);
+    expect(resumed.playing, isTrue);
+    expect(resumed.androidCompactActionIndices, [0, 1, 2],
+        reason: 'carousel layout must stay fixed across a stop/start cycle');
+  });
+
+  test('carousel keeps a fixed 3-slot shape across play/pause', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    final shapes = <List<int>?>[];
+    final controls = <List<MediaAction>>[];
+    final sub = handler.playbackState.listen((state) {
+      shapes.add(state.androidCompactActionIndices);
+      controls.add([for (final c in state.controls) c.action]);
+    });
+    addTearDown(sub.cancel);
+
+    await controller.playQueue([_t('a')]);
+    await handler.pause();
+    await handler.play();
+
+    // A head unit caches the action list positionally; if the declared count
+    // changes on pause the car's slots desynchronise and transport commands
+    // (and the progress notifications they piggyback on) stop arriving.
+    final declared = shapes.whereType<List<int>>().toSet();
+    expect(declared, {
+      const [0, 1, 2]
+    }, reason: 'compact slot layout changed at runtime: $shapes');
+    final last = controls.last;
+    expect(last, [
+      MediaAction.skipToPrevious,
+      MediaAction.pause,
+      MediaAction.skipToNext,
+    ]);
+  });
+
+  test('stop() pauses the engine and holds the queue', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    await controller.playQueue([_t('a')]);
+    expect(container.read(playerControllerProvider).isPlaying, isTrue);
+
+    await handler.stop();
+
+    // stop() used to only broadcast idle, leaving the engine playing behind a
+    // session the system had already torn down.
+    expect(controller.snapshot.isPlaying, isFalse);
+    expect(controller.snapshot.display, PlayerDisplayState.idle);
+    expect(container.read(playerControllerProvider).queue.length, 1,
+        reason: 'queue is kept so the user can resume');
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.idle);
+  });
 }
 
 const _songId = 'a';
