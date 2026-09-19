@@ -4,6 +4,7 @@ import 'package:kugo/features/player/audio_player_port.dart';
 
 class FakeAudioPlayer implements AudioPlayerPort {
   final _pos = StreamController<Duration>.broadcast();
+  final _buffered = StreamController<Duration>.broadcast();
   final _playing = StreamController<bool>.broadcast();
   final _complete = StreamController<PlayerIdleReason>.broadcast();
   Duration position = Duration.zero;
@@ -12,6 +13,9 @@ class FakeAudioPlayer implements AudioPlayerPort {
 
   @override
   Stream<Duration> get positionStream => _pos.stream;
+
+  @override
+  Stream<Duration> get bufferedPositionStream => _buffered.stream;
 
   @override
   Stream<Duration?> get durationStream => const Stream.empty();
@@ -61,9 +65,16 @@ class FakeAudioPlayer implements AudioPlayerPort {
   @override
   Future<void> dispose() async {
     await _pos.close();
+    await _buffered.close();
     await _playing.close();
     await _complete.close();
   }
 
   void emitCompleted() => _complete.add(PlayerIdleReason.completed);
+
+  /// Simulate the engine's position stream ticking (just_audio emits ~5/s).
+  void emitPosition(Duration position) {
+    this.position = position;
+    _pos.add(position);
+  }
 }

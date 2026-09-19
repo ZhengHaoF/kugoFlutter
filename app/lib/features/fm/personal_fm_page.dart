@@ -13,6 +13,7 @@ import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/kugo_theme.dart';
 
 enum FmPool { taste, style, explore }
 
@@ -118,15 +119,17 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final track =
         _tracks.isEmpty ? null : _tracks[_index.clamp(0, _tracks.length - 1)];
-    final accent = CoverPalette.accentFromSeed(track?.coverUrl ?? 'fm');
+    final accent = CoverPalette.accentFromSeed(track?.coverUrl ?? 'fm', kugo.palette);
 
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: CoverPalette.playerBackground(track?.coverUrl ?? 'fm'),
+          gradient:
+              CoverPalette.playerBackground(track?.coverUrl ?? 'fm', kugo.palette),
         ),
         child: SafeArea(
           child: Column(
@@ -143,7 +146,7 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
                       child: Text(
                         '私人 FM',
                         textAlign: TextAlign.center,
-                        style: KugoTypography.section,
+                        style: kugo.section,
                       ),
                     ),
                     IconButton(
@@ -168,8 +171,8 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
                   style: SegmentedButton.styleFrom(
                     selectedBackgroundColor: accent.withValues(alpha: 0.45),
                     selectedForegroundColor: Colors.white,
-                    foregroundColor: KugoColors.textSecondary,
-                    backgroundColor: KugoColors.surface.withValues(alpha: 0.5),
+                    foregroundColor: kugo.textSecondary,
+                    backgroundColor: kugo.surface.withValues(alpha: 0.5),
                   ),
                 ),
               ),
@@ -211,7 +214,7 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
                             shape: BoxShape.circle,
                             color: Colors.black.withValues(alpha: 0.85),
                             border: Border.all(
-                              color: KugoColors.divider,
+                              color: kugo.divider,
                               width: 2,
                             ),
                             boxShadow: [
@@ -245,13 +248,13 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
                           textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: KugoTypography.playerTitle,
+                          style: kugo.playerTitle,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         track?.artist ?? '',
-                        style: KugoTypography.caption,
+                        style: kugo.caption,
                       ),
                       const Spacer(),
                       Row(
@@ -300,7 +303,7 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
                         onPressed: () => context.push('/player'),
                         child: Text(
                           '打开播放页 · ${_index + 1}/${_tracks.length}',
-                          style: KugoTypography.caption,
+                          style: kugo.caption,
                         ),
                       ),
                       const SizedBox(height: KugoSpacing.lg),
@@ -332,8 +335,9 @@ class _CircleAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final size = large ? 72.0 : 52.0;
-    final tone = accent ?? KugoColors.primary;
+    final tone = accent ?? kugo.primary;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -350,18 +354,20 @@ class _CircleAction extends StatelessWidget {
                       colors: [tone, tone.withValues(alpha: 0.7)],
                     )
                   : null,
-              color: large ? null : KugoColors.surface.withValues(alpha: 0.75),
+              color: large ? null : kugo.surface.withValues(alpha: 0.75),
             ),
             child: Icon(
               icon,
               size: large ? 36 : 24,
-              color: Colors.white,
+              // Large button sits on the accent gradient; the small ones sit on
+              // the page surface, which is near-white in light mode.
+              color: large ? kugo.onAccent : kugo.textPrimary,
             ),
           ),
         ),
         if (label != null) ...[
           const SizedBox(height: 6),
-          Text(label!, style: KugoTypography.caption),
+          Text(label!, style: kugo.caption),
         ],
       ],
     );

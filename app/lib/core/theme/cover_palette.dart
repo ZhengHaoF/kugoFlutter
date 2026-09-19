@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'kugo_tokens.dart';
 
-/// Cover palette adapts to the active [KugoThemeBinding] brightness.
+/// Cover-seeded gradients. The palette is passed in (never read from a
+/// global) so callers rebuild with the active theme.
 class CoverPalette {
-  static List<Color> fromSeed(String seed) {
+  static List<Color> fromSeed(String seed, KugoPalette palette) {
     final hash = seed.hashCode & 0xffffffff;
     final hue = (210 + (hash % 120)).toDouble() % 360;
-    final light = KugoThemeBinding.palette.isLight;
-    if (light) {
+    if (palette.isLight) {
       // Clean cool tints — avoid muddy browns on light UI.
       final a = HSLColor.fromAHSL(1, hue, 0.35, 0.86).toColor();
       final b = HSLColor.fromAHSL(1, (hue + 40) % 360, 0.30, 0.92).toColor();
@@ -21,8 +21,7 @@ class CoverPalette {
     return [a, b, c];
   }
 
-  static LinearGradient playerBackground(String coverSeed) {
-    final p = KugoThemeBinding.palette;
+  static LinearGradient playerBackground(String coverSeed, KugoPalette p) {
     if (p.isLight) {
       // Soft brand wash → page bg (no heavy cover tint).
       return LinearGradient(
@@ -36,7 +35,7 @@ class CoverPalette {
         stops: const [0.0, 0.4, 1.0],
       );
     }
-    final colors = fromSeed(coverSeed);
+    final colors = fromSeed(coverSeed, p);
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -49,15 +48,14 @@ class CoverPalette {
     );
   }
 
-  static Color accentFromSeed(String seed) {
+  static Color accentFromSeed(String seed, KugoPalette palette) {
     final hash = seed.hashCode & 0xffffffff;
     final hue = (210 + (hash % 120)).toDouble() % 360;
-    final light = KugoThemeBinding.palette.isLight;
     return HSLColor.fromAHSL(
       1,
       hue,
-      light ? 0.55 : 0.48,
-      light ? 0.48 : 0.46,
+      palette.isLight ? 0.55 : 0.48,
+      palette.isLight ? 0.48 : 0.46,
     ).toColor();
   }
 }

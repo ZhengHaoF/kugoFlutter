@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/kugo_theme.dart';
 
 /// Loading / empty / error body shell used across list pages.
 class AsyncBody extends StatelessWidget {
@@ -87,19 +88,20 @@ class _SkeletonRowState extends State<_SkeletonRow>
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return FadeTransition(
       opacity: Tween(begin: 0.35, end: 0.8).animate(_controller),
       child: Row(
         children: [
-          _box(52, 52, radius: KugoRadius.cover),
+          _box(kugo, 52, 52, radius: KugoRadius.cover),
           const SizedBox(width: KugoSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _box(double.infinity, 14),
+                _box(kugo, double.infinity, 14),
                 const SizedBox(height: 8),
-                _box(120, 12),
+                _box(kugo, 120, 12),
               ],
             ),
           ),
@@ -108,12 +110,12 @@ class _SkeletonRowState extends State<_SkeletonRow>
     );
   }
 
-  Widget _box(double w, double h, {double radius = 8}) {
+  Widget _box(KugoTheme kugo, double w, double h, {double radius = 8}) {
     return Container(
       width: w,
       height: h,
       decoration: BoxDecoration(
-        color: KugoColors.surfaceElevated,
+        color: kugo.surfaceElevated,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -135,13 +137,14 @@ class _StatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 48, color: KugoColors.textTertiary),
+          Icon(icon, size: 48, color: kugo.textTertiary),
           const SizedBox(height: KugoSpacing.md),
-          Text(message, style: KugoTypography.caption),
+          Text(message, style: kugo.caption),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: KugoSpacing.lg),
             FilledButton(onPressed: onAction, child: Text(actionLabel!)),

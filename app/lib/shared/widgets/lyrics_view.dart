@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/kugo_theme.dart';
 
 class LyricsView extends StatefulWidget {
   const LyricsView({
@@ -97,9 +98,10 @@ class _LyricsViewState extends State<LyricsView> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     if (widget.lines.isEmpty) {
       return Center(
-        child: Text('暂无歌词', style: KugoTypography.caption),
+        child: Text('暂无歌词', style: kugo.caption),
       );
     }
 
@@ -119,7 +121,7 @@ class _LyricsViewState extends State<LyricsView> {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _lineStyle(start + i == activeIndex).copyWith(
+                  style: _lineStyle(kugo, start + i == activeIndex).copyWith(
                     fontSize: start + i == activeIndex ? 14 : 13,
                     height: 1.25,
                   ),
@@ -169,7 +171,7 @@ class _LyricsViewState extends State<LyricsView> {
                   child: Center(
                     child: AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 180),
-                      style: _lineStyle(isActive),
+                      style: _lineStyle(kugo, isActive),
                       child: Text(
                         widget.lines[index].text,
                         textAlign: TextAlign.center,
@@ -187,11 +189,11 @@ class _LyricsViewState extends State<LyricsView> {
     );
   }
 
-  TextStyle _lineStyle(bool active) {
+  TextStyle _lineStyle(KugoTheme kugo, bool active) {
     return TextStyle(
       fontSize: active ? 18 : 15,
       fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-      color: active ? KugoColors.textPrimary : KugoColors.textSecondary,
+      color: active ? kugo.textPrimary : kugo.textSecondary,
       height: 1.35,
     );
   }

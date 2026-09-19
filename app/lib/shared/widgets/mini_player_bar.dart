@@ -148,8 +148,8 @@ class MiniPlayerBar extends ConsumerWidget {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            CoverPalette.accentFromSeed(track.coverUrl),
-                            CoverPalette.accentFromSeed(track.coverUrl)
+                            CoverPalette.accentFromSeed(track.coverUrl, kugo.palette),
+                            CoverPalette.accentFromSeed(track.coverUrl, kugo.palette)
                                 .withValues(alpha: 0.4),
                           ],
                         ),

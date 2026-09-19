@@ -8,6 +8,7 @@ import '../../data/repositories/search_repository.dart';
 import '../../data/repositories/song_detail_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/kugo_theme.dart';
 
 /// Route: /song?id=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
 class SongDetailPage extends ConsumerStatefulWidget {
@@ -176,6 +177,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final track = _track;
     final player = ref.watch(playerControllerProvider);
 
@@ -197,11 +199,11 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(track.name, style: KugoTypography.title),
+                    Text(track.name, style: kugo.title),
                     const SizedBox(height: 6),
                     Text(
                       track.artist.isEmpty ? '未知歌手' : track.artist,
-                      style: KugoTypography.caption,
+                      style: kugo.caption,
                     ),
                     if (track.album.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -209,8 +211,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                         track.album,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: KugoTypography.caption.copyWith(
-                          color: KugoColors.textTertiary,
+                        style: kugo.caption.copyWith(
+                          color: kugo.textTertiary,
                         ),
                       ),
                     ],
@@ -249,13 +251,13 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               padding: const EdgeInsets.only(top: KugoSpacing.sm),
               child: Text(
                 player.isPlaying ? '正在播放' : '已加入播放',
-                style: KugoTypography.caption.copyWith(
-                  color: KugoColors.primary,
+                style: kugo.caption.copyWith(
+                  color: kugo.primary,
                 ),
               ),
             ),
           const SizedBox(height: KugoSpacing.xl),
-          Text('评论', style: KugoTypography.section),
+          Text('评论', style: kugo.section),
           const SizedBox(height: KugoSpacing.md),
           if (_loading)
             const Padding(
@@ -267,7 +269,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               padding: const EdgeInsets.all(KugoSpacing.lg),
               child: Text(
                 _error.isEmpty ? '暂无评论' : _error,
-                style: KugoTypography.caption,
+                style: kugo.caption,
               ),
             )
           else ...[
@@ -294,6 +296,7 @@ class _CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: KugoSpacing.lg),
       child: Row(
@@ -317,20 +320,20 @@ class _CommentTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         comment.user,
-                        style: KugoTypography.caption.copyWith(
-                          color: KugoColors.textPrimary,
+                        style: kugo.caption.copyWith(
+                          color: kugo.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                     if (comment.timeLabel.isNotEmpty)
-                      Text(comment.timeLabel, style: KugoTypography.caption),
+                      Text(comment.timeLabel, style: kugo.caption),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   comment.content,
-                  style: KugoTypography.body.copyWith(
+                  style: kugo.body.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
                     height: 1.45,
@@ -342,13 +345,13 @@ class _CommentTile extends StatelessWidget {
                     Icon(
                       Icons.thumb_up_off_alt_rounded,
                       size: 14,
-                      color: KugoColors.textTertiary,
+                      color: kugo.textTertiary,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       '${comment.likeCount}',
-                      style: KugoTypography.caption.copyWith(
-                        color: KugoColors.textTertiary,
+                      style: kugo.caption.copyWith(
+                        color: kugo.textTertiary,
                       ),
                     ),
                   ],

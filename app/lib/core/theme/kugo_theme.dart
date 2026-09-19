@@ -3,12 +3,17 @@ import 'package:flutter/services.dart';
 
 import 'kugo_tokens.dart';
 
-/// ThemeExtension (Plan A) — idiomatic `KugoTheme.of(context)` access.
+/// ThemeExtension — idiomatic `KugoTheme.of(context)` access.
+///
+/// Every color/style read goes through here (never a global) so widgets
+/// rebuild automatically when the theme flips. `Theme.of(context)` registers
+/// the dependency for us, which is why `const` widgets stay correct.
 class KugoTheme extends ThemeExtension<KugoTheme> {
   const KugoTheme(this.palette);
 
   final KugoPalette palette;
 
+  bool get isLight => palette.isLight;
   Color get bg => palette.bg;
   Color get surface => palette.surface;
   Color get surfaceElevated => palette.surfaceElevated;
@@ -18,8 +23,15 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
   Color get textSecondary => palette.textSecondary;
   Color get textTertiary => palette.textTertiary;
   Color get divider => palette.divider;
+  Color get overlay => palette.overlay;
   LinearGradient get accentGradient => palette.accentGradient;
   LinearGradient get playerGradient => palette.playerGradient;
+
+  /// Text drawn on top of [accentGradient] / cover art stays light in both
+  /// themes.
+  Color get onAccent => Colors.white;
+  Color get onCover => Colors.white;
+  Color get onCoverMuted => Colors.white70;
 
   TextStyle get greeting => TextStyle(
         fontSize: 28,
@@ -54,8 +66,10 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
       );
 
   static KugoTheme of(BuildContext context) =>
-      Theme.of(context).extension<KugoTheme>() ??
-      KugoTheme(KugoThemeBinding.palette);
+      Theme.of(context).extension<KugoTheme>() ?? fallback;
+
+  /// Used by widget tests / previews that build without [buildKugoTheme].
+  static const fallback = KugoTheme(KugoPalette.dark);
 
   @override
   KugoTheme copyWith({KugoPalette? palette}) =>
@@ -91,6 +105,15 @@ ThemeData buildKugoTheme(Brightness brightness) {
       onError: Colors.white,
       onSurfaceVariant: p.textSecondary,
       outline: p.textTertiary,
+      surfaceContainer: p.surface,
+      surfaceContainerHigh: p.surface,
+      surfaceContainerHighest: p.surfaceElevated,
+      surfaceContainerLow: p.surface,
+      surfaceContainerLowest: p.surface,
+      outlineVariant: p.divider,
+      inverseSurface: isLight ? const Color(0xFF23262E) : p.textPrimary,
+      onInverseSurface: isLight ? Colors.white : p.bg,
+      scrim: Colors.black,
     ),
     extensions: [KugoTheme(p)],
     splashFactory: InkSparkle.splashFactory,
@@ -103,17 +126,11 @@ ThemeData buildKugoTheme(Brightness brightness) {
       centerTitle: true,
       systemOverlayStyle:
           isLight ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
-      titleTextStyle: p.isLight
-          ? TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: p.textPrimary,
-            )
-          : const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFFFFFFF),
-            ),
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: p.textPrimary,
+      ),
       iconTheme: IconThemeData(color: p.textPrimary),
     ),
     dividerTheme: DividerThemeData(color: p.divider, thickness: 0.5),
@@ -127,6 +144,25 @@ ThemeData buildKugoTheme(Brightness brightness) {
       unselectedItemColor: p.textTertiary,
       type: BottomNavigationBarType.fixed,
       elevation: 0,
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: p.surfaceElevated,
+      surfaceTintColor: Colors.transparent,
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: p.surfaceElevated,
+      surfaceTintColor: Colors.transparent,
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: p.surfaceElevated,
+      surfaceTintColor: Colors.transparent,
+      modalBackgroundColor: p.surfaceElevated,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: isLight ? const Color(0xFF23262E) : p.surfaceElevated,
+      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+      actionTextColor: p.primary,
+      behavior: SnackBarBehavior.floating,
     ),
     sliderTheme: base.sliderTheme.copyWith(
       activeTrackColor: p.primary,

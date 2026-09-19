@@ -8,6 +8,7 @@ import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../core/theme/kugo_theme.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -86,6 +87,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
 
     return Scaffold(
@@ -105,15 +107,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               autofocus: false,
               textInputAction: TextInputAction.search,
               onSubmitted: _search,
-              style: KugoTypography.body,
+              style: kugo.body,
               decoration: InputDecoration(
                 hintText: '搜索歌曲、歌手、专辑',
-                hintStyle: KugoTypography.caption,
+                hintStyle: kugo.caption,
                 filled: true,
-                fillColor: KugoColors.surface,
+                fillColor: kugo.surface,
                 prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: KugoColors.textSecondary,
+                  color: kugo.textSecondary,
                 ),
                 suffixIcon: IconButton(
                   onPressed: () {
@@ -184,6 +186,7 @@ class _HotKeywords extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final items = hot.isEmpty
         ? const ['周杰伦', '林俊杰', '陈奕迅', '民谣', '说唱', '粤语']
         : hot;
@@ -192,7 +195,7 @@ class _HotKeywords extends StatelessWidget {
       children: [
         Text(
           '热门搜索',
-          style: KugoTypography.section.copyWith(fontSize: 16),
+          style: kugo.section.copyWith(fontSize: 16),
         ),
         const SizedBox(height: KugoSpacing.md),
         Wrap(
@@ -202,8 +205,8 @@ class _HotKeywords extends StatelessWidget {
             for (final kw in items)
               ActionChip(
                 label: Text(kw),
-                backgroundColor: KugoColors.surface,
-                labelStyle: KugoTypography.caption.copyWith(fontSize: 13),
+                backgroundColor: kugo.surface,
+                labelStyle: kugo.caption.copyWith(fontSize: 13),
                 side: BorderSide.none,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(KugoRadius.chip),

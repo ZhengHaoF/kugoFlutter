@@ -10,6 +10,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/kugo_theme.dart';
 
 /// Unified browse tab: former Home + Explore merged into one page.
 class ExplorePage extends ConsumerStatefulWidget {
@@ -20,7 +21,6 @@ class ExplorePage extends ConsumerStatefulWidget {
 }
 
 class _ExplorePageState extends ConsumerState<ExplorePage> {
-  List<String> _hot = const [];
   List<PlaylistBrief> _rankings = const [];
   List<PlaylistBrief> _playlists = const [];
   List<Track> _songs = const [];
@@ -39,7 +39,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _error = '';
     });
 
-    List<String> hot = const [];
     List<PlaylistBrief> ranks = const [];
     List<PlaylistBrief> squares = const [];
     List<Track> songs = const [];
@@ -52,11 +51,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       if (msg.contains('Access Deny')) denied = true;
     }
 
-    try {
-      hot = await searchRepository.hotKeywords();
-    } catch (e) {
-      noteError(e);
-    }
     try {
       ranks = await playlistRepository.fetchRankList();
     } catch (e) {
@@ -85,12 +79,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         .toList();
 
     setState(() {
-      _hot = hot;
       _rankings = rankList;
       _playlists = recPlaylists;
       _songs = songs;
       _loading = false;
-      if (hot.isEmpty && rankList.isEmpty && recPlaylists.isEmpty && songs.isEmpty) {
+      if (rankList.isEmpty && recPlaylists.isEmpty && songs.isEmpty) {
         _error = filtered
             ? '当前网络被网关拦截（URL过滤），无法访问酷狗。\n请换手机热点 / 关闭路由器「上网行为管理」后重试。'
             : denied
@@ -102,6 +95,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final hour = DateTime.now().hour;
     final greeting = switch (hour) {
@@ -111,7 +105,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _ => '晚上好',
     };
     final isEmpty = !_loading &&
-        _hot.isEmpty &&
         _rankings.isEmpty &&
         _playlists.isEmpty &&
         _songs.isEmpty;
@@ -132,11 +125,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(greeting, style: KugoTypography.greeting),
+                Text(greeting, style: kugo.greeting),
                 const SizedBox(height: 4),
                 Text(
                   '发现好音乐 · 为你精选今日旋律',
-                  style: KugoTypography.caption.copyWith(fontSize: 13),
+                  style: kugo.caption.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: KugoSpacing.lg),
                 const _SearchPill(),
@@ -154,35 +147,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
           )
         else ...[
-          if (_hot.isNotEmpty) ...[
-            const SliverToBoxAdapter(
-              child: SectionHeader(title: '热搜', showAccent: true),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final kw in _hot.take(12))
-                      ActionChip(
-                        label: Text(kw),
-                        backgroundColor: KugoColors.surface,
-                        labelStyle: KugoTypography.caption.copyWith(fontSize: 13),
-                        side: BorderSide.none,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(KugoRadius.chip),
-                        ),
-                        onPressed: () => context.push(
-                          '/search?q=${Uri.encodeComponent(kw)}',
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ],
           if (_rankings.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SectionHeader(
@@ -319,6 +283,7 @@ class _RankingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -349,13 +314,17 @@ class _RankingCard extends StatelessWidget {
                   children: [
                     Text(
                       rank.name,
-                      style: KugoTypography.section.copyWith(fontSize: 17),
+                      // Sits on a dark scrim over cover art in both themes.
+                      style: kugo.section.copyWith(
+                        fontSize: 17,
+                        color: kugo.onCover,
+                      ),
                     ),
                     if (rank.playCountLabel.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
                         rank.playCountLabel,
-                        style: KugoTypography.caption,
+                        style: kugo.caption.copyWith(color: kugo.onCoverMuted),
                       ),
                     ],
                   ],
@@ -384,8 +353,9 @@ class _EntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Material(
-      color: KugoColors.surface,
+      color: kugo.surface,
       borderRadius: BorderRadius.circular(KugoRadius.card),
       child: InkWell(
         onTap: onTap,
@@ -395,18 +365,18 @@ class _EntryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: KugoColors.primary),
+              Icon(icon, color: kugo.primary),
               const SizedBox(height: 10),
               Text(
                 title,
-                style: KugoTypography.body,
+                style: kugo.body,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: KugoTypography.caption,
+                style: kugo.caption,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -423,8 +393,9 @@ class _SearchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Material(
-      color: KugoColors.surface,
+      color: kugo.surface,
       borderRadius: BorderRadius.circular(KugoRadius.chip),
       child: InkWell(
         onTap: () => context.push('/search'),
@@ -433,11 +404,11 @@ class _SearchPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(
             children: [
-              Icon(Icons.search_rounded, color: KugoColors.textSecondary),
+              Icon(Icons.search_rounded, color: kugo.textSecondary),
               const SizedBox(width: 10),
               Text(
                 '搜索歌曲、歌手、专辑',
-                style: KugoTypography.caption.copyWith(fontSize: 14),
+                style: kugo.caption.copyWith(fontSize: 14),
               ),
             ],
           ),

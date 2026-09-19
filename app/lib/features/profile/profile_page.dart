@@ -28,8 +28,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Theme dependency: KugoTypography/KugoColors are static tokens; pages must
-    // rebuild when MaterialApp theme flips or const children keep stale colors.
     final kugo = KugoTheme.of(context);
     ref.watch(settingsControllerProvider.select((s) => s.themeMode));
     final auth = ref.watch(authControllerProvider);
@@ -104,10 +102,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ),
                             child: Text(
                               displaySub,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                // White only reads on the accent gradient; the
+                                // guest chip uses the page surface.
+                                color: auth.isLogged
+                                    ? kugo.onAccent
+                                    : kugo.textSecondary,
                               ),
                             ),
                           ),

@@ -9,6 +9,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/kugo_theme.dart';
 
 class AlbumDetailPage extends ConsumerStatefulWidget {
   const AlbumDetailPage({super.key, required this.id});
@@ -53,6 +54,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final album = _album;
     final songs = album?.songs ?? const <Track>[];
@@ -77,7 +79,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                   if (album != null)
                     CoverBox(seed: album.coverUrl, size: 0, radius: 0)
                   else
-                    ColoredBox(color: KugoColors.surface),
+                    ColoredBox(color: kugo.surface),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -85,7 +87,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.black.withValues(alpha: 0.2),
-                          KugoColors.bg.withValues(alpha: 0.95),
+                          kugo.bg.withValues(alpha: 0.95),
                         ],
                       ),
                     ),
@@ -97,7 +99,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(album?.name ?? '专辑', style: KugoTypography.title),
+                        Text(album?.name ?? '专辑', style: kugo.title),
                         const SizedBox(height: 6),
                         Text(
                           [
@@ -106,7 +108,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                               album!.publishTime,
                             if (album != null) '${songs.length} 首',
                           ].join(' · '),
-                          style: KugoTypography.caption,
+                          style: kugo.caption,
                         ),
                       ],
                     ),
@@ -145,7 +147,8 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
           ),
           if (_loading)
             const SliverFillRemaining(
-              hasScrollBody: false,
+              // SkeletonList is a ListView (a viewport), so the sliver must
+              // treat it as a scrolling body or intrinsic layout asserts.
               child: SkeletonList(),
             )
           else if (songs.isEmpty)

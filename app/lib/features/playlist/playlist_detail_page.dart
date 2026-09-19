@@ -9,6 +9,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/kugo_theme.dart';
 
 class PlaylistDetailPage extends ConsumerStatefulWidget {
   const PlaylistDetailPage({super.key, required this.id});
@@ -57,6 +58,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final brief = _brief;
     final tracks = _tracks;
@@ -81,7 +83,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                   if (brief != null)
                     CoverBox(seed: brief.coverUrl, size: 0, radius: 0)
                   else
-                    ColoredBox(color: KugoColors.surface),
+                    ColoredBox(color: kugo.surface),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -89,7 +91,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.black.withValues(alpha: 0.15),
-                          KugoColors.bg.withValues(alpha: 0.92),
+                          kugo.bg.withValues(alpha: 0.92),
                         ],
                       ),
                     ),
@@ -103,7 +105,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                       children: [
                         Text(
                           brief?.name ?? '歌单',
-                          style: KugoTypography.title,
+                          style: kugo.title,
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -111,7 +113,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                               ? '在线加载'
                               : '${tracks.length} 首'
                                   '${brief.playCountLabel.isNotEmpty ? ' · ${brief.playCountLabel}' : ''}',
-                          style: KugoTypography.caption,
+                          style: kugo.caption,
                         ),
                         if (brief?.description.isNotEmpty == true) ...[
                           const SizedBox(height: 8),
@@ -119,7 +121,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                             brief!.description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: KugoTypography.caption,
+                            style: kugo.caption,
                           ),
                         ],
                       ],
@@ -162,7 +164,8 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
           ),
           if (_loading)
             const SliverFillRemaining(
-              hasScrollBody: false,
+              // SkeletonList is a ListView (a viewport), so the sliver must
+              // treat it as a scrolling body or intrinsic layout asserts.
               child: SkeletonList(),
             )
           else if (tracks.isEmpty)

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/kugo_theme.dart';
-import 'core/theme/kugo_tokens.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
@@ -22,6 +21,28 @@ import 'features/settings/settings_page.dart';
 import 'features/song/song_detail_page.dart';
 import 'shared/shell/root_shell.dart';
 
+/// Center scale + fade for lyrics route; Hero still runs on cover tags.
+Widget _lyricsRouteTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  final curved = CurvedAnimation(
+    parent: animation,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  return FadeTransition(
+    opacity: curved,
+    child: ScaleTransition(
+      scale: Tween<double>(begin: 0.82, end: 1.0).animate(curved),
+      alignment: Alignment.center,
+      child: child,
+    ),
+  );
+}
+
 final _routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/explore',
@@ -36,6 +57,17 @@ final _routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => const MaterialPage(
           fullscreenDialog: true,
           child: FullPlayerPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/player/lyrics',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          transitionDuration: const Duration(milliseconds: 420),
+          reverseTransitionDuration: const Duration(milliseconds: 300),
+          transitionsBuilder: _lyricsRouteTransition,
+          child: const PlayerLyricsPage(),
         ),
       ),
       GoRoute(
@@ -155,15 +187,6 @@ class KugoApp extends ConsumerWidget {
     final router = ref.watch(_routerProvider);
     final settings = ref.watch(settingsControllerProvider);
     final mode = settings.materialThemeMode;
-    final platform = View.of(context).platformDispatcher.platformBrightness;
-    final resolved = switch (mode) {
-      ThemeMode.dark => Brightness.dark,
-      ThemeMode.light => Brightness.light,
-      ThemeMode.system => platform,
-    };
-    final palette = kugoPaletteFor(resolved);
-    KugoThemeBinding.apply(palette);
-    applyKugoSystemUi(resolved);
 
     return MaterialApp.router(
       title: 'kugo',
@@ -173,16 +196,9 @@ class KugoApp extends ConsumerWidget {
       darkTheme: buildKugoTheme(Brightness.dark),
       routerConfig: router,
       builder: (context, child) {
-        // Re-apply on every navigator build; rebuild leaves when brightness flips.
-        final brightness = Theme.of(context).brightness;
-        final palette = kugoPaletteFor(brightness);
-        KugoThemeBinding.apply(palette);
-        return KeyedSubtree(
-          // Key includes brightness so theme switch remounts shell/pages and
-          // const widgets that use static Kugo tokens pick up new colors.
-          key: ValueKey('kugo-brightness-${brightness.name}'),
-          child: child ?? const SizedBox.shrink(),
-        );
+        // Status/navigation bars follow the resolved theme, not the OS setting.
+        applyKugoSystemUi(Theme.of(context).brightness);
+        return child ?? const SizedBox.shrink();
       },
     );
   }

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugo_client.dart';
 import '../../core/api/network_log.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/kugo_theme.dart';
 import 'network_log_provider.dart';
 
 /// 网络请求日志弹窗（对齐 z_ai_img 的 NetworkLogDialog + 探测/复制）
@@ -188,6 +188,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final logs = ref.watch(networkLogProvider);
     final filteredLogs = _filterType == null
         ? logs
@@ -200,7 +201,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
         children: [
           Text(
             _live ? '网络请求日志 · 第 $_liveRound 轮' : '网络请求日志',
-            style: KugoTypography.section.copyWith(fontSize: 18),
+            style: kugo.section.copyWith(fontSize: 18),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -272,7 +273,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
                       Expanded(
                         child: Text(
                           '实时探测',
-                          style: KugoTypography.caption,
+                          style: kugo.caption,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -306,7 +307,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
             Expanded(
               child: filteredLogs.isEmpty
                   ? Center(
-                      child: Text('暂无日志', style: KugoTypography.caption),
+                      child: Text('暂无日志', style: kugo.caption),
                     )
                   : ListView.separated(
                       itemCount: filteredLogs.length,
@@ -353,6 +354,7 @@ class _LogTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 4),
       childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
@@ -400,7 +402,7 @@ class _LogTile extends StatelessWidget {
             log.formattedTime,
             style: TextStyle(
               fontSize: 11,
-              color: KugoColors.textTertiary,
+              color: kugo.textTertiary,
             ),
           ),
           IconButton(
@@ -424,7 +426,7 @@ class _LogTile extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: KugoColors.surfaceElevated.withValues(alpha: 0.5),
+            color: kugo.surfaceElevated.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Column(

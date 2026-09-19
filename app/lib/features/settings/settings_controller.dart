@@ -21,6 +21,7 @@ class AppSettings {
     this.sleepCustomMinutes = 45,
     this.wifiCoverOnly = false,
     this.lyricTranslation = true,
+    this.mediaLyricSubtitle = false,
     this.themeMode = AppThemeMode.dark,
   });
 
@@ -29,6 +30,9 @@ class AppSettings {
   final int sleepCustomMinutes;
   final bool wifiCoverOnly;
   final bool lyricTranslation;
+
+  /// System media (lock screen / Bluetooth) subtitle shows `artist · lyric`.
+  final bool mediaLyricSubtitle;
   final AppThemeMode themeMode;
 
   ThemeMode get materialThemeMode => switch (themeMode) {
@@ -62,6 +66,7 @@ class AppSettings {
     int? sleepCustomMinutes,
     bool? wifiCoverOnly,
     bool? lyricTranslation,
+    bool? mediaLyricSubtitle,
     AppThemeMode? themeMode,
   }) {
     return AppSettings(
@@ -70,6 +75,7 @@ class AppSettings {
       sleepCustomMinutes: sleepCustomMinutes ?? this.sleepCustomMinutes,
       wifiCoverOnly: wifiCoverOnly ?? this.wifiCoverOnly,
       lyricTranslation: lyricTranslation ?? this.lyricTranslation,
+      mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       themeMode: themeMode ?? this.themeMode,
     );
   }
@@ -81,12 +87,21 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kSleepCustom = 'settings.sleepCustom';
   static const _kWifiCover = 'settings.wifiCover';
   static const _kLyricTr = 'settings.lyricTranslation';
+  static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kThemeMode = 'settings.themeMode';
 
   @override
   AppSettings build() {
-    unawaited(_restore());
+    _restoreFuture = _restore();
     return const AppSettings();
+  }
+
+  Future<void>? _restoreFuture;
+
+  /// Lets `main()` wait for persisted settings before the first frame, so the
+  /// app never paints one theme and then flips to the saved one.
+  Future<void> ensureRestored() async {
+    await (_restoreFuture ??= _restore());
   }
 
   Future<void> _restore() async {
@@ -107,6 +122,7 @@ class SettingsController extends Notifier<AppSettings> {
         sleepCustomMinutes: prefs.getInt(_kSleepCustom) ?? 45,
         wifiCoverOnly: prefs.getBool(_kWifiCover) ?? false,
         lyricTranslation: prefs.getBool(_kLyricTr) ?? true,
+        mediaLyricSubtitle: prefs.getBool(_kMediaLyric) ?? false,
         themeMode: AppThemeMode.values.firstWhere(
           (e) => e.name == themeName,
           orElse: () => AppThemeMode.dark,
@@ -145,6 +161,11 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setLyricTranslation(bool v) async {
     state = state.copyWith(lyricTranslation: v);
     await _save(_kLyricTr, v);
+  }
+
+  Future<void> setMediaLyricSubtitle(bool v) async {
+    state = state.copyWith(mediaLyricSubtitle: v);
+    await _save(_kMediaLyric, v);
   }
 
   /// Clear cover disk/memory cache + play history. Returns a status label.

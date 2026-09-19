@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,62 +12,29 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/lyrics_view.dart';
 import '../../shared/widgets/quality_sheet.dart';
+import '../../core/theme/kugo_theme.dart';
 
-class FullPlayerPage extends ConsumerStatefulWidget {
+class FullPlayerPage extends ConsumerWidget {
   const FullPlayerPage({super.key});
 
-  @override
-  ConsumerState<FullPlayerPage> createState() => _FullPlayerPageState();
-}
-
-class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
-    with SingleTickerProviderStateMixin {
-  bool _lyricsExpanded = false;
-
-  /// After the first expand, keep lyrics body mounted (opacity 0 when
-  /// collapsed) so ListView scroll state never remounts on re-expand.
-  bool _lyricsAttached = false;
-  late final AnimationController _fx;
-
-  @override
-  void initState() {
-    super.initState();
-    _fx = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-      reverseDuration: const Duration(milliseconds: 300),
-    );
+  static String format(int ms) {
+    final d = Duration(milliseconds: ms);
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
-  @override
-  void dispose() {
-    _fx.dispose();
-    super.dispose();
-  }
-
-  void _expandLyrics() {
-    if (_lyricsExpanded) return;
-    setState(() {
-      _lyricsExpanded = true;
-      _lyricsAttached = true;
-    });
-    _fx.forward(from: 0);
-  }
-
-  void _collapseLyrics() {
-    if (!_lyricsExpanded) return;
-    setState(() => _lyricsExpanded = false);
-    _fx.reverse();
-  }
+  void _openLyrics(BuildContext context) => context.push('/player/lyrics');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final track = player.current;
     if (track == null) {
       return Scaffold(
-        backgroundColor: KugoColors.bg,
+        backgroundColor: kugo.bg,
         body: SafeArea(
           child: Column(
             children: [
@@ -83,7 +50,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                   child: Text(
                     '暂无播放内容\n去搜索或歌单里点一首歌',
                     textAlign: TextAlign.center,
-                    style: KugoTypography.caption,
+                    style: kugo.caption,
                   ),
                 ),
               ),
@@ -95,138 +62,36 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
     final progress = (player.positionMs / duration).clamp(0.0, 1.0);
-    final expanded = _lyricsExpanded;
-    final palette = CoverPalette.fromSeed(track.coverUrl);
 
     return Scaffold(
-      // Solid page bg: transparent + Material/Zoom route settle can flash
-      // through for a frame; the gradient body still paints on top.
-      backgroundColor: KugoColors.bg,
+      // Solid page bg avoids Material/Zoom settle flash-through.
+      backgroundColor: kugo.bg,
       body: Container(
         decoration: BoxDecoration(
-          gradient: CoverPalette.playerBackground(track.coverUrl),
+          gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
         ),
         child: SafeArea(
           child: Column(
             children: [
               _TopBar(
-                expanded: expanded,
+                expanded: false,
                 track: track,
                 onCollapsePage: () => context.pop(),
-                onCollapseLyrics: _collapseLyrics,
+                onCollapseLyrics: () => context.pop(),
                 onSongDetail: () => _openSongDetail(context, track),
                 onQueue: () => _showQueueSheet(context, ref),
               ),
               Expanded(
-                child: AnimatedBuilder(
-                  animation: _fx,
-                  builder: (context, _) {
-                    final t = _fx.value.clamp(0.0, 1.0);
-                        // One Stack for mid + settled expand/collapse: no tree
-                        // hard-cut, so LyricsView scroll stays continuous.
-                        // Expand/collapse: center scale (中间缩放) + fade.
-                        final ease = Curves.easeOutCubic.transform(t);
-                        final settledExpanded = _lyricsExpanded && t > 0.98;
-                        final settledCollapsed = !_lyricsExpanded && t < 0.02;
-
-                        final collapsedOpacity = settledExpanded
-                            ? 0.0
-                            : (1.0 - t * 1.45).clamp(0.0, 1.0);
-                        // Lyrics fade in with the scale (0 → 1).
-                        final expandedOpacity = settledCollapsed
-                            ? 0.0
-                            : ease.clamp(0.0, 1.0);
-                        // Center zoom: small → full.
-                        final expandedScale =
-                            settledExpanded ? 1.0 : (0.82 + 0.18 * ease);
-                        // Old player gently shrinks toward center.
-                        final collapsedScale =
-                            settledExpanded ? 0.92 : (1.0 - 0.08 * ease);
-                        final blurT = (settledExpanded || settledCollapsed)
-                            ? 0.0
-                            : (t < 0.5
-                                ? Curves.easeOut.transform(t / 0.5)
-                                : (1.0 - (t - 0.5) / 0.5).clamp(0.0, 1.0));
-                        final collapsedHero = settledCollapsed;
-                        final expandedHero = settledExpanded;
-
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (collapsedOpacity > 0.001)
-                              Opacity(
-                                opacity: collapsedOpacity,
-                                child: Transform.scale(
-                                  scale: collapsedScale,
-                                  alignment: Alignment.center,
-                                  child: IgnorePointer(
-                                    ignoring: !settledCollapsed,
-                                    child: _CollapsedPlayerBody(
-                                      key: const ValueKey(
-                                        'player-collapsed',
-                                      ),
-                                      useHero: collapsedHero,
-                                      track: track,
-                                      player: player,
-                                      controller: controller,
-                                      progress: progress,
-                                      duration: duration,
-                                      onExpandLyrics: _expandLyrics,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            // Keep expanded mounted after first open so the
-                            // lyrics ListView never remounts on settle.
-                            if (expandedOpacity > 0.001 || _lyricsAttached)
-                              Positioned.fill(
-                                child: Opacity(
-                                  opacity: expandedOpacity,
-                                  child: IgnorePointer(
-                                    ignoring: expandedOpacity < 0.85,
-                                    child: Transform.scale(
-                                      scale: expandedScale,
-                                      alignment: Alignment.center,
-                                      child: _ExpandedLyricsBody(
-                                        key: const ValueKey(
-                                          'lyrics-expanded',
-                                        ),
-                                        useHero: expandedHero,
-                                        track: track,
-                                        player: player,
-                                        controller: controller,
-                                        progress: progress,
-                                        duration: duration,
-                                        onSwipeDown: _collapseLyrics,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (blurT > 0.05)
-                              Positioned.fill(
-                                child: IgnorePointer(
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          palette[0].withValues(
-                                            alpha: 0.12 * blurT,
-                                          ),
-                                          Colors.black.withValues(
-                                            alpha: 0.18 * blurT,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        );
-                  },
+                child: _CollapsedPlayerBody(
+                  key: const ValueKey('player-collapsed'),
+                  // Route Hero: large cover ↔ lyrics header / mini player.
+                  useHero: true,
+                  track: track,
+                  player: player,
+                  controller: controller,
+                  progress: progress,
+                  duration: duration,
+                  onExpandLyrics: () => _openLyrics(context),
                 ),
               ),
             ],
@@ -254,6 +119,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
   }
 
   void _showQueueSheet(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     final player = ref.read(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     showKugoBottomSheet<void>(
@@ -267,14 +133,14 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: KugoColors.textTertiary,
+                color: kugo.textTertiary,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
             Text(
               '播放队列 · ${player.queue.length} 首',
-              style: KugoTypography.section.copyWith(fontSize: 16),
+              style: kugo.section.copyWith(fontSize: 16),
             ),
             const SizedBox(height: 8),
             Flexible(
@@ -287,18 +153,18 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                   return ListTile(
                     title: Text(
                       track.name,
-                      style: KugoTypography.body.copyWith(
+                      style: kugo.body.copyWith(
                         color: isCurrent
-                            ? KugoColors.primary
-                            : KugoColors.textPrimary,
+                            ? kugo.primary
+                            : kugo.textPrimary,
                       ),
                     ),
                     subtitle:
-                        Text(track.artist, style: KugoTypography.caption),
+                        Text(track.artist, style: kugo.caption),
                     trailing: isCurrent
                         ? Icon(
                             Icons.equalizer_rounded,
-                            color: KugoColors.primary,
+                            color: kugo.primary,
                             size: 18,
                           )
                         : null,
@@ -313,6 +179,214 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
           ],
         );
       },
+    );
+  }
+}
+
+/// Full lyrics as its own route: Hero flies cover large → header, and the
+/// page uses center scale + fade (see `/player/lyrics` in app.dart).
+class PlayerLyricsPage extends ConsumerWidget {
+  const PlayerLyricsPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
+    final player = ref.watch(playerControllerProvider);
+    final controller = ref.read(playerControllerProvider.notifier);
+    final track = player.current;
+
+    if (track == null) {
+      return Scaffold(
+        backgroundColor: kugo.bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: () => context.pop(),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    '暂无播放内容',
+                    style: kugo.caption,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final duration = player.durationMs == 0 ? 1 : player.durationMs;
+    final progress = (player.positionMs / duration).clamp(0.0, 1.0);
+
+    return Scaffold(
+      backgroundColor: kugo.bg,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
+        ),
+        child: SafeArea(
+          child: GestureDetector(
+            behavior: HitTestBehavior.deferToChild,
+            onVerticalDragEnd: (d) {
+              final v = d.primaryVelocity ?? 0;
+              if (v > 240 && context.canPop()) context.pop();
+            },
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    KugoSpacing.sm,
+                    KugoSpacing.sm,
+                    KugoSpacing.xl,
+                    4,
+                  ),
+                  child: SizedBox(
+                    height: 48,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => context.pop(),
+                          tooltip: '收起歌词',
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 32,
+                          ),
+                        ),
+                        // Hero destination: mini cover in lyrics header.
+                        CoverHero(
+                          tag: 'player-cover-${track.id}',
+                          seed: track.coverUrl,
+                          size: 44,
+                          radius: 8,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                track.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: kugo.body.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.2,
+                                ),
+                              ),
+                              Text(
+                                '${track.artist} · ${track.album}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: kugo.caption.copyWith(
+                                  height: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _PlayerQualityChip(track: track),
+                      ],
+                    ),
+                  ),
+                ),
+                if (player.display == PlayerDisplayState.error)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      KugoSpacing.xl,
+                      4,
+                      KugoSpacing.xl,
+                      0,
+                    ),
+                    child: Text(
+                      player.errorCode.isEmpty
+                          ? '播放失败，可点下一首重试'
+                          : player.errorCode,
+                      textAlign: TextAlign.center,
+                      style: kugo.caption.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: LyricsView(
+                    lines: player.lyrics,
+                    positionMs: player.positionMs,
+                    onTapLine: (ms) => controller.seekTo(ms),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    KugoSpacing.lg,
+                    4,
+                    KugoSpacing.lg,
+                    20,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        height: 48,
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 5,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 10,
+                            ),
+                          ),
+                          child: Slider(
+                            value: progress,
+                            onChanged: (v) =>
+                                controller.seekTo((v * duration).round()),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 22,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                FullPlayerPage.format(player.positionMs),
+                                style: kugo.caption
+                                    .copyWith(height: 1.2),
+                              ),
+                              Text(
+                                '-${FullPlayerPage.format(duration - player.positionMs)}',
+                                style: kugo.caption
+                                    .copyWith(height: 1.2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _ControlBar(
+                        player: player,
+                        controller: controller,
+                        track: track,
+                        compact: true,
+                        height: 60,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -336,6 +410,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final title = AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       child: expanded
@@ -348,14 +423,14 @@ class _TopBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: KugoTypography.section,
+                  style: kugo.section,
                 ),
                 Text(
                   track.artist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: KugoTypography.caption,
+                  style: kugo.caption,
                 ),
               ],
             )
@@ -363,7 +438,7 @@ class _TopBar extends StatelessWidget {
               key: const ValueKey('playing-title'),
               '正在播放',
               textAlign: TextAlign.center,
-              style: KugoTypography.section,
+              style: kugo.section,
             ),
     );
 
@@ -471,6 +546,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final bodyH = constraints.maxHeight.isFinite
@@ -591,8 +667,8 @@ class _CollapsedPlayerBody extends StatelessWidget {
                                   : player.errorCode,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: KugoTypography.caption.copyWith(
-                                color: const Color(0xFFFF8A9A),
+                              style: kugo.caption.copyWith(
+                                color: Theme.of(context).colorScheme.error,
                                 fontSize: 12,
                                 height: 1.25,
                               ),
@@ -631,13 +707,13 @@ class _CollapsedPlayerBody extends StatelessWidget {
                           children: [
                             Text(
                               format(player.positionMs),
-                              style: KugoTypography.caption.copyWith(
+                              style: kugo.caption.copyWith(
                                 height: 1.2,
                               ),
                             ),
                             Text(
                               '-${format(duration - player.positionMs)}',
-                              style: KugoTypography.caption.copyWith(
+                              style: kugo.caption.copyWith(
                                 height: 1.2,
                               ),
                             ),
@@ -671,6 +747,7 @@ class _TrackMetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return SizedBox(
       height: height,
       child: AnimatedSwitcher(
@@ -694,7 +771,7 @@ class _TrackMetaRow extends StatelessWidget {
                       track.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: KugoTypography.playerTitle.copyWith(
+                      style: kugo.playerTitle.copyWith(
                         fontSize: 20,
                         height: 1.2,
                       ),
@@ -704,7 +781,7 @@ class _TrackMetaRow extends StatelessWidget {
                       '${track.artist} · ${track.album}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: KugoTypography.caption.copyWith(height: 1.2),
+                      style: kugo.caption.copyWith(height: 1.2),
                     ),
                   ],
                 ),
@@ -727,6 +804,7 @@ class _PlayerQualityChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final preferred = ref.watch(settingsControllerProvider).quality;
     final resolved = player.resolvedQuality;
@@ -749,180 +827,10 @@ class _PlayerQualityChip extends ConsumerWidget {
             Icon(
               Icons.unfold_more_rounded,
               size: 12,
-              color: KugoColors.textSecondary,
+              color: kugo.textSecondary,
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ExpandedLyricsBody extends ConsumerWidget {
-  const _ExpandedLyricsBody({
-    super.key,
-    required this.track,
-    required this.player,
-    required this.controller,
-    required this.progress,
-    required this.duration,
-    required this.onSwipeDown,
-    this.useHero = true,
-  });
-
-  final Track track;
-  final PlayerState player;
-  final PlayerController controller;
-  final double progress;
-  final int duration;
-  final VoidCallback onSwipeDown;
-  final bool useHero;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      behavior: HitTestBehavior.deferToChild,
-      onVerticalDragEnd: (d) {
-        final v = d.primaryVelocity ?? 0;
-        if (v > 240) onSwipeDown();
-      },
-      child: Column(
-        children: [
-          // Compact header: small cover + quality
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.xl,
-              KugoSpacing.sm,
-              KugoSpacing.xl,
-              4,
-            ),
-            child: SizedBox(
-              height: 48,
-              child: Row(
-                children: [
-                  _PlayerCoverSlot(
-                    tag: 'player-cover-${track.id}',
-                    seed: track.coverUrl,
-                    size: 44,
-                    radius: 8,
-                    useHero: useHero,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: KugoTypography.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.2,
-                          ),
-                        ),
-                        Text(
-                          '${track.artist} · ${track.album}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: KugoTypography.caption.copyWith(height: 1.2),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _PlayerQualityChip(track: track),
-                ],
-              ),
-            ),
-          ),
-          if (player.display == PlayerDisplayState.error)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.xl,
-                4,
-                KugoSpacing.xl,
-                0,
-              ),
-              child: Text(
-                player.errorCode.isEmpty
-                    ? '播放失败，可点下一首重试'
-                    : player.errorCode,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: KugoTypography.caption.copyWith(
-                  color: const Color(0xFFFF8A9A),
-                ),
-              ),
-            ),
-          // Full lyrics
-          Expanded(
-            child: LyricsView(
-              lines: player.lyrics,
-              positionMs: player.positionMs,
-              onTapLine: (ms) => controller.seekTo(ms),
-            ),
-          ),
-          // Mini transport
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              4,
-              KugoSpacing.lg,
-              20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 48,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 5,
-                      ),
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 10,
-                      ),
-                    ),
-                    child: Slider(
-                      value: progress,
-                      onChanged: (v) =>
-                          controller.seekTo((v * duration).round()),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: 22,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _CollapsedPlayerBody.format(player.positionMs),
-                          style: KugoTypography.caption.copyWith(height: 1.2),
-                        ),
-                        Text(
-                          '-${_CollapsedPlayerBody.format(duration - player.positionMs)}',
-                          style: KugoTypography.caption.copyWith(height: 1.2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                _ControlBar(
-                  player: player,
-                  controller: controller,
-                  track: track,
-                  compact: true,
-                  height: 60,
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -945,6 +853,7 @@ class _ControlBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     // Always bind the live player state so the play/pause icon cannot go stale.
     final live = ref.watch(playerControllerProvider);
     final liked = ref.watch(likesProvider).any((t) => t.id == track.id);
@@ -971,7 +880,7 @@ class _ControlBar extends ConsumerWidget {
                   PlayerLoopMode.shuffle => Icons.shuffle_rounded,
                   PlayerLoopMode.single => Icons.repeat_one_rounded,
                 },
-                color: KugoColors.textSecondary,
+                color: kugo.textSecondary,
                 size: 22,
               ),
             ),
@@ -982,14 +891,14 @@ class _ControlBar extends ConsumerWidget {
               icon: Icon(
                 Icons.skip_previous_rounded,
                 size: 32,
-                color: KugoColors.textPrimary,
+                color: kugo.textPrimary,
               ),
             ),
             Container(
               width: playSize,
               height: playSize,
               decoration: BoxDecoration(
-                gradient: KugoColors.accentGradient,
+                gradient: kugo.accentGradient,
                 shape: BoxShape.circle,
               ),
               child: isLoading
@@ -1019,7 +928,7 @@ class _ControlBar extends ConsumerWidget {
               icon: Icon(
                 Icons.skip_next_rounded,
                 size: 32,
-                color: KugoColors.textPrimary,
+                color: kugo.textPrimary,
               ),
             ),
             IconButton(
@@ -1031,7 +940,7 @@ class _ControlBar extends ConsumerWidget {
               icon: Icon(
                 liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 color:
-                    liked ? const Color(0xFFE87A90) : KugoColors.textSecondary,
+                    liked ? const Color(0xFFE87A90) : kugo.textSecondary,
                 size: 22,
               ),
             ),

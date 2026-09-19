@@ -93,6 +93,7 @@ class PlayerController extends Notifier<PlayerState> {
 
   KugoMediaBridge? _bridge;
   StreamSubscription<void>? _posSub;
+  StreamSubscription<Duration>? _bufferedSub;
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<PlayerIdleReason>? _completeSub;
   QueueStore? _store;
@@ -107,14 +108,50 @@ class PlayerController extends Notifier<PlayerState> {
   DateTime? _ignoreEnginePlayUntil;
   Timer? _demoTimer;
   Timer? _sleepTimer;
+  Timer? _mediaTick;
   int _sleepDeadlineMs = 0;
+  String? _lastMediaSubtitle;
+  int _bufferedMs = 0;
+  /// Base used to extrapolate the position between engine events. Only ever
+  /// moves forward — see [_publishMediaPosition].
+  int _tickBaseMs = 0;
+  DateTime _tickBaseAt = DateTime.now();
+  /// Highest position already pushed to the platform — keeps it monotonic.
+  /// `-1` until the first push so a legitimate `0` (track start) is not forced
+  /// up to `1`.
+  int _lastPushedMs = -1;
+  String _lastQueueSig = '';
 
   @override
   PlayerState build() {
     _engine = _engineOverride ?? JustAudioPlayerImpl();
+    ref.listen(settingsControllerProvider, (prev, next) {
+      if (prev?.mediaLyricSubtitle != next.mediaLyricSubtitle) {
+        _lastMediaSubtitle = null;
+        _maybeUpdateMediaSubtitle();
+      }
+    });
     _posSub = _engine.positionStream.listen((pos) {
-      state = state.copyWith(positionMs: pos.inMilliseconds);
-      _bridge?.updatePosition(pos);
+      final ms = pos.inMilliseconds;
+      // Only let the engine advance the extrapolation base. just_audio emits on
+      // a fixed 200ms cadence that beats against the 1s media tick, so an
+      // unconditional assignment would occasionally anchor the base to a
+      // sample *older* than the position already handed to the platform — the
+      // next tick would then look like a backwards jump to AVRCP.
+      if (ms > _tickBaseMs) {
+        _tickBaseMs = ms;
+        _tickBaseAt = DateTime.now();
+      }
+      state = state.copyWith(positionMs: ms);
+      // NB: the engine sample is deliberately NOT forwarded to the media
+      // session here. The MediaSession holds a snapshot, not a live value, and
+      // positions must never be published out of order (AVRCP only refreshes
+      // when the value changes, and a sample arriving out of order looks like a
+      // backwards jump). `_mediaTick` is the single writer for the platform.
+      _maybeUpdateMediaSubtitle();
+    });
+    _bufferedSub = _engine.bufferedPositionStream.listen((pos) {
+      _bufferedMs = pos.inMilliseconds;
     });
     // Sync play/pause UI from engine, but never override an explicit pause.
     _playingSub = _engine.playingStream.listen((playing) {
@@ -154,10 +191,12 @@ class PlayerController extends Notifier<PlayerState> {
 
     ref.onDispose(() {
       _posSub?.cancel();
+      _bufferedSub?.cancel();
       _playingSub?.cancel();
       _completeSub?.cancel();
       _demoTimer?.cancel();
       _sleepTimer?.cancel();
+      _mediaTick?.cancel();
       _engine.dispose();
     });
 
@@ -257,6 +296,8 @@ class PlayerController extends Notifier<PlayerState> {
     final track = state.current;
     if (track == null) return;
     if (seq != state.seq) return;
+
+    _resetMediaPosition(0);
 
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
@@ -414,6 +455,7 @@ class PlayerController extends Notifier<PlayerState> {
     final lines = await _lyricRepo.fetchLyrics(track);
     if (seq != state.seq) return;
     state = state.copyWith(lyrics: lines);
+    _maybeUpdateMediaSubtitle();
   }
 
   void togglePlay() {
@@ -528,7 +570,9 @@ class PlayerController extends Notifier<PlayerState> {
     if (track != null && track.hasHash) {
       unawaited(_engine.seek(Duration(milliseconds: clamped)));
     }
-    _bridge?.updatePosition(Duration(milliseconds: clamped));
+    // A seek is an intentional jump, so reset the monotonic guard with it.
+    _resetMediaPosition(clamped);
+    _publishMediaPosition(clamped, force: true);
   }
 
   void cycleMode() {
@@ -592,6 +636,9 @@ class PlayerController extends Notifier<PlayerState> {
         return;
       }
       state = state.copyWith(positionMs: nextPos);
+      // Keep MediaSession/Bluetooth progress in sync for non-engine demo tracks.
+      _publishMediaPosition(nextPos);
+      _maybeUpdateMediaSubtitle();
     });
   }
 
@@ -612,6 +659,10 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   void _syncBridge({Track? track}) {
+    _ensureMediaTick();
+    final current = track ?? state.current;
+    final subtitle = current == null ? null : _mediaSubtitleFor(current);
+    if (current != null) _lastMediaSubtitle = subtitle;
     _bridge?.sync(
       playing: state.isPlaying,
       processing: switch (state.display) {
@@ -622,8 +673,129 @@ class PlayerController extends Notifier<PlayerState> {
         PlayerDisplayState.idle => AudioProcessingState.idle,
       },
       position: Duration(milliseconds: state.positionMs),
-      track: track ?? state.current,
+      bufferedPosition: _bufferedDuration,
+      track: current,
+      subtitle: subtitle,
     );
+    _syncQueueBridge();
+  }
+
+  /// Steady heartbeat: the MediaSession keeps only the *raw* position snapshot
+  /// and Android's AVRCP target stops refreshing the car progress bar once two
+  /// consecutive reads are identical, so never let the value go stale.
+  /// Only runs once a bridge (system media handler) is attached.
+  void _ensureMediaTick() {
+    if (_bridge == null || _mediaTick != null) return;
+    _mediaTick = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _pushMediaPosition(),
+    );
+  }
+
+  Duration get _bufferedDuration => Duration(milliseconds: _bufferedMs);
+
+  /// Restart position extrapolation from [ms] (track change / seek).
+  void _resetMediaPosition(int ms) {
+    _tickBaseMs = ms;
+    _tickBaseAt = DateTime.now();
+    _lastPushedMs = ms;
+  }
+
+  /// Push a fresh position to the system media session on a steady tick.
+  ///
+  /// The MediaSession stores a **snapshot**, not a live value: AVRCP reads back
+  /// exactly what was last written. Android's AVRCP target additionally stops
+  /// emitting `EVENT_PLAYBACK_POS_CHANGED` for good once two consecutive reads
+  /// return the same value, which freezes the car progress bar. So this timer
+  /// is the single authority on what the platform sees: it extrapolates from
+  /// the last engine event (`position + elapsed`) so the value keeps advancing
+  /// even if the engine stream stalls (buffering, background, track switch),
+  /// and [updatePosition] is deliberately *not* wired to the raw engine stream.
+  ///
+  /// Counting monotonic elapsed time also makes the sequence strictly
+  /// increasing by construction — using wall-clock deltas instead would let
+  /// timer jitter push a smaller value than the previous tick.
+  void _pushMediaPosition() {
+    if (_bridge == null || !state.isPlaying) return;
+    final now = DateTime.now();
+    final elapsed = now.difference(_tickBaseAt);
+    _tickBaseAt = now;
+    _tickBaseMs += elapsed.inMilliseconds;
+
+    final duration = state.durationMs;
+    if (duration > 0 && _tickBaseMs >= duration) {
+      // End of track: hold the last value rather than emitting a frozen
+      // position that would kill AVRCP notifications; completion/next() resets
+      // the base via [seekTo] or [_loadCurrent].
+      _tickBaseMs = duration;
+      return;
+    }
+    _publishMediaPosition(_tickBaseMs, buffered: _bufferedDuration);
+  }
+
+  /// Single gate for every position that reaches the media session.
+  ///
+  /// Guarantees the value never collapses below what the platform already saw —
+  /// unless [force] marks an intentional discontinuity (seek / track change).
+  /// Engine samples arrive on their own 200ms cadence, so a stale sample landing
+  /// between two timer ticks would otherwise look like a backwards jump.
+  void _publishMediaPosition(int ms, {Duration? buffered, bool force = false}) {
+    var value = ms;
+    if (!force) {
+      if (value <= _lastPushedMs) value = _lastPushedMs + 1;
+      if (value > _tickBaseMs) {
+        // Re-anchor so the next timer computation continues from here.
+        _tickBaseMs = value;
+        _tickBaseAt = DateTime.now();
+      }
+    }
+    _lastPushedMs = value;
+    _bridge?.updatePosition(
+      Duration(milliseconds: value),
+      bufferedPosition: buffered ?? _bufferedDuration,
+    );
+  }
+
+  /// Mirror the queue into the media session so head units can resolve the
+  /// current item (only sent when it actually changed).
+  void _syncQueueBridge() {
+    final bridge = _bridge;
+    final queue = state.queue;
+    if (bridge == null || queue.isEmpty) return;
+    final sig = '${state.currentIndex}:${queue.length}:'
+        '${Object.hashAll([for (final t in queue) t.id])}';
+    if (sig == _lastQueueSig) return;
+    _lastQueueSig = sig;
+    bridge.syncQueue(queue, state.currentIndex);
+  }
+
+  /// System media / Bluetooth secondary line: artist, or `artist · lyric`.
+  String _mediaSubtitleFor(Track track) {
+    final enabled = ref.read(settingsControllerProvider).mediaLyricSubtitle;
+    if (!enabled) return track.artist;
+    final line = _activeLyricText();
+    if (line.isEmpty) return track.artist;
+    return '${track.artist} · $line';
+  }
+
+  String _activeLyricText() {
+    final lines = state.lyrics;
+    if (lines.isEmpty) return '';
+    var active = '';
+    for (final line in lines) {
+      if (line.timeMs > state.positionMs) break;
+      active = line.text.trim();
+    }
+    return active;
+  }
+
+  void _maybeUpdateMediaSubtitle() {
+    final track = state.current;
+    if (track == null || _bridge == null) return;
+    final next = _mediaSubtitleFor(track);
+    if (next == _lastMediaSubtitle) return;
+    _lastMediaSubtitle = next;
+    _bridge?.updateMediaSubtitle(next);
   }
 }
 
@@ -633,10 +805,18 @@ abstract class KugoMediaBridge {
     required bool playing,
     required AudioProcessingState processing,
     required Duration position,
+    Duration bufferedPosition = Duration.zero,
     Track? track,
+    String? subtitle,
   });
 
-  void updatePosition(Duration position);
+  void updatePosition(Duration position, {Duration? bufferedPosition});
+
+  /// Publish the current queue so the system/car UI can resolve the item.
+  void syncQueue(List<Track> tracks, int currentIndex);
+
+  /// Refresh lock-screen / Bluetooth secondary text without touching play state.
+  void updateMediaSubtitle(String subtitle);
 }
 
 final playerControllerProvider =

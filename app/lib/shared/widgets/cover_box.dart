@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/cache/cover_cache.dart';
 import '../../core/theme/cover_palette.dart';
+import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 
 /// Album/playlist cover. Network art is cached on disk via [CoverCache];
@@ -80,7 +81,8 @@ class _CoverBoxState extends State<CoverBox> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = CoverPalette.fromSeed(widget.seed);
+    final kugo = KugoTheme.of(context);
+    final colors = CoverPalette.fromSeed(widget.seed, kugo.palette);
     final fallback = BoxDecoration(
       borderRadius: BorderRadius.circular(widget.radius),
       gradient: LinearGradient(

@@ -6,6 +6,7 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../core/theme/kugo_theme.dart';
 import 'likes_controller.dart';
 
 class LikesPage extends ConsumerWidget {
@@ -13,6 +14,7 @@ class LikesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     final likes = ref.watch(likesProvider);
     final player = ref.watch(playerControllerProvider);
 
@@ -40,7 +42,7 @@ class LikesPage extends ConsumerWidget {
                     children: [
                       Text(
                         '${likes.length} 首',
-                        style: KugoTypography.caption,
+                        style: kugo.caption,
                       ),
                       const Spacer(),
                       FilledButton.icon(

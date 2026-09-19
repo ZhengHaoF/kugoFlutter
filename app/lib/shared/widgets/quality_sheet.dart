@@ -5,6 +5,7 @@ import '../../core/models/audio_quality.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
+import '../../core/theme/kugo_theme.dart';
 import 'common.dart';
 
 /// 播放页音质选择底部弹层 — 对齐 EchoMusic QualityPopover：
@@ -26,6 +27,7 @@ class _QualitySheetBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
@@ -56,7 +58,7 @@ class _QualitySheetBody extends ConsumerWidget {
               height: 4,
               margin: const EdgeInsets.only(bottom: KugoSpacing.md),
               decoration: BoxDecoration(
-                color: KugoColors.divider,
+                color: kugo.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -64,7 +66,7 @@ class _QualitySheetBody extends ConsumerWidget {
           Text(
             '音质选择',
             textAlign: TextAlign.center,
-            style: KugoTypography.section.copyWith(fontSize: 16),
+            style: kugo.section.copyWith(fontSize: 16),
           ),
           const SizedBox(height: 4),
           Text(
@@ -74,7 +76,7 @@ class _QualitySheetBody extends ConsumerWidget {
                     ? '灰色档位当前歌曲不可用'
                     : '未知档位将自动向下兼容',
             textAlign: TextAlign.center,
-            style: KugoTypography.caption,
+            style: kugo.caption,
           ),
           const SizedBox(height: KugoSpacing.sm),
           for (final q in AppQuality.values)
@@ -123,12 +125,13 @@ class _QualityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = KugoTypography.body.copyWith(
+    final kugo = KugoTheme.of(context);
+    final labelStyle = kugo.body.copyWith(
       color: disabled
-          ? KugoColors.textTertiary
+          ? kugo.textTertiary
           : active
-              ? KugoColors.primary
-              : KugoColors.textPrimary,
+              ? kugo.primary
+              : kugo.textPrimary,
     );
 
     return Opacity(
@@ -149,17 +152,17 @@ class _QualityRow extends StatelessWidget {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: KugoColors.primary,
+                  color: kugo.primary,
                 ),
               )
             : active
                 ? Icon(
                     Icons.check_rounded,
-                    color: KugoColors.primary,
+                    color: kugo.primary,
                     size: 20,
                   )
                 : disabled
-                    ? Text('不可用', style: KugoTypography.caption)
+                    ? Text('不可用', style: kugo.caption)
                     : null,
       ),
     );

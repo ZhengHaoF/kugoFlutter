@@ -84,11 +84,12 @@ class QualityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        gradient: gradient ? KugoColors.accentGradient : null,
-        color: gradient ? null : KugoColors.surfaceElevated,
+        gradient: gradient ? kugo.accentGradient : null,
+        color: gradient ? null : kugo.surfaceElevated,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -96,7 +97,8 @@ class QualityBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
-          color: KugoColors.textPrimary,
+          // On the accent gradient the label must stay light in both themes.
+          color: gradient ? kugo.onAccent : kugo.textPrimary,
           letterSpacing: 0.2,
         ),
       ),
@@ -145,8 +147,9 @@ class TrackTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = KugoTypography.body.copyWith(
-      color: isPlaying ? KugoColors.primary : KugoColors.textPrimary,
+    final kugo = KugoTheme.of(context);
+    final titleStyle = kugo.body.copyWith(
+      color: isPlaying ? kugo.primary : kugo.textPrimary,
     );
 
     return InkWell(
@@ -165,10 +168,10 @@ class TrackTile extends StatelessWidget {
                 child: Text(
                   '${index!}',
                   textAlign: TextAlign.center,
-                  style: KugoTypography.caption.copyWith(
+                  style: kugo.caption.copyWith(
                     color: isPlaying
-                        ? KugoColors.primary
-                        : KugoColors.textTertiary,
+                        ? kugo.primary
+                        : kugo.textTertiary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -185,7 +188,7 @@ class TrackTile extends StatelessWidget {
                       ),
                       child: Icon(
                         Icons.equalizer_rounded,
-                        color: KugoColors.primary,
+                        color: kugo.primary,
                         size: 22,
                       ),
                     ),
@@ -213,10 +216,10 @@ class TrackTile extends StatelessWidget {
                             track.artist,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: KugoTypography.caption.copyWith(
+                            style: kugo.caption.copyWith(
                               color: onArtistTap == null
-                                  ? KugoColors.textSecondary
-                                  : KugoColors.primary,
+                                  ? kugo.textSecondary
+                                  : kugo.primary,
                             ),
                           ),
                         ),
@@ -238,8 +241,8 @@ class TrackTile extends StatelessWidget {
             else
               Text(
                 track.durationLabel,
-                style: KugoTypography.caption.copyWith(
-                  color: KugoColors.textTertiary,
+                style: kugo.caption.copyWith(
+                  color: kugo.textTertiary,
                 ),
               ),
           ],
@@ -263,6 +266,7 @@ class PlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -321,7 +325,7 @@ class PlaylistCard extends StatelessWidget {
               playlist.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: KugoTypography.body.copyWith(fontSize: 13, height: 1.3),
+              style: kugo.body.copyWith(fontSize: 13, height: 1.3),
             ),
             if (playlist.description.isNotEmpty) ...[
               const SizedBox(height: 2),
@@ -329,7 +333,7 @@ class PlaylistCard extends StatelessWidget {
                 playlist.description,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: KugoTypography.caption,
+                style: kugo.caption,
               ),
             ],
           ],
@@ -376,7 +380,7 @@ class GlassSurface extends StatelessWidget {
 }
 
 /// Themed bottom sheet chrome — background follows the **current** palette
-/// (do not pass KugoColors into showModalBottomSheet.backgroundColor).
+/// (never pass a hardcoded color into showModalBottomSheet.backgroundColor).
 class KugoSheetChrome extends StatelessWidget {
   const KugoSheetChrome({super.key, required this.child});
 
@@ -384,11 +388,15 @@ class KugoSheetChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: KugoColors.surfaceElevated,
+    final kugo = KugoTheme.of(context);
+    // Material (not a bare Container) so ListTile ink splashes inside sheets
+    // have a surface to paint on.
+    return Material(
+      color: kugo.surfaceElevated,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border.all(color: KugoColors.divider),
+        side: BorderSide(color: kugo.divider),
       ),
       child: child,
     );

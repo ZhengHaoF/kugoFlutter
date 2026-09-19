@@ -7,6 +7,7 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/playlist_repository.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/kugo_theme.dart';
 
 class RankListPage extends ConsumerStatefulWidget {
   const RankListPage({super.key});
@@ -101,6 +102,7 @@ class _RankGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -131,7 +133,7 @@ class _RankGridCard extends StatelessWidget {
                       bottom: 12,
                       child: Text(
                         rank.playCountLabel,
-                        style: KugoTypography.caption.copyWith(
+                        style: kugo.caption.copyWith(
                           color: Colors.white70,
                         ),
                       ),
@@ -145,7 +147,7 @@ class _RankGridCard extends StatelessWidget {
             rank.name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: KugoTypography.body.copyWith(fontSize: 14, height: 1.25),
+            style: kugo.body.copyWith(fontSize: 14, height: 1.25),
           ),
         ],
       ),

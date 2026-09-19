@@ -9,6 +9,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../core/theme/kugo_theme.dart';
 
 class DailyRecommendPage extends ConsumerStatefulWidget {
   const DailyRecommendPage({super.key});
@@ -56,6 +57,7 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
 
   @override
   Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final auth = ref.watch(authControllerProvider);
     final dateLabel = recommendRepository.dateLabel();
@@ -104,7 +106,7 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      gradient: KugoColors.accentGradient,
+                      gradient: kugo.accentGradient,
                       borderRadius: BorderRadius.circular(KugoRadius.card),
                     ),
                     child: Column(
@@ -135,11 +137,11 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(dateLabel, style: KugoTypography.section),
+                        Text(dateLabel, style: kugo.section),
                         const SizedBox(height: 4),
                         Text(
                           _subtitle,
-                          style: KugoTypography.caption,
+                          style: kugo.caption,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -148,8 +150,8 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                           _personalized
                               ? '${_tracks.length} 首 · 个性化推荐'
                               : '${_tracks.length} 首',
-                          style: KugoTypography.caption.copyWith(
-                            color: KugoColors.textTertiary,
+                          style: kugo.caption.copyWith(
+                            color: kugo.textTertiary,
                           ),
                         ),
                       ],
