@@ -34,7 +34,7 @@
 | ~~1~~ | ~~「本地音乐」点击无反应~~ | `profile_page.dart` | ✅ 待处理（本次未动） |
 | ~~2~~ | ~~「下载管理」点击无反应~~ | `profile_page.dart` | ✅ 待处理（本次未动） |
 | 3 | ~~「定时停止 / 音质设置 / 关于」不可点~~ | `profile_page.dart` | ✅ **已修（3327499）**：抽出 `shared/widgets/settings_pickers.dart` 共享给设置页与我的页；三个入口带当前值副标题；新增「关于」弹层 |
-| 4 | 「歌单」统计数字硬编码 `12` | `profile_page.dart:133` | 未接真实数据（「我喜欢」「最近播放 56」同样是假数） |
+| 4 | ~~「歌单」统计数字硬编码 `12`~~ | `profile_page.dart:133` | ✅ **已修（90bd379）两/三步走的第一步**：「我喜欢」已接本地真值；「最近播放」新增 `KugoDb.countHistory()` 走 SQL COUNT 取真值，未就绪显示 `—`；「歌单」仍为 `—` 占位（未登录显「需登录」，已登录显「待接入」）。**第二步**（接 `/user/playlist`）跟随 P1 #7 自建歌单一起做，详见 `docs/profile-stats-plan.md` |
 | 5 | 倍速功能未接线 | `audio_player_port.dart:17` 已定义 `setSpeed` | 接口层已就绪但 UI 无入口，设置页也没有开关 |
 
 > 附带修掉一个**全站性**问题：`GlassSurface` 用裸 `Container` 做背景色，导致内部
