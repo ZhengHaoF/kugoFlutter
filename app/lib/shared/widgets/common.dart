@@ -356,8 +356,100 @@ class PlaylistCard extends StatelessWidget {
   }
 }
 
-class GlassSurface extends StatelessWidget {
-  const GlassSurface({
+/// Horizontal result row used by the playlist / album / artist search tabs.
+///
+/// The three differ only in their subtitle and the detail route they open, so
+/// they share one layout instead of three near-identical widgets.
+class SearchResultRow extends StatelessWidget {
+  const SearchResultRow({
+    super.key,
+    required this.imageSeed,
+    required this.title,
+    this.subtitle = '',
+    this.trailingLabel = '',
+    this.round = false,
+    this.onTap,
+  });
+
+  /// Cover URL (or color seed). Empty renders the gradient placeholder.
+  final String imageSeed;
+  final String title;
+  final String subtitle;
+
+  /// Small text on the right — track count, etc. Hidden when empty.
+  final String trailingLabel;
+
+  /// Circular art, for artists.
+  final bool round;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KugoSpacing.lg,
+          vertical: 10,
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius:
+                  BorderRadius.circular(round ? 26 : KugoRadius.cover),
+              child: CoverBox(
+                seed: imageSeed,
+                size: 52,
+                radius: round ? 26 : KugoRadius.cover,
+                child: round && imageSeed.trim().isEmpty
+                    ? Icon(
+                        Icons.person_rounded,
+                        size: 24,
+                        color: kugo.onAccent.withValues(alpha: 0.85),
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(width: KugoSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: kugo.body,
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: kugo.caption,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (trailingLabel.isNotEmpty) ...[
+              const SizedBox(width: KugoSpacing.sm),
+              Text(
+                trailingLabel,
+                style: kugo.caption.copyWith(color: kugo.textTertiary),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class GlassSurface extends StatelessWidget {  const GlassSurface({
     super.key,
     required this.child,
     this.radius = KugoRadius.card,
