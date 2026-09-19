@@ -298,7 +298,8 @@ class _TabResults extends ConsumerWidget {
       );
     }
 
-    final rows = _rowsFor(context, ref, state, type);    return ListView.builder(
+    final rows = _rowsFor(context, ref, state, type);
+    return ListView.builder(
       controller: scroll,
       // One extra slot for the load-more footer.
       itemCount: rows.length + 1,
