@@ -45,13 +45,11 @@ class MiniPlayerBar extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
                 child: Row(
                   children: [
-                    Hero(
+                    CoverHero(
                       tag: 'player-cover-${track.id}',
-                      child: CoverBox(
-                        seed: track.coverUrl,
-                        size: 44,
-                        radius: 10,
-                      ),
+                      seed: track.coverUrl,
+                      size: 44,
+                      radius: 10,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

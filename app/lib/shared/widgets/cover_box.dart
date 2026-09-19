@@ -67,6 +67,12 @@ class _CoverBoxState extends State<CoverBox> {
     if (_resolvedFor == url && _bytes != null) return;
 
     _resolvedFor = url;
+    // Sync memory hit first so the first frame after Hero landing is real art.
+    final peeked = CoverCache.instance.peek(url);
+    if (peeked != null) {
+      _bytes = peeked;
+      return;
+    }
     final bytes = await CoverCache.instance.get(url);
     if (!mounted || _resolvedFor != url) return;
     setState(() => _bytes = bytes);
@@ -119,6 +125,82 @@ class _CoverBoxState extends State<CoverBox> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: image,
+    );
+  }
+}
+
+CoverBox? _coverFromHeroContext(BuildContext context) {
+  final w = context.widget;
+  if (w is Hero && w.child is CoverBox) return w.child as CoverBox;
+  return null;
+}
+
+/// Keep the Hero flight on real cover bytes (not the async CoverBox
+/// placeholder) so the last frame of the player transition doesn't flash.
+Widget coverHeroFlightShuttle(
+  BuildContext context,
+  Animation<double> animation,
+  HeroFlightDirection flightDirection,
+  BuildContext fromHeroContext,
+  BuildContext toHeroContext,
+) {
+  final from = _coverFromHeroContext(fromHeroContext);
+  final to = _coverFromHeroContext(toHeroContext);
+  final seed = to?.seed ?? from?.seed ?? '';
+  final fromRadius = from?.radius ?? KugoRadius.cover;
+  final toRadius = to?.radius ?? KugoRadius.cover;
+  final bytes = seed.isEmpty ? null : CoverCache.instance.peek(seed);
+
+  return AnimatedBuilder(
+    animation: animation,
+    builder: (context, _) {
+      final t = animation.value;
+      // Push: source → dest; Pop: the from/to contexts are already swapped
+      // by the Hero controller, so the same lerp is correct.
+      final radius = fromRadius + (toRadius - fromRadius) * t;
+
+      final Widget child;
+      if (bytes != null) {
+        child = Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          width: double.infinity,
+          height: double.infinity,
+        );
+      } else {
+        child = CoverBox(seed: seed, size: 0, radius: radius);
+      }
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: child,
+      );
+    },
+  );
+}
+
+/// Shared mini-player ↔ full-player cover hero.
+class CoverHero extends StatelessWidget {
+  const CoverHero({
+    super.key,
+    required this.tag,
+    required this.seed,
+    this.size = 56,
+    this.radius = KugoRadius.cover,
+  });
+
+  final String tag;
+  final String seed;
+  final double size;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Hero(
+      tag: tag,
+      flightShuttleBuilder: coverHeroFlightShuttle,
+      child: CoverBox(seed: seed, size: size, radius: radius),
     );
   }
 }

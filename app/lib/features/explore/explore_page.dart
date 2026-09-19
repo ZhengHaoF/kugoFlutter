@@ -11,6 +11,7 @@ import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 
+/// Unified browse tab: former Home + Explore merged into one page.
 class ExplorePage extends ConsumerStatefulWidget {
   const ExplorePage({super.key});
 
@@ -21,6 +22,7 @@ class ExplorePage extends ConsumerStatefulWidget {
 class _ExplorePageState extends ConsumerState<ExplorePage> {
   List<String> _hot = const [];
   List<PlaylistBrief> _rankings = const [];
+  List<PlaylistBrief> _playlists = const [];
   List<Track> _songs = const [];
   bool _loading = true;
   String _error = '';
@@ -36,35 +38,64 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _loading = true;
       _error = '';
     });
+
     List<String> hot = const [];
     List<PlaylistBrief> ranks = const [];
+    List<PlaylistBrief> squares = const [];
     List<Track> songs = const [];
     var filtered = false;
+    var denied = false;
+
+    void noteError(Object e) {
+      final msg = e.toString();
+      if (msg.contains('URL过滤') || msg.contains('拦截')) filtered = true;
+      if (msg.contains('Access Deny')) denied = true;
+    }
+
     try {
       hot = await searchRepository.hotKeywords();
     } catch (e) {
-      if (e.toString().contains('拦截')) filtered = true;
+      noteError(e);
     }
     try {
       ranks = await playlistRepository.fetchRankList();
     } catch (e) {
-      if (e.toString().contains('拦截')) filtered = true;
+      noteError(e);
     }
     try {
-      songs = await searchRepository.searchSongs('新歌', pageSize: 10);
+      // Square only — do not fall back to ranks here (those are shown below).
+      squares = await playlistRepository.fetchSquare(pageSize: 6);
     } catch (e) {
-      if (e.toString().contains('拦截')) filtered = true;
+      noteError(e);
     }
+    try {
+      songs = await searchRepository.searchSongs('热门', pageSize: 10);
+    } catch (e) {
+      noteError(e);
+    }
+
     if (!mounted) return;
+
+    final rankList = ranks.take(6).toList();
+    final rankIds = rankList.map((e) => e.id).toSet();
+    // Drop square cards that are just rank fallbacks to avoid double display.
+    final recPlaylists = squares
+        .where((p) => p.id.isNotEmpty && !rankIds.contains(p.id))
+        .take(6)
+        .toList();
+
     setState(() {
       _hot = hot;
-      _rankings = ranks.take(6).toList();
+      _rankings = rankList;
+      _playlists = recPlaylists;
       _songs = songs;
       _loading = false;
-      if (hot.isEmpty && ranks.isEmpty && songs.isEmpty) {
+      if (hot.isEmpty && rankList.isEmpty && recPlaylists.isEmpty && songs.isEmpty) {
         _error = filtered
             ? '当前网络被网关拦截（URL过滤），无法访问酷狗。\n请换手机热点 / 关闭路由器「上网行为管理」后重试。'
-            : '发现页数据加载失败，请检查网络';
+            : denied
+                ? '酷狗接口拒绝访问（Access Deny）。\n稍后重试，或检查是否触发风控。'
+                : '数据加载失败，请检查网络后重试';
       }
     });
   }
@@ -72,6 +103,18 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   @override
   Widget build(BuildContext context) {
     final player = ref.watch(playerControllerProvider);
+    final hour = DateTime.now().hour;
+    final greeting = switch (hour) {
+      < 6 => '凌晨好',
+      < 12 => '早上好',
+      < 18 => '下午好',
+      _ => '晚上好',
+    };
+    final isEmpty = !_loading &&
+        _hot.isEmpty &&
+        _rankings.isEmpty &&
+        _playlists.isEmpty &&
+        _songs.isEmpty;
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(
@@ -86,68 +129,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               KugoSpacing.lg,
               KugoSpacing.md,
             ),
-            child: Text('发现', style: KugoTypography.greeting),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-            child: Material(
-              color: KugoColors.surface,
-              borderRadius: BorderRadius.circular(KugoRadius.chip),
-              child: InkWell(
-                onTap: () => context.push('/search'),
-                borderRadius: BorderRadius.circular(KugoRadius.chip),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search_rounded,
-                        color: KugoColors.textSecondary,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        '搜索歌曲、歌手、专辑',
-                        style: TextStyle(
-                          color: KugoColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              KugoSpacing.md,
-              KugoSpacing.lg,
-              0,
-            ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _EntryCard(
-                    icon: Icons.radio_rounded,
-                    title: '私人 FM',
-                    subtitle: '黑胶电台 · 动态歌池',
-                    onTap: () => context.push('/fm'),
-                  ),
+                Text(greeting, style: KugoTypography.greeting),
+                const SizedBox(height: 4),
+                Text(
+                  '发现好音乐 · 为你精选今日旋律',
+                  style: KugoTypography.caption.copyWith(fontSize: 13),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _EntryCard(
-                    icon: Icons.search_rounded,
-                    title: '搜索',
-                    subtitle: '歌曲 / 歌手 / 歌单',
-                    onTap: () => context.push('/search'),
-                  ),
-                ),
+                const SizedBox(height: KugoSpacing.lg),
+                const _SearchPill(),
+                const SizedBox(height: KugoSpacing.md),
+                const _QuickEntries(),
               ],
             ),
           ),
@@ -160,13 +154,42 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
           )
         else ...[
+          if (_hot.isNotEmpty) ...[
+            const SliverToBoxAdapter(
+              child: SectionHeader(title: '热搜', showAccent: true),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final kw in _hot.take(12))
+                      ActionChip(
+                        label: Text(kw),
+                        backgroundColor: KugoColors.surface,
+                        labelStyle: KugoTypography.caption.copyWith(fontSize: 13),
+                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(KugoRadius.chip),
+                        ),
+                        onPressed: () => context.push(
+                          '/search?q=${Uri.encodeComponent(kw)}',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           if (_rankings.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: SectionHeader(
                 title: '排行榜',
                 showAccent: true,
-                actionLabel: _rankings.isEmpty ? null : '全部',
-                onAction: _rankings.isEmpty ? null : () => context.push('/ranks'),
+                actionLabel: '全部',
+                onAction: () => context.push('/ranks'),
               ),
             ),
             SliverToBoxAdapter(
@@ -189,9 +212,33 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               ),
             ),
           ],
+          if (_playlists.isNotEmpty) ...[
+            const SliverToBoxAdapter(
+              child: SectionHeader(title: '推荐歌单', showAccent: true),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: KugoSpacing.lg,
+                  crossAxisSpacing: KugoSpacing.lg,
+                  childAspectRatio: 0.72,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final playlist = _playlists[index];
+                  return PlaylistCard(
+                    playlist: playlist,
+                    width: double.infinity,
+                    onTap: () => context.push('/playlist/${playlist.id}'),
+                  );
+                }, childCount: _playlists.length),
+              ),
+            ),
+          ],
           if (_songs.isNotEmpty) ...[
             const SliverToBoxAdapter(
-              child: SectionHeader(title: '新歌速递', showAccent: true),
+              child: SectionHeader(title: '今日热歌', showAccent: true),
             ),
             SliverList.builder(
               itemCount: _songs.length,
@@ -199,8 +246,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 final track = _songs[index];
                 return TrackTile(
                   track: track,
-                  isPlaying:
-                      player.current?.id == track.id && player.isPlaying,
+                  isPlaying: player.current?.id == track.id && player.isPlaying,
                   onArtistTap: () => context.push(
                     '/artist/${Uri.encodeComponent(track.artist)}',
                   ),
@@ -214,7 +260,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               },
             ),
           ],
-          if (_hot.isEmpty && _rankings.isEmpty && _songs.isEmpty)
+          if (isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
               child: AsyncBody(
@@ -228,6 +274,38 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
         ],
         const SliverToBoxAdapter(child: SizedBox(height: 140)),
+      ],
+    );
+  }
+}
+
+class _QuickEntries extends StatelessWidget {
+  const _QuickEntries();
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final dailyLabel = '${now.month}月${now.day}日 · 每日推荐';
+
+    return Row(
+      children: [
+        Expanded(
+          child: _EntryCard(
+            icon: Icons.today_rounded,
+            title: dailyLabel,
+            subtitle: '按日轮换 · 点开即听',
+            onTap: () => context.push('/daily'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _EntryCard(
+            icon: Icons.radio_rounded,
+            title: '私人 FM',
+            subtitle: '黑胶电台 · 动态歌池',
+            onTap: () => context.push('/fm'),
+          ),
+        ),
       ],
     );
   }
@@ -319,9 +397,48 @@ class _EntryCard extends StatelessWidget {
             children: [
               Icon(icon, color: KugoColors.primary),
               const SizedBox(height: 10),
-              Text(title, style: KugoTypography.body),
+              Text(
+                title,
+                style: KugoTypography.body,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 2),
-              Text(subtitle, style: KugoTypography.caption),
+              Text(
+                subtitle,
+                style: KugoTypography.caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchPill extends StatelessWidget {
+  const _SearchPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: KugoColors.surface,
+      borderRadius: BorderRadius.circular(KugoRadius.chip),
+      child: InkWell(
+        onTap: () => context.push('/search'),
+        borderRadius: BorderRadius.circular(KugoRadius.chip),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, color: KugoColors.textSecondary),
+              const SizedBox(width: 10),
+              Text(
+                '搜索歌曲、歌手、专辑',
+                style: KugoTypography.caption.copyWith(fontSize: 14),
+              ),
             ],
           ),
         ),

@@ -36,13 +36,13 @@ flutter build apk --release
 lib/
 ├─ core/           # tokens · models · api · mock
 ├─ data/           # repositories · queue store
-├─ features/       # home · explore · profile · player · fm · likes · auth · settings · debug
+├─ features/       # explore · profile · player · fm · likes · auth · settings · debug
 └─ shared/         # widgets · shell
 ```
 
 ## 当前进度
 
-- [x] 深色概念版 UI（首页/发现/我的/播放/歌单/专辑/歌手）
+- [x] 深色概念版 UI（发现/我的/播放/歌单/专辑/歌手；首页已并入发现）
 - [x] just_audio + audio_service（通知栏/锁屏）
 - [x] 搜索、歌单、榜单、歌词等真源封装（失败明确报错，不造假数据）
 - [x] 游客优先；登录：酷狗扫码 / 手机验证码 / 账号密码（真实网关，失败不造假会话）

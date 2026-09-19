@@ -31,6 +31,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void initState() {
     super.initState();
     _loadHot();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final q = GoRouterState.of(context).uri.queryParameters['q'];
+      if (q == null || q.trim().isEmpty) return;
+      _controller.text = q.trim();
+      _search(q.trim());
+    });
   }
 
   Future<void> _loadHot() async {

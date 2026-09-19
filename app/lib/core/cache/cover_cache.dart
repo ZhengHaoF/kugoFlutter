@@ -51,6 +51,10 @@ class CoverCache {
     return dir;
   }
 
+  /// Synchronous memory hit — used on first paint so Hero landing never
+  /// flashes a gradient placeholder after the mini-player already showed art.
+  Uint8List? peek(String url) => _mem[url.trim()];
+
   /// Returns cover bytes for [url], or null when the URL is non-network /
   /// download failed (caller falls back to the seed gradient).
   Future<Uint8List?> get(String url) {

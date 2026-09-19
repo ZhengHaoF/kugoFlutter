@@ -10,7 +10,6 @@ import 'features/auth/login_page.dart';
 import 'features/explore/explore_page.dart';
 import 'features/fm/personal_fm_page.dart';
 import 'features/history/history_page.dart';
-import 'features/home/home_page.dart';
 import 'features/likes/likes_page.dart';
 import 'features/player/full_player_page.dart';
 import 'features/playlist/playlist_detail_page.dart';
@@ -25,7 +24,12 @@ import 'shared/shell/root_shell.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/explore',
+    redirect: (context, state) {
+      final path = state.uri.path;
+      if (path == '/home' || path == '/') return '/explore';
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/player',
@@ -121,14 +125,6 @@ final _routerProvider = Provider<GoRouter>((ref) {
           );
         },
         branches: [
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/home',
-                builder: (context, state) => const HomePage(),
-              ),
-            ],
-          ),
           StatefulShellBranch(
             routes: [
               GoRoute(

@@ -22,14 +22,12 @@ class _RootShellState extends State<RootShell>
   int _prevIndex = 0;
 
   static const _tabs = [
-    (Icons.home_outlined, Icons.home_rounded, '首页'),
     (Icons.explore_outlined, Icons.explore_rounded, '发现'),
     (Icons.person_outline_rounded, Icons.person_rounded, '我的'),
   ];
 
   int _indexOf(String location) => switch (location) {
-        _ when location.startsWith('/explore') => 1,
-        _ when location.startsWith('/profile') => 2,
+        _ when location.startsWith('/profile') => 1,
         _ => 0,
       };
 
@@ -101,11 +99,9 @@ class _RootShellState extends State<RootShell>
         onTap: (i) {
           switch (i) {
             case 0:
-              _goTo(0, '/home');
+              _goTo(0, '/explore');
             case 1:
-              _goTo(1, '/explore');
-            case 2:
-              _goTo(2, '/profile');
+              _goTo(1, '/profile');
           }
         },
       ),

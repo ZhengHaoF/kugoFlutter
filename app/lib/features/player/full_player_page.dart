@@ -23,6 +23,10 @@ class FullPlayerPage extends ConsumerStatefulWidget {
 class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
     with SingleTickerProviderStateMixin {
   bool _lyricsExpanded = false;
+
+  /// After the first expand, keep lyrics body mounted (opacity 0 when
+  /// collapsed) so ListView scroll state never remounts on re-expand.
+  bool _lyricsAttached = false;
   late final AnimationController _fx;
 
   @override
@@ -43,7 +47,10 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
 
   void _expandLyrics() {
     if (_lyricsExpanded) return;
-    setState(() => _lyricsExpanded = true);
+    setState(() {
+      _lyricsExpanded = true;
+      _lyricsAttached = true;
+    });
     _fx.forward(from: 0);
   }
 
@@ -92,7 +99,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
     final palette = CoverPalette.fromSeed(track.coverUrl);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      // Solid page bg: transparent + Material/Zoom route settle can flash
+      // through for a frame; the gradient body still paints on top.
+      backgroundColor: KugoColors.bg,
       body: Container(
         decoration: BoxDecoration(
           gradient: CoverPalette.playerBackground(track.coverUrl),
@@ -109,73 +118,54 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                 onQueue: () => _showQueueSheet(context, ref),
               ),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, bodyConstraints) {
-                    final rawH = bodyConstraints.maxHeight;
-                    final rawW = bodyConstraints.maxWidth;
-                    final bodyH =
-                        rawH.isFinite && rawH > 0 ? rawH : double.nan;
-                    final bodyW =
-                        rawW.isFinite && rawW > 0 ? rawW : double.nan;
-
-                    return AnimatedBuilder(
-                      animation: _fx,
-                      builder: (context, _) {
-                        final t = _fx.value;
-                        // Settled states: paint the plain body only — no
-                        // ImageFiltered/BackdropFilter (those can gray-out
-                        // the whole player on some devices/release builds).
-                        if (t < 0.02) {
-                          return _CollapsedPlayerBody(
-                            key: const ValueKey('player-collapsed'),
-                            track: track,
-                            player: player,
-                            controller: controller,
-                            progress: progress,
-                            duration: duration,
-                            onExpandLyrics: _expandLyrics,
-                          );
-                        }
-                        if (t > 0.98 && _lyricsExpanded) {
-                          return _ExpandedLyricsBody(
-                            key: const ValueKey('lyrics-expanded'),
-                            track: track,
-                            player: player,
-                            controller: controller,
-                            progress: progress,
-                            duration: duration,
-                            onSwipeDown: _collapseLyrics,
-                          );
-                        }
-
-                        // Mid-transition FX only.
+                child: AnimatedBuilder(
+                  animation: _fx,
+                  builder: (context, _) {
+                    final t = _fx.value.clamp(0.0, 1.0);
+                        // One Stack for mid + settled expand/collapse: no tree
+                        // hard-cut, so LyricsView scroll stays continuous.
+                        // Expand/collapse: center scale (中间缩放) + fade.
                         final ease = Curves.easeOutCubic.transform(t);
-                        final collapsedOpacity =
-                            (1.0 - t * 1.45).clamp(0.0, 1.0);
-                        final h = bodyH.isNaN ? 640.0 : bodyH;
-                        final w = bodyW.isNaN ? 360.0 : bodyW;
-                        final revealH = h * (0.22 + 0.78 * ease);
-                        final expandedOpacity =
-                            (0.25 + 0.75 * ease).clamp(0.0, 1.0);
-                        final blurT = t < 0.5
-                            ? Curves.easeOut.transform(t / 0.5)
-                            : (1.0 - (t - 0.5) / 0.5).clamp(0.0, 1.0);
+                        final settledExpanded = _lyricsExpanded && t > 0.98;
+                        final settledCollapsed = !_lyricsExpanded && t < 0.02;
+
+                        final collapsedOpacity = settledExpanded
+                            ? 0.0
+                            : (1.0 - t * 1.45).clamp(0.0, 1.0);
+                        // Lyrics fade in with the scale (0 → 1).
+                        final expandedOpacity = settledCollapsed
+                            ? 0.0
+                            : ease.clamp(0.0, 1.0);
+                        // Center zoom: small → full.
+                        final expandedScale =
+                            settledExpanded ? 1.0 : (0.82 + 0.18 * ease);
+                        // Old player gently shrinks toward center.
+                        final collapsedScale =
+                            settledExpanded ? 0.92 : (1.0 - 0.08 * ease);
+                        final blurT = (settledExpanded || settledCollapsed)
+                            ? 0.0
+                            : (t < 0.5
+                                ? Curves.easeOut.transform(t / 0.5)
+                                : (1.0 - (t - 0.5) / 0.5).clamp(0.0, 1.0));
+                        final collapsedHero = settledCollapsed;
+                        final expandedHero = settledExpanded;
 
                         return Stack(
                           fit: StackFit.expand,
                           children: [
-                            if (collapsedOpacity > 0.02)
+                            if (collapsedOpacity > 0.001)
                               Opacity(
                                 opacity: collapsedOpacity,
                                 child: Transform.scale(
-                                  scale: 1.0 - 0.35 * ease,
-                                  alignment: Alignment.topCenter,
-                                  child: Transform.translate(
-                                    offset: Offset(0, -h * 0.1 * ease),
+                                  scale: collapsedScale,
+                                  alignment: Alignment.center,
+                                  child: IgnorePointer(
+                                    ignoring: !settledCollapsed,
                                     child: _CollapsedPlayerBody(
                                       key: const ValueKey(
                                         'player-collapsed',
                                       ),
+                                      useHero: collapsedHero,
                                       track: track,
                                       player: player,
                                       controller: controller,
@@ -186,38 +176,28 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                                   ),
                                 ),
                               ),
-                            if (expandedOpacity > 0.02)
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                height: revealH,
+                            // Keep expanded mounted after first open so the
+                            // lyrics ListView never remounts on settle.
+                            if (expandedOpacity > 0.001 || _lyricsAttached)
+                              Positioned.fill(
                                 child: Opacity(
                                   opacity: expandedOpacity,
-                                  child: ClipRect(
-                                    child: OverflowBox(
-                                      alignment: Alignment.bottomCenter,
-                                      minWidth: w,
-                                      maxWidth: w,
-                                      minHeight: h,
-                                      maxHeight: h,
-                                      child: SizedBox(
-                                        width: w,
-                                        height: h,
-                                        child: Transform.translate(
-                                          offset: Offset(0, 12 * (1 - ease)),
-                                          child: _ExpandedLyricsBody(
-                                            key: const ValueKey(
-                                              'lyrics-expanded',
-                                            ),
-                                            track: track,
-                                            player: player,
-                                            controller: controller,
-                                            progress: progress,
-                                            duration: duration,
-                                            onSwipeDown: _collapseLyrics,
-                                          ),
+                                  child: IgnorePointer(
+                                    ignoring: expandedOpacity < 0.85,
+                                    child: Transform.scale(
+                                      scale: expandedScale,
+                                      alignment: Alignment.center,
+                                      child: _ExpandedLyricsBody(
+                                        key: const ValueKey(
+                                          'lyrics-expanded',
                                         ),
+                                        useHero: expandedHero,
+                                        track: track,
+                                        player: player,
+                                        controller: controller,
+                                        progress: progress,
+                                        duration: duration,
+                                        onSwipeDown: _collapseLyrics,
                                       ),
                                     ),
                                   ),
@@ -246,8 +226,6 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                               ),
                           ],
                         );
-                      },
-                    );
                   },
                 ),
               ),
@@ -433,6 +411,37 @@ class _TopBar extends StatelessWidget {
   }
 }
 
+class _PlayerCoverSlot extends StatelessWidget {
+  const _PlayerCoverSlot({
+    required this.tag,
+    required this.seed,
+    required this.size,
+    required this.radius,
+    required this.useHero,
+  });
+
+  final String tag;
+  final String seed;
+  final double size;
+  final double radius;
+
+  /// Route Hero only on settled frames — avoids duplicate tags mid-FX.
+  final bool useHero;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!useHero) {
+      return CoverBox(seed: seed, size: size, radius: radius);
+    }
+    return CoverHero(
+      tag: tag,
+      seed: seed,
+      size: size,
+      radius: radius,
+    );
+  }
+}
+
 class _CollapsedPlayerBody extends StatelessWidget {
   const _CollapsedPlayerBody({
     super.key,
@@ -442,6 +451,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
     required this.progress,
     required this.duration,
     required this.onExpandLyrics,
+    this.useHero = true,
   });
 
   final Track track;
@@ -450,6 +460,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
   final double progress;
   final int duration;
   final VoidCallback onExpandLyrics;
+  final bool useHero;
 
   static String format(int ms) {
     final d = Duration(milliseconds: ms);
@@ -525,13 +536,12 @@ class _CollapsedPlayerBody extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Hero(
+                      child: _PlayerCoverSlot(
                         tag: 'player-cover-${track.id}',
-                        child: CoverBox(
-                          seed: track.coverUrl,
-                          size: 0,
-                          radius: KugoRadius.card + 4,
-                        ),
+                        seed: track.coverUrl,
+                        size: 0,
+                        radius: KugoRadius.card + 4,
+                        useHero: useHero,
                       ),
                     ),
                   ),
@@ -757,6 +767,7 @@ class _ExpandedLyricsBody extends ConsumerWidget {
     required this.progress,
     required this.duration,
     required this.onSwipeDown,
+    this.useHero = true,
   });
 
   final Track track;
@@ -765,6 +776,7 @@ class _ExpandedLyricsBody extends ConsumerWidget {
   final double progress;
   final int duration;
   final VoidCallback onSwipeDown;
+  final bool useHero;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -788,13 +800,12 @@ class _ExpandedLyricsBody extends ConsumerWidget {
               height: 48,
               child: Row(
                 children: [
-                  Hero(
+                  _PlayerCoverSlot(
                     tag: 'player-cover-${track.id}',
-                    child: CoverBox(
-                      seed: track.coverUrl,
-                      size: 44,
-                      radius: 8,
-                    ),
+                    seed: track.coverUrl,
+                    size: 44,
+                    radius: 8,
+                    useHero: useHero,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
