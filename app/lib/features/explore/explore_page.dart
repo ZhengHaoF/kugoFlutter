@@ -11,6 +11,7 @@ import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/kugo_theme.dart';
+import 'quick_entries.dart';
 
 /// Unified browse tab: former Home + Explore merged into one page.
 class ExplorePage extends ConsumerStatefulWidget {
@@ -134,7 +135,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 const SizedBox(height: KugoSpacing.lg),
                 const _SearchPill(),
                 const SizedBox(height: KugoSpacing.md),
-                const _QuickEntries(),
+                const QuickEntries(),
               ],
             ),
           ),
@@ -241,38 +242,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 }
 
-class _QuickEntries extends StatelessWidget {
-  const _QuickEntries();
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final dailyLabel = '${now.month}月${now.day}日 · 每日推荐';
-
-    return Row(
-      children: [
-        Expanded(
-          child: _EntryCard(
-            icon: Icons.today_rounded,
-            title: dailyLabel,
-            subtitle: '按日轮换 · 点开即听',
-            onTap: () => context.push('/daily'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _EntryCard(
-            icon: Icons.radio_rounded,
-            title: '私人 FM',
-            subtitle: '黑胶电台 · 动态歌池',
-            onTap: () => context.push('/fm'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _RankingCard extends StatelessWidget {
   const _RankingCard({required this.rank, required this.onTap});
 
@@ -327,56 +296,6 @@ class _RankingCard extends StatelessWidget {
                     ],
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EntryCard extends StatelessWidget {
-  const _EntryCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    return Material(
-      color: kugo.surface,
-      borderRadius: BorderRadius.circular(KugoRadius.card),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(KugoRadius.card),
-        child: Padding(
-          padding: const EdgeInsets.all(KugoSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: kugo.primary),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: kugo.body,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: kugo.caption,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
