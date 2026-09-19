@@ -11,6 +11,7 @@ class Track {
     this.hash = '',
     this.albumId = '',
     this.mixSongId = '',
+    this.artistId = '',
     this.quality = 'SQ',
     this.isVip = false,
     this.availableQualities = const {},
@@ -27,6 +28,12 @@ class Track {
   final String hash;
   final String albumId;
   final String mixSongId;
+
+  /// 主歌手的 numeric id，用于跳转歌手详情页。
+  /// **空字符串 = 未知**（部分接口只给 `filename`，拿不到 id）——
+  /// 此时不应跳转，否则会把歌手名当 id 用，详情页必然加载失败。
+  final String artistId;
+
   final String quality;
   final bool isVip;
 
@@ -46,6 +53,9 @@ class Track {
 
   bool get hasHash => hash.trim().isNotEmpty;
 
+  /// 能否安全跳转歌手详情页（必须有 numeric id）。
+  bool get hasArtistId => artistId.trim().isNotEmpty;
+
   Track copyWith({
     String? id,
     String? name,
@@ -56,6 +66,7 @@ class Track {
     String? hash,
     String? albumId,
     String? mixSongId,
+    String? artistId,
     String? quality,
     bool? isVip,
     Set<AppQuality>? availableQualities,
@@ -72,6 +83,7 @@ class Track {
       hash: hash ?? this.hash,
       albumId: albumId ?? this.albumId,
       mixSongId: mixSongId ?? this.mixSongId,
+      artistId: artistId ?? this.artistId,
       quality: quality ?? this.quality,
       isVip: isVip ?? this.isVip,
       availableQualities: availableQualities ?? this.availableQualities,

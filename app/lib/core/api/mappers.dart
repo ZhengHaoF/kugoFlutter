@@ -55,15 +55,61 @@ String _pickCover(Map<String, dynamic> json) {
   return '';
 }
 
+/// Pull the primary singer id out of a song payload.
+///
+/// Search/album/special responses differ: search gives `singers[].id` or
+/// `AuthorId`/`singerid`, while `special/song` gives only `filename`
+/// (`周杰伦 - 晴天`) with no id at all. Returns `''` when unknown — callers
+/// must not fabricate a numeric fallback.
+String _pickArtistId(Map<String, dynamic> json) {
+  final singers = json['singers'] ?? json['Singers'];
+  if (singers is List) {
+    for (final e in singers) {
+      if (e is Map) {
+        final id = _s(e['id'], _s(e['AuthorId'], _s(e['author_id'],
+            _s(e['singerid'], _s(e['singer_id'])))));
+        if (id.isNotEmpty) return id;
+      }
+    }
+  }
+  return _s(
+    json['AuthorId'],
+    _s(json['author_id'],
+        _s(json['singerid'], _s(json['singer_id'], _s(json['authorid'])))),
+  );
+}
+
+/// Split a kugou `filename` (`周杰伦 - 晴天`) into (artist, title).
+/// Returns `(null, filename)` when there is no ` - ` separator.
+({String? artist, String title}) _splitFilename(String filename) {
+  final idx = filename.indexOf(' - ');
+  if (idx <= 0) return (artist: null, title: filename);
+  return (
+    artist: filename.substring(0, idx).trim(),
+    title: filename.substring(idx + 3).trim(),
+  );
+}
+
 Track mapMobileSearchSong(Map<String, dynamic> json) {
   final hash = _s(json['hash']).toLowerCase();
   final id = _s(json['audio_id'], _s(json['mixsongid'], hash));
-  final name = _s(json['songname'], _s(json['song_name'], '未知歌曲'));
+  final filename = _s(json['filename']);
+  // `special/song` omits songname/singername entirely and only carries
+  // `filename` ("周杰伦 - 晴天"), so fall back to splitting it.
+  final split = filename.isEmpty
+      ? (artist: null, title: '')
+      : _splitFilename(filename);
+  final name = _s(
+    json['songname'],
+    _s(json['song_name'], _s(split.title, '未知歌曲')),
+  );
   final singers = json['singername'] ?? json['singer'];
   var artist = _s(singers);
   if (artist.isEmpty && singers is List) {
     artist = singers.map((e) => _s(e is Map ? e['name'] : e)).join('/');
   }
+  if (artist.isEmpty) artist = split.artist ?? '';
+  final artistId = _pickArtistId(json);
   final duration = _i(json['duration']) * 1000;
   final albumId = _s(json['album_id']);
   final albumName = _s(json['album_name'], _s(json['albumname']));
@@ -103,6 +149,7 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
     ),
     quality: highest ?? _s(json['quality'], 'SQ'),
     isVip: isVip,
+    artistId: artistId,
     availableQualities: available.isEmpty ? const {} : Set.of(available),
     relateGoods: goods,
     qualityCatalogComplete: catalogComplete,
@@ -267,6 +314,18 @@ Track mapEverydaySong(Map<String, dynamic> json) {
     }
   }
 
+  // Singer id for the artist-detail route; `''` when the payload omits it.
+  String artistId = '';
+  for (final source in sources) {
+    if (source is! Map) continue;
+    final map = Map<String, dynamic>.from(source);
+    final candidate = _pickArtistId(map);
+    if (candidate.isNotEmpty) {
+      artistId = candidate;
+      break;
+    }
+  }
+
   final rawName = processSongTitle(
     _s(
       _pick(sources, [
@@ -334,6 +393,7 @@ Track mapEverydaySong(Map<String, dynamic> json) {
         : _s(_pick(sources, ['audio_id', 'album_audio_id'])),
     quality: highest ?? 'SQ',
     isVip: isVip,
+    artistId: artistId,
     availableQualities: available.isEmpty ? const {} : Set.of(available),
     relateGoods: goods,
   );

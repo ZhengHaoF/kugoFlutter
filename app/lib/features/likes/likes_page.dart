@@ -78,9 +78,7 @@ class LikesPage extends ConsumerWidget {
                           onPressed: () =>
                               ref.read(likesProvider.notifier).remove(track.id),
                         ),
-                        onArtistTap: () => context.push(
-                          '/artist/${Uri.encodeComponent(track.artist)}',
-                        ),
+                        onArtistTap: artistTapFor(context, track),
                         onTap: () {
                           ref
                               .read(playerControllerProvider.notifier)

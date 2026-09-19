@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import 'cover_box.dart';
+
+/// Builds an `onArtistTap` callback for a track row.
+///
+/// The artist-detail route needs a **numeric singer id**, not a name —
+/// passing the name makes `singer/info` answer `参数错误` and the page shows
+/// "加载失败". Payloads that only carry `filename` (e.g. `special/song`)
+/// have no id, so this returns `null` and the row simply renders the artist
+/// as plain, non-tappable text.
+VoidCallback? artistTapFor(BuildContext context, Track track) {
+  if (!track.hasArtistId) return null;
+  return () => context.push('/artist/${track.artistId}');
+}
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({

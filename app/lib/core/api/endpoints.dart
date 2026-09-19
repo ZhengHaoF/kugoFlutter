@@ -16,12 +16,21 @@ abstract final class KugoEndpoints {
   static const searchLyric = '/api/v3/search/lyric';
 
   /// Playlist info + tracks (no auth, public lists).
-  static const playlistInfo = '/api/v3/playlist/info';
+  ///
+  /// Network note (2026-09): `playlist/info` and `playlist/songs` return
+  /// `Access Deny ! No Actions !` on every host reachable from here
+  /// (mobilecdn / mobiles / wwwapi / trackercdn / msearchcdn). The `special`
+  /// family serves the same data and is reachable, so use that instead.
+  static const playlistInfo = '/api/v3/special/info';
+  static const playlistSongs = '/api/v3/special/song';
   static const playlistSquare = '/api/v3/playlist/square';
 
   /// Album / singer (public mobile CDN).
+  ///
+  /// Network note (2026-09): the plural `album/songs` is Access-Denied from
+  /// this network; the singular `album/song` works and returns the same shape.
   static const albumInfo = '/api/v3/album/info';
-  static const albumSongs = '/api/v3/album/songs';
+  static const albumSongs = '/api/v3/album/song';
   static const singerInfo = '/api/v3/singer/info';
   static const singerSong = '/api/v3/singer/song';
 

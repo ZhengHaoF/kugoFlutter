@@ -158,9 +158,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                           track: track,
                           isPlaying: player.current?.id == track.id &&
                               player.isPlaying,
-                          onArtistTap: () => context.push(
-                            '/artist/${Uri.encodeComponent(track.artist)}',
-                          ),
+                          onArtistTap: artistTapFor(context, track),
                           onTap: () async {
                             await ref
                                 .read(playerControllerProvider.notifier)

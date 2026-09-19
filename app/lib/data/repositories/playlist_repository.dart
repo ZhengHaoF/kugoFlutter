@@ -9,6 +9,10 @@ class PlaylistRepository {
   final KugoClient _client;
 
   /// Public playlist metadata + tracks via mobile CDN.
+  ///
+  /// Uses the `special` endpoint family: the `playlist/*` paths are
+  /// Access-Denied on this network (see [KugoEndpoints.playlistInfo]).
+  /// Metadata and tracks come from two separate calls.
   Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylist(
     String id, {
     int page = 1,
@@ -18,20 +22,33 @@ class PlaylistRepository {
     if (numericId.isEmpty) return null;
 
     try {
-      final url = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.playlistInfo, {
-        'specialid': numericId,
-        'page': page,
-        'pagesize': pageSize,
-        'format': 'json',
-      });
-      final data = await _client.getJson(url);
-      if (data is! Map) return null;
-      final map = Map<String, dynamic>.from(data);
-      final info = map['info'];
-      if (info is! Map) return null;
-      final brief = mapPlaylistInfo(Map<String, dynamic>.from(info));
+      final infoUrl = buildUrl(
+        KugoEndpoints.mobileCdn,
+        KugoEndpoints.playlistInfo,
+        {'specialid': numericId, 'format': 'json'},
+      );
+      final infoData = await _client.getJson(infoUrl);
+      final infoMap = _asMap(infoData);
+      if (infoMap == null) return null;
+      // `special/info` nests the payload under `data`.
+      final info = _asMap(infoMap['data']) ?? infoMap;
+      final brief = mapPlaylistInfo(info);
 
-      final listNode = map['list'] ?? info['list'];
+      final songsUrl = buildUrl(
+        KugoEndpoints.mobileCdn,
+        KugoEndpoints.playlistSongs,
+        {
+          'specialid': numericId,
+          'page': page,
+          'pagesize': pageSize,
+          'format': 'json',
+        },
+      );
+      final songsData = await _client.getJson(songsUrl);
+      final songsMap = _asMap(songsData);
+      final dataNode = songsMap == null ? null : _asMap(songsMap['data']);
+      final listNode = dataNode?['info'] ?? songsMap?['info'];
+
       final tracks = <Track>[];
       if (listNode is List) {
         for (final item in listNode) {
@@ -47,6 +64,9 @@ class PlaylistRepository {
       return null;
     }
   }
+
+  static Map<String, dynamic>? _asMap(Object? v) =>
+      v is Map ? Map<String, dynamic>.from(v) : null;
 
   /// Square / category playlists (best-effort public).
   /// Many CDNs now return plain `Access Deny ! No Actions !` for this path.

@@ -211,9 +211,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 return TrackTile(
                   track: track,
                   isPlaying: player.current?.id == track.id && player.isPlaying,
-                  onArtistTap: () => context.push(
-                    '/artist/${Uri.encodeComponent(track.artist)}',
-                  ),
+                  onArtistTap: artistTapFor(context, track),
                   onTap: () {
                     ref
                         .read(playerControllerProvider.notifier)

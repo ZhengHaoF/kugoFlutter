@@ -7,6 +7,7 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/search_repository.dart';
 import '../../data/repositories/song_detail_repository.dart';
 import '../../features/player/player_controller.dart';
+import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/kugo_theme.dart';
 
@@ -239,7 +240,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => context.push('/artist/${Uri.encodeComponent(track.artist)}'),
+                  onPressed: artistTapFor(context, track),
                   icon: const Icon(Icons.person_outline_rounded, size: 18),
                   label: const Text('歌手'),
                 ),
