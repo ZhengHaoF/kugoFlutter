@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -19,12 +20,28 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
+  /// Distinct tracks in local play history. `null` until the DB answers, so the
+  /// tile can render a placeholder instead of a wrong `0`.
+  int? _historyCount;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authControllerProvider.notifier).refreshProfile();
+      _loadHistoryCount();
     });
+  }
+
+  Future<void> _loadHistoryCount() async {
+    try {
+      final store = await QueueStore.open();
+      final count = await store.historyCount();
+      if (!mounted) return;
+      setState(() => _historyCount = count);
+    } catch (_) {
+      // Leave null → renders as placeholder rather than a misleading 0.
+    }
   }
 
   @override
@@ -131,11 +148,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               const SizedBox(height: KugoSpacing.lg),
               Row(
                 children: [
+                  const _Divider(),
                   Expanded(child: _Stat(label: '我喜欢', value: '$likesCount')),
                   const _Divider(),
-                  Expanded(child: _Stat(label: '最近播放', value: '56')),
+                  Expanded(
+                    child: _Stat(
+                      label: '最近播放',
+                      value: _historyCount == null ? '—' : '$_historyCount',
+                    ),
+                  ),
                   const _Divider(),
-                  Expanded(child: _Stat(label: '歌单', value: '12')),
+                  // Playlist count needs an authenticated `/user/playlist`
+                  // round-trip that isn't wired up yet (see
+                  // docs/gap-vs-echomusic.md P1 #7). Placeholder for now —
+                  // a hardcoded number would be worse than none.
+                  Expanded(
+                    child: _Stat(
+                      label: '歌单',
+                      value: '—',
+                      hint: auth.isLogged ? '待接入' : '需登录',
+                    ),
+                  ),
+                  const _Divider(),
                 ],
               ),
               if (auth.isLogged) ...[
@@ -315,20 +349,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+  const _Stat({required this.label, required this.value, this.hint});
 
   final String label;
   final String value;
 
+  /// Optional secondary line under the value (e.g. why a value is missing).
+  final String? hint;
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
-    return Column(
-      children: [
-        Text(label, style: kugo.caption),
-        const SizedBox(height: 4),
-        Text(value, style: kugo.section.copyWith(fontSize: 20)),
-      ],
+    // Fixed height so a placeholder (`—`) and a real number don't shift the
+    // row when the async values land. Sized for label + value + hint.
+    return SizedBox(
+      height: 76,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Text(label, style: kugo.caption),
+          const SizedBox(height: 4),
+          Text(value, style: kugo.section.copyWith(fontSize: 20)),
+          if (hint != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              hint!,
+              style: kugo.caption.copyWith(fontSize: 10),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

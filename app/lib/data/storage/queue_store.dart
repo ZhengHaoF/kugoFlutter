@@ -70,6 +70,10 @@ class QueueStore {
     return h;
   }
 
+  /// Distinct tracks in history (capped at 200 by [KugoDb.appendHistory]).
+  /// Prefer this over `loadHistoryAsync().length` when only a count is shown.
+  Future<int> historyCount() => _db.countHistory();
+
   Future<void> clearAll() async {
     await _db.clearAll();
     _queueCache = null;

@@ -120,4 +120,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('0.1.0'), findsOneWidget);
   });
+
+  testWidgets('Profile stats never show hardcoded numbers', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: ProfilePage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The two former fakes. If either reappears, the tile has regressed to a
+    // placeholder masquerading as real data.
+    expect(find.text('56'), findsNothing);
+    expect(find.text('12'), findsNothing);
+
+    // 我喜欢 resolves to a real 0 (empty likes list), while 最近播放 and 歌单
+    // stay as placeholders — a genuine 0 and an unknown must not look alike.
+    expect(find.text('0'), findsOneWidget);
+    expect(find.text('—'), findsNWidgets(2));
+    expect(find.text('需登录'), findsOneWidget); // 歌单 hint while signed out
+  });
 }

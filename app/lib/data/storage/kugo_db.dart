@@ -256,6 +256,9 @@ class KugoDb extends _$KugoDb {
     ];
   }
 
+  /// Row count only — avoids materialising up to 200 [Track]s just for a badge.
+  Future<int> countHistory() => historyTracks.count().getSingle();
+
   Future<void> clearAll() async {
     await transaction(() async {
       await delete(queueTracks).go();
