@@ -8,13 +8,20 @@ import '../../data/repositories/playlist_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/cover_box.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../features/rank/rank_list_page.dart'
+    show rankCoverHeroTag, RankDetailHeaderSurface, rankHeroFlightShuttle;
 
 class PlaylistDetailPage extends ConsumerStatefulWidget {
-  const PlaylistDetailPage({super.key, required this.id});
+  const PlaylistDetailPage({
+    super.key,
+    required this.id,
+    this.initialBrief,
+    this.isRank,
+  });
 
   final String id;
+  final PlaylistBrief? initialBrief;
+  final bool? isRank;
 
   @override
   ConsumerState<PlaylistDetailPage> createState() =>
@@ -30,6 +37,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
   @override
   void initState() {
     super.initState();
+    _brief = widget.initialBrief;
     _load();
   }
 
@@ -38,27 +46,79 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       _loading = true;
       _error = '';
     });
-    final remote = await playlistRepository.fetchPlaylist(widget.id);
+
+    final isRank = widget.isRank ?? widget.initialBrief?.isRank ?? false;
+
+    if (isRank) {
+      final rank = await playlistRepository.fetchRankDetail(widget.id);
+      if (!mounted) return;
+      if (rank != null && rank.tracks.isNotEmpty) {
+        _applyLoaded(rank.brief, rank.tracks, isRank: true);
+        return;
+      }
+    } else {
+      final remote = await playlistRepository.fetchPlaylist(widget.id);
+      if (!mounted) return;
+      if (remote != null && remote.tracks.isNotEmpty) {
+        _applyLoaded(remote.brief, remote.tracks, isRank: false);
+        return;
+      }
+    }
+
+    // Fallback if preferred type failed.
+    final fallback = isRank
+        ? await playlistRepository.fetchPlaylist(widget.id)
+        : await playlistRepository.fetchRankDetail(widget.id);
     if (!mounted) return;
-    if (remote != null && remote.tracks.isNotEmpty) {
-      setState(() {
-        _brief = remote.brief;
-        _tracks = remote.tracks;
-        _loading = false;
-      });
+    if (fallback != null && fallback.tracks.isNotEmpty) {
+      _applyLoaded(fallback.brief, fallback.tracks, isRank: !isRank);
       return;
     }
+
     setState(() {
-      _brief = null;
-      _tracks = const [];
       _loading = false;
-      _error = '歌单加载失败：接口不可用或该 ID 无公开数据';
+      _error = '${isRank ? "榜单" : "歌单"}加载失败：接口不可用或该 ID 无公开数据';
+    });
+  }
+
+  void _applyLoaded(PlaylistBrief loadedBrief, List<Track> loadedTracks, {required bool isRank}) {
+    final existingCover = _brief?.coverUrl ?? '';
+    final remoteCover = loadedBrief.coverUrl;
+    final cover = (remoteCover.isNotEmpty &&
+            !remoteCover.contains('mock://') &&
+            !remoteCover.endsWith('/${widget.id}'))
+        ? remoteCover
+        : (existingCover.isNotEmpty ? existingCover : remoteCover);
+
+    final genericName = isRank ? '榜单' : '歌单';
+    final name = (loadedBrief.name.isNotEmpty && loadedBrief.name != genericName)
+        ? loadedBrief.name
+        : (_brief?.name ?? loadedBrief.name);
+
+    setState(() {
+      _brief = PlaylistBrief(
+        id: loadedBrief.id.isNotEmpty ? loadedBrief.id : widget.id,
+        name: name,
+        coverUrl: cover,
+        description: loadedBrief.description.isNotEmpty
+            ? loadedBrief.description
+            : (_brief?.description ?? ''),
+        creator: loadedBrief.creator.isNotEmpty
+            ? loadedBrief.creator
+            : (_brief?.creator ?? ''),
+        trackCount: loadedTracks.length,
+        playCountLabel: loadedBrief.playCountLabel.isNotEmpty
+            ? loadedBrief.playCountLabel
+            : (_brief?.playCountLabel ?? ''),
+        isRank: isRank,
+      );
+      _tracks = loadedTracks;
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final brief = _brief;
     final tracks = _tracks;
@@ -77,57 +137,16 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
               icon: const Icon(Icons.arrow_back_rounded),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (brief != null)
-                    CoverBox(seed: brief.coverUrl, size: 0, radius: 0)
-                  else
-                    ColoredBox(color: kugo.surface),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.15),
-                          kugo.bg.withValues(alpha: 0.92),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: KugoSpacing.lg,
-                    right: KugoSpacing.lg,
-                    bottom: KugoSpacing.lg,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          brief?.name ?? '歌单',
-                          style: kugo.title,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          brief == null
-                              ? '在线加载'
-                              : '${tracks.length} 首'
-                                  '${brief.playCountLabel.isNotEmpty ? ' · ${brief.playCountLabel}' : ''}',
-                          style: kugo.caption,
-                        ),
-                        if (brief?.description.isNotEmpty == true) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            brief!.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: kugo.caption,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+              background: Hero(
+                tag: rankCoverHeroTag(widget.id),
+                flightShuttleBuilder: rankHeroFlightShuttle,
+                child: RankDetailHeaderSurface(
+                  brief: brief,
+                  tracksCount: tracks.isNotEmpty
+                      ? tracks.length
+                      : (brief?.trackCount ?? widget.initialBrief?.trackCount ?? 0),
+                  fallbackId: widget.id,
+                ),
               ),
             ),
           ),

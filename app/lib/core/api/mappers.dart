@@ -63,12 +63,17 @@ String _pickCover(Map<String, dynamic> json) {
 /// (`周杰伦 - 晴天`) with no id at all. Returns `''` when unknown — callers
 /// must not fabricate a numeric fallback.
 String _pickArtistId(Map<String, dynamic> json) {
-  final singers = json['singers'] ?? json['Singers'];
+  final singers = json['singers'] ?? json['Singers'] ?? json['authors'];
   if (singers is List) {
     for (final e in singers) {
       if (e is Map) {
-        final id = _s(e['id'], _s(e['AuthorId'], _s(e['author_id'],
-            _s(e['singerid'], _s(e['singer_id'])))));
+        final id = _s(
+          e['id'],
+          _s(
+            e['author_id'],
+            _s(e['AuthorId'], _s(e['singerid'], _s(e['singer_id']))),
+          ),
+        );
         if (id.isNotEmpty) return id;
       }
     }
@@ -104,10 +109,19 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
     json['songname'],
     _s(json['song_name'], _s(split.title, '未知歌曲')),
   );
-  final singers = json['singername'] ?? json['singer'];
+  // Rank/song uses `authors[]`; search uses `singername` / `singer`.
+  final singers = json['singername'] ?? json['singer'] ?? json['authors'];
   var artist = _s(singers);
-  if (artist.isEmpty && singers is List) {
-    artist = singers.map((e) => _s(e is Map ? e['name'] : e)).join('/');
+  if (singers is List) {
+    artist = singers
+        .map((e) {
+          if (e is Map) {
+            return _s(e['name'] ?? e['author_name'] ?? e['singername']);
+          }
+          return _s(e);
+        })
+        .where((s) => s.isNotEmpty)
+        .join('/');
   }
   if (artist.isEmpty) artist = split.artist ?? '';
   final artistId = _pickArtistId(json);
@@ -198,6 +212,36 @@ PlaylistBrief mapPlaylistInfo(Map<String, dynamic> json) {
     creator: creator,
     trackCount: count,
     playCountLabel: play > 0 ? formatCount(play) : '',
+  );
+}
+
+/// Maps `/api/v3/rank/list` / `rank/info` items into [PlaylistBrief].
+///
+/// `id` must be **`rankid`** — `rank/song` and `rank/info` only accept that
+/// (not `specialid`, not `rank_cid`).
+PlaylistBrief mapRankBrief(Map<String, dynamic> json) {
+  final rankId = _s(json['rankid'], _s(json['rank_id'], _s(json['id'])));
+  final name = _s(json['rankname'], _s(json['name'], '榜单'));
+  final pic = _s(
+    json['imgurl'],
+    _s(
+      json['img_cover'],
+      _s(json['bannerurl'], _s(json['img_9'], _s(json['banner_9']))),
+    ),
+  );
+  final cover = normalizeCoverUrl(pic.isEmpty ? rankId : pic);
+  final play = _i2(json['play_times'], json['listen_num']);
+  final intro = _s(json['intro']);
+  final count = _i2(json['all_total'], json['total']);
+  return PlaylistBrief(
+    id: rankId,
+    name: name,
+    coverUrl: cover,
+    description: intro,
+    creator: '酷狗官方',
+    trackCount: count,
+    playCountLabel: play > 0 ? formatCount(play) : '',
+    isRank: true,
   );
 }
 
@@ -431,5 +475,127 @@ Track mapEverydaySong(Map<String, dynamic> json) {
     artistId: artistId,
     availableQualities: available.isEmpty ? const {} : Set.of(available),
     relateGoods: goods,
+  );
+}
+
+/// Extract style-recommend tag groups from `tag_info` (EchoMusic Home.vue).
+///
+/// Payload shape: `data.tag_info[]` → `{ name, child: [{id,name,default}] }`.
+List<({String name, List<({String id, String name, bool isDefault})> child})>
+    extractStyleTagGroups(dynamic body) {
+  Map<String, dynamic>? data;
+  if (body is Map) {
+    final map = Map<String, dynamic>.from(body);
+    data = map['data'] is Map
+        ? Map<String, dynamic>.from(map['data'] as Map)
+        : map;
+  } else {
+    return const [];
+  }
+
+  final rawGroups = data['tag_info'];
+  if (rawGroups is! List) return const [];
+
+  final groups = <({String name, List<({String id, String name, bool isDefault})> child})>[];
+  for (final group in rawGroups) {
+    if (group is! Map) continue;
+    final g = Map<String, dynamic>.from(group);
+    final name = _s(g['name']);
+    final rawChild = g['child'];
+    if (name.isEmpty || rawChild is! List) continue;
+    final child = <({String id, String name, bool isDefault})>[];
+    for (final tag in rawChild) {
+      if (tag is! Map) continue;
+      final t = Map<String, dynamic>.from(tag);
+      final id = _s(t['id']);
+      final tagName = _s(t['name']);
+      if (id.isEmpty || tagName.isEmpty) continue;
+      final defaultRaw = t['default'];
+      final isDefault = defaultRaw == 1 ||
+          defaultRaw == true ||
+          defaultRaw == '1';
+      child.add((id: id, name: tagName, isDefault: isDefault));
+    }
+    if (child.isEmpty) continue;
+    groups.add((name: name, child: child));
+  }
+  return groups;
+}
+
+/// Maps gateway playlist payloads (special_recommend / top_ip) into
+/// [PlaylistBrief] with an id that `/playlist/:id` can actually resolve.
+///
+/// Gateway items mix `specialid` / `listid` / `list_create_listid` /
+/// `global_collection_id` / `ip_id`. Prefer numeric special ids; when only a
+/// `collection_x_<special>_y_z` gid exists, take the embedded special number.
+PlaylistBrief mapRecommendPlaylist(Map<String, dynamic> json) {
+  final extra = json['extra'] is Map
+      ? Map<String, dynamic>.from(json['extra'] as Map)
+      : const <String, dynamic>{};
+
+  String numericId = '';
+  for (final source in [json, extra]) {
+    for (final key in [
+      'specialid',
+      'listid',
+      'list_create_listid',
+      'ip_id',
+      'id',
+    ]) {
+      final v = source[key];
+      if (v == null) continue;
+      final s = v.toString().trim();
+      if (s.isEmpty || s == '0') continue;
+      if (int.tryParse(s) == null) continue;
+      numericId = s;
+      break;
+    }
+    if (numericId.isNotEmpty) break;
+  }
+
+  if (numericId.isEmpty) {
+    final gid = _s(
+      json['global_collection_id'],
+      _s(json['gid'], _s(extra['global_collection_id'], _s(extra['global_special_id']))),
+    );
+    final match = RegExp(r'collection_\d+_(\d+)_').firstMatch(gid);
+    if (match != null) numericId = match.group(1)!;
+  }
+
+  // Parse `ip_id` out of `extra.inner_url` when the API omitted the field.
+  if (numericId.isEmpty) {
+    final inner = _s(extra['inner_url'], _s(json['inner_url']));
+    final idx = inner.lastIndexOf('ip_id');
+    if (idx != -1 && idx + 6 < inner.length) {
+      final raw = inner.substring(idx + 6).split(RegExp(r'[^0-9]')).first;
+      if (raw.isNotEmpty) numericId = raw;
+    }
+  }
+
+  final name = _s(
+    json['name'],
+    _s(json['specialname'], _s(json['listname'], _s(json['title'], '歌单'))),
+  );
+  final pic = _pickCover(json);
+  final cover = normalizeCoverUrl(pic.isEmpty ? (numericId.isEmpty ? name : numericId) : pic);
+  final count = _i2(json['songcount'], json['song_count']);
+  final play = _i2(
+    json['playcount'],
+    _i2(json['play_count'], json['listen_num']),
+  );
+  final creator = _s(
+    json['nickname'],
+    _s(json['username'], _s(json['list_create_username'], _s(json['creator']))),
+  );
+  final intro = _s(json['intro'], _s(json['description'], _s(json['desc'])));
+
+  return PlaylistBrief(
+    id: numericId,
+    name: name,
+    coverUrl: cover,
+    description: intro,
+    creator: creator,
+    trackCount: count,
+    playCountLabel: play > 0 ? formatCount(play) : '',
   );
 }

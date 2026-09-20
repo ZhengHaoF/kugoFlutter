@@ -120,6 +120,7 @@ class PlaylistBrief {
     this.creator = '',
     this.trackCount = 0,
     this.playCountLabel = '',
+    this.isRank = false,
   });
 
   final String id;
@@ -131,6 +132,7 @@ class PlaylistBrief {
   final String creator;
   final int trackCount;
   final String playCountLabel;
+  final bool isRank;
 }
 
 class LyricLine {

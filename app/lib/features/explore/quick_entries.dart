@@ -12,7 +12,7 @@ import '../../shared/widgets/cover_box.dart';
 import '../fm/fm_controller.dart';
 import '../player/player_controller.dart';
 
-/// 发现页搜索框正下方的快捷入口：私人 FM 舞台卡（前后层叠）+ 每日推荐精致卡。
+/// 发现页搜索框正下方的快捷入口：私人 FM 舞台卡（前后层叠）+ 为你推荐入口卡。
 ///
 /// 独立成文件是为了可测试：[ExplorePage] 的 initState 会发起真实网络请求
 /// （dio 的超时 Timer 在 FakeAsync 测试里永远挂起），入口卡本身无状态/纯响应式，
@@ -66,8 +66,8 @@ class QuickEntries extends ConsumerWidget {
           onModeChanged: (mode) => _handleModeChanged(mode, ref),
         ),
         const SizedBox(height: 12),
-        DailyEntryCard(
-          onTap: () => context.push('/daily'),
+        RecommendHubEntryCard(
+          onTap: () => context.push('/recommend'),
         ),
       ],
     );
@@ -141,41 +141,43 @@ class FmHeroCard extends ConsumerWidget {
             top: 0,
             bottom: 0,
             right: rightMargin,
-            child: Material(
-              color: Colors.transparent,
-              child: Ink(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    stops: const [0.0, 0.56, 1.0],
-                    colors: [
-                      Color.lerp(kugo.primary, deep, 0.30)!,
-                      Color.lerp(kugo.primary, deep, 0.40)!,
-                      deep,
-                    ],
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.10),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF050C14).withValues(alpha: 0.32),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                    BoxShadow(
-                      color: const Color(0xFF081826).withValues(alpha: 0.18),
-                      blurRadius: 36,
-                      offset: const Offset(0, 18),
-                    ),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: const [0.0, 0.56, 1.0],
+                  colors: [
+                    Color.lerp(kugo.primary, deep, 0.30)!,
+                    Color.lerp(kugo.primary, deep, 0.40)!,
+                    deep,
                   ],
                 ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(22),
-                  onTap: onTap,
-                  child: Stack(
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF050C14).withValues(alpha: 0.32),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF081826).withValues(alpha: 0.18),
+                    blurRadius: 36,
+                    offset: const Offset(0, 18),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(22),
+                    onTap: onTap,
+                    child: Stack(
                     children: [
                       // 左上角径向高光（EchoMusic: radial at 16% 18%）
                       Positioned(
@@ -269,9 +271,10 @@ class FmHeroCard extends ConsumerWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
 }
 
@@ -519,9 +522,11 @@ class FmPlayBadge extends StatelessWidget {
   }
 }
 
-/// 每日推荐卡片（EchoMusic Home.vue:575-653 home-feature-card 风格）。
-class DailyEntryCard extends StatelessWidget {
-  const DailyEntryCard({
+/// 发现页「为你推荐」入口卡（EchoMusic Home feature-card 风格）。
+///
+/// 点击进入推荐聚合页 `/recommend`；每日推荐成为聚合页内子入口。
+class RecommendHubEntryCard extends StatelessWidget {
+  const RecommendHubEntryCard({
     super.key,
     required this.onTap,
   });
@@ -533,7 +538,7 @@ class DailyEntryCard extends StatelessWidget {
     final kugo = KugoTheme.of(context);
     final dayStr = DateTime.now().day.toString();
     return Material(
-      key: const ValueKey('daily_entry_card'),
+      key: const ValueKey('recommend_hub_entry_card'),
       color: kugo.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
@@ -589,7 +594,7 @@ class DailyEntryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '每日推荐',
+                      '为你推荐',
                       style: kugo.body.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -597,7 +602,7 @@ class DailyEntryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '为你量身定制 · 按日轮换',
+                      '每日 · 风格 · 歌单精选',
                       style: kugo.caption.copyWith(
                         fontSize: 12,
                         color: kugo.textSecondary,
@@ -615,7 +620,7 @@ class DailyEntryCard extends StatelessWidget {
                   color: kugo.primary.withValues(alpha: 0.12),
                 ),
                 child: Icon(
-                  Icons.play_arrow_rounded,
+                  Icons.auto_awesome_rounded,
                   color: kugo.primary,
                   size: 18,
                 ),

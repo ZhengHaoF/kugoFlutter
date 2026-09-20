@@ -93,6 +93,11 @@ void main() {
           builder: (_, _) =>
               const Scaffold(body: Center(child: Text('DAILY_STUB'))),
         ),
+        GoRoute(
+          path: '/recommend',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('RECOMMEND_STUB'))),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -111,17 +116,18 @@ void main() {
     return (router: router, search: search);
   }
 
-  testWidgets('FM hero takes its own full-width row above the daily card',
+  testWidgets('FM hero takes its own full-width row above the recommend card',
       (tester) async {
     await pump(tester);
 
     final hero = tester.getRect(find.byKey(const ValueKey('fm_hero_card')));
-    final daily = tester.getRect(find.byKey(const ValueKey('daily_entry_card')));
+    final daily =
+        tester.getRect(find.byKey(const ValueKey('recommend_hub_entry_card')));
 
     // 800 视口 - 左右 16 padding = 768：两张卡都吃满整行，FM 不再是半宽格。
     expect(hero.width, 768);
     expect(daily.width, 768);
-    // Hero 在上、每日推荐在下。
+    // Hero 在上、为你推荐在下。
     expect(hero.bottom, lessThanOrEqualTo(daily.top));
   });
 
@@ -153,13 +159,13 @@ void main() {
     expect(find.text('PLAYER_STUB'), findsNothing);
   });
 
-  testWidgets('daily recommendation stays reachable as a full-width row',
+  testWidgets('recommend hub stays reachable as a full-width row',
       (tester) async {
     await pump(tester);
 
-    await tester.tap(find.textContaining('每日推荐'));
+    await tester.tap(find.textContaining('为你推荐'));
     await tester.pumpAndSettle();
-    expect(find.text('DAILY_STUB'), findsOneWidget);
+    expect(find.text('RECOMMEND_STUB'), findsOneWidget);
   });
 
   testWidgets('FM mode capsule allows switching mode directly on the hero card',

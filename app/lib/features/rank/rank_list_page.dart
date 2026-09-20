@@ -6,8 +6,10 @@ import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/playlist_repository.dart';
 import '../../shared/widgets/async_body.dart';
-import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/kugo_theme.dart';
+
+import 'rank_hero.dart';
+export 'rank_hero.dart';
 
 class RankListPage extends ConsumerStatefulWidget {
   const RankListPage({super.key});
@@ -85,7 +87,7 @@ class _RankListPageState extends ConsumerState<RankListPage> {
             final rank = _ranks[index];
             return _RankGridCard(
               rank: rank,
-              onTap: () => context.push('/playlist/${rank.id}'),
+              onTap: () => context.push('/rank/${rank.id}', extra: rank),
             );
           },
         ),
@@ -111,34 +113,10 @@ class _RankGridCard extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(KugoRadius.card),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CoverBox(seed: rank.coverUrl, size: 0, radius: 0),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.02),
-                          Colors.black.withValues(alpha: 0.55),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (rank.playCountLabel.isNotEmpty)
-                    Positioned(
-                      left: 12,
-                      bottom: 12,
-                      child: Text(
-                        rank.playCountLabel,
-                        style: kugo.caption.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ),
-                ],
+              child: Hero(
+                tag: rankCoverHeroTag(rank.id),
+                flightShuttleBuilder: rankHeroFlightShuttle,
+                child: RankCardSurface(brief: rank),
               ),
             ),
           ),

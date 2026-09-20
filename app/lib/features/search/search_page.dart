@@ -342,7 +342,7 @@ class _TabResults extends ConsumerWidget {
                   p.trackCount > 0 ? '${p.trackCount}首' : p.playCountLabel,
               onTap: p.id.isEmpty
                   ? null
-                  : () => context.push('/playlist/${p.id}'),
+                  : () => context.push('/playlist/${p.id}', extra: p),
             ),
         ];
       case SearchType.album:

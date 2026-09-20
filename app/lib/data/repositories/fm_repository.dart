@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart' show looksLikeUrlFilter, decodeKugoBody;
+import '../../core/api/kugo_client.dart'
+    show NetworkLogSink, looksLikeUrlFilter, decodeKugoBody;
 import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart';
+import '../../core/api/network_log.dart';
 import '../../core/models/fm_mode.dart';
 import '../../core/models/track.dart';
 import '../../data/storage/device_identity.dart';
@@ -48,7 +50,81 @@ class FmPage {
 /// "error_code":200101}`。已登录应返回 `data` 里的歌曲列表，但字段结构未知，
 /// 因此解析尽量宽容（详见 [_mapFmSong] / [_extractList] 的字段名假设）。
 class FmRepository {
-  FmRepository({Dio? dio}) : _dio = dio ?? _createDio();
+  FmRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    if (dio == null) {
+      _dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            options.extra['__start'] = DateTime.now().millisecondsSinceEpoch;
+            options.extra['__id'] =
+                '${DateTime.now().microsecondsSinceEpoch}-${options.uri}';
+            _emit(
+              NetworkLog(
+                id: options.extra['__id'] as String,
+                type: NetworkLogType.request,
+                timestamp: DateTime.now(),
+                method: options.method,
+                url: options.uri.toString(),
+                headers: sanitizeHeaders(options.headers),
+                data: options.queryParameters.isEmpty
+                    ? options.data
+                    : truncateLogData({
+                        'query': options.queryParameters,
+                        'body': options.data,
+                      }),
+              ),
+            );
+            handler.next(options);
+          },
+          onResponse: (res, handler) {
+            final start = res.requestOptions.extra['__start'] as int? ??
+                DateTime.now().millisecondsSinceEpoch;
+            _emit(
+              NetworkLog(
+                id: res.requestOptions.extra['__id'] as String? ??
+                    res.requestOptions.uri.toString(),
+                type: NetworkLogType.response,
+                timestamp: DateTime.now(),
+                method: res.requestOptions.method,
+                url: res.requestOptions.uri.toString(),
+                statusCode: res.statusCode,
+                data: truncateLogData(res.data),
+                duration: Duration(
+                  milliseconds: DateTime.now().millisecondsSinceEpoch - start,
+                ),
+              ),
+            );
+            handler.next(res);
+          },
+          onError: (e, handler) {
+            final start = e.requestOptions.extra['__start'] as int? ??
+                DateTime.now().millisecondsSinceEpoch;
+            _emit(
+              NetworkLog(
+                id: e.requestOptions.extra['__id'] as String? ??
+                    e.requestOptions.uri.toString(),
+                type: NetworkLogType.error,
+                timestamp: DateTime.now(),
+                method: e.requestOptions.method,
+                url: e.requestOptions.uri.toString(),
+                errorMessage: e.message ?? e.toString().split('\n').first,
+                data: truncateLogData(e.response?.data),
+                duration: Duration(
+                  milliseconds: DateTime.now().millisecondsSinceEpoch - start,
+                ),
+              ),
+            );
+            handler.next(e);
+          },
+        ),
+      );
+    }
+  }
+
+  /// Wired from main() so personal FM gateway calls appear in network log.
+  static NetworkLogSink? logSink;
+
+  static void _emit(NetworkLog log) => logSink?.call(log);
 
   final Dio _dio;
   String lastError = '';

@@ -9,7 +9,8 @@ import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/cover_box.dart';
+import '../../features/rank/rank_list_page.dart'
+    show rankCoverHeroTag, RankCardSurface, rankHeroFlightShuttle;
 import '../../core/theme/kugo_theme.dart';
 import 'quick_entries.dart';
 
@@ -23,7 +24,6 @@ class ExplorePage extends ConsumerStatefulWidget {
 
 class _ExplorePageState extends ConsumerState<ExplorePage> {
   List<PlaylistBrief> _rankings = const [];
-  List<PlaylistBrief> _playlists = const [];
   List<Track> _songs = const [];
   bool _loading = true;
   String _error = '';
@@ -41,7 +41,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     });
 
     List<PlaylistBrief> ranks = const [];
-    List<PlaylistBrief> squares = const [];
     List<Track> songs = const [];
     var filtered = false;
     var denied = false;
@@ -58,12 +57,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       noteError(e);
     }
     try {
-      // Square only — do not fall back to ranks here (those are shown below).
-      squares = await playlistRepository.fetchSquare(pageSize: 6);
-    } catch (e) {
-      noteError(e);
-    }
-    try {
       songs = await searchRepository.searchSongs('热门', pageSize: 10);
     } catch (e) {
       noteError(e);
@@ -72,19 +65,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     if (!mounted) return;
 
     final rankList = ranks.take(6).toList();
-    final rankIds = rankList.map((e) => e.id).toSet();
-    // Drop square cards that are just rank fallbacks to avoid double display.
-    final recPlaylists = squares
-        .where((p) => p.id.isNotEmpty && !rankIds.contains(p.id))
-        .take(6)
-        .toList();
 
     setState(() {
       _rankings = rankList;
-      _playlists = recPlaylists;
       _songs = songs;
       _loading = false;
-      if (rankList.isEmpty && recPlaylists.isEmpty && songs.isEmpty) {
+      if (rankList.isEmpty && songs.isEmpty) {
         _error = filtered
             ? '当前网络被网关拦截（URL过滤），无法访问酷狗。\n请换手机热点 / 关闭路由器「上网行为管理」后重试。'
             : denied
@@ -105,10 +91,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       < 18 => '下午好',
       _ => '晚上好',
     };
-    final isEmpty = !_loading &&
-        _rankings.isEmpty &&
-        _playlists.isEmpty &&
-        _songs.isEmpty;
+    final isEmpty = !_loading && _rankings.isEmpty && _songs.isEmpty;
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(
@@ -170,34 +153,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     final rank = _rankings[index];
                     return _RankingCard(
                       rank: rank,
-                      onTap: () => context.push('/playlist/${rank.id}'),
+                      onTap: () => context.push('/rank/${rank.id}', extra: rank),
                     );
                   },
                 ),
-              ),
-            ),
-          ],
-          if (_playlists.isNotEmpty) ...[
-            const SliverToBoxAdapter(
-              child: SectionHeader(title: '推荐歌单', showAccent: true),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: KugoSpacing.lg,
-                  crossAxisSpacing: KugoSpacing.lg,
-                  childAspectRatio: 0.72,
-                ),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final playlist = _playlists[index];
-                  return PlaylistCard(
-                    playlist: playlist,
-                    width: double.infinity,
-                    onTap: () => context.push('/playlist/${playlist.id}'),
-                  );
-                }, childCount: _playlists.length),
               ),
             ),
           ],
@@ -250,54 +209,16 @@ class _RankingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
         width: 168,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(KugoRadius.card),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CoverBox(seed: rank.coverUrl, size: 0, radius: 0),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.05),
-                      Colors.black.withValues(alpha: 0.6),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 14,
-                bottom: 14,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rank.name,
-                      // Sits on a dark scrim over cover art in both themes.
-                      style: kugo.section.copyWith(
-                        fontSize: 17,
-                        color: kugo.onCover,
-                      ),
-                    ),
-                    if (rank.playCountLabel.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        rank.playCountLabel,
-                        style: kugo.caption.copyWith(color: kugo.onCoverMuted),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+          child: Hero(
+            tag: rankCoverHeroTag(rank.id),
+            flightShuttleBuilder: rankHeroFlightShuttle,
+            child: RankCardSurface(brief: rank, showTitle: true),
           ),
         ),
       ),

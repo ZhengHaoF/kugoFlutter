@@ -153,12 +153,15 @@ Widget coverHeroFlightShuttle(
   final toRadius = to?.radius ?? KugoRadius.cover;
   final bytes = seed.isEmpty ? null : CoverCache.instance.peek(seed);
 
+  final isPush = flightDirection == HeroFlightDirection.push;
+
   return AnimatedBuilder(
     animation: animation,
     builder: (context, _) {
-      final t = animation.value;
-      // Push: source → dest; Pop: the from/to contexts are already swapped
-      // by the Hero controller, so the same lerp is correct.
+      final progress = isPush ? animation.value : (1.0 - animation.value);
+      final t = Curves.easeInOutCubic.transform(progress);
+      // Push: source → dest; Pop: from/to contexts are swapped by HeroController,
+      // and progress normalized so 0.0 is flight start and 1.0 is landing.
       final radius = fromRadius + (toRadius - fromRadius) * t;
 
       final Widget child;

@@ -41,14 +41,32 @@ abstract final class KugoEndpoints {
   static const singerSong = '/api/v3/singer/song';
 
   /// Rank / recommend (best-effort public).
+  /// Rank tracks: `rank/song?rankid=` — NOT `specialid`.
   static const rankList = '/api/v3/rank/list';
   static const rankInfo = '/api/v3/rank/info';
+  static const rankSong = '/api/v3/rank/song';
 
   /// Personalized daily recommend (KuGouMusicApi everyday_recommend.js).
   /// POST gateway + header `x-router: everydayrec.service.kugou.com`.
   static const gateway = 'https://gateway.kugou.com';
   static const everydayRecommend = '/everyday_song_recommend';
   static const everydayRouter = 'everydayrec.service.kugou.com';
+
+  /// Style recommend songs (KuGouMusicApi everyday_style_recommend.js).
+  ///
+  /// Upstream uses the **service-prefixed path on gateway**, no x-router:
+  /// POST `https://gateway.kugou.com/everydayrec.service/everyday_style_recommend`
+  /// body `{}` (signature data = `'{}'`), query `tagids`.
+  static const everydayStyleRecommendPrefixed =
+      '/everydayrec.service/everyday_style_recommend';
+
+  /// Category playlists (KuGouMusicApi top_playlist.js → specialrec).
+  static const specialRecommend = '/v2/special_recommend';
+  static const specialRecommendRouter = 'specialrec.service.kugou.com';
+
+  /// Editorial picks (KuGouMusicApi top_ip.js).
+  static const musicAdService = 'http://musicadservice.kugou.com';
+  static const topIp = '/v1/daily_recommend';
 
   /// Real personal FM (KuGouMusicApi personal_fm.js → upstream).
   static const personalRecommend = '/v2/personal_recommend';

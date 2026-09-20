@@ -29,7 +29,9 @@ App 已识别该 HTML 并抛出「网络网关拦截」，首页/发现会显示
 | 单曲音质 | `mobilecdn.kugou.com/api/v3/song/info` | `hash=&album_id=&format=json` → `data.extra.{128,320,sq}hash` + privilege（播放页懒加载） |
 | 热搜 | `.../api/v3/search/hot` | `format=json&plat=0&count=` |
 | 歌单详情 | `.../api/v3/playlist/info` | `specialid=&page=&pagesize=&format=json` |
-| 榜单列表 | `.../api/v3/rank/list` | `format=json&plat=0` |
+| 榜单列表 | `.../api/v3/rank/list` | `format=json&plat=0` → **`data.info[]`**（不在根节点）；每项 `rankid`/`rankname`/`imgurl`/`play_times` |
+| 榜单详情 | `.../api/v3/rank/info` | `rankid=&plat=0&format=json` |
+| 榜单歌曲 | `.../api/v3/rank/song` | `rankid=&page=&pagesize=&plat=0&format=json` → `data.info[]`；歌手在 `authors[].author_name`，**不能**用 `specialid` |
 | 播放地址 | `wwwapi.kugou.com/yy/index.php` | `r=play/getdata&hash=&album_id=&mid=&guid=&platid=4&appid=1014` |
 | Tracker 备用 | `trackercdn.kugou.com/i/v2/` | `cmd=23&pid=1&behavior=play&hash=&album_id=&key=` |
 | 歌词搜索 | `lyrics.kugou.com/search` | `ver=1&man=yes&client=pc&keyword=&hash=&timelength=` |

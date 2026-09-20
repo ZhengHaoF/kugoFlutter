@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/models/track.dart' show PlaylistBrief;
 import 'core/theme/kugo_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
@@ -14,6 +15,7 @@ import 'features/playlist/playlist_detail_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/rank/rank_list_page.dart';
 import 'features/recommend/daily_recommend_page.dart';
+import 'features/recommend/recommend_hub_page.dart';
 import 'features/search/search_page.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_page.dart';
@@ -76,8 +78,32 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/playlist/:id',
+        pageBuilder: (context, state) {
+          final isRankQuery = state.uri.queryParameters['type'] == 'rank' ||
+              state.uri.queryParameters['isRank'] == 'true';
+          final initialBrief = state.extra is PlaylistBrief
+              ? state.extra as PlaylistBrief
+              : null;
+          final isRank = isRankQuery || (initialBrief?.isRank ?? false);
+          return MaterialPage(
+            child: PlaylistDetailPage(
+              id: state.pathParameters['id'] ?? '',
+              initialBrief: initialBrief,
+              isRank: isRank,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/rank/:id',
         pageBuilder: (context, state) => MaterialPage(
-          child: PlaylistDetailPage(id: state.pathParameters['id'] ?? ''),
+          child: PlaylistDetailPage(
+            id: state.pathParameters['id'] ?? '',
+            isRank: true,
+            initialBrief: state.extra is PlaylistBrief
+                ? state.extra as PlaylistBrief
+                : null,
+          ),
         ),
       ),
       GoRoute(
@@ -112,6 +138,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/likes',
         pageBuilder: (context, state) => const MaterialPage(child: LikesPage()),
+      ),
+      GoRoute(
+        path: '/recommend',
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: RecommendHubPage()),
       ),
       GoRoute(
         path: '/daily',

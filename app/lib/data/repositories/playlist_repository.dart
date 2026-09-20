@@ -108,16 +108,109 @@ class PlaylistRepository {
       final data = await _client.getJson(url);
       if (data is! Map) return const [];
       final map = Map<String, dynamic>.from(data);
-      final list = map['list'] ?? map['info'];
+      // `rank/list` nests the board list under `data.info` (not root `info`).
+      final dataNode = map['data'] is Map
+          ? Map<String, dynamic>.from(map['data'] as Map)
+          : map;
+      final list = dataNode['info'] ??
+          dataNode['list'] ??
+          map['info'] ??
+          map['list'];
       if (list is! List) return const [];
       return list
           .whereType<Map>()
-          .map((e) => mapPlaylistInfo(Map<String, dynamic>.from(e)))
+          .map((e) => mapRankBrief(Map<String, dynamic>.from(e)))
           .toList();
     } catch (_) {
       return const [];
     }
   }
+
+  /// Rank board detail: `rank/info` + `rank/song?rankid=`.
+  ///
+  /// Rank ids are **not** specialids — `/playlist/:id` must fall back here
+  /// when `special/*` returns nothing for a rank board id.
+  Future<({PlaylistBrief brief, List<Track> tracks})?> fetchRankDetail(
+    String rankId, {
+    int page = 1,
+    int pageSize = 100,
+  }) async {
+    final id = rankId.replaceAll(RegExp(r'[^0-9]'), '');
+    if (id.isEmpty) return null;
+
+    PlaylistBrief? brief;
+    var tracks = const <Track>[];
+
+    try {
+      final infoUrl = buildUrl(
+        KugoEndpoints.mobileCdn,
+        KugoEndpoints.rankInfo,
+        {'rankid': id, 'plat': 0, 'format': 'json'},
+      );
+      final infoData = await _client.getJson(infoUrl);
+      final infoMap = _asMap(infoData);
+      final info = _asMap(infoMap?['data']) ?? infoMap;
+      if (info != null && info.isNotEmpty) {
+        brief = mapRankBrief({
+          ...info,
+          'rankid': _s(info['rankid']) == '' ? id : info['rankid'],
+        });
+      }
+    } catch (_) {
+      // fall through to songs
+    }
+
+    try {
+      final songsUrl = buildUrl(
+        KugoEndpoints.mobileCdn,
+        KugoEndpoints.rankSong,
+        {
+          'rankid': id,
+          'page': page,
+          'pagesize': pageSize,
+          'plat': 0,
+          'format': 'json',
+        },
+      );
+      final songsData = await _client.getJson(songsUrl);
+      final songsMap = _asMap(songsData);
+      final dataNode = _asMap(songsMap?['data']);
+      final listNode = dataNode?['info'] ?? songsMap?['info'];
+
+      final parsed = <Track>[];
+      if (listNode is List) {
+        for (final item in listNode) {
+          if (item is! Map) continue;
+          final track = mapMobileSearchSong(Map<String, dynamic>.from(item));
+          if (track.hash.isNotEmpty || track.name.isNotEmpty) {
+            parsed.add(track);
+          }
+        }
+      }
+      if (parsed.isNotEmpty) tracks = parsed;
+    } catch (_) {
+      // keep whatever brief we already have
+    }
+
+    if (brief == null && tracks.isEmpty) return null;
+    brief ??= PlaylistBrief(
+      id: id,
+      name: '榜单',
+      coverUrl: normalizeCoverUrl(id),
+      description: '',
+      creator: '酷狗官方',
+      trackCount: tracks.length,
+      playCountLabel: '',
+      isRank: true,
+    );
+    return (brief: brief, tracks: tracks);
+  }
+}
+
+String _s(Object? v) {
+  if (v == null) return '';
+  final t = v.toString().trim();
+  return t.isEmpty || t == 'null' ? '' : t;
 }
 
 final playlistRepository = PlaylistRepository();
