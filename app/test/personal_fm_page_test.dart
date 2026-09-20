@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/kugo_client.dart';
+import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
 import 'package:kugo/features/fm/personal_fm_page.dart';
@@ -13,10 +14,17 @@ import 'fakes/fake_audio_player.dart';
 /// Serves scripted song pages and records every keyword requested, so the FM
 /// page's pool/refill behaviour can be asserted without touching the network.
 class _FakeSearchRepo implements SearchRepository {
-  _FakeSearchRepo({this.perKeyword = 4, this.keywordDelay = const {}});
+  _FakeSearchRepo({
+    this.perKeyword = 4,
+    this.keywordDelay = const {},
+    this.durations = const [],
+  });
 
   /// How many tracks each keyword yields.
   final int perKeyword;
+
+  /// Per-track durations, cycled by index. Empty = [10000] for every track.
+  final List<int> durations;
 
   /// Per-keyword artificial latency — used to force out-of-order responses.
   final Map<String, Duration> keywordDelay;
@@ -49,7 +57,9 @@ class _FakeSearchRepo implements SearchRepository {
         artist: 'artist',
         album: 'album',
         coverUrl: 'http://cover/$keyword',
-        durationMs: 10000,
+        durationMs: durations.isEmpty
+            ? 10000
+            : durations[i % durations.length],
       ),
     );
   }
@@ -82,12 +92,19 @@ Future<void> _settle(WidgetTester tester, {int frames = 12}) async {
 /// callbacks run after that check. The player controller starts a periodic demo
 /// tick for tracks without a hash, so leaking it fails every test.
 class _Harness {
-  _Harness(this.tester, this.repo, this.engine, this.container);
+  _Harness(
+    this.tester,
+    this.repo,
+    this.engine,
+    this.container, {
+    this.useGateway = false,
+  });
 
   final WidgetTester tester;
   final _FakeSearchRepo repo;
   final FakeAudioPlayer engine;
   final ProviderContainer container;
+  final bool useGateway;
 
   PlayerState get state => container.read(playerControllerProvider);
 
@@ -96,7 +113,9 @@ class _Harness {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(home: PersonalFmPage(repository: repo)),
+        child: MaterialApp(
+        home: PersonalFmPage(repository: repo, useGateway: useGateway),
+      ),
       ),
     );
     await _settle(tester);
@@ -109,12 +128,24 @@ class _Harness {
 
   /// Tap the "不喜欢" control (the label text is inside the tap target).
   Future<void> tapDislike() async {
+    await tester.ensureVisible(find.text('不喜欢'));
+    await tester.pump();
     await tester.tap(find.text('不喜欢'));
     await _settle(tester);
   }
 
   /// Tap a pool segment.
   Future<void> tapPool(String label) async {
+    await tester.ensureVisible(find.text(label));
+    await tester.pump();
+    await tester.tap(find.text(label));
+    await _settle(tester);
+  }
+
+  /// Tap a mode segment (红心 / 小众 / 速览).
+  Future<void> tapMode(String label) async {
+    await tester.ensureVisible(find.text(label));
+    await tester.pump();
     await tester.tap(find.text(label));
     await _settle(tester);
   }
@@ -131,6 +162,8 @@ _Harness _harness(
   WidgetTester tester, {
   int perKeyword = 4,
   Map<String, Duration> keywordDelay = const {},
+  List<int> durations = const [],
+  bool useGateway = false,
 }) {
   SharedPreferences.setMockInitialValues({});
   final engine = FakeAudioPlayer();
@@ -142,9 +175,14 @@ _Harness _harness(
   );
   return _Harness(
     tester,
-    _FakeSearchRepo(perKeyword: perKeyword, keywordDelay: keywordDelay),
+    _FakeSearchRepo(
+      perKeyword: perKeyword,
+      keywordDelay: keywordDelay,
+      durations: durations,
+    ),
     engine,
     container,
+    useGateway: useGateway,
   );
 }
 
@@ -298,4 +336,108 @@ void main() {
       });
     });
   });
+
+  group('FM mode axis', () {
+    testWidgets('小众 swaps in the niche keyword bundle', (tester) async {
+      await _harness(tester).run((h) async {
+        await h.tapMode('小众');
+
+        expect(
+          h.repo.calls,
+          containsAll(['小众', '独立', '冷门', '地下', '宝藏']),
+        );
+        final first = h.state.current!.id;
+        expect(
+          first.startsWith('小众') ||
+              first.startsWith('独立') ||
+              first.startsWith('冷门') ||
+              first.startsWith('地下') ||
+              first.startsWith('宝藏'),
+          isTrue,
+          reason: 'expected a 小众 track, got $first',
+        );
+      });
+    });
+
+    testWidgets('速览 keeps only short tracks when the pool allows it',
+        (tester) async {
+      await _harness(
+        tester,
+        durations: const [10000, 5 * 60 * 1000],
+      ).run((h) async {
+        await h.tapMode('速览');
+        await _settle(tester, frames: 30);
+
+        expect(h.state.queue, isNotEmpty);
+        expect(
+          h.state.queue.every((t) => t.durationMs <= 4 * 60 * 1000),
+          isTrue,
+          reason: '速览 must not hand the player a 5-minute track',
+        );
+      });
+    });
+
+    testWidgets('mode switch does not leak the previous mode keywords',
+        (tester) async {
+      await _harness(tester).run((h) async {
+        await h.tapMode('速览');
+        await _settle(tester, frames: 20);
+
+        expect(h.repo.calls, isNot(contains('小众')));
+      });
+    });
+  });
+
+  group('FM gateway opt-in', () {
+    testWidgets('guest stays on the keyword pool and says so',
+        (tester) async {
+      // useGateway: true but nobody is logged in → the gateway is unusable, so
+      // the page must fall back to the keyword pool AND label the source.
+      await _harness(tester, useGateway: true).run((h) async {
+        expect(h.state.queue, isNotEmpty);
+        expect(
+          find.textContaining('来源：关键词检索'),
+          findsOneWidget,
+          reason: 'the fallback source must be visible, not disguised',
+        );
+      });
+    });
+
+    testWidgets('source badge reports the pool it is drawing from',
+        (tester) async {
+      await _harness(tester).run((h) async {
+        expect(find.textContaining('来源：关键词检索'), findsOneWidget);
+        expect(find.textContaining('热门 / 华语流行'), findsOneWidget);
+      });
+    });
+  });
+
+  // `mode` / `song_pool_id` are the two axes the real endpoint understands
+  // (KuGouMusicApi personal_fm.js). The UI must not invent its own values.
+  group('FM real-endpoint params', () {
+  test('mode maps to the endpoint mode token', () {
+    expect(FmMode.heart.modeParam, 'normal');
+    expect(FmMode.niche.modeParam, 'small');
+    expect(FmMode.peek.modeParam, 'peak');
+  });
+
+  test('mode maps to the endpoint song_pool_id', () {
+    expect(FmMode.heart.songPoolId, 0);
+    expect(FmMode.niche.songPoolId, 1);
+    expect(FmMode.peek.songPoolId, 2);
+  });
+
+  test('only 速览 carries the local short-track rule', () {
+    expect(FmMode.peek.preferShort, isTrue);
+    expect(FmMode.heart.preferShort, isFalse);
+    expect(FmMode.niche.preferShort, isFalse);
+  });
+
+  test('song pool labels stay stable for the strategy switch', () {
+    expect(
+      [for (final p in FmSongPool.values) p.label],
+      ['口味', '风格', '探索'],
+    );
+  });
+});
 }

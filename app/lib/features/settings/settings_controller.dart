@@ -23,6 +23,7 @@ class AppSettings {
     this.lyricTranslation = true,
     this.mediaLyricSubtitle = false,
     this.themeMode = AppThemeMode.dark,
+    this.fmRealRecommend = false,
   });
 
   final AppQuality quality;
@@ -34,6 +35,12 @@ class AppSettings {
   /// System media (lock screen / Bluetooth) subtitle shows `artist · lyric`.
   final bool mediaLyricSubtitle;
   final AppThemeMode themeMode;
+
+  /// 私人 FM 是否走酷狗真实推荐接口（需要登录）。
+  ///
+  /// 关闭时 FM 页用关键词歌池兜底；打开且已登录时走
+  /// `POST /v2/personal_recommend`，可吃到 mode / song_pool_id 真参数。
+  final bool fmRealRecommend;
 
   ThemeMode get materialThemeMode => switch (themeMode) {
         AppThemeMode.dark => ThemeMode.dark,
@@ -68,6 +75,7 @@ class AppSettings {
     bool? lyricTranslation,
     bool? mediaLyricSubtitle,
     AppThemeMode? themeMode,
+    bool? fmRealRecommend,
   }) {
     return AppSettings(
       quality: quality ?? this.quality,
@@ -77,6 +85,7 @@ class AppSettings {
       lyricTranslation: lyricTranslation ?? this.lyricTranslation,
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       themeMode: themeMode ?? this.themeMode,
+      fmRealRecommend: fmRealRecommend ?? this.fmRealRecommend,
     );
   }
 }
@@ -89,6 +98,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kLyricTr = 'settings.lyricTranslation';
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kThemeMode = 'settings.themeMode';
+  static const _kFmReal = 'settings.fmRealRecommend';
 
   @override
   AppSettings build() {
@@ -161,6 +171,11 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setLyricTranslation(bool v) async {
     state = state.copyWith(lyricTranslation: v);
     await _save(_kLyricTr, v);
+  }
+
+  Future<void> setFmRealRecommend(bool v) async {
+    state = state.copyWith(fmRealRecommend: v);
+    await _save(_kFmReal, v);
   }
 
   Future<void> setMediaLyricSubtitle(bool v) async {

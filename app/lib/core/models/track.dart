@@ -17,6 +17,9 @@ class Track {
     this.availableQualities = const {},
     this.relateGoods = const [],
     this.qualityCatalogComplete = false,
+    this.recDesc = '',
+    this.similarDesc = '',
+    this.language = '',
   });
 
   final String id;
@@ -43,6 +46,15 @@ class Track {
 
   /// true = 接口给出了完整音质目录（relate_goods）；false = 仅从 hash 字段推断。
   final bool qualityCatalogComplete;
+
+  /// 推荐语 / 推荐理由（私人 FM 等接口给 `recDesc`；空 = 未提供，勿编造）。
+  final String recDesc;
+
+  /// “相似推荐”描述（私人 FM 等接口可能给 `similarDesc`）。
+  final String similarDesc;
+
+  /// 语种标签（如 `国语` / `欧美` / `日语`；空 = 未知）。
+  final String language;
 
   String get durationLabel {
     final total = Duration(milliseconds: durationMs);
@@ -72,6 +84,9 @@ class Track {
     Set<AppQuality>? availableQualities,
     List<RelateGood>? relateGoods,
     bool? qualityCatalogComplete,
+    String? recDesc,
+    String? similarDesc,
+    String? language,
   }) {
     return Track(
       id: id ?? this.id,
@@ -89,6 +104,9 @@ class Track {
       availableQualities: availableQualities ?? this.availableQualities,
       relateGoods: relateGoods ?? this.relateGoods,
       qualityCatalogComplete: qualityCatalogComplete ?? this.qualityCatalogComplete,
+      recDesc: recDesc ?? this.recDesc,
+      similarDesc: similarDesc ?? this.similarDesc,
+      language: language ?? this.language,
     );
   }
 }

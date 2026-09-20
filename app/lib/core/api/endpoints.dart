@@ -50,6 +50,10 @@ abstract final class KugoEndpoints {
   static const everydayRecommend = '/everyday_song_recommend';
   static const everydayRouter = 'everydayrec.service.kugou.com';
 
+  /// Real personal FM (KuGouMusicApi personal_fm.js → upstream).
+  static const personalRecommend = '/v2/personal_recommend';
+  static const personalFmRouter = 'persnfm.service.kugou.com';
+
   /// Song play data (wwwapi).
   static const playData = '/yy/index.php';
 

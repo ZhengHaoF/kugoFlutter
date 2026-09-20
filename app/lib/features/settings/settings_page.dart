@@ -79,6 +79,21 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           _Section(
+            title: '私人 FM',
+            children: [
+              SwitchListTile(
+                title: Text('使用酷狗真实推荐（实验）', style: kugo.body),
+                subtitle: Text(
+                  '关闭时用关键词歌池兜底；打开且已登录后，'
+                  '红心 / 小众 / 速览会作为 mode 参数提交给酷狗推荐接口',
+                  style: kugo.caption,
+                ),
+                value: settings.fmRealRecommend,
+                onChanged: controller.setFmRealRecommend,
+              ),
+            ],
+          ),
+          _Section(
             title: '账号',
             children: [
               ListTile(

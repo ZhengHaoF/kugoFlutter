@@ -32,3 +32,4 @@ Thumbs.db
 **/key.properties
 .env
 .env.*
+.kotlin/

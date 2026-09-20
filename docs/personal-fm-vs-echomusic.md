@@ -24,6 +24,56 @@
 
 ---
 
+## 零·二、重大更正（2026-09-20，`mode` 真参数路线已打通到「只差登录」）
+
+> **本节取代 §3.3 的「本网络不可达」结论。DNS 劫持的判断是错的。**
+
+**当日实测（本机、本次会话，可复现）：**
+
+| 探测 | 结果 |
+| --- | --- |
+| `Resolve-DnsName gateway.kugou.com` | `183.60.245.92 / 183.2.140.153` —— **真实 IP，DNS 没有被劫持** |
+| `Resolve-DnsName this-host-does-not-exist-zzzz123.kugou.com` | **NXDOMAIN**（不存在的主机不再被解析） |
+| 未签名请求 `/everyday_song_recommend` | 502（与旧文档一致：网关先验签） |
+| **带签名 `POST /v2/personal_recommend` + `x-router: persnfm.service.kugou.com`** | **HTTP 200 + `{"data":"","status":0,"error_code":200101}`** |
+
+**根因：路径和 router 都猜错了，不是网络问题。**
+
+- `/personal/fm` 只是 [KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) 对外的路由名，
+  **真实上游是 `POST /v2/personal_recommend`**（见 `module/personal_fm.js`）。
+- **真实 router 是 `persnfm.service.kugou.com`**（注意拼写：少一个 `o`，不是 `fm.service`）。
+- §3.2 表里 8 个 router 候选全部不在真实上游之列，所以才会全 502/404。
+- `200101` 是**业务码**（未登录），不是网关错误 —— 签名、appid、clientver 这套链路**已验证正确**。
+
+**`mode` 轴的真实参数语义**（源码级，`module/personal_fm.js` + 官方文档）：
+
+| 参数 | 值 | 说明 |
+| --- | --- | --- |
+| `mode` | `normal` / `small` / `peak` | 发现 / 小众 / 30s 速览 |
+| `song_pool_id` | `0` / `1` / `2` | Alpha 按口味 / Beta 按风格 / Gamma |
+| `action` | `play` / `garbage` | `garbage` = 真上报「不喜欢」 |
+| `remain_songcnt` | > 4 不返回新推荐 | 服务端据此从已有池取歌，防重复 |
+| `is_overplay` / `playtime` / `hash` / `songid` / `cur_mark` | — | 播放反馈，服务端据此学习 |
+| body 还需 | `key = signParamsKey(clienttime)`、`fakem='ca981cfc583a4c37f28d2d49000013c16a0a'`、`m_type=1`、`callerid=0`、`area_code=1`、`recommend_source_locked=0` | 见源码 |
+
+**唯一未验证的一步**：带真实登录 token 打一次，dump `data` 字段结构。
+本仓库已有 QR / 短信 / 密码登录（QR 轮询用的正是概念版 `appid=3116`，与 FM 网关同平台，
+token 通用性大概率没问题），所以这一步只是「登一次录」的成本。
+
+**已落地的代码**（本次会话）：
+
+- `lib/core/api/endpoints.dart`：`personalRecommend` / `personalFmRouter` 两个常量
+- `lib/core/models/fm_mode.dart`：`FmMode`（heart/niche/peek ↔ normal/small/peak）、
+  `FmSongPool`（taste/style/explore ↔ 0/1/2）、`keywordsFor(mode)`
+- `lib/data/repositories/fm_repository.dart`：`FmRepository.fetch/reportGarbage/reportPlay`
+- `lib/features/fm/personal_fm_page.dart`：模式轴 + 歌池轴 + 电台卡 + 黑胶堆 + 信息 chip +
+  来源标注；设置 → 私人 FM → 「使用酷狗真实推荐（实验）」开关（默认关，未登录自动回落关键词池）
+- `lib/core/models/track.dart`：新增 `recDesc` / `similarDesc` / `language`（字段名是猜的，
+  已做多候选宽容解析，**待登录后 dump 真实响应再校准**）
+- `test/personal_fm_page_test.dart`：16 例（原 7 例 + 模式轴 3 + 回落 2 + 参数映射 4）
+
+---
+
 ## 一、结论先行
 
 **当前项目的「私人 FM」不是 FM，是一个披着黑胶外壳的「关键词搜索播放器」。**
