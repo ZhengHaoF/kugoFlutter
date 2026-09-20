@@ -7,7 +7,6 @@ import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/explore/explore_page.dart';
-import 'features/fm/personal_fm_page.dart';
 import 'features/history/history_page.dart';
 import 'features/likes/likes_page.dart';
 import 'features/player/full_player_page.dart';
@@ -109,13 +108,6 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/history',
         pageBuilder: (context, state) =>
             const MaterialPage(child: HistoryPage()),
-      ),
-      GoRoute(
-        path: '/fm',
-        pageBuilder: (context, state) => const MaterialPage(
-          fullscreenDialog: true,
-          child: PersonalFmPage(),
-        ),
       ),
       GoRoute(
         path: '/likes',

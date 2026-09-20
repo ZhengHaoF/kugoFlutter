@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../fm/fm_controller.dart';
 
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -10,11 +13,22 @@ import '../../shared/widgets/cover_box.dart';
 /// 独立成文件是为了可测试：[ExplorePage] 的 initState 会发起真实网络请求
 /// （dio 的超时 Timer 在 FakeAsync 测试里永远挂起），入口卡本身无状态、
 /// 无网络依赖，单独 pump 即可覆盖布局与导航。
-class QuickEntries extends StatelessWidget {
+class QuickEntries extends ConsumerWidget {
   const QuickEntries({super.key});
 
+  /// 开一场私人 FM 会话并直接进播放页。
+  ///
+  /// 独立 FM 页面撤掉后，入口从「导航到一个页面」变成「启动一个会话」：
+  /// 控制器负责取歌、把队列以 FM 来源交给播放器，用户落在播放页。
+  Future<void> _startFm(BuildContext context, WidgetRef ref) async {
+    final fm = ref.read(fmControllerProvider.notifier);
+    await fm.start();
+    if (!context.mounted) return;
+    context.push('/player');
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
     final dailyLabel = '${now.month}月${now.day}日 · 每日推荐';
 
@@ -24,7 +38,7 @@ class QuickEntries extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FmHeroCard(onTap: () => context.push('/fm')),
+        FmHeroCard(onTap: () => _startFm(context, ref)),
         const SizedBox(height: 12),
         DailyEntryCard(
           icon: Icons.today_rounded,

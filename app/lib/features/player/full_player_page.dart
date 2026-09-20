@@ -11,6 +11,9 @@ import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/lyrics_view.dart';
+import '../../core/models/playback_source.dart';
+import '../fm/fm_controller.dart';
+import 'fm_controls.dart';
 import '../../shared/widgets/quality_sheet.dart';
 import '../../core/theme/kugo_theme.dart';
 
@@ -81,6 +84,8 @@ class FullPlayerPage extends ConsumerWidget {
                 onSongDetail: () => _openSongDetail(context, track),
                 onQueue: () => _showQueueSheet(context, ref),
               ),
+              // FM 会话进行中：紧凑入口（原「私人 FM」页撤掉后的唯一常驻痕迹）。
+              if (ref.watch(fmControllerProvider).active) const FmEntryPill(),
               Expanded(
                 child: _CollapsedPlayerBody(
                   key: const ValueKey('player-collapsed'),
@@ -868,30 +873,46 @@ class _ControlBar extends ConsumerWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              onPressed: controller.cycleMode,
-              tooltip: _modeLabel(live.mode),
-              icon: Icon(
-                switch (live.mode) {
-                  PlayerLoopMode.order => Icons.trending_flat_rounded,
-                  PlayerLoopMode.listLoop => Icons.repeat_rounded,
-                  PlayerLoopMode.shuffle => Icons.shuffle_rounded,
-                  PlayerLoopMode.single => Icons.repeat_one_rounded,
-                },
-                color: kugo.textSecondary,
-                size: 22,
+            // FM 会话：循环/随机对"流"没有意义，这个位置换成 FM 原生的「不喜欢」。
+            if (live.queueSource == PlaybackQueueSource.fm)
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: () => ref.read(fmControllerProvider.notifier).dislike(),
+                tooltip: '不喜欢，换下一首',
+                icon: const Icon(
+                  Icons.thumb_down_alt_rounded,
+                  color: Color(0xFFE87A90),
+                  size: 22,
+                ),
+              )
+            else
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: controller.cycleMode,
+                tooltip: _modeLabel(live.mode),
+                icon: Icon(
+                  switch (live.mode) {
+                    PlayerLoopMode.order => Icons.trending_flat_rounded,
+                    PlayerLoopMode.listLoop => Icons.repeat_rounded,
+                    PlayerLoopMode.shuffle => Icons.shuffle_rounded,
+                    PlayerLoopMode.single => Icons.repeat_one_rounded,
+                  },
+                  color: kugo.textSecondary,
+                  size: 22,
+                ),
               ),
-            ),
             IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              onPressed: controller.previous,
+              // FM 只能池内回退：退到会话第一首就禁用，绝不环绕到队列尾部。
+              onPressed: live.canStepBack ? controller.previous : null,
+              tooltip: live.canStepBack ? '上一首' : '已经是私人 FM 的第一首',
               icon: Icon(
                 Icons.skip_previous_rounded,
                 size: 32,
-                color: kugo.textPrimary,
+                color: live.canStepBack ? kugo.textPrimary : kugo.textTertiary,
               ),
             ),
             Container(

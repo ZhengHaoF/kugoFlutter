@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/audio_quality.dart';
+import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
 import '../../data/repositories/lyric_repository.dart';
 import '../../data/repositories/play_repository.dart';
@@ -28,6 +29,7 @@ class PlayerState {
     this.errorCode = '',
     this.seq = 0,
     this.resolvedQuality,
+    this.queueSource = PlaybackQueueSource.none,
   });
 
   final List<Track> queue;
@@ -42,6 +44,19 @@ class PlayerState {
 
   /// 实际解析出的音质（EchoMusic resolved quality）；null = 尚未解析成功。
   final AppQuality? resolvedQuality;
+
+  /// 队列来源。决定传输键的边界语义（见 [PlaybackQueueSource]）。
+  final PlaybackQueueSource queueSource;
+
+  /// 「上一首」当前是否可点。
+  ///
+  /// FM 会话只能池内回退：退到会话第一首就必须禁用，否则用户会一路退到
+  /// 队列尾部（普通队列的环绕行为），把「未播的后续」当成历史播回去。
+  bool get canStepBack {
+    if (queue.length < 2) return false;
+    if (queueSource == PlaybackQueueSource.fm) return currentIndex > 0;
+    return true;
+  }
 
   Track? get current =>
       queue.isEmpty || currentIndex < 0 || currentIndex >= queue.length
@@ -65,6 +80,7 @@ class PlayerState {
     String? errorCode,
     int? seq,
     AppQuality? Function()? resolvedQuality,
+    PlaybackQueueSource? queueSource,
   }) {
     return PlayerState(
       queue: queue ?? this.queue,
@@ -79,6 +95,7 @@ class PlayerState {
       resolvedQuality: resolvedQuality != null
           ? resolvedQuality()
           : this.resolvedQuality,
+      queueSource: queueSource ?? this.queueSource,
     );
   }
 }
@@ -288,7 +305,11 @@ class PlayerController extends Notifier<PlayerState> {
   /// Public snapshot for media handler / external callers.
   PlayerState get snapshot => state;
 
-  Future<void> playQueue(List<Track> tracks, {int startIndex = 0}) async {
+  Future<void> playQueue(
+    List<Track> tracks, {
+    int startIndex = 0,
+    PlaybackQueueSource source = PlaybackQueueSource.none,
+  }) async {
     if (tracks.isEmpty) return;
     final index = startIndex.clamp(0, tracks.length - 1);
     final seq = ++_seq;
@@ -303,10 +324,31 @@ class PlayerController extends Notifier<PlayerState> {
       lyrics: const [],
       errorCode: '',
       seq: seq,
+      queueSource: source,
     );
     _syncBridge();
     unawaited(_persistQueue());
     await _loadCurrent(seq: seq);
+  }
+
+  /// 标记当前队列的来源，但不重载曲目。
+  ///
+  /// 冷启动恢复队列时用：Drift 快照里没有来源位（加列要走 codegen），
+  /// 由 FM 会话用自己的标记判断「恢复出来的队列就是 FM 流」后回填。
+  void markQueueSource(PlaybackQueueSource source) {
+    if (state.queue.isEmpty || state.queueSource == source) return;
+    state = state.copyWith(queueSource: source);
+    _syncBridge();
+  }
+
+  /// 往活动队列尾部追加，不动游标（FM 续流用：边播边补）。
+  Future<void> appendToQueue(List<Track> tracks) async {
+    if (tracks.isEmpty) return;
+    state = state.copyWith(
+      queue: List.unmodifiable([...state.queue, ...tracks]),
+    );
+    _syncBridge();
+    unawaited(_persistQueue());
   }
 
   Future<void> _persistQueue() async {
@@ -548,6 +590,9 @@ class PlayerController extends Notifier<PlayerState> {
     _ignoreEnginePlayUntil = null;
     var index = state.currentIndex + 1;
     if (index >= state.queue.length) {
+      // FM 是流，不是歌单：没有「下一首」可退化成环绕。续流由 FM 会话负责，
+      // 它会在接近池尾时提前 append；真到边界这里就停住，不绕回第一首。
+      if (state.queueSource == PlaybackQueueSource.fm) return;
       if (state.mode == PlayerLoopMode.order) {
         await _engine.pause();
         _stopDemoTick();
@@ -563,9 +608,22 @@ class PlayerController extends Notifier<PlayerState> {
       } else {
         index = 0;
       }
-    } else if (state.mode == PlayerLoopMode.shuffle && state.queue.length > 1) {
+    } else if (state.mode == PlayerLoopMode.shuffle &&
+        state.queue.length > 1 &&
+        state.queueSource != PlaybackQueueSource.fm) {
       index = _randomIndex(state.queue.length, exclude: state.currentIndex);
     }
+    await _jumpTo(index);
+  }
+
+  /// 跳到队列里指定下标（FM 待播列表点选用）。
+  Future<void> playAtIndex(int index) async {
+    if (state.queue.isEmpty) return;
+    if (index < 0 || index >= state.queue.length) return;
+    await _jumpTo(index);
+  }
+
+  Future<void> _jumpTo(int index) async {
     final seq = ++_seq;
     state = state.copyWith(
       currentIndex: index,
@@ -583,16 +641,13 @@ class PlayerController extends Notifier<PlayerState> {
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
     var index = state.currentIndex - 1;
-    if (index < 0) index = state.queue.length - 1;
-    final seq = ++_seq;
-    state = state.copyWith(
-      currentIndex: index,
-      positionMs: 0,
-      display: PlayerDisplayState.loading,
-      seq: seq,
-    );
-    unawaited(_persistQueue());
-    await _loadCurrent(seq: seq);
+    if (index < 0) {
+      // FM 只允许池内回退：边界上按 [PlayerState.canStepBack] 已经禁用，
+      // 这里是双保险，绝不环绕到队列尾部。
+      if (state.queueSource == PlaybackQueueSource.fm) return;
+      index = state.queue.length - 1;
+    }
+    await _jumpTo(index);
   }
 
   void seekTo(int positionMs) {

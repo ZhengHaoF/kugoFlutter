@@ -10,6 +10,7 @@ import 'core/theme/kugo_theme.dart';
 import 'data/repositories/play_repository.dart';
 import 'data/repositories/song_detail_repository.dart';
 import 'features/auth/auth_controller.dart';
+import 'features/fm/fm_controller.dart';
 import 'features/debug/network_log_provider.dart';
 import 'features/player/audio_service_handler.dart';
 import 'features/player/player_controller.dart';
@@ -68,6 +69,11 @@ Future<void> main() async {
   );
   player.attachBridge(handler);
   await player.restoreOrSeed();
+
+  // 冷启动认领 FM 会话：播放器队列已恢复，若与 FM 指纹相符就把来源标回 fm，
+  // 播放页才会继续显示 FM 控件（循环/随机位换成「不喜欢」、上一首带边界禁用）。
+  // 必须晚于 restoreOrSeed()，否则队列还没回来无从比对。
+  await container.read(fmControllerProvider.notifier).restore();
 
   runApp(
     UncontrolledProviderScope(
