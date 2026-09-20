@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,10 +22,11 @@ class QuickEntries extends ConsumerWidget {
   ///
   /// 独立 FM 页面撤掉后，入口从「导航到一个页面」变成「启动一个会话」：
   /// 控制器负责取歌、把队列以 FM 来源交给播放器，用户落在播放页。
-  Future<void> _startFm(BuildContext context, WidgetRef ref) async {
-    final fm = ref.read(fmControllerProvider.notifier);
-    await fm.start();
-    if (!context.mounted) return;
+  ///
+  /// 取歌是网络活，**不等它**再跳：否则用户要对着发现页干等一两秒，
+  /// 而且解析音源本身可能更久。播放页会自己显示加载态。
+  void _startFm(BuildContext context, WidgetRef ref) {
+    unawaited(ref.read(fmControllerProvider.notifier).start());
     context.push('/player');
   }
 

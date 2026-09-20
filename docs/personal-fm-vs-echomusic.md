@@ -33,6 +33,10 @@ FM 页听到喜欢的歌，切进播放页就丢掉了电台上下文。
 6. **冷启动认领**：`main.dart` 在 `player.restoreOrSeed()` 之后调用
    `FmController.restore()`，用指纹比对恢复出来的队列是否就是上次的 FM 流。
 
+**样式**：原 FM 页的视觉件（电台卡 / 黑胶台 / 信息 chip / 来源标注 / 三个圆钮 /
+胶囊开关）抽到 `lib/features/fm/fm_radio_card.dart`，面板直接复用，样式与原来一致 ——
+不是另画一套。歌池轴回到右上角胶囊（与 EchoMusic 的 radio-strategy-switch 同位置）。
+
 **测试**：原 16 例页面测试（依赖真实网络、且绑在页面结构上）替换为
 `test/fm_controller_test.dart`（13 例，纯状态层）+ `test/fm_controls_test.dart`
 （5 例，药丸与面板）。

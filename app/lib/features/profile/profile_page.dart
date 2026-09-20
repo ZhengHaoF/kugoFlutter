@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -201,9 +203,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 color: const Color(0xFF5B7CFF),
                 title: '私人 FM',
                 subtitle: '电台流 · 直接开播',
-                onTap: () async {
-                  await ref.read(fmControllerProvider.notifier).start();
-                  if (!context.mounted) return;
+                onTap: () {
+                  unawaited(ref.read(fmControllerProvider.notifier).start());
                   context.push('/player');
                 },
               ),

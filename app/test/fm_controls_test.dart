@@ -5,6 +5,7 @@ import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
+import 'package:kugo/features/fm/fm_radio_card.dart';
 import 'package:kugo/features/player/fm_controls.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -74,6 +75,14 @@ Future<void> _startFm(WidgetTester tester, ProviderContainer container) async {
   await tester.pump();
 }
 
+/// 面板里有常驻动画（黑胶旋转 / 频谱跳动），`pumpAndSettle` 永远等不到静止，
+/// 所以只能用定时 pump 把转场推过去。
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 Future<void> _pumpPill(WidgetTester tester, ProviderContainer container) async {
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 3.0;
@@ -125,11 +134,13 @@ void main() {
     await _startFm(tester, rig.container);
 
     await tester.tap(find.byType(FmEntryPill));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
-    // 两条轴的原生名字：档位用中文，歌池用上游代号。
-    expect(find.text('档位'), findsOneWidget);
-    expect(find.text('歌池'), findsOneWidget);
+    // 原来 FM 页那张卡必须原样在：渐变电台卡 + 黑胶台，而不是几行普通设置项。
+    expect(find.byType(FmRadioCard), findsOneWidget);
+    expect(find.byType(FmVinylStage), findsOneWidget);
+    expect(find.text('私人 FM'), findsWidgets);
+    // 档位轴在卡里（红心/小众/速览），歌池轴在右上角胶囊（Alpha/Beta/Gamma）。
     for (final m in FmMode.values) {
       expect(find.text(m.label), findsWidgets);
     }
@@ -146,15 +157,16 @@ void main() {
     final before = rig.container.read(playerControllerProvider).current!.id;
 
     await tester.tap(find.byType(FmEntryPill));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.tap(find.text(FmSongPool.explore.label).last);
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     expect(rig.container.read(fmControllerProvider).pendingPool,
         FmSongPool.explore);
     // 当前这首不动：切池只在下一首生效。
     expect(rig.container.read(playerControllerProvider).current!.id, before);
+    expect(find.textContaining('下一首生效'), findsWidgets);
     expect(find.text('立即生效'), findsOneWidget);
   });
 
@@ -166,12 +178,12 @@ void main() {
     final before = rig.container.read(playerControllerProvider).current!.id;
 
     await tester.tap(find.byType(FmEntryPill));
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     await tester.runAsync(
       () => rig.container.read(fmControllerProvider.notifier).dislike(),
     );
-    await tester.pumpAndSettle();
+    await _settle(tester);
 
     final player = rig.container.read(playerControllerProvider);
     expect(player.queue.any((t) => t.id == before), isFalse);

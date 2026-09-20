@@ -88,9 +88,34 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
       }
     }
 
-    await _player.play();
-    _expectingAudio = false;
+    // `play()` 的 Future 直到**整首放完**才 complete（just_audio 的语义）。
+    // 之前 await 它，导致 `playUrl` → `_loadCurrent` → `playQueue` 这条链
+    // 一直挂着：`await playQueue(...)` 的调用方（FM 的 start/dislike/立即生效）
+    // 永远等不到下一行。这里只等到「真的开始出声」就算加载成功。
+    // setUrl 已经完成：从这里起的事件都反映真实播放状态，不该再被
+    // 「正在换源」挡掉 —— 源不可播时 just_audio 会停在 idle，那正是
+    // completionStream 该报的加载失败。
     _loadingSource = false;
+
+    unawaited(
+      _player.play().catchError((Object _) {
+        if (_expectingAudio) _completion.add(PlayerIdleReason.error);
+      }),
+    );
+    try {
+      await _player.playingStream
+          .firstWhere((playing) => playing)
+          .timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // 超时不算成功：只有状态明显是 idle/completed 才判加载失败，
+      // 否则放行（渐进式流可能只是起播慢）。
+      final st = _player.processingState;
+      if (st == ProcessingState.idle || st == ProcessingState.completed) {
+        _expectingAudio = false;
+        throw StateError('音频源无法起播: ${_host(url)}');
+      }
+    }
+    _expectingAudio = false;
   }
 
   String _host(String url) {

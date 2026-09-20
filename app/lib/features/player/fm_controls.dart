@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,12 +10,13 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../fm/fm_controller.dart';
+import '../fm/fm_radio_card.dart';
 import '../player/player_controller.dart';
 
 /// 播放页上的 FM 紧凑入口：一行药丸，点开 [showFmSheet]。
 ///
-/// 独立「私人 FM」页面撤掉后，这是 FM 在播放页的唯一常驻痕迹：
-/// 高度约 36px，不挡歌词、不抢封面。
+/// 它是「入口」而不是「卡片本身」：卡片在面板里（见 [_FmSheet]），
+/// 药丸只负责在播放页留一个不挡歌词、不抢封面的痕迹（高约 36px）。
 class FmEntryPill extends ConsumerWidget {
   const FmEntryPill({super.key});
 
@@ -38,8 +41,7 @@ class FmEntryPill extends ConsumerWidget {
         alignment: Alignment.centerLeft,
         child: Semantics(
           button: true,
-          label:
-              '私人 FM 电台：${fm.pendingMode.stationTitle} · ${fm.pendingPool.label}',
+          label: '私人 FM 电台：${fm.pendingMode.stationTitle} · ${fm.pendingPool.label}',
           child: InkWell(
             borderRadius: BorderRadius.circular(KugoRadius.chip),
             onTap: () => showFmSheet(context),
@@ -94,8 +96,10 @@ class FmEntryPill extends ConsumerWidget {
 /// FM 控制面板：自定义转场（上滑 + 淡入）+ 可拖拽展开。
 ///
 /// 用 `showGeneralDialog` 而不是 `showModalBottomSheet`，才能自己控制转场曲线；
-/// 里面套 `DraggableScrollableSheet`，可以下拉收回、上拉接近全屏，
-/// 把原来 FM 页里唱片堆预告那部分容量补回来。
+/// 里面套 `DraggableScrollableSheet`，可以下拉收回、上拉接近全屏。
+///
+/// 面板内容就是原来 FM 页的那一套视觉：渐变底 + 电台卡（档位胶囊 / 台名 /
+/// 频谱 / 播放键）+ 黑胶台 + 信息行 + 三个圆钮，歌池轴回到右上角胶囊。
 Future<void> showFmSheet(BuildContext context) {
   return showGeneralDialog<void>(
     context: context,
@@ -124,27 +128,58 @@ Future<void> showFmSheet(BuildContext context) {
   );
 }
 
-class _FmSheet extends ConsumerWidget {
+class _FmSheet extends ConsumerStatefulWidget {
   const _FmSheet();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FmSheet> createState() => _FmSheetState();
+}
+
+class _FmSheetState extends ConsumerState<_FmSheet>
+    with TickerProviderStateMixin {
+  /// 黑胶转速（18s 一圈，与 FM 页一致）。
+  late final AnimationController _spin;
+  /// 10 根频谱条的跳动源（1100ms 一轮）。
+  late final AnimationController _bars;
+
+  @override
+  void initState() {
+    super.initState();
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 18),
+    )..repeat();
+    _bars = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    _bars.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
     final fmCtl = ref.read(fmControllerProvider.notifier);
     final playerCtl = ref.read(playerControllerProvider.notifier);
+    final current = player.current;
     final accent = CoverPalette.accentFromSeed(
-      player.current?.coverUrl ?? 'fm',
+      current?.coverUrl ?? 'fm',
       kugo.palette,
     );
-    final current = player.current;
 
     return Align(
       alignment: Alignment.bottomCenter,
       child: DraggableScrollableSheet(
-        initialChildSize: 0.66,
-        minChildSize: 0.32,
+        initialChildSize: 0.82,
+        minChildSize: 0.4,
         maxChildSize: 0.95,
         expand: false,
         builder: (context, scrollController) {
@@ -152,34 +187,112 @@ class _FmSheet extends ConsumerWidget {
           // 里面是 ListTile，中间夹一层带背景的 DecoratedBox 会让它
           // 自己的背景和水波纹被盖住（框架会直接断言报错）。
           return Material(
-            color: kugo.bg.withValues(alpha: 0.98),
             clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-              side: BorderSide(color: kugo.divider),
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverToBoxAdapter(child: _grabber(kugo)),
-                SliverToBoxAdapter(child: _header(context, kugo, fm, current)),
-                SliverToBoxAdapter(child: _axisMode(kugo, fm, fmCtl)),
-                SliverToBoxAdapter(child: _axisPool(kugo, fm, fmCtl)),
-                SliverToBoxAdapter(
-                  child: _transport(kugo, accent, player, fmCtl, playerCtl),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: CoverPalette.playerBackground(
+                  current?.coverUrl ?? 'fm',
+                  kugo.palette,
                 ),
-                SliverToBoxAdapter(child: _sourceBadge(kugo, fm)),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: KugoSpacing.md),
-                ),
-                SliverToBoxAdapter(child: _upcomingHeader(kugo, player)),
-                _upcomingList(kugo, player, playerCtl),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: KugoSpacing.xxl),
-                ),
-              ],
+              ),
+              child: CustomScrollView(
+                controller: scrollController,
+                slivers: [
+                  SliverToBoxAdapter(child: _grabber(kugo)),
+                  SliverToBoxAdapter(child: _header(context, kugo, fm, fmCtl)),
+                  if (fm.hasPendingChange)
+                    SliverToBoxAdapter(child: _pendingBar(kugo, fm, fmCtl)),
+                  SliverToBoxAdapter(
+                    child: FmRadioCard(
+                      kugo: kugo,
+                      accent: accent,
+                      mode: fm.pendingMode,
+                      pool: fm.pendingPool,
+                      onMode: fmCtl.setPendingMode,
+                      onPlay: playerCtl.togglePlay,
+                      isPlaying: player.isPlaying,
+                      bars: _bars,
+                      trackName: current?.name ?? '',
+                      artist: current?.artist ?? '',
+                      loading: fm.loading,
+                    ),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: KugoSpacing.lg),
+                  ),
+                  SliverToBoxAdapter(
+                    child: FmVinylStage(
+                      kugo: kugo,
+                      accent: accent,
+                      spin: _spin,
+                      coverUrl: current?.coverUrl ?? 'fm',
+                      playing: player.isPlaying,
+                      upcoming: _sideDiscs(player),
+                      onPick: (t) {
+                        final i = player.queue.indexWhere((e) => e.id == t.id);
+                        if (i >= 0) playerCtl.playAtIndex(i);
+                      },
+                      onTapCurrent: playerCtl.togglePlay,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _nowPlaying(kugo, current),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: KugoSpacing.lg,
+                      ),
+                      child: FmSourceBadge(
+                        kugo: kugo,
+                        fromServer: fm.fromServer,
+                        gatewayError: fm.gatewayError,
+                        pool: fm.pool,
+                        mode: fm.mode,
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: KugoSpacing.lg),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: KugoSpacing.lg,
+                      ),
+                      child: FmActionRow(
+                        kugo: kugo,
+                        accent: accent,
+                        isPlaying: player.isPlaying,
+                        onDislike: fmCtl.dislike,
+                        onToggle: playerCtl.togglePlay,
+                        onLike: () async {
+                          await fmCtl.like();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('已加入我喜欢'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: KugoSpacing.md),
+                  ),
+                  SliverToBoxAdapter(child: _upcomingHeader(kugo, fm, player)),
+                  _upcomingList(kugo, player, playerCtl),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: KugoSpacing.xxl),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -187,203 +300,120 @@ class _FmSheet extends ConsumerWidget {
     );
   }
 
-  Widget _grabber(KugoTheme kugo) => Center(
-    child: Container(
-      margin: const EdgeInsets.only(
-        top: KugoSpacing.sm,
-        bottom: KugoSpacing.xs,
-      ),
-      width: 36,
-      height: 4,
-      decoration: BoxDecoration(
-        color: kugo.textTertiary.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(2),
-      ),
-    ),
-  );
+  /// 黑胶台两侧最多 3 张待播盘（原来 FM 页的唱片堆）。
+  List<Track> _sideDiscs(PlayerState player) {
+    final from = player.currentIndex + 1;
+    if (player.queue.length <= from) return const [];
+    final to = math.min(from + 3, player.queue.length);
+    return player.queue.sublist(from, to);
+  }
 
+  Widget _grabber(KugoTheme kugo) => Center(
+        child: Container(
+          margin: const EdgeInsets.only(
+            top: KugoSpacing.sm,
+            bottom: KugoSpacing.xs,
+          ),
+          width: 36,
+          height: 4,
+          decoration: BoxDecoration(
+            color: kugo.textTertiary.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      );
+
+  /// 面板抬头：标题居中 + 右上角歌池轴胶囊（与原 FM 页位置一致）+ 关闭。
   Widget _header(
     BuildContext context,
     KugoTheme kugo,
     FmSession fm,
-    Track? current,
+    FmController fmCtl,
   ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.sm),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: '收起',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+          ),
+          Expanded(
+            child: Text(
+              '私人 FM',
+              textAlign: TextAlign.center,
+              style: kugo.section,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: KugoSpacing.xs),
+            child: FmCapsuleSwitch<FmSongPool>(
+              kugo: kugo,
+              values: FmSongPool.values,
+              labelOf: (p) => p.label,
+              selected: fm.pendingPool,
+              onChanged: fmCtl.setPendingPool,
+              compact: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 曲名 / 歌手（黑胶下方，与 FM 页一致）。
+  Widget _nowPlaying(KugoTheme kugo, Track? track) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xxl),
+      child: Column(
+        children: [
+          Text(
+            track?.name ?? '',
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: kugo.playerTitle,
+          ),
+          const SizedBox(height: 6),
+          Text(track?.artist ?? '', style: kugo.caption),
+          const SizedBox(height: KugoSpacing.md),
+          FmInfoChips(kugo: kugo, track: track),
+        ],
+      ),
+    );
+  }
+
+  /// 轴切了但还没生效时的提示条：说清「下一首生效」并给一键立即生效。
+  Widget _pendingBar(KugoTheme kugo, FmSession fm, FmController fmCtl) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         KugoSpacing.lg,
-        KugoSpacing.xs,
         KugoSpacing.sm,
-        KugoSpacing.sm,
+        KugoSpacing.lg,
+        0,
       ),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  current?.name ?? fm.pendingMode.stationTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: kugo.title,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${fm.pendingMode.stationTitle} · ${fm.pendingMode.subtitle}'
-                  '${current == null ? '' : ' · ${current.artist}'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: kugo.caption,
-                ),
-              ],
+            child: Text(
+              '已切到 ${fm.pendingMode.label} · ${fm.pendingPool.label}，下一首生效',
+              style: kugo.caption.copyWith(color: kugo.primary, fontSize: 11),
             ),
           ),
-          if (current != null)
-            ClipOval(
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: CoverBox(seed: current.coverUrl, size: 44, radius: 999),
-              ),
-            ),
-          IconButton(
-            tooltip: '关闭',
-            onPressed: () => Navigator.of(context).maybePop(),
-            icon: const Icon(Icons.close_rounded),
+          TextButton(
+            onPressed: fmCtl.applyPendingNow,
+            child: const Text('立即生效'),
           ),
         ],
       ),
     );
   }
 
-  Widget _axisMode(KugoTheme kugo, FmSession fm, FmController fmCtl) {
-    return _AxisRow(
-      kugo: kugo,
-      label: '档位',
-      hint: '下一首生效',
-      pending: fm.hasPendingChange,
-      child: _CapsuleSwitch<FmMode>(
-        kugo: kugo,
-        values: FmMode.values,
-        labelOf: (m) => m.label,
-        selected: fm.pendingMode,
-        onChanged: fmCtl.setPendingMode,
-      ),
-    );
-  }
-
-  Widget _axisPool(KugoTheme kugo, FmSession fm, FmController fmCtl) {
-    return _AxisRow(
-      kugo: kugo,
-      label: '歌池',
-      hint: fm.hasPendingChange ? '待生效' : '下一首生效',
-      pending: fm.hasPendingChange,
-      trailing: fm.hasPendingChange
-          ? TextButton(
-              onPressed: fmCtl.applyPendingNow,
-              child: const Text('立即生效'),
-            )
-          : null,
-      child: _CapsuleSwitch<FmSongPool>(
-        kugo: kugo,
-        values: FmSongPool.values,
-        labelOf: (p) => p.label,
-        selected: fm.pendingPool,
-        onChanged: fmCtl.setPendingPool,
-      ),
-    );
-  }
-
-  Widget _transport(
-    KugoTheme kugo,
-    Color accent,
-    PlayerState player,
-    FmController fmCtl,
-    PlayerController playerCtl,
-  ) {
-    final track = player.current;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: KugoSpacing.lg,
-        vertical: KugoSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: KugoSpacing.sm,
-            runSpacing: KugoSpacing.xs,
-            children: [
-              if (track != null && track.durationMs > 0)
-                _chip(kugo, track.durationLabel),
-              if (track != null && track.quality.isNotEmpty)
-                _chip(kugo, track.quality),
-              if (track != null && track.language.isNotEmpty)
-                _chip(kugo, track.language),
-            ],
-          ),
-          const SizedBox(height: KugoSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _RoundAction(
-                kugo: kugo,
-                icon: Icons.thumb_down_alt_rounded,
-                label: '不喜欢',
-                onTap: fmCtl.dislike,
-              ),
-              _RoundAction(
-                kugo: kugo,
-                icon: player.isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                large: true,
-                accent: accent,
-                onTap: playerCtl.togglePlay,
-              ),
-              _RoundAction(
-                kugo: kugo,
-                icon: Icons.thumb_up_alt_rounded,
-                label: '红心',
-                onTap: () async {
-                  await fmCtl.like();
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chip(KugoTheme kugo, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: kugo.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
-        border: Border.all(color: kugo.divider),
-      ),
-      child: Text(text, style: kugo.caption),
-    );
-  }
-
-  Widget _sourceBadge(KugoTheme kugo, FmSession fm) {
-    final semantic = fm.pool.semantic.isEmpty ? '' : ' · ${fm.pool.semantic}';
-    final text = fm.fromServer
-        ? '来源：酷狗私人 FM · ${fm.pool.label}$semantic'
-        : '来源：关键词检索 · ${fm.pool.reasonLabel}'
-              '${fm.gatewayError.isEmpty ? '' : '（${fm.gatewayError}）'}';
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-      child: Text(
-        text,
-        style: kugo.caption.copyWith(color: kugo.textTertiary, fontSize: 11),
-      ),
-    );
-  }
-
-  Widget _upcomingHeader(KugoTheme kugo, PlayerState player) {
+  Widget _upcomingHeader(KugoTheme kugo, FmSession fm, PlayerState player) {
+    final left = player.queue.isEmpty
+        ? 0
+        : player.queue.length - player.currentIndex - 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         KugoSpacing.lg,
@@ -397,8 +427,7 @@ class _FmSheet extends ConsumerWidget {
           const SizedBox(width: KugoSpacing.sm),
           Expanded(
             child: Text(
-              '${player.queue.isEmpty ? 0 : player.queue.length - player.currentIndex - 1}'
-              ' 首待播',
+              fm.appending ? '正在续接歌池…' : '$left 首待播',
               style: kugo.caption,
             ),
           ),
@@ -414,7 +443,7 @@ class _FmSheet extends ConsumerWidget {
   ) {
     final from = player.currentIndex + 1;
     final upcoming = player.queue.length > from
-        ? player.queue.sublist(from, (from + 20).clamp(0, player.queue.length))
+        ? player.queue.sublist(from, math.min(from + 20, player.queue.length))
         : const <Track>[];
     if (upcoming.isEmpty) {
       return SliverToBoxAdapter(
@@ -449,172 +478,6 @@ class _FmSheet extends ConsumerWidget {
           },
         );
       },
-    );
-  }
-}
-
-class _AxisRow extends StatelessWidget {
-  const _AxisRow({
-    required this.kugo,
-    required this.label,
-    required this.hint,
-    required this.pending,
-    required this.child,
-    this.trailing,
-  });
-
-  final KugoTheme kugo;
-  final String label;
-  final String hint;
-  final bool pending;
-  final Widget child;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.sm,
-        KugoSpacing.sm,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(label, style: kugo.caption),
-              const SizedBox(width: KugoSpacing.sm),
-              Text(
-                hint,
-                style: kugo.caption.copyWith(
-                  color: pending ? kugo.primary : kugo.textTertiary,
-                  fontSize: 11,
-                ),
-              ),
-              const Spacer(),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 6),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _RoundAction extends StatelessWidget {
-  const _RoundAction({
-    required this.kugo,
-    required this.icon,
-    required this.onTap,
-    this.label,
-    this.large = false,
-    this.accent,
-  });
-
-  final KugoTheme kugo;
-  final IconData icon;
-  final VoidCallback onTap;
-  final String? label;
-  final bool large;
-  final Color? accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = large ? 64.0 : 48.0;
-    final tone = accent ?? kugo.primary;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: large
-                  ? LinearGradient(colors: [tone, tone.withValues(alpha: 0.7)])
-                  : null,
-              color: large ? null : kugo.surface.withValues(alpha: 0.75),
-            ),
-            child: Icon(
-              icon,
-              size: large ? 30 : 22,
-              color: large ? kugo.onAccent : kugo.textPrimary,
-            ),
-          ),
-        ),
-        if (label != null) ...[
-          const SizedBox(height: 6),
-          Text(label!, style: kugo.caption),
-        ],
-      ],
-    );
-  }
-}
-
-/// 胶囊分段开关：档位轴 / 歌池轴共用。
-class _CapsuleSwitch<T> extends StatelessWidget {
-  const _CapsuleSwitch({
-    required this.kugo,
-    required this.values,
-    required this.labelOf,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final KugoTheme kugo;
-  final List<T> values;
-  final String Function(T) labelOf;
-  final T selected;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: kugo.surface.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
-        border: Border.all(color: kugo.divider),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final value in values)
-            GestureDetector(
-              onTap: () => onChanged(value),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: value == selected
-                      ? kugo.primary.withValues(alpha: 0.30)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(KugoRadius.chip),
-                ),
-                child: Text(
-                  labelOf(value),
-                  style: kugo.caption.copyWith(
-                    color: value == selected
-                        ? kugo.textPrimary
-                        : kugo.textSecondary,
-                    fontWeight: value == selected
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

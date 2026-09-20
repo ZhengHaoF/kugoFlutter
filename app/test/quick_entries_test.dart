@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,11 @@ import 'fakes/fake_audio_player.dart';
 /// dio 的超时 Timer 在 FakeAsync 里永远挂起（"A Timer is still pending"）。
 /// [QuickEntries] 本身无网络，单独 pump 即可覆盖布局与导航。
 class _FakeSearch implements SearchRepository {
+  _FakeSearch({this.gate});
+
+  /// 取歌闸门：非 null 时一直挂着，用来验证「入口不等取歌就跳转」。
+  final Completer<void>? gate;
+
   final List<String> calls = [];
 
   @override
@@ -24,6 +31,8 @@ class _FakeSearch implements SearchRepository {
     int pageSize = 30,
   }) async {
     calls.add(keyword);
+    final gate = this.gate;
+    if (gate != null) await gate.future;
     return List.generate(
       4,
       (i) => Track(
@@ -54,10 +63,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   Future<({GoRouter router, _FakeSearch search})> pump(
-    WidgetTester tester,
-  ) async {
+    WidgetTester tester, {
+    Completer<void>? gate,
+  }) async {
     SharedPreferences.setMockInitialValues({});
-    final search = _FakeSearch();
+    final search = _FakeSearch(gate: gate);
     final router = GoRouter(
       initialLocation: '/entries',
       routes: [
@@ -127,6 +137,19 @@ void main() {
 
     // 独立 FM 页撤掉后，入口的语义是「开一场会话」：歌池真的取过，
     // 用户落在播放页（FM 控件在那里），而不是某个 /fm 页面。
+    expect(rig.search.calls, isNotEmpty);
+    expect(find.text('PLAYER_STUB'), findsOneWidget);
+  });
+
+  testWidgets('FM hero lands on the player without waiting for the pool',
+      (tester) async {
+    // 取歌永远不返回：入口仍必须立刻把用户送进播放页（否则就是干等）。
+    final rig = await pump(tester, gate: Completer<void>());
+
+    await tester.tap(find.text('私人 FM'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
     expect(rig.search.calls, isNotEmpty);
     expect(find.text('PLAYER_STUB'), findsOneWidget);
   });
