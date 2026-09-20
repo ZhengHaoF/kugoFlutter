@@ -2,8 +2,10 @@
 ///
 /// 三个档位都走酷狗真实私人 FM 接口 `/v2/personal_recommend`
 /// （KuGouMusicApi `module/personal_fm.js`），只是请求参数不同：
-/// [modeParam] → 接口 `mode`（normal/small/peak），
-/// [songPoolId] → 接口 `song_pool_id`（0/1/2）。
+/// [modeParam] → 接口 `mode`（normal/small/peak）。
+///
+/// 注意：接口的 `song_pool_id`（口味/风格/探索）属于**另一条轴**，
+/// 见 [FmSongPool.poolId]，不要塞到这里来。
 enum FmMode { heart, niche, peek }
 
 extension FmModeX on FmMode {
@@ -35,21 +37,16 @@ extension FmModeX on FmMode {
         FmMode.peek => 'peak',
       };
 
-  /// 真实接口的 `song_pool_id` 参数。
-  int get songPoolId => switch (this) {
-        FmMode.heart => 0,
-        FmMode.niche => 1,
-        FmMode.peek => 2,
-      };
-
   /// 是否偏好短曲（用于本地时长过滤：peek 速览只留短歌）。
   bool get preferShort => this == FmMode.peek;
 }
 
-/// 私人 FM 的「口味池」维度（与旧 search-based personal_fm_page 一致）。
+/// 私人 FM 的「口味池」维度，与 [FmMode] **正交**。
 ///
-/// 这是本地关键词/文案维度，和 [FmMode] 正交：电台档位（mode）决定真实接口
-/// 参数，而本 enum 决定兜底/文案用的关键词束与「为什么是这首歌」标签。
+/// - 真实接口：本轴就是接口的 `song_pool_id`（0=口味 / 1=风格 / 2=探索），
+///   官方语义为「Alpha 根据口味 / Beta 根据风格 / Gamma 探索」。
+/// - 兜底（关键词池）模式：没有服务端含义，只是一组搜索关键词，以及
+///   「为什么是这首歌」那一行的诚实文案。
 enum FmSongPool { taste, style, explore }
 
 extension FmSongPoolX on FmSongPool {
@@ -57,6 +54,13 @@ extension FmSongPoolX on FmSongPool {
         FmSongPool.taste => '口味',
         FmSongPool.style => '风格',
         FmSongPool.explore => '探索',
+      };
+
+  /// 真实接口的 `song_pool_id`。
+  int get poolId => switch (this) {
+        FmSongPool.taste => 0,
+        FmSongPool.style => 1,
+        FmSongPool.explore => 2,
       };
 
   /// 并入本池候选集的关键词束。

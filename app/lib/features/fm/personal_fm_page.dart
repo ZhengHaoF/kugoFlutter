@@ -31,7 +31,7 @@ const _kFmRefillThreshold = 6;
 ///
 /// 1. **酷狗真实推荐**（`fmRepository` → `POST /v2/personal_recommend`，
 ///    router `persnfm.service.kugou.com`）。这是唯一能吃到
-///    `mode`（红心/小众/速览）与 `song_pool_id`（口味/风格/探索）真参数的路，
+///    `mode`（红心/小众/速览）+ `song_pool_id`（口味/风格/探索）真参数的路，
 ///    但**必须登录**（未登录返回 `error_code:200101`）。
 ///    打开方式：设置 → 私人 FM → 「使用酷狗真实推荐（实验）」。
 /// 2. **关键词歌池**（`searchRepository`）。上述接口不可用时的兜底：

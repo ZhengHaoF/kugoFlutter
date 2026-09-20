@@ -66,8 +66,9 @@ class FmRepository {
 
   /// 拉取一页私人 FM 歌曲。
   ///
-  /// [mode] 决定真实接口的 `mode` / `song_pool_id`；[pool] 仅作为本地口味池
-  /// 维度随结果带回。未登录或出错时返回空 [FmPage.tracks] + needLogin/error，
+  /// 两条轴分别对应真实接口的两个参数：[mode] → `mode`（normal/small/peak），
+  /// [pool] → `song_pool_id`（0/1/2）。未登录或出错时返回空
+  /// [FmPage.tracks] + needLogin/error，
   /// 不抛异常。`remain_songcnt > 4` 时服务端不返回新推荐（沿用上游语义）。
   Future<FmPage> fetch({
     required FmMode mode,
@@ -183,7 +184,7 @@ class FmRepository {
       'mid': device.mid,
       'action': action,
       'recommend_source_locked': 0,
-      'song_pool_id': mode.songPoolId,
+      'song_pool_id': pool.poolId,
       'callerid': 0,
       'm_type': 1,
       'platform': 'ios',

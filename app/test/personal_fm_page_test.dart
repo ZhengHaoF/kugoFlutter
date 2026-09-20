@@ -421,10 +421,22 @@ void main() {
     expect(FmMode.peek.modeParam, 'peak');
   });
 
-  test('mode maps to the endpoint song_pool_id', () {
-    expect(FmMode.heart.songPoolId, 0);
-    expect(FmMode.niche.songPoolId, 1);
-    expect(FmMode.peek.songPoolId, 2);
+  // 两条轴是独立参数：song_pool_id 来自「口味/风格/探索」，不是来自 mode。
+  // 这里同时守住「mode 轴不再背 song_pool_id」——曾经写反过一次。
+  test('song pool maps to the endpoint song_pool_id', () {
+    expect(FmSongPool.taste.poolId, 0);
+    expect(FmSongPool.style.poolId, 1);
+    expect(FmSongPool.explore.poolId, 2);
+  });
+
+  test('the two axes stay independent', () {
+    // 切歌池不该改变 mode，切 mode 也不该改变 song_pool_id。
+    expect(FmMode.values.map((m) => m.modeParam).toSet(), {
+      'normal',
+      'small',
+      'peak',
+    });
+    expect(FmSongPool.values.map((p) => p.poolId).toSet(), {0, 1, 2});
   });
 
   test('only 速览 carries the local short-track rule', () {
