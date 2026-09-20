@@ -43,17 +43,27 @@ extension FmModeX on FmMode {
 
 /// 私人 FM 的「口味池」维度，与 [FmMode] **正交**。
 ///
-/// - 真实接口：本轴就是接口的 `song_pool_id`（0=口味 / 1=风格 / 2=探索），
-///   官方语义为「Alpha 根据口味 / Beta 根据风格 / Gamma 探索」。
+/// - 真实接口：本轴就是接口的 `song_pool_id`，上游代号
+///   0=Alpha / 1=Beta / 2=Gamma（KuGouMusicApi 文档原文：
+///   "0：Alpha 根据口味推荐相似歌曲, 1：Beta 根据风格推荐相似歌曲, 2：Gamma"）。
+///   UI 直接用这三个代号，见 [label]。
 /// - 兜底（关键词池）模式：没有服务端含义，只是一组搜索关键词，以及
 ///   「为什么是这首歌」那一行的诚实文案。
 enum FmSongPool { taste, style, explore }
 
 extension FmSongPoolX on FmSongPool {
+  /// 上游原文代号，直接用原名，不做二次翻译。
   String get label => switch (this) {
-        FmSongPool.taste => '口味',
-        FmSongPool.style => '风格',
-        FmSongPool.explore => '探索',
+        FmSongPool.taste => 'Alpha',
+        FmSongPool.style => 'Beta',
+        FmSongPool.explore => 'Gamma',
+      };
+
+  /// 上游对这三个码的说明（Gamma 上游未给语义，如实留空）。
+  String get semantic => switch (this) {
+        FmSongPool.taste => '根据口味推荐相似歌曲',
+        FmSongPool.style => '根据风格推荐相似歌曲',
+        FmSongPool.explore => '',
       };
 
   /// 真实接口的 `song_pool_id`。

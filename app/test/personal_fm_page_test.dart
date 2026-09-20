@@ -202,7 +202,7 @@ void main() {
     testWidgets('switching pool re-queries with the new pool keywords',
         (tester) async {
       await _harness(tester).run((h) async {
-        await h.tapPool('探索');
+        await h.tapPool('Gamma');
 
         expect(h.repo.calls, containsAll(['独立', '冷门', '爵士']));
         final first = h.state.queue.first.id;
@@ -229,9 +229,9 @@ void main() {
         },
       ).run((h) async {
         // Kick off 探索 (slow), then immediately switch to 风格 (fast).
-        await tester.tap(find.text('探索'));
+        await tester.tap(find.text('Gamma'));
         await tester.pump();
-        await h.tapPool('风格');
+        await h.tapPool('Beta');
         await _settle(tester, frames: 30);
 
         final nowPlaying = h.state.current?.id ?? '';
@@ -429,6 +429,12 @@ void main() {
     expect(FmSongPool.explore.poolId, 2);
   });
 
+  test('Gamma carries no upstream semantic, so we must not invent one', () {
+    expect(FmSongPool.taste.semantic, '根据口味推荐相似歌曲');
+    expect(FmSongPool.style.semantic, '根据风格推荐相似歌曲');
+    expect(FmSongPool.explore.semantic, isEmpty);
+  });
+
   test('the two axes stay independent', () {
     // 切歌池不该改变 mode，切 mode 也不该改变 song_pool_id。
     expect(FmMode.values.map((m) => m.modeParam).toSet(), {
@@ -448,7 +454,7 @@ void main() {
   test('song pool labels stay stable for the strategy switch', () {
     expect(
       [for (final p in FmSongPool.values) p.label],
-      ['口味', '风格', '探索'],
+      ['Alpha', 'Beta', 'Gamma'],
     );
   });
 });

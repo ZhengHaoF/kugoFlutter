@@ -540,7 +540,8 @@ class _PersonalFmPageState extends ConsumerState<PersonalFmPage>
               style: kugo.section,
             ),
           ),
-          // 歌池轴：与 EchoMusic 的 radio-strategy-switch 同一位置（右上角）。
+          // 歌池轴：上游 song_pool_id 的代号（Alpha/Beta/Gamma），
+          // 与 EchoMusic 的 radio-strategy-switch 同一位置（右上角）。
           Padding(
             padding: const EdgeInsets.only(right: KugoSpacing.sm),
             child: _CapsuleSwitch<FmSongPool>(
@@ -963,8 +964,9 @@ class _SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semantic = pool.semantic.isEmpty ? '' : ' · ${pool.semantic}';
     final text = fromServer
-        ? '来源：酷狗私人 FM · ${pool.label}'
+        ? '来源：酷狗私人 FM · ${pool.label}$semantic'
         : (gatewayError.isEmpty
             ? '来源：关键词检索（${pool.reasonLabel}，非个性化）'
             : '来源：关键词检索 · ${pool.reasonLabel}');
