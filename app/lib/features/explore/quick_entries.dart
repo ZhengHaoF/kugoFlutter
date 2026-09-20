@@ -4,49 +4,69 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../fm/fm_controller.dart';
-
+import '../../core/models/fm_mode.dart';
+import '../../core/models/playback_source.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../fm/fm_controller.dart';
+import '../player/player_controller.dart';
 
-/// 发现页搜索框正下方的快捷入口：私人 FM hero 卡（独占一行）+ 每日推荐横排卡。
+/// 发现页搜索框正下方的快捷入口：私人 FM 舞台卡（前后层叠）+ 每日推荐精致卡。
 ///
 /// 独立成文件是为了可测试：[ExplorePage] 的 initState 会发起真实网络请求
-/// （dio 的超时 Timer 在 FakeAsync 测试里永远挂起），入口卡本身无状态、
-/// 无网络依赖，单独 pump 即可覆盖布局与导航。
+/// （dio 的超时 Timer 在 FakeAsync 测试里永远挂起），入口卡本身无状态/纯响应式，
+/// 单独 pump 即可覆盖布局与导航。
 class QuickEntries extends ConsumerWidget {
   const QuickEntries({super.key});
 
-  /// 开一场私人 FM 会话并直接进播放页。
-  ///
-  /// 独立 FM 页面撤掉后，入口从「导航到一个页面」变成「启动一个会话」：
-  /// 控制器负责取歌、把队列以 FM 来源交给播放器，用户落在播放页。
-  ///
-  /// 取歌是网络活，**不等它**再跳：否则用户要对着发现页干等一两秒，
-  /// 而且解析音源本身可能更久。播放页会自己显示加载态。
-  void _startFm(BuildContext context, WidgetRef ref) {
-    unawaited(ref.read(fmControllerProvider.notifier).start());
-    context.push('/player');
+  /// 处理私人 FM 播放控制：
+  /// - 若 FM 会话已激活且有当前曲目：就地切换播放/暂停，绝不跳页，也不重新拉新歌；
+  /// - 若 FM 会话尚未激活：以当前选中的模式在原地启动 FM 会话并起播，不跳页。
+  void _handlePlay(WidgetRef ref) {
+    final player = ref.read(playerControllerProvider);
+    final fm = ref.read(fmControllerProvider.notifier);
+    final isFmActive = player.queueSource == PlaybackQueueSource.fm;
+
+    if (isFmActive && player.current != null) {
+      ref.read(playerControllerProvider.notifier).togglePlay();
+    } else {
+      final pendingMode = ref.read(fmControllerProvider).pendingMode;
+      unawaited(fm.start(mode: pendingMode));
+    }
+  }
+
+  /// 模式切换处理（对齐 EchoMusic PersonalFm.vue 中的 handleChangePersonalFmMode）：
+  /// - 若正在播放或 FM 会话已激活：立即切换模式并拉取该模式的新歌切歌起播；
+  /// - 若 FM 尚未开播：仅切换待生效模式，等用户点击播放时以此模式起播。
+  void _handleModeChanged(FmMode newMode, WidgetRef ref) {
+    final fmState = ref.read(fmControllerProvider);
+    if (fmState.loading) return;
+
+    final player = ref.read(playerControllerProvider);
+    final isFmActive = player.queueSource == PlaybackQueueSource.fm;
+
+    if (isFmActive && newMode == fmState.mode) return;
+
+    final fm = ref.read(fmControllerProvider.notifier);
+    if (isFmActive || player.isPlaying) {
+      unawaited(fm.start(mode: newMode));
+    } else {
+      fm.setPendingMode(newMode);
+    }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = DateTime.now();
-    final dailyLabel = '${now.month}月${now.day}日 · 每日推荐';
-
-    // 私人 FM 独占一行（EchoMusic 侧边栏一级入口的对应待遇），
-    // 每日推荐降为全宽横排行卡，避免留下孤儿半宽卡。
-    // stretch 让两张卡都吃满可用宽度 —— Column 默认居中会缩成内容宽。
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FmHeroCard(onTap: () => _startFm(context, ref)),
+        FmHeroCard(
+          onTap: () => _handlePlay(ref),
+          onModeChanged: (mode) => _handleModeChanged(mode, ref),
+        ),
         const SizedBox(height: 12),
         DailyEntryCard(
-          icon: Icons.today_rounded,
-          title: dailyLabel,
-          subtitle: '按日轮换 · 点开即听',
           onTap: () => context.push('/daily'),
         ),
       ],
@@ -54,183 +74,198 @@ class QuickEntries extends ConsumerWidget {
   }
 }
 
-/// 私人 FM 独占一行的 hero 卡。
+/// 私人 FM Radio 舞台卡（复刻 EchoMusic `PersonalFm.vue` 的 Radio-Hero 舞台）。
 ///
-/// 样式复刻 EchoMusic `PersonalFm.vue` 的 radio-card：深色渐变方卡
-/// （primary 混深藏青，**任何主题下都是深色**，是页面上的刻意对比色块，
-/// 与排行榜卡的深色 scrim 同一逻辑）、白/40% 均衡器条、primary 播放圆钮、
-/// 右缘出血的黑胶盘。刻意不放旋转动画 —— 发现页是常驻首屏，`repeat()`
-/// 会让任何 `pumpAndSettle` 挂死（FM 页已踩过同样的坑）。
-class FmHeroCard extends StatelessWidget {
-  const FmHeroCard({super.key, required this.onTap});
+/// 结构设计：
+/// - **底层（右后侧）**：真实黑胶唱片（[FmVinyl]），从 Radio Card 右后侧向右自然探出，
+///   展示黑胶细同心圆环纹与圆形专辑封面唱片芯；
+/// - **表层（左前侧）**：EchoMusic 经典 Radio Card，带有 160° 深藏青混色渐变、
+///   左上角径向高光、顶部档位胶囊切轴、电台名与动态曲名、底部 10 根律动条与播放圆钮。
+class FmHeroCard extends ConsumerWidget {
+  const FmHeroCard({
+    super.key,
+    required this.onTap,
+    this.onModeChanged,
+  });
 
   final VoidCallback onTap;
+  final ValueChanged<FmMode>? onModeChanged;
 
   /// EchoMusic radio-card 的深藏青基色（#0B1620）。
   static const deep = Color(0xFF0B1620);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final kugo = KugoTheme.of(context);
-    return ClipRRect(
+    final fmState = ref.watch(fmControllerProvider);
+    final player = ref.watch(playerControllerProvider);
+    final isFmActive = player.queueSource == PlaybackQueueSource.fm;
+    final currentTrack = player.current;
+
+    // 当 FM 激活时使用实播 mode，未激活时使用待生效的 pendingMode
+    final mode = isFmActive ? fmState.mode : fmState.pendingMode;
+
+    final isPlaying = isFmActive && player.isPlaying;
+    // 关键修正：只有当前正在播放 FM 时才显示当前歌曲信息；
+    // 未开启 FM 时显示通用的电台介绍，避免造成“显示的是A歌，点击却播B歌”的错觉。
+    final subtitle = (isFmActive && currentTrack != null)
+        ? '${currentTrack.name} · ${currentTrack.artist}'
+        : '${mode.subtitle} · 动态歌池';
+    final coverUrl = (isFmActive && currentTrack != null)
+        ? currentTrack.coverUrl
+        : 'personal-fm-vinyl';
+
+    const stageHeight = 176.0;
+    const vinylSize = 156.0;
+    const rightMargin = 84.0;
+
+    return SizedBox(
       key: const ValueKey('fm_hero_card'),
-      borderRadius: BorderRadius.circular(KugoRadius.card),
-      child: Material(
-        color: Colors.transparent,
-        child: Ink(
-          decoration: BoxDecoration(
-            // 160° 渐变：primary 混入深藏青 30% → 40% → 纯深藏青。
-            borderRadius: BorderRadius.circular(KugoRadius.card),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              stops: const [0.0, 0.56, 1.0],
-              colors: [
-                Color.lerp(kugo.primary, deep, 0.30)!,
-                Color.lerp(kugo.primary, deep, 0.40)!,
-                deep,
-              ],
+      height: stageHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerLeft,
+        children: [
+          // 1. 底层（右后侧）：向右探出的黑胶唱片
+          Positioned(
+            right: 2,
+            top: (stageHeight - vinylSize) / 2,
+            child: FmVinyl(
+              coverUrl: coverUrl,
+              size: vinylSize,
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
-          child: InkWell(
-            onTap: onTap,
-            child: Stack(
-              children: [
-                // 左上角 radial 高光（EchoMusic: radial at 16% 18%）。
-                Positioned(
-                  left: -50,
-                  top: -70,
-                  child: Container(
-                    width: 210,
-                    height: 210,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          kugo.primary.withValues(alpha: 0.28),
-                          kugo.primary.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
+          // 2. 表层（左前侧）：Radio Card 卡片主体
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            right: rightMargin,
+            child: Material(
+              color: Colors.transparent,
+              child: Ink(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    stops: const [0.0, 0.56, 1.0],
+                    colors: [
+                      Color.lerp(kugo.primary, deep, 0.30)!,
+                      Color.lerp(kugo.primary, deep, 0.40)!,
+                      deep,
+                    ],
                   ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF050C14).withValues(alpha: 0.32),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF081826).withValues(alpha: 0.18),
+                      blurRadius: 36,
+                      offset: const Offset(0, 18),
+                    ),
+                  ],
                 ),
-                // 黑胶盘右上角出血（被 ClipRRect 裁出「盘压卡缘」的层次）。
-                // 不放右下角 —— 底部行有播放圆钮，会撞在一起。
-                const Positioned(right: -30, top: -34, child: FmVinyl()),
-                Padding(
-                  padding: const EdgeInsets.all(KugoSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(22),
+                  onTap: onTap,
+                  child: Stack(
                     children: [
-                      Text(
-                        '私人 FM',
-                        style: kugo.section.copyWith(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: kugo.onCover,
+                      // 左上角径向高光（EchoMusic: radial at 16% 18%）
+                      Positioned(
+                        left: -40,
+                        top: -50,
+                        child: IgnorePointer(
+                          child: Container(
+                            width: 180,
+                            height: 180,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  kugo.primary.withValues(alpha: 0.32),
+                                  kugo.primary.withValues(alpha: 0.0),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '黑胶电台 · 动态歌池',
-                        style: kugo.caption.copyWith(
-                          fontSize: 13,
-                          color: kugo.onCoverMuted,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // 顶部：档位胶囊切轴（红心 / 小众 / 速览）
+                            FmModeCapsule(
+                              selected: mode,
+                              onChanged: (newMode) {
+                                if (onModeChanged != null) {
+                                  onModeChanged!(newMode);
+                                } else {
+                                  ref
+                                      .read(fmControllerProvider.notifier)
+                                      .setPendingMode(newMode);
+                                }
+                              },
+                            ),
+                            // 中部：电台标题与副标题
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '私人 FM',
+                                  style: kugo.section.copyWith(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.4,
+                                    color: kugo.onCover,
+                                    shadows: [
+                                      Shadow(
+                                        color: const Color(0xFF050C14)
+                                            .withValues(alpha: 0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: kugo.caption.copyWith(
+                                    fontSize: 12,
+                                    color: kugo.onCoverMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // 底部：律动条与播放圆钮
+                            Row(
+                              children: [
+                                const FmEqualizer(),
+                                const Spacer(),
+                                FmPlayBadge(
+                                  isPlaying: isPlaying,
+                                  isLoading: fmState.loading,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Row(
-                        children: [
-                          FmEqualizer(),
-                          Spacer(),
-                          FmPlayBadge(),
-                        ],
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 黑胶装饰盘：深色盘体 + 唱纹环 + 中央确定性渐变「唱片芯」 + 中孔。
-/// 封面用 [CoverBox] 的 seed 渐变（本地绘制，零网络请求）。
-class FmVinyl extends StatelessWidget {
-  const FmVinyl({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      key: const ValueKey('fm_vinyl'),
-      width: 124,
-      height: 124,
-      child: Stack(
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF232B38), Color(0xFF0C1017)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 18,
-                  offset: const Offset(-4, 6),
-                ),
-              ],
-            ),
-            child: const SizedBox.expand(),
-          ),
-          // 唱纹：两道同心细环。
-          Center(
-            child: Container(
-              width: 106,
-              height: 106,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-              ),
-            ),
-          ),
-          Center(
-            child: Container(
-              width: 94,
-              height: 94,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
-            ),
-          ),
-          // 唱片芯（EchoMusic 盘心放封面，这里用确定性渐变代替）。
-          Center(
-            child: ClipOval(
-              child: SizedBox(
-                width: 72,
-                height: 72,
-                child: CoverBox(seed: 'personal-fm-vinyl', size: 72, radius: 0),
-              ),
-            ),
-          ),
-          // 中孔。
-          Center(
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: FmHeroCard.deep,
               ),
             ),
           ),
@@ -240,7 +275,175 @@ class FmVinyl extends StatelessWidget {
   }
 }
 
-/// EchoMusic radio-bars：10 根固定高度的装饰条。纯静态（无动画）。
+/// 档位胶囊开关（EchoMusic .radio-mode-switch 风格）。
+class FmModeCapsule extends StatelessWidget {
+  const FmModeCapsule({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final FmMode selected;
+  final ValueChanged<FmMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(KugoRadius.chip),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final mode in FmMode.values)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onChanged(mode),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: mode == selected
+                      ? Colors.white.withValues(alpha: 0.22)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(KugoRadius.chip),
+                  boxShadow: mode == selected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  mode.label,
+                  style: TextStyle(
+                    color: mode == selected
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.70),
+                    fontSize: 11,
+                    fontWeight:
+                        mode == selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 黑胶唱片：深色盘体 + 精密唱纹同心环 + 唱片芯封面（圆形）+ 中孔。
+class FmVinyl extends StatelessWidget {
+  const FmVinyl({
+    super.key,
+    this.coverUrl,
+    this.size = 156,
+  });
+
+  final String? coverUrl;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelSize = size * 0.52;
+    return SizedBox(
+      key: const ValueKey('fm_vinyl'),
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 黑胶盘体与外圈立体阴影
+          DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const RadialGradient(
+                colors: [Color(0xFF222834), Color(0xFF0A0D14)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 22,
+                  offset: const Offset(4, 8),
+                ),
+              ],
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+                width: 1.5,
+              ),
+            ),
+            child: const SizedBox.expand(),
+          ),
+          // 精密同心唱纹
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _GroovePainter(),
+            ),
+          ),
+          // 唱片芯：展示专辑封面
+          ClipOval(
+            child: SizedBox(
+              width: labelSize,
+              height: labelSize,
+              child: CoverBox(
+                seed: coverUrl != null && coverUrl!.isNotEmpty
+                    ? coverUrl!
+                    : 'personal-fm-vinyl',
+                size: labelSize,
+                radius: 0,
+              ),
+            ),
+          ),
+          // 中孔
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF0B1620),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 黑胶细密同心圆唱纹绘制器。
+class _GroovePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (
+      var r = size.shortestSide * 0.28;
+      r < size.shortestSide * 0.48;
+      r += 4
+    ) {
+      paint.color = Colors.white.withValues(alpha: 0.05);
+      canvas.drawCircle(center, r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 10 根律动条（纯静态，避免无休止动画阻断测试）。
 class FmEqualizer extends StatelessWidget {
   const FmEqualizer({super.key});
 
@@ -261,95 +464,162 @@ class FmEqualizer extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          if (i != _heights.length - 1) const SizedBox(width: 6),
+          if (i != _heights.length - 1) const SizedBox(width: 5),
         ],
       ],
     );
   }
 }
 
-/// primary 播放圆钮（视觉元素；点击整卡即进入 FM 页，不设二级手势）。
+/// Primary 播放圆钮。
 class FmPlayBadge extends StatelessWidget {
-  const FmPlayBadge({super.key});
+  const FmPlayBadge({
+    super.key,
+    this.isPlaying = false,
+    this.isLoading = false,
+  });
+
+  final bool isPlaying;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     return Container(
-      width: 44,
-      height: 44,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: kugo.primary,
         boxShadow: [
           BoxShadow(
-            color: kugo.primary.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: kugo.primary.withValues(alpha: 0.38),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 26),
+      child: Center(
+        child: isLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Icon(
+                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+      ),
     );
   }
 }
 
-/// 每日推荐 — FM 拿走独占行后的全宽横排行卡。
+/// 每日推荐卡片（EchoMusic Home.vue:575-653 home-feature-card 风格）。
 class DailyEntryCard extends StatelessWidget {
   const DailyEntryCard({
     super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
     required this.onTap,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final dayStr = DateTime.now().day.toString();
     return Material(
       key: const ValueKey('daily_entry_card'),
       color: kugo.surface,
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(KugoRadius.card),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KugoSpacing.lg,
-            vertical: 14,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kugo.divider),
           ),
           child: Row(
             children: [
-              Icon(icon, color: kugo.primary),
-              const SizedBox(width: 12),
+              // EchoMusic: .feature-icon .gradient-primary（大号日历数字）
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      kugo.primary,
+                      Color.lerp(kugo.primary, kugo.secondary, 0.35)!,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kugo.primary.withValues(alpha: 0.30),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    dayStr,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
-                      style: kugo.body,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '每日推荐',
+                      style: kugo.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      subtitle,
-                      style: kugo.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      '为你量身定制 · 按日轮换',
+                      style: kugo.caption.copyWith(
+                        fontSize: 12,
+                        color: kugo.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: kugo.textTertiary),
+              // EchoMusic: .feature-action 轻色块动作圆钮
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: kugo.primary.withValues(alpha: 0.12),
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: kugo.primary,
+                  size: 18,
+                ),
+              ),
             ],
           ),
         ),

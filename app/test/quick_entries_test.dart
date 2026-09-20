@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
 import 'package:kugo/features/explore/quick_entries.dart';
@@ -124,26 +125,24 @@ void main() {
     expect(hero.bottom, lessThanOrEqualTo(daily.top));
   });
 
-  testWidgets('FM hero starts a session and lands on the player',
+  testWidgets('FM hero starts a session without navigating to the player',
       (tester) async {
     final rig = await pump(tester);
 
     expect(find.byKey(const ValueKey('fm_vinyl')), findsOneWidget);
     expect(find.text('私人 FM'), findsOneWidget);
-    expect(find.text('黑胶电台 · 动态歌池'), findsOneWidget);
+    expect(find.text('猜你喜欢 · 动态歌池'), findsOneWidget);
 
     await tester.tap(find.text('私人 FM'));
     await tester.pumpAndSettle();
 
-    // 独立 FM 页撤掉后，入口的语义是「开一场会话」：歌池真的取过，
-    // 用户落在播放页（FM 控件在那里），而不是某个 /fm 页面。
+    // FM 会话直接在发现页就地起播，不跳进全屏播放页。
     expect(rig.search.calls, isNotEmpty);
-    expect(find.text('PLAYER_STUB'), findsOneWidget);
+    expect(find.text('PLAYER_STUB'), findsNothing);
   });
 
-  testWidgets('FM hero lands on the player without waiting for the pool',
+  testWidgets('FM hero starts loading without waiting for the pool',
       (tester) async {
-    // 取歌永远不返回：入口仍必须立刻把用户送进播放页（否则就是干等）。
     final rig = await pump(tester, gate: Completer<void>());
 
     await tester.tap(find.text('私人 FM'));
@@ -151,7 +150,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(rig.search.calls, isNotEmpty);
-    expect(find.text('PLAYER_STUB'), findsOneWidget);
+    expect(find.text('PLAYER_STUB'), findsNothing);
   });
 
   testWidgets('daily recommendation stays reachable as a full-width row',
@@ -162,4 +161,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('DAILY_STUB'), findsOneWidget);
   });
+
+  testWidgets('FM mode capsule allows switching mode directly on the hero card',
+      (tester) async {
+    await pump(tester);
+
+    expect(find.text('红心'), findsOneWidget);
+    expect(find.text('小众'), findsOneWidget);
+    expect(find.text('速览'), findsOneWidget);
+
+    await tester.tap(find.text('小众'));
+    await tester.pumpAndSettle();
+
+    final container =
+        ProviderScope.containerOf(tester.element(find.byType(QuickEntries)));
+    expect(container.read(fmControllerProvider).pendingMode, FmMode.niche);
+    expect(find.text('小众精选 · 动态歌池'), findsOneWidget);
+  });
+
+  testWidgets(
+      'FM mode capsule immediately switches session and starts new mode when FM is active',
+      (tester) async {
+    final rig = await pump(tester);
+
+    // 先点击播放开启 FM
+    await tester.tap(find.text('私人 FM'));
+    await tester.pumpAndSettle();
+
+    final container =
+        ProviderScope.containerOf(tester.element(find.byType(QuickEntries)));
+    expect(container.read(fmControllerProvider).active, isTrue);
+    expect(container.read(fmControllerProvider).mode, FmMode.heart);
+
+    // 切换到小众
+    rig.search.calls.clear();
+    await tester.tap(find.text('小众'));
+    await tester.pumpAndSettle();
+
+    // 立即以 niche 模式重开会话
+    expect(container.read(fmControllerProvider).mode, FmMode.niche);
+    expect(rig.search.calls, isNotEmpty);
+  });
 }
+

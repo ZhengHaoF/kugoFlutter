@@ -415,7 +415,12 @@ class FmController extends Notifier<FmSession> {
     order.shuffle(Random());
 
     final out = <Track>[];
-    final seen = <String>{for (final t in ref.read(playerControllerProvider).queue) t.id};
+    final seen = fresh
+        ? <String>{}
+        : <String>{
+            for (final t in ref.read(playerControllerProvider).queue)
+              t.id.isNotEmpty ? t.id : t.hash,
+          };
     for (final keyword in order) {
       try {
         final page = await _repo.searchSongs(keyword, pageSize: 20);
