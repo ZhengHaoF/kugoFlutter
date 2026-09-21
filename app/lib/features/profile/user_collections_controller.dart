@@ -180,9 +180,41 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
       pageSize: 300,
     );
 
+    var created = state.createdPlaylists;
+    final firstCover = res.tracks
+        .where((t) =>
+            t.coverUrl.isNotEmpty &&
+            !t.coverUrl.contains('mock://') &&
+            (t.coverUrl.startsWith('http://') ||
+                t.coverUrl.startsWith('https://')))
+        .firstOrNull
+        ?.coverUrl;
+    if (firstCover != null && firstCover.isNotEmpty) {
+      created = created.map((p) {
+        if (p.id == likedPlaylist.id &&
+            (p.coverUrl.isEmpty || p.coverUrl.contains('mock://'))) {
+          return PlaylistBrief(
+            id: p.id,
+            name: p.name,
+            coverUrl: firstCover,
+            description: p.description,
+            creator: p.creator,
+            trackCount: p.trackCount,
+            playCountLabel: p.playCountLabel,
+            isRank: p.isRank,
+            source: p.source,
+            userId: p.userId,
+            isDefault: p.isDefault,
+          );
+        }
+        return p;
+      }).toList();
+    }
+
     state = state.copyWith(
       isLoadingFavoriteTracks: false,
       cloudFavoriteTracks: res.tracks,
+      createdPlaylists: created,
       favoriteTracksError: res.error,
     );
   }

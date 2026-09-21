@@ -41,10 +41,17 @@ abstract final class KugoEndpoints {
   static const singerSong = '/api/v3/singer/song';
 
   /// Rank / recommend (best-effort public).
-  /// Rank tracks: `rank/song?rankid=` — NOT `specialid`.
+  /// Rank tracks legacy public slice: `rank/song?rankid=` — NOT `specialid`.
+  /// Often returns only a few rows for large boards; prefer [rankAudio].
   static const rankList = '/api/v3/rank/list';
   static const rankInfo = '/api/v3/rank/info';
   static const rankSong = '/api/v3/rank/song';
+
+  /// Full rank tracks (KuGouMusicApi `module/rank_audio.js`, EchoMusic `/rank/audio`).
+  /// POST `https://gateway.kugou.com/openapi/kmr/v2/rank/audio`
+  /// body `{rank_id, rank_cid, page, pagesize, type:1, area_code:1, ...}`
+  /// encryptType=android + header `kg-tid: 369` → `data.songlist[]` + `data.total`.
+  static const rankAudio = '/openapi/kmr/v2/rank/audio';
 
   /// Personalized daily recommend (KuGouMusicApi everyday_recommend.js).
   /// POST gateway + header `x-router: everydayrec.service.kugou.com`.

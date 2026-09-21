@@ -250,6 +250,66 @@ void main() {
       expect(find.text('经典摇滚精选'), findsOneWidget);
       expect(find.text('50 首 · 摇滚迷'), findsOneWidget);
     });
+
+    testWidgets('shows dedicated covers for 我喜欢 and 默认收藏', (tester) async {
+      final engine = FakeAudioPlayer();
+      const seededState = UserCollectionsState(
+        createdPlaylists: [
+          PlaylistBrief(
+            id: '1',
+            name: '默认收藏',
+            coverUrl: '',
+            isDefault: true,
+            trackCount: 0,
+          ),
+          PlaylistBrief(
+            id: '2',
+            name: '我喜欢',
+            coverUrl: '',
+            isDefault: true,
+            trackCount: 969,
+          ),
+        ],
+        loaded: true,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          playerControllerProvider.overrideWith(
+            () => PlayerController(engine: engine),
+          ),
+          authControllerProvider.overrideWith(
+            () => _FakeAuthController(loggedInState),
+          ),
+          userCollectionsProvider.overrideWith(() {
+            return UserCollectionsNotifier(initialState: seededState);
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: ProfilePage()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('我的歌单'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('默认收藏'), findsOneWidget);
+      expect(find.text('我喜欢'), findsOneWidget);
+      expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    });
   });
 
   group('LikesPage Multi-dimensional Tabs', () {

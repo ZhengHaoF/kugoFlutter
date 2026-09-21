@@ -105,7 +105,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               KugoSpacing.lg,
               KugoSpacing.xl,
               KugoSpacing.lg,
-              KugoSpacing.md,
+              // 底部交给 SectionHeader 顶距，避免与「为你推荐」叠出过松的空隙。
+              0,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

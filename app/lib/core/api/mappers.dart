@@ -22,12 +22,12 @@ int _i2(Object? a, Object? b) {
 /// EchoMusic-style cover normalization: `{size}` → 400, http→https, old CDN host swap.
 String normalizeCoverUrl(String raw, {String size = '400'}) {
   var cover = raw.trim();
-  if (cover.isEmpty) return 'mock://cover';
+  if (cover.isEmpty || cover == 'mock://cover') return '';
   if (cover.startsWith('//')) cover = 'https:$cover';
   cover = cover.replaceAll('{size}', size);
   cover = cover.replaceFirst('http://', 'https://');
   cover = cover.replaceFirst('c1.kgimg.com', 'imge.kugou.com');
-  if (cover.startsWith('https://') || cover.startsWith('mock://')) return cover;
+  if (cover.startsWith('https://')) return cover;
   if (cover.startsWith('http://')) return cover;
   // Bare hash / relative path → soft collection CDN
   final f = cover.toLowerCase();
@@ -41,9 +41,13 @@ String kugouCover(String? hashOrFile, {String size = '400'}) {
 String _pickCover(Map<String, dynamic> json) {
   final trans = json['trans_param'];
   final transMap = trans is Map ? Map<String, dynamic>.from(trans) : const <String, dynamic>{};
+  final albumInfo = json['album_info'] is Map
+      ? Map<String, dynamic>.from(json['album_info'] as Map)
+      : const <String, dynamic>{};
   final candidates = <String>[
     _s(json['album_sizable_cover']),
     _s(json['sizable_cover']),
+    _s(albumInfo['sizable_cover']),
     _s(json['cover']),
     _s(json['pic']),
     _s(json['img']),
@@ -134,7 +138,20 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
   final audioInfo = json['audio_info'] is Map
       ? Map<String, dynamic>.from(json['audio_info'] as Map)
       : const <String, dynamic>{};
-  final hash = _s(json['hash'], _s(audioInfo['hash'])).toLowerCase();
+  final albumInfo = json['album_info'] is Map
+      ? Map<String, dynamic>.from(json['album_info'] as Map)
+      : const <String, dynamic>{};
+  // rank/audio nests playable hashes under audio_info; search often has flat hash.
+  final hash = _s(
+    json['hash'],
+    _s(
+      audioInfo['hash'],
+      _s(
+        audioInfo['hash_320'],
+        _s(audioInfo['hash_128'], _s(audioInfo['hash_flac'])),
+      ),
+    ),
+  ).toLowerCase();
   final id = _s(
     json['audio_id'],
     _s(
@@ -238,13 +255,27 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
   var duration = _i(json['duration']) * 1000;
   if (duration == 0) {
     final rawLen = _i2(json['timelen'], json['time_length']);
-    final len = rawLen != 0 ? rawLen : _i2(audioInfo['duration'], audioInfo['timelen']);
+    final len = rawLen != 0
+        ? rawLen
+        : _i2(
+            audioInfo['duration_320'],
+            _i2(
+              audioInfo['duration_128'],
+              _i2(audioInfo['duration'], audioInfo['timelen']),
+            ),
+          );
     duration = len > 10000 ? len : len * 1000;
   }
   final albumId = _s(json['album_id'], _s(audioInfo['album_id']));
   final albumName = cleanupAudioExtension(_s(
     json['album_name'],
-    _s(json['albumname'], _s(audioInfo['album_name'], _s(audioInfo['albumname']))),
+    _s(
+      json['albumname'],
+      _s(
+        albumInfo['album_name'],
+        _s(audioInfo['album_name'], _s(audioInfo['albumname'])),
+      ),
+    ),
   ));
   final coverRaw = _pickCover(json);
   final goods = AudioQualityUtil.buildRelateGoods(json);
@@ -350,7 +381,18 @@ PlaylistBrief mapRankBrief(Map<String, dynamic> json) {
   final cover = normalizeCoverUrl(pic.isEmpty ? rankId : pic);
   final play = _i2(json['play_times'], json['listen_num']);
   final intro = _s(json['intro']);
-  final count = _i2(json['all_total'], json['total']);
+  // rank/list keeps the real board size under extra.resp.all_total (TOP500→500);
+  // the public rank/song `total` is often a degraded slice and must not win.
+  final extra = json['extra'];
+  final extraMap =
+      extra is Map ? Map<String, dynamic>.from(extra) : const <String, dynamic>{};
+  final resp = extraMap['resp'] is Map
+      ? Map<String, dynamic>.from(extraMap['resp'] as Map)
+      : const <String, dynamic>{};
+  final count = _i2(
+    json['all_total'],
+    _i2(resp['all_total'], _i2(json['song_count'], json['total'])),
+  );
   return PlaylistBrief(
     id: rankId,
     name: name,
@@ -361,6 +403,31 @@ PlaylistBrief mapRankBrief(Map<String, dynamic> json) {
     playCountLabel: play > 0 ? formatCount(play) : '',
     isRank: true,
   );
+}
+
+/// KuGouMusicApi `POST /openapi/kmr/v2/rank/audio` → `data.songlist[]`.
+///
+/// Public `mobilecdn .../rank/song` often returns only a handful of rows even
+/// when the board claims hundreds; the signed gateway path is what EchoMusic
+/// uses for the full chart.
+List<dynamic> extractRankAudioSongs(dynamic body) {
+  final map =
+      body is Map ? Map<String, dynamic>.from(body) : const <String, dynamic>{};
+  final data = map['data'] is Map
+      ? Map<String, dynamic>.from(map['data'] as Map)
+      : map;
+  final list = data['songlist'] ?? data['info'] ?? data['list'];
+  return list is List ? list : const [];
+}
+
+/// Board size reported by `rank/audio` (`data.total`, also mirrored at root).
+int extractRankAudioTotal(dynamic body) {
+  final map =
+      body is Map ? Map<String, dynamic>.from(body) : const <String, dynamic>{};
+  final data = map['data'] is Map
+      ? Map<String, dynamic>.from(map['data'] as Map)
+      : map;
+  return _i2(data['total'], map['total']);
 }
 
 /// Maps a `search/album` item.

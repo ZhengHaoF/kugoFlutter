@@ -110,16 +110,82 @@ class RankDetailHeaderSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     final b = brief;
+    final cover = b?.coverUrl ?? '';
+    final hasRealCover = cover.isNotEmpty &&
+        !cover.contains('mock://') &&
+        (cover.startsWith('http://') || cover.startsWith('https://'));
+    final isLiked = b != null &&
+        (b.name == '我喜欢' ||
+            b.name.contains('喜欢') ||
+            (b.isDefault && b.id == '2'));
+    final isDefaultCollect = b != null &&
+        (b.name == '默认收藏' || b.name.contains('收藏'));
+
+    Widget bgWidget() {
+      if (hasRealCover) {
+        return CoverBox(
+          seed: cover,
+          size: 0,
+          radius: 0,
+        );
+      }
+      if (isLiked) {
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF8B1538), Color(0xFFD83A56), Color(0xFF1A1A24)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 28, right: 28),
+              child: Icon(
+                Icons.favorite_rounded,
+                size: 110,
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+          ),
+        );
+      }
+      if (isDefaultCollect) {
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF2C3E50), Color(0xFF4A00E0), Color(0xFF1A1A24)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 28, right: 28),
+              child: Icon(
+                Icons.bookmark_rounded,
+                size: 110,
+                color: Colors.white.withValues(alpha: 0.12),
+              ),
+            ),
+          ),
+        );
+      }
+      return CoverBox(
+        seed: cover.isNotEmpty ? cover : fallbackId,
+        size: 0,
+        radius: 0,
+      );
+    }
+
     return Material(
       type: MaterialType.transparency,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          CoverBox(
-            seed: b?.coverUrl ?? fallbackId,
-            size: 0,
-            radius: 0,
-          ),
+          bgWidget(),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: rankDetailHeaderGradient(kugo.bg),

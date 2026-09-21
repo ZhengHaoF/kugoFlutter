@@ -145,6 +145,34 @@ class PlaylistBrief {
 
   /// True for default favorites playlist.
   final bool isDefault;
+
+  PlaylistBrief copyWith({
+    String? id,
+    String? name,
+    String? coverUrl,
+    String? description,
+    String? creator,
+    int? trackCount,
+    String? playCountLabel,
+    bool? isRank,
+    int? source,
+    String? userId,
+    bool? isDefault,
+  }) {
+    return PlaylistBrief(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      coverUrl: coverUrl ?? this.coverUrl,
+      description: description ?? this.description,
+      creator: creator ?? this.creator,
+      trackCount: trackCount ?? this.trackCount,
+      playCountLabel: playCountLabel ?? this.playCountLabel,
+      isRank: isRank ?? this.isRank,
+      source: source ?? this.source,
+      userId: userId ?? this.userId,
+      isDefault: isDefault ?? this.isDefault,
+    );
+  }
 }
 
 

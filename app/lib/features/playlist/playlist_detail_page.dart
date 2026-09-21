@@ -167,11 +167,25 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
   void _applyLoaded(PlaylistBrief loadedBrief, List<Track> loadedTracks, {required bool isRank}) {
     final existingCover = _brief?.coverUrl ?? '';
     final remoteCover = loadedBrief.coverUrl;
-    final cover = (remoteCover.isNotEmpty &&
+    var cover = (remoteCover.isNotEmpty &&
             !remoteCover.contains('mock://') &&
             !remoteCover.endsWith('/${widget.id}'))
         ? remoteCover
-        : (existingCover.isNotEmpty ? existingCover : remoteCover);
+        : (existingCover.isNotEmpty && !existingCover.contains('mock://')
+            ? existingCover
+            : '');
+
+    if (cover.isEmpty && loadedTracks.isNotEmpty) {
+      for (final t in loadedTracks) {
+        if (t.coverUrl.isNotEmpty &&
+            !t.coverUrl.contains('mock://') &&
+            (t.coverUrl.startsWith('http://') ||
+                t.coverUrl.startsWith('https://'))) {
+          cover = t.coverUrl;
+          break;
+        }
+      }
+    }
 
     final genericName = isRank ? '榜单' : '歌单';
     final name = (loadedBrief.name.isNotEmpty && loadedBrief.name != genericName)

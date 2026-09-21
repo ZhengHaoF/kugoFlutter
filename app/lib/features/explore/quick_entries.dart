@@ -66,7 +66,8 @@ class QuickEntries extends ConsumerWidget {
           onTap: () => _handlePlay(ref),
           onModeChanged: (mode) => _handleModeChanged(mode, ref),
         ),
-        const SizedBox(height: 12),
+        // FM 阴影下探，光学间距略加大；下方区块间距交给 SectionHeader。
+        const SizedBox(height: KugoSpacing.lg),
         RecommendHubEntryCard(
           onTap: () => context.push('/recommend'),
         ),

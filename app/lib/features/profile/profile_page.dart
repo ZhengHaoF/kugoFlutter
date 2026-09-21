@@ -210,10 +210,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ],
               ),
               if (auth.isLogged) ...[
-                const SizedBox(height: KugoSpacing.md),
+                const SizedBox(height: KugoSpacing.xs),
                 TextButton(
                   onPressed: () =>
                       ref.read(authControllerProvider.notifier).logout(),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(64, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: const Text('退出登录'),
                 ),
               ],
@@ -225,13 +230,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             children: [
-              _EntryTile(
-                icon: Icons.history_rounded,
-                color: const Color(0xFFE8B86D),
-                title: '播放历史',
-                subtitle: '播放记录与听歌分析',
-                onTap: () => context.push('/history'),
-              ),
+              // 「播放历史」入口已去掉：与用户卡「最近播放」重复，统一从统计进 /history。
               _EntryTile(
                 icon: Icons.download_rounded,
                 color: const Color(0xFF8B7CF6),
@@ -457,17 +456,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           child: Row(
             children: [
-              CoverBox(
-                seed: p.coverUrl.isNotEmpty ? p.coverUrl : p.id,
-                size: 48,
-                radius: KugoRadius.card,
-                child: p.coverUrl.isEmpty
-                    ? const Icon(
-                        Icons.queue_music_rounded,
-                        color: Colors.white70,
-                      )
-                    : null,
-              ),
+              _PlaylistTileCover(playlist: p, size: 48),
               const SizedBox(width: KugoSpacing.md),
               Expanded(
                 child: Column(
@@ -602,7 +591,8 @@ class _Stat extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(KugoRadius.tile),
       child: SizedBox(
-        height: 76,
+        // 有 hint 时再撑高，避免无副标题时统计区底部空一截、退出登录显得过远。
+        height: hint != null ? 76 : 56,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
@@ -716,3 +706,171 @@ class _LinkTile extends StatelessWidget {
     );
   }
 }
+
+class _PlaylistTileCover extends ConsumerWidget {
+  const _PlaylistTileCover({
+    required this.playlist,
+    this.size = 48,
+  });
+
+  final PlaylistBrief playlist;
+  final double size;
+
+  static bool _isNetwork(String? url) {
+    if (url == null) return false;
+    final s = url.trim();
+    return (s.startsWith('http://') || s.startsWith('https://')) &&
+        !s.contains('mock://');
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = playlist;
+    final collections = ref.watch(userCollectionsProvider);
+
+    final isLiked = p.isDefault &&
+        (p.name == '我喜欢' ||
+            p.name.contains('喜欢') ||
+            p.name.toLowerCase().contains('like'));
+    final isDefaultCollect = p.isDefault &&
+        (p.name == '默认收藏' || p.name.contains('收藏'));
+
+    // Check if we have a direct valid cover URL
+    String targetCover = _isNetwork(p.coverUrl) ? p.coverUrl : '';
+
+    // If it's "我喜欢" and direct cover is empty, check if first song in cloudFavoriteTracks has cover
+    if (isLiked && targetCover.isEmpty) {
+      final firstSongCover = collections.cloudFavoriteTracks
+          .where((t) => _isNetwork(t.coverUrl))
+          .firstOrNull
+          ?.coverUrl;
+      if (firstSongCover != null && firstSongCover.isNotEmpty) {
+        targetCover = firstSongCover;
+      }
+    }
+
+    // 1. If we have a valid network cover, show CoverBox with real image!
+    if (targetCover.isNotEmpty) {
+      final coverWidget = CoverBox(
+        seed: targetCover,
+        size: size,
+        radius: KugoRadius.card,
+        child: isLiked
+            ? const Icon(Icons.favorite_rounded, color: Colors.white70, size: 24)
+            : (isDefaultCollect
+                ? const Icon(Icons.bookmark_rounded, color: Colors.white70, size: 24)
+                : const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 24)),
+      );
+
+      // If it's "我喜欢", add a subtle corner heart badge on top of the first song's cover
+      if (isLiked) {
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              coverWidget,
+              Positioned(
+                right: 2,
+                bottom: 2,
+                child: Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE84364),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.favorite_rounded,
+                    size: 10,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return coverWidget;
+    }
+
+    // 2. No network cover available: render dedicated iconic gradient cover!
+    if (isLiked) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KugoRadius.card),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF416C).withValues(alpha: 0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.favorite_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      );
+    }
+
+    if (isDefaultCollect) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KugoRadius.card),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF667EEA).withValues(alpha: 0.25),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.bookmark_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      );
+    }
+
+    // 3. Generic playlist fallback
+    return CoverBox(
+      seed: p.id,
+      size: size,
+      radius: KugoRadius.card,
+      child: const Icon(
+        Icons.queue_music_rounded,
+        color: Colors.white70,
+        size: 24,
+      ),
+    );
+  }
+}
+
