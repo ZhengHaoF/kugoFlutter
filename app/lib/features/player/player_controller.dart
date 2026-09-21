@@ -10,8 +10,8 @@ import '../../data/repositories/lyric_repository.dart';
 import '../../data/repositories/play_repository.dart';
 import '../../data/storage/queue_store.dart';
 import '../settings/settings_controller.dart';
+import 'audio_engine.dart';
 import 'audio_player_port.dart';
-import 'just_audio_player.dart';
 
 enum PlayerLoopMode { order, listLoop, shuffle, single }
 
@@ -141,7 +141,7 @@ class PlayerController extends Notifier<PlayerState> {
 
   @override
   PlayerState build() {
-    _engine = _engineOverride ?? JustAudioPlayerImpl();
+    _engine = _engineOverride ?? createAudioEngine();
     ref.listen(settingsControllerProvider, (prev, next) {
       if (prev?.mediaLyricSubtitle != next.mediaLyricSubtitle) {
         _lastMediaSubtitle = null;

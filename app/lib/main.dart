@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
 import 'core/api/kugo_client.dart';
@@ -22,6 +23,9 @@ import 'features/settings/settings_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 桌面端音频后端是 media_kit（libmpv），必须先初始化。
+  // 移动端不加载 libmpv，不能调 —— 见 features/player/audio_engine.dart。
+  if (isDesktopPlatform) MediaKit.ensureInitialized();
   // Larger in-memory decode cache; disk cache lives in CoverCache.
   PaintingBinding.instance.imageCache.maximumSizeBytes = 64 << 20; // 64 MB
 
