@@ -85,118 +85,124 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
             ),
         ],
       ),
-      body: AsyncBody(
-        loading: _loading,
-        hasError: !_loading && _tracks.isEmpty && _error.isNotEmpty,
-        isEmpty: !_loading && _tracks.isEmpty && _error.isEmpty,
-        emptyMessage: _needLogin ? '登录后查看每日推荐' : '今日暂无推荐',
-        errorMessage: _error,
-        onRetry: _load,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
-                KugoSpacing.md,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  Hero(
-                    tag: KugoHeroTags.dailyRecommendBadge,
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          gradient: kugo.accentGradient,
-                          borderRadius: BorderRadius.circular(KugoRadius.card),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              month,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KugoSpacing.lg,
+              KugoSpacing.md,
+              KugoSpacing.lg,
+              KugoSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Hero(
+                  tag: KugoHeroTags.dailyRecommendBadge,
+                  flightShuttleBuilder:
+                      KugoHeroTags.dailyRecommendBadgeFlightShuttle,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        gradient: kugo.accentGradient,
+                        borderRadius: BorderRadius.circular(KugoRadius.card),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            month,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.none,
                             ),
-                            Text(
-                              day,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                height: 1.1,
-                              ),
+                          ),
+                          Text(
+                            day,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
+                              decoration: TextDecoration.none,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: KugoSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(dateLabel, style: kugo.section),
-                        const SizedBox(height: 4),
-                        Text(
-                          _subtitle,
-                          style: kugo.caption,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(width: KugoSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(dateLabel, style: kugo.section),
+                      const SizedBox(height: 4),
+                      Text(
+                        _subtitle,
+                        style: kugo.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _loading
+                            ? '正在为你定制推荐...'
+                            : (_personalized
+                                ? '${_tracks.length} 首 · 个性化推荐'
+                                : '${_tracks.length} 首'),
+                        style: kugo.caption.copyWith(
+                          color: kugo.textTertiary,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _personalized
-                              ? '${_tracks.length} 首 · 个性化推荐'
-                              : '${_tracks.length} 首',
-                          style: kugo.caption.copyWith(
-                            color: kugo.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  FilledButton.icon(
-                    onPressed: _tracks.isEmpty
-                        ? null
-                        : () {
-                            ref
-                                .read(playerControllerProvider.notifier)
-                                .playQueue(_tracks, startIndex: 0);
-                            context.push('/player');
-                          },
-                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                    label: const Text('播放全部'),
-                  ),
-                ],
+                ),
+                FilledButton.icon(
+                  onPressed: _tracks.isEmpty
+                      ? null
+                      : () {
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playQueue(_tracks, startIndex: 0);
+                          context.push('/player');
+                        },
+                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                  label: const Text('播放全部'),
+                ),
+              ],
+            ),
+          ),
+          if (_needLogin && _tracks.isEmpty && !_loading)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KugoSpacing.lg,
+                KugoSpacing.sm,
+                KugoSpacing.lg,
+                0,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => context.push('/login'),
+                  icon: const Icon(Icons.login_rounded, size: 18),
+                  label: const Text('去登录，获取个性化每日推荐'),
+                ),
               ),
             ),
-            if (_needLogin && _tracks.isEmpty && !_loading)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.sm,
-                  KugoSpacing.lg,
-                  0,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => context.push('/login'),
-                    icon: const Icon(Icons.login_rounded, size: 18),
-                    label: const Text('去登录，获取个性化每日推荐'),
-                  ),
-                ),
-              ),
-            Expanded(
+          Expanded(
+            child: AsyncBody(
+              loading: _loading,
+              hasError: !_loading && _tracks.isEmpty && _error.isNotEmpty,
+              isEmpty: !_loading && _tracks.isEmpty && _error.isEmpty,
+              emptyMessage: _needLogin ? '登录后查看每日推荐' : '今日暂无推荐',
+              errorMessage: _error,
+              onRetry: _load,
               child: ListView.builder(
                 physics: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
@@ -220,8 +226,8 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                 },
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

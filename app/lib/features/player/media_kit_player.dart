@@ -64,6 +64,14 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
     await _player.stop();
     _expectingAudio = true;
 
+    final errorCompleter = Completer<void>();
+    final earlyErrorSub = _player.stream.error.listen((msg) {
+      _lastError = msg;
+      if (!errorCompleter.isCompleted) {
+        errorCompleter.completeError(StateError('音频源加载失败: $msg'));
+      }
+    });
+
     try {
       await _player.open(
         Media(url, httpHeaders: headers),
@@ -74,9 +82,10 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
       var duration = _player.state.duration;
       if (duration <= Duration.zero) {
         try {
-          duration = await _player.stream.duration
-              .firstWhere((d) => d > Duration.zero)
-              .timeout(const Duration(seconds: 6));
+          await Future.any([
+            _player.stream.duration.firstWhere((d) => d > Duration.zero),
+            errorCompleter.future,
+          ]).timeout(const Duration(seconds: 3));
         } on TimeoutException {
           // 放行，交给下面的 playing 判定。
         }
@@ -85,6 +94,8 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
       _expectingAudio = false;
       _loadingSource = false;
       rethrow;
+    } finally {
+      await earlyErrorSub.cancel();
     }
 
     _loadingSource = false;
@@ -96,13 +107,25 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
         }
       }),
     );
+
+    final playErrorCompleter = Completer<void>();
+    final playErrorSub = _player.stream.error.listen((msg) {
+      _lastError = msg;
+      if (!playErrorCompleter.isCompleted) {
+        playErrorCompleter.completeError(StateError('播放启动失败: $msg'));
+      }
+    });
+
     try {
-      await _player.stream.playing
-          .firstWhere((playing) => playing)
-          .timeout(const Duration(seconds: 8));
+      await Future.any([
+        _player.stream.playing.firstWhere((playing) => playing),
+        playErrorCompleter.future,
+      ]).timeout(const Duration(seconds: 4));
     } on TimeoutException {
       _expectingAudio = false;
       throw StateError('音频源无法起播: ${_host(url)}');
+    } finally {
+      await playErrorSub.cancel();
     }
     _expectingAudio = false;
   }

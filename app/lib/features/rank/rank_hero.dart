@@ -248,6 +248,7 @@ Widget rankHeroFlightShuttle(
   bool showTitle = false;
   String fallbackId = '';
 
+  bool isRankCard = false;
   for (final ctx in [toHeroContext, fromHeroContext]) {
     final w = ctx.widget;
     if (w is Hero) {
@@ -260,6 +261,7 @@ Widget rankHeroFlightShuttle(
         final surface = w.child as RankCardSurface;
         brief ??= surface.brief;
         showTitle = surface.showTitle;
+        isRankCard = true;
       } else if (w.child is CoverBox) {
         final box = w.child as CoverBox;
         if (fallbackId.isEmpty) fallbackId = box.seed;
@@ -270,7 +272,16 @@ Widget rankHeroFlightShuttle(
   final seed = brief?.coverUrl ?? fallbackId;
   final bytes = seed.isEmpty ? null : CoverCache.instance.peek(seed);
 
-  final cardGrad = rankCardGradient();
+  // Rank cards have a dark bottom gradient for text contrast, while standard playlist cards
+  // (CoverBox) have no mask. Using a transparent gradient for non-rank cards ensures the
+  // header mask fades out to 100% transparent on pop, eliminating last-frame gradient snaps.
+  final cardGrad = isRankCard
+      ? rankCardGradient()
+      : const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Colors.transparent],
+        );
   final headerGrad = rankDetailHeaderGradient(kugo.bg);
 
   final isPush = flightDirection == HeroFlightDirection.push;

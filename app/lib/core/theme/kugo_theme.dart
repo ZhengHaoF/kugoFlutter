@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -83,6 +84,33 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
   }
 }
 
+/// Elegant, unscaled desktop cross-fade transition.
+///
+/// Unlike [ZoomPageTransitionsBuilder], this does not scale the entering or exiting route,
+/// does not snapshot raster images, and keeps underlying routes 100% stationary so
+/// [Hero] overlay coordinates and destination geometries land with zero subpixel flicker.
+class DesktopPageTransitionsBuilder extends PageTransitionsBuilder {
+  const DesktopPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T>? route,
+    BuildContext? context,
+    Animation<double> animation,
+    Animation<double>? secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      ),
+      child: child,
+    );
+  }
+}
+
 KugoPalette kugoPaletteFor(Brightness brightness) =>
     brightness == Brightness.light ? KugoPalette.light : KugoPalette.dark;
 
@@ -94,6 +122,15 @@ ThemeData buildKugoTheme(Brightness brightness) {
     useMaterial3: true,
     brightness: brightness,
     scaffoldBackgroundColor: p.bg,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: ZoomPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: DesktopPageTransitionsBuilder(),
+        TargetPlatform.windows: DesktopPageTransitionsBuilder(),
+        TargetPlatform.linux: DesktopPageTransitionsBuilder(),
+      },
+    ),
     colorScheme: ColorScheme(
       brightness: brightness,
       primary: p.primary,

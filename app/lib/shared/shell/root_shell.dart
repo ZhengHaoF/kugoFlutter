@@ -1,22 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/responsive.dart';
+import '../../features/player/player_controller.dart';
+import '../../shared/widgets/desktop_player_bar.dart';
 import '../../shared/widgets/mini_player_bar.dart';
+import 'desktop_sidebar.dart';
+
+class _TogglePlayIntent extends Intent {
+  const _TogglePlayIntent();
+}
+
+class _SeekForwardIntent extends Intent {
+  const _SeekForwardIntent();
+}
+
+class _SeekBackwardIntent extends Intent {
+  const _SeekBackwardIntent();
+}
 
 /// Bottom tabs with macOS Dock-style icon magnify/bounce and a light
 /// Spaces-like content transition. Router (IndexedStack) is untouched.
-class RootShell extends StatefulWidget {
+/// On desktop wide screens (>= 800px), automatically switches to DesktopShell.
+class RootShell extends ConsumerStatefulWidget {
   const RootShell({super.key, required this.child, required this.location});
 
   final Widget child;
   final String location;
 
   @override
-  State<RootShell> createState() => _RootShellState();
+  ConsumerState<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends State<RootShell>
+class _RootShellState extends ConsumerState<RootShell>
     with SingleTickerProviderStateMixin {
   late final AnimationController _bounce;
   int _prevIndex = 0;
@@ -27,7 +46,11 @@ class _RootShellState extends State<RootShell>
   ];
 
   int _indexOf(String location) => switch (location) {
-        _ when location.startsWith('/profile') => 1,
+        _ when location.startsWith('/profile') ||
+            location.startsWith('/history') ||
+            location.startsWith('/likes') ||
+            location.startsWith('/settings') =>
+          1,
         _ => 0,
       };
 
@@ -68,6 +91,74 @@ class _RootShellState extends State<RootShell>
   Widget build(BuildContext context) {
     // Rebuild dock/scaffold colors when MaterialApp theme flips.
     final kugo = KugoTheme.of(context);
+    final isDesktop = isDesktopView(context);
+
+    if (isDesktop) {
+      return Shortcuts(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.space): _TogglePlayIntent(),
+          SingleActivator(LogicalKeyboardKey.arrowRight): _SeekForwardIntent(),
+          SingleActivator(LogicalKeyboardKey.arrowLeft): _SeekBackwardIntent(),
+        },
+        child: Actions(
+          actions: <Type, Action<Intent>>{
+            _TogglePlayIntent: CallbackAction<_TogglePlayIntent>(
+              onInvoke: (_) {
+                ref.read(playerControllerProvider.notifier).togglePlay();
+                return null;
+              },
+            ),
+            _SeekForwardIntent: CallbackAction<_SeekForwardIntent>(
+              onInvoke: (_) {
+                final ctl = ref.read(playerControllerProvider.notifier);
+                final cur = ref.read(playerControllerProvider).positionMs;
+                ctl.seekTo(cur + 5000);
+                return null;
+              },
+            ),
+            _SeekBackwardIntent: CallbackAction<_SeekBackwardIntent>(
+              onInvoke: (_) {
+                final ctl = ref.read(playerControllerProvider.notifier);
+                final cur = ref.read(playerControllerProvider).positionMs;
+                ctl.seekTo(cur - 5000);
+                return null;
+              },
+            ),
+          },
+          child: Focus(
+            autofocus: true,
+            child: Scaffold(
+              backgroundColor: kugo.bg,
+              body: Column(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        DesktopSidebar(location: widget.location),
+                        Expanded(child: widget.child),
+                      ],
+                    ),
+                  ),
+                  const DesktopPlayerBar(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isMainTab = widget.location == '/explore' ||
+        widget.location == '/profile' ||
+        widget.location == '/';
+
+    if (!isMainTab) {
+      return Scaffold(
+        backgroundColor: kugo.bg,
+        body: widget.child,
+      );
+    }
+
     final index = _indexOf(widget.location);
     // easeOutBack — light Dock bounce without looking springy-cheap.
     final bounceT = CurvedAnimation(

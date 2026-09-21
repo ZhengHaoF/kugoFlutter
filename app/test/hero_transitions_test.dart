@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/theme/hero_tags.dart';
+import 'package:kugo/features/player/player_controller.dart';
+import 'package:kugo/features/recommend/daily_recommend_page.dart';
 import 'package:kugo/shared/widgets/common.dart';
+
+import 'fakes/fake_audio_player.dart';
 
 void main() {
   group('KugoHeroTags', () {
@@ -59,6 +64,83 @@ void main() {
         (w) => w is Hero && w.tag == KugoHeroTags.albumCover('album_99'),
       );
       expect(heroFinder, findsOneWidget);
+    });
+
+    testWidgets('DailyRecommendPage mounts dailyRecommendBadge Hero on initial loading frame', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            playerControllerProvider
+                .overrideWith(() => PlayerController(engine: FakeAudioPlayer())),
+          ],
+          child: const MaterialApp(
+            home: DailyRecommendPage(),
+          ),
+        ),
+      );
+      // Immediately verify before any network or timer resolves
+      final heroFinder = find.byWidgetPredicate(
+        (w) =>
+            w is Hero &&
+            w.tag == KugoHeroTags.dailyRecommendBadge &&
+            w.flightShuttleBuilder ==
+                KugoHeroTags.dailyRecommendBadgeFlightShuttle,
+      );
+      expect(heroFinder, findsOneWidget);
+    });
+
+    testWidgets('dailyRecommendBadgeFlightShuttle builds valid widget tree for push and pop', (tester) async {
+      final animController = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(milliseconds: 300),
+      );
+
+      final dummyFromHero = Hero(
+        tag: KugoHeroTags.dailyRecommendBadge,
+        child: const SizedBox(width: 44, height: 44),
+      );
+      final dummyToHero = Hero(
+        tag: KugoHeroTags.dailyRecommendBadge,
+        child: const SizedBox(width: 64, height: 64),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return Column(
+                children: [
+                  SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: KugoHeroTags.dailyRecommendBadgeFlightShuttle(
+                      context,
+                      animController,
+                      HeroFlightDirection.push,
+                      context,
+                      context,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: KugoHeroTags.dailyRecommendBadgeFlightShuttle(
+                      context,
+                      animController,
+                      HeroFlightDirection.pop,
+                      context,
+                      context,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+
+      expect(find.byType(Material), findsWidgets);
+      animController.dispose();
     });
   });
 }

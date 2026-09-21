@@ -6,6 +6,7 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/debug/network_log_dialog.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
 import 'settings_controller.dart';
 
@@ -21,13 +22,15 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          KugoSpacing.lg,
-          KugoSpacing.lg,
-          KugoSpacing.lg,
-          40,
-        ),
+      body: DesktopContentConstraint(
+        maxWidth: 800,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            KugoSpacing.lg,
+            KugoSpacing.lg,
+            KugoSpacing.lg,
+            40,
+          ),
         children: [
           _Section(
             title: '播放',
@@ -155,6 +158,7 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
         ],
+      ),
       ),
     );
   }

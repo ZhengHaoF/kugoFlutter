@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/models/track.dart' show PlaylistBrief;
+import 'core/platform.dart';
 import 'core/theme/kugo_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
@@ -72,105 +73,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/search',
-        pageBuilder: (context, state) =>
-            MaterialPage(child: const SearchPage()),
-      ),
-      GoRoute(
-        path: '/playlist/:id',
-        pageBuilder: (context, state) {
-          final isRankQuery = state.uri.queryParameters['type'] == 'rank' ||
-              state.uri.queryParameters['isRank'] == 'true';
-          final initialBrief = state.extra is PlaylistBrief
-              ? state.extra as PlaylistBrief
-              : null;
-          final isRank = isRankQuery || (initialBrief?.isRank ?? false);
-          return MaterialPage(
-            child: PlaylistDetailPage(
-              id: state.pathParameters['id'] ?? '',
-              initialBrief: initialBrief,
-              isRank: isRank,
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/rank/:id',
-        pageBuilder: (context, state) => MaterialPage(
-          child: PlaylistDetailPage(
-            id: state.pathParameters['id'] ?? '',
-            isRank: true,
-            initialBrief: state.extra is PlaylistBrief
-                ? state.extra as PlaylistBrief
-                : null,
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/album/:id',
-        pageBuilder: (context, state) => MaterialPage(
-          child: AlbumDetailPage(id: state.pathParameters['id'] ?? ''),
-        ),
-      ),
-      GoRoute(
-        path: '/artist/:id',
-        pageBuilder: (context, state) => MaterialPage(
-          child: ArtistDetailPage(id: state.pathParameters['id'] ?? ''),
-        ),
-      ),
-      GoRoute(
         path: '/login',
         pageBuilder: (context, state) => const MaterialPage(
           fullscreenDialog: true,
           child: LoginPage(),
         ),
-      ),
-      GoRoute(
-        path: '/settings',
-        pageBuilder: (context, state) =>
-            const MaterialPage(child: SettingsPage()),
-      ),
-      GoRoute(
-        path: '/history',
-        pageBuilder: (context, state) =>
-            const MaterialPage(child: HistoryPage()),
-      ),
-      GoRoute(
-        path: '/likes',
-        pageBuilder: (context, state) => const MaterialPage(child: LikesPage()),
-      ),
-      GoRoute(
-        path: '/recommend',
-        pageBuilder: (context, state) =>
-            const MaterialPage(child: RecommendHubPage()),
-      ),
-      GoRoute(
-        path: '/daily',
-        pageBuilder: (context, state) =>
-            const MaterialPage(child: DailyRecommendPage()),
-      ),
-      GoRoute(
-        path: '/ranks',
-        pageBuilder: (context, state) =>
-            const MaterialPage(child: RankListPage()),
-      ),
-      GoRoute(
-        path: '/song',
-        pageBuilder: (context, state) {
-          final q = state.uri.queryParameters;
-          return MaterialPage(
-            child: SongDetailPage(
-              id: q['id'] ?? '',
-              name: q['name'] ?? '',
-              artist: q['artist'] ?? '',
-              album: q['album'] ?? '',
-              coverUrl: q['cover'] ?? '',
-              hash: q['hash'] ?? '',
-              mixSongId: q['mixSongId'] ?? '',
-              durationMs: int.tryParse(q['duration'] ?? '') ?? 0,
-            ),
-          );
-        },
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -186,6 +93,86 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 path: '/explore',
                 builder: (context, state) => const ExplorePage(),
               ),
+              GoRoute(
+                path: '/daily',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: DailyRecommendPage()),
+              ),
+              GoRoute(
+                path: '/ranks',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: RankListPage()),
+              ),
+              GoRoute(
+                path: '/rank/:id',
+                pageBuilder: (context, state) => MaterialPage(
+                  child: PlaylistDetailPage(
+                    id: state.pathParameters['id'] ?? '',
+                    isRank: true,
+                    initialBrief: state.extra is PlaylistBrief
+                        ? state.extra as PlaylistBrief
+                        : null,
+                  ),
+                ),
+              ),
+              GoRoute(
+                path: '/playlist/:id',
+                pageBuilder: (context, state) {
+                  final isRankQuery = state.uri.queryParameters['type'] == 'rank' ||
+                      state.uri.queryParameters['isRank'] == 'true';
+                  final initialBrief = state.extra is PlaylistBrief
+                      ? state.extra as PlaylistBrief
+                      : null;
+                  final isRank = isRankQuery || (initialBrief?.isRank ?? false);
+                  return MaterialPage(
+                    child: PlaylistDetailPage(
+                      id: state.pathParameters['id'] ?? '',
+                      initialBrief: initialBrief,
+                      isRank: isRank,
+                    ),
+                  );
+                },
+              ),
+              GoRoute(
+                path: '/album/:id',
+                pageBuilder: (context, state) => MaterialPage(
+                  child: AlbumDetailPage(id: state.pathParameters['id'] ?? ''),
+                ),
+              ),
+              GoRoute(
+                path: '/artist/:id',
+                pageBuilder: (context, state) => MaterialPage(
+                  child: ArtistDetailPage(id: state.pathParameters['id'] ?? ''),
+                ),
+              ),
+              GoRoute(
+                path: '/recommend',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: RecommendHubPage()),
+              ),
+              GoRoute(
+                path: '/search',
+                pageBuilder: (context, state) =>
+                    MaterialPage(child: const SearchPage()),
+              ),
+              GoRoute(
+                path: '/song',
+                pageBuilder: (context, state) {
+                  final q = state.uri.queryParameters;
+                  return MaterialPage(
+                    child: SongDetailPage(
+                      id: q['id'] ?? '',
+                      name: q['name'] ?? '',
+                      artist: q['artist'] ?? '',
+                      album: q['album'] ?? '',
+                      coverUrl: q['cover'] ?? '',
+                      hash: q['hash'] ?? '',
+                      mixSongId: q['mixSongId'] ?? '',
+                      durationMs: int.tryParse(q['duration'] ?? '') ?? 0,
+                    ),
+                  );
+                },
+              ),
             ],
           ),
           StatefulShellBranch(
@@ -193,6 +180,21 @@ final _routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfilePage(),
+              ),
+              GoRoute(
+                path: '/history',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: HistoryPage()),
+              ),
+              GoRoute(
+                path: '/likes',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: LikesPage()),
+              ),
+              GoRoute(
+                path: '/settings',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: SettingsPage()),
               ),
             ],
           ),
@@ -221,7 +223,11 @@ class KugoApp extends ConsumerWidget {
       builder: (context, child) {
         // Status/navigation bars follow the resolved theme, not the OS setting.
         applyKugoSystemUi(Theme.of(context).brightness);
-        return child ?? const SizedBox.shrink();
+        final content = child ?? const SizedBox.shrink();
+        if (isDesktopPlatform) {
+          return ExcludeSemantics(child: content);
+        }
+        return content;
       },
     );
   }

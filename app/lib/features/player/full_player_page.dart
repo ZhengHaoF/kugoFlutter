@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,6 +16,7 @@ import '../fm/fm_controller.dart';
 import 'fm_controls.dart';
 import '../../shared/widgets/quality_sheet.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/responsive.dart';
 
 class FullPlayerPage extends ConsumerWidget {
   const FullPlayerPage({super.key});
@@ -65,6 +66,181 @@ class FullPlayerPage extends ConsumerWidget {
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
     final progress = (player.positionMs / duration).clamp(0.0, 1.0);
+    final isDesktop = isDesktopView(context);
+
+    if (isDesktop) {
+      return Scaffold(
+        backgroundColor: kugo.bg,
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                // ---------------- 左栏：封面、歌曲信息、进度与播放控制 ----------------
+                SizedBox(
+                  width: 440,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // 顶部导航：收起、标题、详情、队列
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => context.pop(),
+                              tooltip: '收起播放页',
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('正在播放', style: kugo.section),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => _openSongDetail(context, track),
+                              tooltip: '歌曲详情',
+                              icon: const Icon(Icons.info_outline_rounded, size: 20),
+                            ),
+                            IconButton(
+                              onPressed: () => _showQueueSheet(context, ref),
+                              tooltip: '播放队列',
+                              icon: const Icon(Icons.queue_music_rounded, size: 20),
+                            ),
+                          ],
+                        ),
+
+                        const Spacer(),
+
+                        // 大封面
+                        CoverBox(
+                          seed: track.coverUrl,
+                          size: 260,
+                          radius: 16,
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 歌曲名与歌手
+                        Text(
+                          track.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: kugo.title.copyWith(fontSize: 20, height: 1.2),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${track.artist} · ${track.album}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: kugo.caption.copyWith(fontSize: 13),
+                        ),
+
+                        const SizedBox(height: 10),
+                        _PlayerQualityChip(track: track),
+
+                        const Spacer(),
+
+                        // 进度滑块
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Column(
+                            children: [
+                              SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                                ),
+                                child: Slider(
+                                  value: progress,
+                                  onChanged: (v) =>
+                                      controller.seekTo((v * duration).round()),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      FullPlayerPage.format(player.positionMs),
+                                      style: kugo.caption.copyWith(fontSize: 11),
+                                    ),
+                                    Text(
+                                      '-${FullPlayerPage.format(duration - player.positionMs)}',
+                                      style: kugo.caption.copyWith(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // 控制按钮栏
+                        _ControlBar(
+                          player: player,
+                          controller: controller,
+                          track: track,
+                          compact: false,
+                          height: 64,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 分割线
+                VerticalDivider(width: 1, color: kugo.divider.withValues(alpha: 0.5)),
+
+                // ---------------- 右栏：完整平滑滚动歌词 ----------------
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '歌词',
+                              style: kugo.section.copyWith(
+                                color: kugo.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (ref.watch(fmControllerProvider).active)
+                              const FmEntryPill(),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: LyricsView(
+                            lines: player.lyrics,
+                            positionMs: player.positionMs,
+                            onTapLine: (ms) => controller.seekTo(ms),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       // Solid page bg avoids Material/Zoom settle flash-through.

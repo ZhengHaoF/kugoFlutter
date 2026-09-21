@@ -558,6 +558,8 @@ class RecommendHubEntryCard extends StatelessWidget {
               // EchoMusic: .feature-icon .gradient-primary（大号日历数字）
               Hero(
                 tag: KugoHeroTags.dailyRecommendBadge,
+                flightShuttleBuilder:
+                    KugoHeroTags.dailyRecommendBadgeFlightShuttle,
                 child: Material(
                   type: MaterialType.transparency,
                   child: Container(
@@ -589,6 +591,7 @@ class RecommendHubEntryCard extends StatelessWidget {
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                     ),

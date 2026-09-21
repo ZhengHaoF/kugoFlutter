@@ -4,6 +4,27 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+
+WNDPROC g_original_flutter_view_proc = nullptr;
+
+LRESULT CALLBACK FilterAccessibilityWndProc(HWND hwnd, UINT message,
+                                            WPARAM wparam, LPARAM lparam) {
+  // Prevent Windows UI Automation / IME from querying Flutter's Windows
+  // AccessibilityBridge, which causes Access Violation (0xc0000005) crashes
+  // inside flutter_windows.dll due to ui::AXTree synchronization corruption.
+  if (message == WM_GETOBJECT) {
+    return DefWindowProc(hwnd, message, wparam, lparam);
+  }
+  if (g_original_flutter_view_proc) {
+    return CallWindowProc(g_original_flutter_view_proc, hwnd, message, wparam,
+                          lparam);
+  }
+  return DefWindowProc(hwnd, message, wparam, lparam);
+}
+
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -25,7 +46,12 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+
+  HWND child_hwnd = flutter_controller_->view()->GetNativeWindow();
+  SetChildContent(child_hwnd);
+  g_original_flutter_view_proc = reinterpret_cast<WNDPROC>(
+      SetWindowLongPtr(child_hwnd, GWLP_WNDPROC,
+                       reinterpret_cast<LONG_PTR>(FilterAccessibilityWndProc)));
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
@@ -40,6 +66,8 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  g_original_flutter_view_proc = nullptr;
+
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -51,6 +79,10 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (message == WM_GETOBJECT) {
+    return DefWindowProc(hwnd, message, wparam, lparam);
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
@@ -69,3 +101,4 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
 }
+

@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/fm_mode.dart';
 import '../../core/models/track.dart';
+import '../../core/platform.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../fm/fm_controller.dart';
 import '../fm/fm_radio_card.dart';
@@ -101,6 +103,32 @@ class FmEntryPill extends ConsumerWidget {
 /// 面板内容就是原来 FM 页的那一套视觉：渐变底 + 电台卡（档位胶囊 / 台名 /
 /// 频谱 / 播放键）+ 黑胶台 + 信息行 + 三个圆钮，歌池轴回到右上角胶囊。
 Future<void> showFmSheet(BuildContext context) {
+  final isDesktop = isDesktopPlatform && isDesktopView(context);
+  if (isDesktop) {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '关闭私人 FM 面板',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (_, _, _) => const _FmSheet(isDesktop: true),
+      transitionBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+      },
+    );
+  }
+
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: true,
@@ -129,7 +157,9 @@ Future<void> showFmSheet(BuildContext context) {
 }
 
 class _FmSheet extends ConsumerStatefulWidget {
-  const _FmSheet();
+  const _FmSheet({this.isDesktop = false});
+
+  final bool isDesktop;
 
   @override
   ConsumerState<_FmSheet> createState() => _FmSheetState();
@@ -175,6 +205,144 @@ class _FmSheetState extends ConsumerState<_FmSheet>
       kugo.palette,
     );
 
+    final slivers = [
+      if (!widget.isDesktop) SliverToBoxAdapter(child: _grabber(kugo)),
+      if (widget.isDesktop) const SliverToBoxAdapter(child: SizedBox(height: 16)),
+      SliverToBoxAdapter(child: _header(context, kugo, fm, fmCtl)),
+      if (fm.hasPendingChange)
+        SliverToBoxAdapter(child: _pendingBar(kugo, fm, fmCtl)),
+      SliverToBoxAdapter(
+        child: FmRadioCard(
+          kugo: kugo,
+          accent: accent,
+          mode: fm.pendingMode,
+          pool: fm.pendingPool,
+          onMode: fmCtl.setPendingMode,
+          onPlay: playerCtl.togglePlay,
+          isPlaying: player.isPlaying,
+          bars: _bars,
+          trackName: current?.name ?? '',
+          artist: current?.artist ?? '',
+          loading: fm.loading,
+        ),
+      ),
+      const SliverToBoxAdapter(
+        child: SizedBox(height: KugoSpacing.lg),
+      ),
+      SliverToBoxAdapter(
+        child: FmVinylStage(
+          kugo: kugo,
+          accent: accent,
+          spin: _spin,
+          coverUrl: current?.coverUrl ?? 'fm',
+          playing: player.isPlaying,
+          upcoming: _sideDiscs(player),
+          onPick: (t) {
+            final i = player.queue.indexWhere((e) => e.id == t.id);
+            if (i >= 0) playerCtl.playAtIndex(i);
+          },
+          onTapCurrent: playerCtl.togglePlay,
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: _nowPlaying(kugo, current),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KugoSpacing.lg,
+          ),
+          child: FmSourceBadge(
+            kugo: kugo,
+            fromServer: fm.fromServer,
+            gatewayError: fm.gatewayError,
+            pool: fm.pool,
+            mode: fm.mode,
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(
+        child: SizedBox(height: KugoSpacing.lg),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KugoSpacing.lg,
+          ),
+          child: FmActionRow(
+            kugo: kugo,
+            accent: accent,
+            isPlaying: player.isPlaying,
+            onDislike: fmCtl.dislike,
+            onToggle: playerCtl.togglePlay,
+            onLike: () async {
+              await fmCtl.like();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('已加入我喜欢'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(
+        child: SizedBox(height: KugoSpacing.md),
+      ),
+      SliverToBoxAdapter(child: _upcomingHeader(kugo, fm, player)),
+      _upcomingList(kugo, player, playerCtl),
+      const SliverToBoxAdapter(
+        child: SizedBox(height: KugoSpacing.xxl),
+      ),
+    ];
+
+    if (widget.isDesktop) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Material(
+          color: Colors.transparent,
+          elevation: 16,
+          shape: Border(left: BorderSide(color: kugo.divider, width: 1)),
+          child: SizedBox(
+            width: 440,
+            height: double.infinity,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: CoverPalette.playerBackground(
+                  current?.coverUrl ?? 'fm',
+                  kugo.palette,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: SafeArea(
+                      child: CustomScrollView(
+                        slivers: slivers,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: Colors.white70),
+                      tooltip: '关闭',
+                      splashRadius: 18,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: DraggableScrollableSheet(
@@ -200,98 +368,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
               ),
               child: CustomScrollView(
                 controller: scrollController,
-                slivers: [
-                  SliverToBoxAdapter(child: _grabber(kugo)),
-                  SliverToBoxAdapter(child: _header(context, kugo, fm, fmCtl)),
-                  if (fm.hasPendingChange)
-                    SliverToBoxAdapter(child: _pendingBar(kugo, fm, fmCtl)),
-                  SliverToBoxAdapter(
-                    child: FmRadioCard(
-                      kugo: kugo,
-                      accent: accent,
-                      mode: fm.pendingMode,
-                      pool: fm.pendingPool,
-                      onMode: fmCtl.setPendingMode,
-                      onPlay: playerCtl.togglePlay,
-                      isPlaying: player.isPlaying,
-                      bars: _bars,
-                      trackName: current?.name ?? '',
-                      artist: current?.artist ?? '',
-                      loading: fm.loading,
-                    ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: KugoSpacing.lg),
-                  ),
-                  SliverToBoxAdapter(
-                    child: FmVinylStage(
-                      kugo: kugo,
-                      accent: accent,
-                      spin: _spin,
-                      coverUrl: current?.coverUrl ?? 'fm',
-                      playing: player.isPlaying,
-                      upcoming: _sideDiscs(player),
-                      onPick: (t) {
-                        final i = player.queue.indexWhere((e) => e.id == t.id);
-                        if (i >= 0) playerCtl.playAtIndex(i);
-                      },
-                      onTapCurrent: playerCtl.togglePlay,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _nowPlaying(kugo, current),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KugoSpacing.lg,
-                      ),
-                      child: FmSourceBadge(
-                        kugo: kugo,
-                        fromServer: fm.fromServer,
-                        gatewayError: fm.gatewayError,
-                        pool: fm.pool,
-                        mode: fm.mode,
-                      ),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: KugoSpacing.lg),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: KugoSpacing.lg,
-                      ),
-                      child: FmActionRow(
-                        kugo: kugo,
-                        accent: accent,
-                        isPlaying: player.isPlaying,
-                        onDislike: fmCtl.dislike,
-                        onToggle: playerCtl.togglePlay,
-                        onLike: () async {
-                          await fmCtl.like();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('已加入我喜欢'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: KugoSpacing.md),
-                  ),
-                  SliverToBoxAdapter(child: _upcomingHeader(kugo, fm, player)),
-                  _upcomingList(kugo, player, playerCtl),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: KugoSpacing.xxl),
-                  ),
-                ],
+                slivers: slivers,
               ),
             ),
           );

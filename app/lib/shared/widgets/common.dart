@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
+import '../../core/platform.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import 'cover_box.dart';
 
 /// Builds an `onArtistTap` callback for a track row.
@@ -526,11 +528,92 @@ class KugoSheetChrome extends StatelessWidget {
   }
 }
 
+/// Themed desktop side sheet chrome — docked to the right edge with desktop elevation,
+/// border-left divider, and comfortable width (~400px).
+class KugoDesktopSideSheetChrome extends StatelessWidget {
+  const KugoDesktopSideSheetChrome({
+    super.key,
+    required this.child,
+    this.width = 400,
+  });
+
+  final Widget child;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Material(
+        color: kugo.surfaceElevated,
+        elevation: 16,
+        shadowColor: Colors.black.withValues(alpha: 0.4),
+        shape: Border(
+          left: BorderSide(color: kugo.divider, width: 1),
+        ),
+        child: SizedBox(
+          width: width,
+          height: double.infinity,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: SafeArea(
+                  child: child,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  tooltip: '关闭',
+                  splashRadius: 18,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Future<T?> showKugoBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool isScrollControlled = false,
 }) {
+  if (isDesktopPlatform && isDesktopView(context)) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '关闭',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (dialogContext, _, _) {
+        return KugoDesktopSideSheetChrome(
+          child: builder(dialogContext),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        );
+      },
+    );
+  }
+
   return showModalBottomSheet<T>(
     context: context,
     backgroundColor: Colors.transparent,

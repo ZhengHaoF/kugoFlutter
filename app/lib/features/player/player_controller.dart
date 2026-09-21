@@ -663,6 +663,12 @@ class PlayerController extends Notifier<PlayerState> {
     _publishMediaPosition(clamped, force: true);
   }
 
+  void setVolume(double volume) {
+    final clamped = volume.clamp(0.0, 1.0);
+    state = state.copyWith(volume: clamped);
+    unawaited(_engine.setVolume(clamped));
+  }
+
   void cycleMode() {
     const order = PlayerLoopMode.values;
     final nextIndex = (order.indexOf(state.mode) + 1) % order.length;

@@ -459,6 +459,7 @@ class _FeatureCard extends StatelessWidget {
           fontSize: badge.length > 2 ? 12 : 16,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.4,
+          decoration: TextDecoration.none,
         ),
       ),
     );
@@ -466,6 +467,9 @@ class _FeatureCard extends StatelessWidget {
     final badgeWidget = (heroTag != null && heroTag!.isNotEmpty)
         ? Hero(
             tag: heroTag!,
+            flightShuttleBuilder: heroTag == KugoHeroTags.dailyRecommendBadge
+                ? KugoHeroTags.dailyRecommendBadgeFlightShuttle
+                : null,
             child: Material(
               type: MaterialType.transparency,
               child: badgeContainer,

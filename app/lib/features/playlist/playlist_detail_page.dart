@@ -12,6 +12,7 @@ import '../../features/profile/user_collections_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../core/theme/hero_tags.dart';
+import '../../core/theme/responsive.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankDetailHeaderSurface, rankHeroFlightShuttle;
 
@@ -224,10 +225,11 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
     final tracks = _tracks;
 
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
+      body: DesktopContentConstraint(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
         slivers: [
           SliverAppBar(
             expandedHeight: 240,
@@ -324,6 +326,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
+      ),
       ),
     );
   }
