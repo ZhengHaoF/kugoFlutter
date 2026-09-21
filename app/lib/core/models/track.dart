@@ -183,6 +183,12 @@ class LyricLine {
   final String text;
 }
 
+/// 歌词加载状态：与是否正在播放解耦。
+///
+/// 切歌 / 冷启动恢复后应立刻进入 loading；UI 据此区分
+/// 「歌词加载中…」与「暂无歌词」。
+enum LyricsStatus { idle, loading, ready, empty }
+
 class ResolvedAudio {
   const ResolvedAudio({
     required this.url,

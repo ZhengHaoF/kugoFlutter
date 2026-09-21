@@ -161,8 +161,9 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _restore() async {
     try {
       _prefs = await SharedPreferences.getInstance();
-      // Align device mid/guid/dfid BEFORE attaching token so play-sign key matches.
-      await DeviceIdentity.ensure();
+      // 先从本地恢复登录态，再补设备身份。
+      // DeviceIdentity.ensure() 可能走 /risk/v2/r_register_dev，
+      // 网络慢/失败时不能把 token 恢复一起堵死（FM 等功能会误判成未登录）。
       final raw = _prefs?.getString(_kUser);
       if (raw != null && raw.isNotEmpty) {
         final map = <String, dynamic>{};
@@ -184,12 +185,19 @@ class AuthController extends Notifier<AuthState> {
             user: user,
             restored: true,
           );
+          // 设备 mid/guid/dfid 后台补齐；失败不影响已恢复的登录态。
+          unawaited(() async {
+            try {
+              await DeviceIdentity.ensure();
+            } catch (_) {}
+          }());
           return;
         }
       }
       await _prefs?.setBool(_kGuest, true);
       AuthTokenHolder.instance.clear();
       state = const AuthState(status: LoginStatus.guest, restored: true);
+      unawaited(DeviceIdentity.ensure());
     } catch (_) {
       state = const AuthState(status: LoginStatus.guest, restored: true);
     }

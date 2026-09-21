@@ -66,8 +66,8 @@ class QuickEntries extends ConsumerWidget {
           onTap: () => _handlePlay(ref),
           onModeChanged: (mode) => _handleModeChanged(mode, ref),
         ),
-        // FM 阴影下探，光学间距略加大；下方区块间距交给 SectionHeader。
-        const SizedBox(height: KugoSpacing.lg),
+        // 浅色阴影已收敛，无需为深色溢出额外撑开；下方区块间距交给 SectionHeader。
+        const SizedBox(height: KugoSpacing.md),
         RecommendHubEntryCard(
           onTap: () => context.push('/recommend'),
         ),
@@ -159,18 +159,34 @@ class FmHeroCard extends ConsumerWidget {
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.10),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF050C14).withValues(alpha: 0.32),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFF081826).withValues(alpha: 0.18),
-                    blurRadius: 36,
-                    offset: const Offset(0, 18),
-                  ),
-                ],
+                // 浅色主题下深 navy 重阴影会变成脏灰块；按主题分流。
+                boxShadow: kugo.isLight
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
+                      ]
+                    : [
+                        BoxShadow(
+                          color:
+                              const Color(0xFF050C14).withValues(alpha: 0.32),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                        BoxShadow(
+                          color:
+                              const Color(0xFF081826).withValues(alpha: 0.18),
+                          blurRadius: 36,
+                          offset: const Offset(0, 18),
+                        ),
+                      ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(22),
@@ -358,6 +374,7 @@ class FmVinyl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = KugoTheme.of(context).isLight;
     final labelSize = size * 0.52;
     return SizedBox(
       key: const ValueKey('fm_vinyl'),
@@ -375,9 +392,9 @@ class FmVinyl extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  blurRadius: 22,
-                  offset: const Offset(4, 8),
+                  color: Colors.black.withValues(alpha: isLight ? 0.14 : 0.45),
+                  blurRadius: isLight ? 14 : 22,
+                  offset: Offset(isLight ? 2 : 4, isLight ? 4 : 8),
                 ),
               ],
               border: Border.all(

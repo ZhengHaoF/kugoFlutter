@@ -1,9 +1,26 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform.dart';
 import 'kugo_tokens.dart';
+
+/// UI font family for the current platform.
+///
+/// Windows ships 微软雅黑; other platforms keep Flutter/Material defaults so
+/// Android is not forced into a missing family name.
+String? get kugoFontFamily {
+  if (kIsWeb) return null;
+  if (Platform.isWindows) return 'Microsoft YaHei';
+  return null;
+}
+
+/// Latin-first fallbacks when a glyph is missing from [kugoFontFamily].
+List<String>? get kugoFontFamilyFallback =>
+    kugoFontFamily == null ? null : const ['Segoe UI', 'Microsoft YaHei UI'];
 
 /// ThemeExtension — idiomatic `KugoTheme.of(context)` access.
 ///
@@ -36,32 +53,44 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
   Color get onCoverMuted => Colors.white70;
 
   TextStyle get greeting => TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 28,
         fontWeight: FontWeight.w700,
         color: textPrimary,
         height: 1.2,
       );
   TextStyle get title => TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 22,
         fontWeight: FontWeight.w700,
         color: textPrimary,
       );
   TextStyle get section => TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: textPrimary,
       );
   TextStyle get body => TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 15,
         fontWeight: FontWeight.w500,
         color: textPrimary,
       );
   TextStyle get caption => TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: textSecondary,
       );
   TextStyle get playerTitle => TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: textPrimary,
@@ -121,6 +150,8 @@ ThemeData buildKugoTheme(Brightness brightness) {
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
+    fontFamily: kugoFontFamily,
+    fontFamilyFallback: kugoFontFamilyFallback,
     scaffoldBackgroundColor: p.bg,
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
@@ -165,6 +196,8 @@ ThemeData buildKugoTheme(Brightness brightness) {
       systemOverlayStyle:
           isLight ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
       titleTextStyle: TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: p.textPrimary,
@@ -198,7 +231,12 @@ ThemeData buildKugoTheme(Brightness brightness) {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: isLight ? const Color(0xFF23262E) : p.surfaceElevated,
-      contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+      contentTextStyle: TextStyle(
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
+        color: Colors.white,
+        fontSize: 14,
+      ),
       actionTextColor: p.primary,
       behavior: SnackBarBehavior.floating,
     ),

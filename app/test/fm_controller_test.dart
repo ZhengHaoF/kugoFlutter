@@ -104,8 +104,19 @@ Future<_Rig> _rig({
   List<int> durations = const [],
   List<Track> fmServerTracks = const [],
   String fmServerError = '',
+  bool loggedIn = false,
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  // start() 会 await AuthController.ensureReady()：prefs 里没有会话时会清掉
+  // AuthTokenHolder，网关路径就永远进不去。登录用例必须先写好本地会话。
+  SharedPreferences.setMockInitialValues({
+    // 已注册设备身份：避免 restore/start 去打风控注册接口。
+    'kugo_device_dfid_registered': true,
+    'kugo_device_dfid': 'test-dfid',
+    'kugo_device_guid': 'test-guid',
+    if (loggedIn)
+      'auth.user.v1':
+          'userId=1001&token=valid_token&nickname=t&avatarUrl=&isVip=false&isLocalDemo=false&t1=',
+  });
   final engine = FakeAudioPlayer();
   final repo = _FakeSearchRepo(perKeyword: perKeyword, durations: durations);
   final fmRepo = _FakeFmRepo(tracks: fmServerTracks, error: fmServerError);
@@ -345,7 +356,7 @@ void main() {
           durationMs: 180000,
         ),
       );
-      final r = await _rig(fmServerTracks: serverTracks);
+      final r = await _rig(fmServerTracks: serverTracks, loggedIn: true);
       addTearDown(r.container.dispose);
 
       await r.container.read(fmControllerProvider.notifier).start();
@@ -361,7 +372,7 @@ void main() {
 
     test('when logged in but server returns error, automatically falls back to keyword pool', () async {
       AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
-      final r = await _rig(fmServerError: '网关繁忙');
+      final r = await _rig(fmServerError: '网关繁忙', loggedIn: true);
       addTearDown(r.container.dispose);
 
       await r.container.read(fmControllerProvider.notifier).start();

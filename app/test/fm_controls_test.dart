@@ -54,7 +54,11 @@ typedef _Rig = ({ProviderContainer container, _FakeSearch search});
 /// `testWidgets` 的 FakeAsync 时钟不会自己推进，直接在测试体里 await
 /// 真实异步（SharedPreferences / 播放器持久化）会永远挂住。
 Future<_Rig> _rig() async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues({
+    'kugo_device_dfid_registered': true,
+    'kugo_device_dfid': 'test-dfid',
+    'kugo_device_guid': 'test-guid',
+  });
   final search = _FakeSearch();
   final container = ProviderContainer(
     overrides: [

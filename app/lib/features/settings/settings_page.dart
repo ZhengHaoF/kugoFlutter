@@ -33,6 +33,35 @@ class SettingsPage extends ConsumerWidget {
           ),
         children: [
           _Section(
+            title: '外观',
+            children: [
+              _ThemeModeTile(
+                mode: AppThemeMode.dark,
+                icon: Icons.dark_mode_rounded,
+                title: '深色',
+                subtitle: '概念版默认深色',
+                selected: settings.themeMode == AppThemeMode.dark,
+                onTap: () => controller.setThemeMode(AppThemeMode.dark),
+              ),
+              _ThemeModeTile(
+                mode: AppThemeMode.light,
+                icon: Icons.light_mode_rounded,
+                title: '浅色',
+                subtitle: '浅色完整适配',
+                selected: settings.themeMode == AppThemeMode.light,
+                onTap: () => controller.setThemeMode(AppThemeMode.light),
+              ),
+              _ThemeModeTile(
+                mode: AppThemeMode.system,
+                icon: Icons.brightness_auto_rounded,
+                title: '跟随系统',
+                subtitle: '随系统深浅色切换',
+                selected: settings.themeMode == AppThemeMode.system,
+                onTap: () => controller.setThemeMode(AppThemeMode.system),
+              ),
+            ],
+          ),
+          _Section(
             title: '播放',
             children: [
               ListTile(
@@ -191,6 +220,42 @@ class _Section extends StatelessWidget {
           child: Column(children: children),
         ),
       ],
+    );
+  }
+}
+
+/// Theme row shared with profile's 「主题外观」 sheet — same modes, same copy.
+class _ThemeModeTile extends StatelessWidget {
+  const _ThemeModeTile({
+    required this.mode,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AppThemeMode mode;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: selected ? kugo.primary : kugo.textSecondary,
+      ),
+      title: Text(title, style: kugo.body),
+      subtitle: Text(subtitle, style: kugo.caption),
+      trailing: selected
+          ? Icon(Icons.check_rounded, color: kugo.primary)
+          : null,
+      onTap: onTap,
     );
   }
 }

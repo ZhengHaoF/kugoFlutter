@@ -30,7 +30,8 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
 
   static String _formatDuration(int ms) {
     if (ms <= 0) return '00:00';
-    final d = Duration(milliseconds: ms);
+    final safe = ms < 0 ? 0 : ms;
+    final d = Duration(milliseconds: safe);
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
@@ -46,7 +47,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
     final duration = player.durationMs <= 0 ? 1 : player.durationMs;
     final currentPos = _isDraggingProgress
         ? (_dragProgress * duration).round()
-        : player.positionMs;
+        : player.positionMs.clamp(0, duration);
     final progress = (currentPos / duration).clamp(0.0, 1.0);
 
     final isLiked =
@@ -313,7 +314,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          _formatDuration(duration),
+                          '-${_formatDuration((duration - currentPos).clamp(0, duration))}',
                           style: kugo.caption.copyWith(fontSize: 11),
                         ),
                       ],

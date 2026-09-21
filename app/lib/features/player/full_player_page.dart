@@ -22,7 +22,8 @@ class FullPlayerPage extends ConsumerWidget {
   const FullPlayerPage({super.key});
 
   static String format(int ms) {
-    final d = Duration(milliseconds: ms);
+    final safe = ms < 0 ? 0 : ms;
+    final d = Duration(milliseconds: safe);
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
@@ -63,6 +64,8 @@ class FullPlayerPage extends ConsumerWidget {
         ),
       );
     }
+    // 冷启动恢复 / 未起播时也可能停在本页：歌词与播放解耦，打开即 ensure。
+    controller.ensureLyricsForCurrent(retryIfEmpty: true);
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
     final progress = (player.positionMs / duration).clamp(0.0, 1.0);
@@ -115,8 +118,9 @@ class FullPlayerPage extends ConsumerWidget {
 
                         const Spacer(),
 
-                        // 大封面
-                        CoverBox(
+                        // 大封面（Hero 落地点：从桌面底栏封面飞入）
+                        CoverHero(
+                          tag: 'player-cover-${track.id}',
                           seed: track.coverUrl,
                           size: 260,
                           radius: 16,
@@ -228,6 +232,7 @@ class FullPlayerPage extends ConsumerWidget {
                           child: LyricsView(
                             lines: player.lyrics,
                             positionMs: player.positionMs,
+                            status: player.lyricsStatus,
                             onTapLine: (ms) => controller.seekTo(ms),
                           ),
                         ),
@@ -402,6 +407,7 @@ class PlayerLyricsPage extends ConsumerWidget {
         ),
       );
     }
+    controller.ensureLyricsForCurrent(retryIfEmpty: true);
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
     final progress = (player.positionMs / duration).clamp(0.0, 1.0);
@@ -500,6 +506,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                   child: LyricsView(
                     lines: player.lyrics,
                     positionMs: player.positionMs,
+                    status: player.lyricsStatus,
                     onTapLine: (ms) => controller.seekTo(ms),
                   ),
                 ),
@@ -545,7 +552,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                                     .copyWith(height: 1.2),
                               ),
                               Text(
-                                '-${FullPlayerPage.format(duration - player.positionMs)}',
+                                '-${FullPlayerPage.format((duration - player.positionMs).clamp(0, duration))}',
                                 style: kugo.caption
                                     .copyWith(height: 1.2),
                               ),
@@ -719,7 +726,8 @@ class _CollapsedPlayerBody extends StatelessWidget {
   final bool useHero;
 
   static String format(int ms) {
-    final d = Duration(milliseconds: ms);
+    final safe = ms < 0 ? 0 : ms;
+    final d = Duration(milliseconds: safe);
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
@@ -766,6 +774,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                 compact: true,
                 lines: player.lyrics,
                 positionMs: player.positionMs,
+                status: player.lyricsStatus,
               ),
             ),
           );
@@ -977,7 +986,7 @@ class _TrackMetaRow extends StatelessWidget {
   }
 }
 
-/// 播放页可点音质徽章：显示实际解析音质，点击打开切换 sheet。
+/// 播放页音质区域：VIP 与实际音质并排展示；音质 chip 可点切换。
 class _PlayerQualityChip extends ConsumerWidget {
   const _PlayerQualityChip({required this.track});
 
@@ -989,30 +998,39 @@ class _PlayerQualityChip extends ConsumerWidget {
     final player = ref.watch(playerControllerProvider);
     final preferred = ref.watch(settingsControllerProvider).quality;
     final resolved = player.resolvedQuality;
-    final display =
-        track.isVip ? 'VIP' : (resolved ?? preferred).badge;
+    final quality = resolved ?? preferred;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: () => showQualitySheet(context, ref),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            QualityBadge(
-              label: display,
-              gradient: track.isVip,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (track.isVip) ...[
+          const QualityBadge(label: 'VIP', gradient: true),
+          const SizedBox(width: 4),
+        ],
+        InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: () => showQualitySheet(context, ref),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                QualityBadge(
+                  label: quality.badge,
+                  gradient: quality == AppQuality.sq ||
+                      quality == AppQuality.hiRes,
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.unfold_more_rounded,
+                  size: 12,
+                  color: kugo.textSecondary,
+                ),
+              ],
             ),
-            const SizedBox(width: 2),
-            Icon(
-              Icons.unfold_more_rounded,
-              size: 12,
-              color: kugo.textSecondary,
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

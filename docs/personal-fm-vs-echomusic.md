@@ -8,6 +8,89 @@
 
 ---
 
+## 零·六、真接口复测：登录后 `/v2/personal_recommend` 已可用（2026-09-22）
+
+**现场探测**（本机、登录 token=`…535a9`、userid=`2511133520`）：
+
+| 请求 | 结果 |
+| --- | --- |
+| 对照 `everyday_song_recommend` | HTTP 200，`data.song_list` 30 首 |
+| `POST /v2/personal_recommend` + `x-router: persnfm.service.kugou.com` + token | **HTTP 200，`data.song_list` 5 首**，`rec_desc=根据你的听歌口味推荐` |
+| 同上、无 token（游客） | HTTP 200，随机/热歌推荐 |
+
+→ **旧文档「本网络不可达」已过时。登录后真实私人 FM 链路是通的。**
+
+界面仍显示「来源：关键词检索」的原因（客户端，不是网关）：
+
+1. `FmController.start()` 未等 `AuthController.ensureReady()` 就取歌 →
+   token 尚未恢复时 `hasToken=false`，直接落关键词池，并把 `fromServer=false` 持久化。
+2. `AuthController._restore()` 先 `await DeviceIdentity.ensure()`（可能打风控注册），
+   网络慢时登录态恢复被一起堵住。
+3. 空闲页来源标注误用会话默认的 `fromServer=false`，把播放器里非 FM 的歌也标成关键词检索。
+4. 解析侧：`singerinfo[]` 歌手字段、`time_length` 秒/毫秒混用。
+
+**已修**：start 前 await 登录恢复；restore 先 token 后设备身份；来源标注仅在
+FM 队列时展示；`kguid=userid`（对齐 KuGouMusicApi）；mapper 兼容 singerinfo 与
+秒级 time_length；新增 `fm_repository_parse_test.dart`（真实响应样本）。
+
+探测脚本：`app/tool/probe_personal_fm.py`。
+
+---
+
+## 零·五、舞台重做：封面圆盘吃满内容列（2026-09-21）
+
+**动机**：§零·四 结构已对齐 EchoMusic radio-hero，但观感仍「面板重、舞台轻」——
+盘是 62% 小标签黑胶、侧盘常缺、舞台在 1100 列里左对齐后右侧大片空灰。
+
+**改法（只动表现层几何与盘面，不碰 Controller）**：
+
+1. **尺度**：卡 `272` / 盘 `200` / 压边 `100` / 隙 `32`；内容列 `maxWidth 1180`。
+   盘行 Stack 布局宽 = `content − card + overlap`（当前盘有一截压在卡下）。
+2. **盘面**：封面几乎铺满（外圈仅 ~4.5% 黑胶沿 + 细密纹），当前盘主色光晕；
+   侧盘 hover 轻抬。对齐 EchoMusic「专辑物件」而不是「黑胶零件」。
+3. **层级**：桌面舞台改 `Stack`——盘在下层、电台卡在上层（EchoMusic
+   `radio-card z-index:2` / `radio-current-disc z-index:1`），当前盘从卡后探出，
+   不再盖住卡内按钮。
+4. **侧盘封面**：预告队列直接读 `player.queue`（与「接下来」同源），不再因
+   `!fmActive` 清成 ghost；ghost 只在真没有后续曲时补位。
+5. **ghost 补位** + 卡内 footer 收窄，同前。
+
+**验证**：`flutter analyze` 干净；`fm_page` / `fm_controls` / `fm_controller`
+共 23 例测试全过。
+
+---
+
+## 零·四、桌面 /fm 页面视觉改版：对齐 EchoMusic radio-hero 版式（2026-09-21）
+
+**动机**：桌面端 `/fm` 页重新启用后，旧版式是「左 5 : 右 4 两栏 + 上下堆叠居中
+的黑胶台 + 整页封面渐变」，实测三个观感问题：整页渐变与卡面渐变叠在一起发糊；
+黑胶与电台卡断了关联、中部大片留空；右栏被 12 条密集 ListTile 占成列表页。
+
+**改法**（纯表现层，不碰 `FmController` / `PlayerController`）：
+
+1. **三段式版式**对齐 `EchoMusic/src/renderer/views/PersonalFm.vue`：
+   抬头（返回 + 标题 + LIVE + 右上角歌池胶囊）→ 舞台 → 「当前播放」面板 →
+   「接下来」面板。底色回到纯 `bg`，颜色只由电台卡、黑胶和主色按钮提供。
+2. **舞台是一行**：`FmStageMetrics`（电台卡 280 方卡 / 盘 176 / 压卡 88 / 间隙 24）
+   把当前盘压在电台卡右缘上，右侧跟最多 3 张侧立盘；侧盘数量按宽度算
+   （`FmStageMetrics.visibleSideCount`，EchoMusic ResizeObserver 的数学版）。
+3. **电台卡改深底方卡**（`#0B1620` 混主题主色 + 左上径向高光），两档主题一致 ——
+   浅色主题下旧版的浅紫渐变让白字完全糊掉。卡内 footer 收编
+   「频谱 + 不喜欢 + 播放 + 红心」，页面右栏不再另放一排大圆钮。
+4. **「当前播放」面板**：180 圆角封面 + 歌名 26/w700 + 歌手 15/w600 + 专辑 +
+   推荐理由（`recDesc`，主色）+ chips（时长/音质/语种/相似度）+ 来源标注；
+   未起播时面板抬头给「开始电台」CTA（`fm_start_cta`）+ 占位。
+5. **「接下来」降权保留**：进面板、限 8 条，44px 圆角方封面 + 序号 + 时长；
+   未起播不渲染该面板。歌池轴移到抬头右上角，active 态改主色实心。
+6. `FmActionRow` 退场（按钮收进卡内），播放页 FM 面板（`fm_controls.dart`）
+   同步适配：卡改方卡、删圆钮行、黑胶行按面板宽度算侧盘数。
+
+**验证**：`flutter analyze` 干净；`flutter test` 167 项全过（含
+`fm_page_test.dart` 的 CTA 断言与 `fm_controls_test.dart` 的面板断言）；
+另用临时 golden 出图核对 idle / active / 深色 / 窄屏 / 播放页面板五种形态后删除。
+
+---
+
 ## 零·三、架构重构：`/fm` 页面撤掉，FM 变成一个「会话」（2026-09-20 晚）
 
 **动机**：原设计里 FM 是独立页面（`/fm`），页面自己持有歌池、轴、播放状态。

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugo_client.dart'
@@ -281,13 +282,14 @@ class FmRepository {
     }
     if (songid.isNotEmpty) body['songid'] = songid;
     if (action == 'play' && playtime > 0) body['playtime'] = playtime;
-    // 登录态字段。
+    // 登录态字段（对齐 KuGouMusicApi personal_fm.js）：
+    // kguid 必须等于 userid，不是设备 guid。
     if (useToken) {
       body['token'] = auth.token;
-      if (userIdNum != 0) body['userid'] = userIdNum;
-      // kguid / vip_type：本地无持久化来源，用设备 guid 兜底、vip_type 记 0。
-      // 若后续在 AuthTokenHolder 存档，可换成真实值。
-      body['kguid'] = device.guid;
+      if (userIdNum != 0) {
+        body['userid'] = userIdNum;
+        body['kguid'] = userIdNum;
+      }
       body['vip_type'] = 0;
     }
 
@@ -405,6 +407,27 @@ class FmRepository {
     final data = body['data'];
     if (data is List) return data;
     return extractEverydayList(body);
+  }
+
+  /// 测试用：直接把已解码的网关 JSON 解析成 [FmPage]，不发网络请求。
+  @visibleForTesting
+  FmPage debugParseForTest(
+    Map<String, dynamic> body, {
+    FmMode mode = FmMode.heart,
+    FmSongPool pool = FmSongPool.taste,
+  }) {
+    final body0 = Map<String, dynamic>.from(body);
+    final list = _extractList(body0);
+    if (list.isEmpty) {
+      return FmPage(error: 'empty', mode: mode, pool: pool);
+    }
+    final tracks = _mapTracks(list, limit: 30, mode: mode);
+    return FmPage(
+      tracks: tracks,
+      fromServer: tracks.isNotEmpty,
+      mode: mode,
+      pool: pool,
+    );
   }
 
   List<Track> _mapTracks(List<dynamic> list, {required int limit, required FmMode mode}) {

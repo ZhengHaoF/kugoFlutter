@@ -212,36 +212,81 @@ class _FmSheetState extends ConsumerState<_FmSheet>
       if (fm.hasPendingChange)
         SliverToBoxAdapter(child: _pendingBar(kugo, fm, fmCtl)),
       SliverToBoxAdapter(
-        child: FmRadioCard(
-          kugo: kugo,
-          accent: accent,
-          mode: fm.pendingMode,
-          pool: fm.pendingPool,
-          onMode: fmCtl.setPendingMode,
-          onPlay: playerCtl.togglePlay,
-          isPlaying: player.isPlaying,
-          bars: _bars,
-          trackName: current?.name ?? '',
-          artist: current?.artist ?? '',
-          loading: fm.loading,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          // 电台卡现在是 1:1 深底方卡，不喜欢/播放/红心都在卡内 footer，
+          // 面板里不再另放一排圆钮（FmActionRow 已退场）。
+          child: FmRadioCard(
+            kugo: kugo,
+            accent: accent,
+            mode: fm.pendingMode,
+            pool: fm.pendingPool,
+            onMode: fmCtl.setPendingMode,
+            onPlay: playerCtl.togglePlay,
+            onDislike: fmCtl.dislike,
+            onLike: () async {
+              await fmCtl.like();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('已加入我喜欢'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
+            },
+            isPlaying: player.isPlaying,
+            bars: _bars,
+            trackName: current?.name ?? '',
+            artist: current?.artist ?? '',
+            loading: fm.loading,
+            actionsEnabled: current != null,
+          ),
         ),
       ),
       const SliverToBoxAdapter(
         child: SizedBox(height: KugoSpacing.lg),
       ),
+      // 封面圆盘一行排开：侧位按面板宽算，不足时 ghost 补满，不再半截空台。
       SliverToBoxAdapter(
-        child: FmVinylStage(
-          kugo: kugo,
-          accent: accent,
-          spin: _spin,
-          coverUrl: current?.coverUrl ?? 'fm',
-          playing: player.isPlaying,
-          upcoming: _sideDiscs(player),
-          onPick: (t) {
-            final i = player.queue.indexWhere((e) => e.id == t.id);
-            if (i >= 0) playerCtl.playAtIndex(i);
-          },
-          onTapCurrent: playerCtl.togglePlay,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 面板窄，盘也收一档；与 FM 页同一套封面铺满画法。
+              // 行宽 = disc + n*(gap+disc)，按实际布局宽选 n。
+              const discSize = 132.0;
+              const gap = 16.0;
+              var used = discSize;
+              var count = 0;
+              for (var i = 0; i < 3; i++) {
+                final next = used + gap + discSize;
+                if (next <= constraints.maxWidth) {
+                  used = next;
+                  count++;
+                } else {
+                  break;
+                }
+              }
+              return FmVinylStage(
+                kugo: kugo,
+                accent: accent,
+                spin: _spin,
+                coverUrl: current?.coverUrl ?? 'fm',
+                playing: player.isPlaying,
+                upcoming: _sideDiscs(player),
+                onPick: (t) {
+                  final i = player.queue.indexWhere((e) => e.id == t.id);
+                  if (i >= 0) playerCtl.playAtIndex(i);
+                },
+                onTapCurrent: playerCtl.togglePlay,
+                sideCount: count,
+                discSize: discSize,
+                sideGap: gap,
+                showGhosts: true,
+              );
+            },
+          ),
         ),
       ),
       SliverToBoxAdapter(
@@ -258,34 +303,6 @@ class _FmSheetState extends ConsumerState<_FmSheet>
             gatewayError: fm.gatewayError,
             pool: fm.pool,
             mode: fm.mode,
-          ),
-        ),
-      ),
-      const SliverToBoxAdapter(
-        child: SizedBox(height: KugoSpacing.lg),
-      ),
-      SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KugoSpacing.lg,
-          ),
-          child: FmActionRow(
-            kugo: kugo,
-            accent: accent,
-            isPlaying: player.isPlaying,
-            onDislike: fmCtl.dislike,
-            onToggle: playerCtl.togglePlay,
-            onLike: () async {
-              await fmCtl.like();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('已加入我喜欢'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              }
-            },
           ),
         ),
       ),

@@ -10,6 +10,7 @@ import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
 import '../../data/repositories/fm_repository.dart';
 import '../../data/repositories/search_repository.dart';
+import '../auth/auth_controller.dart';
 import '../auth/auth_token_holder.dart';
 import '../likes/likes_controller.dart';
 import '../player/player_controller.dart';
@@ -254,10 +255,20 @@ class FmController extends Notifier<FmSession> {
       disliked: {...state.disliked},
       loading: true,
     );
+    // 本地登录态是异步恢复的；不等 token 就取歌会永远落到关键词池，
+    // 并把 fromServer=false 持久化下去，看起来像「接口打不通」。
+    try {
+      await ref.read(authControllerProvider.notifier).ensureReady();
+    } catch (_) {}
     final tracks = await _seed();
     if (!state.active) return;
     if (tracks.isEmpty) {
-      state = state.copyWith(loading: false, error: 'FM 歌池加载失败，请检查网络');
+      state = state.copyWith(
+        loading: false,
+        error: state.gatewayError.isNotEmpty
+            ? state.gatewayError
+            : 'FM 歌池加载失败，请检查网络',
+      );
       return;
     }
     state = state.copyWith(loading: false);

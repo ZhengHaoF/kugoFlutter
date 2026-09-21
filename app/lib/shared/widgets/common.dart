@@ -243,7 +243,8 @@ class TrackTile extends StatelessWidget {
                       if (track.isVip) ...[
                         const SizedBox(width: 6),
                         const QualityBadge(label: 'VIP', gradient: true),
-                      ] else if (_listQualityBadge(track) != null) ...[
+                      ],
+                      if (_listQualityBadge(track) != null) ...[
                         const SizedBox(width: 6),
                         QualityBadge(label: _listQualityBadge(track)!),
                       ],

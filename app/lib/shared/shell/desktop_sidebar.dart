@@ -1,11 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/playback_source.dart';
 import '../../core/theme/kugo_theme.dart';
-import '../../features/fm/fm_controller.dart';
 import '../../features/player/player_controller.dart';
 
 class DesktopSidebar extends ConsumerWidget {
@@ -111,8 +109,8 @@ class DesktopSidebar extends ConsumerWidget {
                 _SidebarItem(
                   icon: Icons.radio_rounded,
                   label: '私人 FM',
-                  selected: isFmActive,
-                  trailing: isFmActive
+                  selected: location.startsWith('/fm'),
+                  trailing: isFmActive && !location.startsWith('/fm')
                       ? Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
@@ -130,18 +128,7 @@ class DesktopSidebar extends ConsumerWidget {
                           ),
                         )
                       : null,
-                  onTap: () {
-                    final player = ref.read(playerControllerProvider);
-                    if (player.queueSource == PlaybackQueueSource.fm &&
-                        player.current != null) {
-                      ref.read(playerControllerProvider.notifier).togglePlay();
-                    } else {
-                      final fm = ref.read(fmControllerProvider.notifier);
-                      final pendingMode =
-                          ref.read(fmControllerProvider).pendingMode;
-                      unawaited(fm.start(mode: pendingMode));
-                    }
-                  },
+                  onTap: () => context.go('/fm'),
                 ),
 
                 const SizedBox(height: 16),

@@ -9,6 +9,7 @@ import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/explore/explore_page.dart';
+import 'features/fm/fm_page.dart';
 import 'features/history/history_page.dart';
 import 'features/likes/likes_page.dart';
 import 'features/player/full_player_page.dart';
@@ -102,6 +103,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 path: '/ranks',
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: RankListPage()),
+              ),
+              // Desktop-first Personal FM shell. Android discover/profile
+              // entries still start the session and open the player instead.
+              GoRoute(
+                path: '/fm',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: FmPage()),
               ),
               GoRoute(
                 path: '/rank/:id',

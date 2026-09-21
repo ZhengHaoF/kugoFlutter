@@ -35,14 +35,19 @@ class RankCardSurface extends StatelessWidget {
     super.key,
     required this.brief,
     this.showTitle = false,
+    this.dense = false,
   });
 
   final PlaylistBrief brief;
   final bool showTitle;
 
+  /// Desktop grid: smaller overlay type so dense cards stay readable.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final inset = dense ? 8.0 : 12.0;
     return Material(
       type: MaterialType.transparency,
       child: Stack(
@@ -59,8 +64,9 @@ class RankCardSurface extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 12,
-            bottom: 12,
+            left: inset,
+            right: inset,
+            bottom: inset,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -68,8 +74,10 @@ class RankCardSurface extends StatelessWidget {
                 if (showTitle) ...[
                   Text(
                     brief.name,
+                    maxLines: dense ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
                     style: kugo.section.copyWith(
-                      fontSize: 17,
+                      fontSize: dense ? 13 : 17,
                       color: kugo.onCover,
                       decoration: TextDecoration.none,
                     ),
@@ -79,7 +87,10 @@ class RankCardSurface extends StatelessWidget {
                 if (brief.playCountLabel.isNotEmpty)
                   Text(
                     brief.playCountLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: kugo.caption.copyWith(
+                      fontSize: dense ? 11 : null,
                       color: showTitle ? kugo.onCoverMuted : Colors.white70,
                       decoration: TextDecoration.none,
                     ),
@@ -242,10 +253,10 @@ Widget rankHeroFlightShuttle(
 ) {
   final kugo = KugoTheme.of(flightContext);
 
-  // Extract brief from to or from context
   PlaylistBrief? brief;
   int tracksCount = 0;
   bool showTitle = false;
+  bool dense = false;
   String fallbackId = '';
 
   bool isRankCard = false;
@@ -261,6 +272,7 @@ Widget rankHeroFlightShuttle(
         final surface = w.child as RankCardSurface;
         brief ??= surface.brief;
         showTitle = surface.showTitle;
+        dense = surface.dense;
         isRankCard = true;
       } else if (w.child is CoverBox) {
         final box = w.child as CoverBox;
@@ -272,9 +284,6 @@ Widget rankHeroFlightShuttle(
   final seed = brief?.coverUrl ?? fallbackId;
   final bytes = seed.isEmpty ? null : CoverCache.instance.peek(seed);
 
-  // Rank cards have a dark bottom gradient for text contrast, while standard playlist cards
-  // (CoverBox) have no mask. Using a transparent gradient for non-rank cards ensures the
-  // header mask fades out to 100% transparent on pop, eliminating last-frame gradient snaps.
   final cardGrad = isRankCard
       ? rankCardGradient()
       : const LinearGradient(
@@ -294,27 +303,15 @@ Widget rankHeroFlightShuttle(
     animation: animation,
     builder: (context, _) {
       final rawValue = animation.value;
-      // In Flutter, Pop animation runs in reverse: animation.value goes from 1.0 down to 0.0.
-      // Normalize progress to always run 0.0 (flight start) -> 1.0 (flight end).
       final progress = isPush ? rawValue : (1.0 - rawValue);
-      if (progress == 0.0 || progress == 1.0 || (progress > 0.49 && progress < 0.52)) {
-        debugPrint('[RANK_HERO_SHUTTLE] isPush=$isPush rawValue=$rawValue progress=$progress seed=$seed tag=${brief?.id}');
-      }
       final t = Curves.easeInOutCubic.transform(progress);
-
-      // Smooth radius transition
       final radius = fromRadius + (toRadius - fromRadius) * t;
-
-      // Smooth gradient morphing
       final currentGrad = LinearGradient.lerp(fromGrad, toGrad, t) ?? fromGrad;
-
-      // The source widget's text fades out in the first 40% of the flight
       final sourceTextOpacity = (1.0 - progress * 2.5).clamp(0.0, 1.0);
-      // The destination widget's text fades in during the last 60% of the flight
       final destTextOpacity = ((progress - 0.4) / 0.6).clamp(0.0, 1.0);
-
       final cardTextOpacity = isPush ? sourceTextOpacity : destTextOpacity;
       final headerTextOpacity = isPush ? destTextOpacity : sourceTextOpacity;
+      final inset = dense ? 8.0 : 12.0;
 
       final Widget coverImage;
       if (bytes != null) {
@@ -336,19 +333,15 @@ Widget rankHeroFlightShuttle(
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 1. Cover image
               coverImage,
-
-              // 2. Continuous, morphing dark gradient overlay
               DecoratedBox(
                 decoration: BoxDecoration(gradient: currentGrad),
               ),
-
-              // 3. Card text (fades out on push, fades in on pop)
               if (brief != null && cardTextOpacity > 0)
                 Positioned(
-                  left: 12,
-                  bottom: 12,
+                  left: inset,
+                  right: inset,
+                  bottom: inset,
                   child: Opacity(
                     opacity: cardTextOpacity,
                     child: Column(
@@ -358,8 +351,10 @@ Widget rankHeroFlightShuttle(
                         if (showTitle) ...[
                           Text(
                             brief.name,
+                            maxLines: dense ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
                             style: kugo.section.copyWith(
-                              fontSize: 17,
+                              fontSize: dense ? 13 : 17,
                               color: kugo.onCover,
                               decoration: TextDecoration.none,
                             ),
@@ -370,8 +365,10 @@ Widget rankHeroFlightShuttle(
                           Text(
                             brief.playCountLabel,
                             style: kugo.caption.copyWith(
-                              color:
-                                  showTitle ? kugo.onCoverMuted : Colors.white70,
+                              fontSize: dense ? 11 : null,
+                              color: showTitle
+                                  ? kugo.onCoverMuted
+                                  : Colors.white70,
                               decoration: TextDecoration.none,
                             ),
                           ),
@@ -379,8 +376,6 @@ Widget rankHeroFlightShuttle(
                     ),
                   ),
                 ),
-
-              // 4. Header title and info (fades in on push, fades out on pop)
               if (headerTextOpacity > 0)
                 Positioned(
                   left: KugoSpacing.lg,
@@ -412,7 +407,8 @@ Widget rankHeroFlightShuttle(
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: kugo.caption.copyWith(
-                              color: kugo.textSecondary.withValues(alpha: 0.8),
+                              color:
+                                  kugo.textSecondary.withValues(alpha: 0.8),
                               decoration: TextDecoration.none,
                             ),
                           ),

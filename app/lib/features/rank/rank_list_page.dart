@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/repositories/playlist_repository.dart';
 import '../../shared/widgets/async_body.dart';
-import '../../core/theme/kugo_theme.dart';
 
 import 'rank_hero.dart';
 export 'rank_hero.dart';
@@ -57,6 +58,7 @@ class _RankListPageState extends ConsumerState<RankListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final desktop = isDesktopView(context);
     return Scaffold(
       appBar: AppBar(title: const Text('排行榜')),
       body: AsyncBody(
@@ -66,30 +68,45 @@ class _RankListPageState extends ConsumerState<RankListPage> {
         emptyMessage: '暂无榜单',
         errorMessage: _error,
         onRetry: _load,
-        child: GridView.builder(
-          padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.md,
-            KugoSpacing.lg,
-            120,
+        child: DesktopContentConstraint(
+          maxWidth: desktop ? 1280 : double.infinity,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth.isFinite &&
+                      constraints.maxWidth > 0
+                  ? constraints.maxWidth
+                  : MediaQuery.sizeOf(context).width;
+              return GridView.builder(
+                padding: EdgeInsets.fromLTRB(
+                  KugoSpacing.lg,
+                  KugoSpacing.md,
+                  KugoSpacing.lg,
+                  desktop ? KugoSpacing.xxl : 120,
+                ),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                gridDelegate: coverGridDelegateForWidth(
+                  context,
+                  width,
+                  preferredExtent: kDesktopCoverExtent,
+                  mobileAspectRatio: 0.78,
+                  desktopAspectRatio: 0.78,
+                  mainAxisSpacing: KugoSpacing.lg,
+                  crossAxisSpacing: KugoSpacing.lg,
+                  maxColumns: 6,
+                ),
+                itemCount: _ranks.length,
+                itemBuilder: (context, index) {
+                  final rank = _ranks[index];
+                  return _RankGridCard(
+                    rank: rank,
+                    onTap: () => context.push('/rank/${rank.id}', extra: rank),
+                  );
+                },
+              );
+            },
           ),
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: KugoSpacing.lg,
-            crossAxisSpacing: KugoSpacing.lg,
-            childAspectRatio: 0.78,
-          ),
-          itemCount: _ranks.length,
-          itemBuilder: (context, index) {
-            final rank = _ranks[index];
-            return _RankGridCard(
-              rank: rank,
-              onTap: () => context.push('/rank/${rank.id}', extra: rank),
-            );
-          },
         ),
       ),
     );
@@ -105,6 +122,7 @@ class _RankGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final desktop = isDesktopView(context);
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -116,17 +134,23 @@ class _RankGridCard extends StatelessWidget {
               child: Hero(
                 tag: rankCoverHeroTag(rank.id),
                 flightShuttleBuilder: rankHeroFlightShuttle,
-                child: RankCardSurface(brief: rank),
+                child: RankCardSurface(
+                  brief: rank,
+                  showTitle: desktop,
+                  dense: desktop,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            rank.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: kugo.body.copyWith(fontSize: 14, height: 1.25),
-          ),
+          if (!desktop) ...[
+            const SizedBox(height: 8),
+            Text(
+              rank.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: kugo.body.copyWith(fontSize: 14, height: 1.25),
+            ),
+          ],
         ],
       ),
     );

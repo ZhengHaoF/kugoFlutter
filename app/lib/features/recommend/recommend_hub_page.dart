@@ -6,6 +6,7 @@ import '../../core/models/track.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/repositories/recommend_repository.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
@@ -345,24 +346,45 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
       ];
     }
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: KugoSpacing.lg,
-            crossAxisSpacing: KugoSpacing.lg,
-            childAspectRatio: 0.72,
+      SliverToBoxAdapter(
+        child: DesktopContentConstraint(
+          maxWidth: 1280,
+          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          child: Builder(
+            builder: (context) {
+              final contentWidth =
+                  (MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2)
+                      .clamp(0.0, 1280.0);
+              final grid = coverGridDelegateForWidth(
+                context,
+                contentWidth,
+                preferredExtent: kDesktopCoverExtent,
+                mobileAspectRatio: 0.72,
+                desktopAspectRatio: 0.72,
+                mainAxisSpacing: KugoSpacing.lg,
+                crossAxisSpacing: KugoSpacing.lg,
+                maxColumns: 6,
+              );
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                gridDelegate: grid,
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final playlist = items[index];
+                  return PlaylistCard(
+                    playlist: playlist,
+                    width: double.infinity,
+                    onTap: () => context.push(
+                      '/playlist/${playlist.id}',
+                      extra: playlist,
+                    ),
+                  );
+                },
+              );
+            },
           ),
-          delegate: SliverChildBuilderDelegate((context, index) {
-            final playlist = items[index];
-            return PlaylistCard(
-              playlist: playlist,
-              width: double.infinity,
-              onTap: () =>
-                  context.push('/playlist/${playlist.id}', extra: playlist),
-            );
-          }, childCount: items.length),
         ),
       ),
     ];

@@ -559,7 +559,8 @@ Track mapEverydaySong(Map<String, dynamic> json) {
     for (final source in sources) {
       if (source is! Map) continue;
       final map = Map<String, dynamic>.from(source);
-      final singers = map['singer'] ?? map['singers'];
+      // personal_recommend 用 singerinfo[]；搜索/每日推荐多用 singer/singers。
+      final singers = map['singer'] ?? map['singers'] ?? map['singerinfo'];
       if (singers is List && singers.isNotEmpty) {
         artist = _joinSingers(singers);
         if (artist.isNotEmpty) break;
@@ -591,11 +592,14 @@ Track mapEverydaySong(Map<String, dynamic> json) {
     ),
   );
 
-  final timeLength = _i(_pick(sources, ['time_length']));
+  // personal_recommend 的 time_length 是秒；everyday 等常见毫秒。
+  // <10000 视为秒（约 2.8 小时），≥10000 视为已是毫秒。
+  var timeLength = _i(_pick(sources, ['time_length']));
+  if (timeLength > 0 && timeLength < 10000) timeLength *= 1000;
   final durationRaw = timeLength != 0
       ? timeLength
       : _i(_pick(sources, ['timelength', 'duration']));
-  // time_length is already ms; plain duration is usually seconds.
+  // time_length 归一后是 ms；plain duration 通常是秒。
   final durationMs =
       timeLength != 0 || durationRaw > 10000 ? durationRaw : durationRaw * 1000;
 

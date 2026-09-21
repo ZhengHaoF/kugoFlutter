@@ -26,10 +26,12 @@ class PlayerState {
     this.positionMs = 0,
     this.volume = 1.0,
     this.lyrics = const [],
+    this.lyricsStatus = LyricsStatus.idle,
     this.errorCode = '',
     this.seq = 0,
     this.resolvedQuality,
     this.queueSource = PlaybackQueueSource.none,
+    this.engineDurationMs = 0,
   });
 
   final List<Track> queue;
@@ -39,6 +41,7 @@ class PlayerState {
   final int positionMs;
   final double volume;
   final List<LyricLine> lyrics;
+  final LyricsStatus lyricsStatus;
   final String errorCode;
   final int seq;
 
@@ -47,6 +50,11 @@ class PlayerState {
 
   /// 队列来源。决定传输键的边界语义（见 [PlaybackQueueSource]）。
   final PlaybackQueueSource queueSource;
+
+  /// Duration reported by the audio engine (media_kit / just_audio).
+  /// Preferred over [Track.durationMs] when > 0 — API metadata is often wrong
+  /// or unit-mismatched on desktop play paths.
+  final int engineDurationMs;
 
   /// 「上一首」当前是否可点。
   ///
@@ -67,7 +75,12 @@ class PlayerState {
 
   bool get isLoading => display == PlayerDisplayState.loading;
 
-  int get durationMs => current?.durationMs ?? 0;
+  bool get lyricsLoading => lyricsStatus == LyricsStatus.loading;
+
+  int get durationMs {
+    if (engineDurationMs > 0) return engineDurationMs;
+    return current?.durationMs ?? 0;
+  }
 
   PlayerState copyWith({
     List<Track>? queue,
@@ -77,10 +90,12 @@ class PlayerState {
     int? positionMs,
     double? volume,
     List<LyricLine>? lyrics,
+    LyricsStatus? lyricsStatus,
     String? errorCode,
     int? seq,
     AppQuality? Function()? resolvedQuality,
     PlaybackQueueSource? queueSource,
+    int? engineDurationMs,
   }) {
     return PlayerState(
       queue: queue ?? this.queue,
@@ -90,32 +105,46 @@ class PlayerState {
       positionMs: positionMs ?? this.positionMs,
       volume: volume ?? this.volume,
       lyrics: lyrics ?? this.lyrics,
+      lyricsStatus: lyricsStatus ?? this.lyricsStatus,
       errorCode: errorCode ?? this.errorCode,
       seq: seq ?? this.seq,
       resolvedQuality: resolvedQuality != null
           ? resolvedQuality()
           : this.resolvedQuality,
       queueSource: queueSource ?? this.queueSource,
+      engineDurationMs: engineDurationMs ?? this.engineDurationMs,
     );
   }
 }
 
 class PlayerController extends Notifier<PlayerState> {
-  PlayerController({AudioPlayerPort? engine}) : _engineOverride = engine;
+  PlayerController({
+    AudioPlayerPort? engine,
+    LyricRepository? lyricRepo,
+    PlayRepository? playRepo,
+  })  : _engineOverride = engine,
+        _lyricRepoOverride = lyricRepo,
+        _playRepoOverride = playRepo;
 
   final AudioPlayerPort? _engineOverride;
+  final LyricRepository? _lyricRepoOverride;
+  final PlayRepository? _playRepoOverride;
   late final AudioPlayerPort _engine;
-  final _playRepo = playRepository;
-  final _lyricRepo = lyricRepository;
+  late final PlayRepository _playRepo;
+  late final LyricRepository _lyricRepo;
 
   KugoMediaBridge? _bridge;
   StreamSubscription<void>? _posSub;
   StreamSubscription<Duration>? _bufferedSub;
+  StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<PlayerIdleReason>? _completeSub;
   QueueStore? _store;
   int _seq = 0;
   int _failStreak = 0;
+  /// 歌词请求身份：`id|hash`。用于去重与「曲目已变则丢弃过期结果」。
+  String? _lyricsInFlightKey;
+  String? _lyricsLoadedKey;
   /// True once this session has a playable engine source for the current track.
   /// Cold-start restore fills the queue but not the engine — play must resolve URL first.
   bool _sourceReady = false;
@@ -142,6 +171,8 @@ class PlayerController extends Notifier<PlayerState> {
   @override
   PlayerState build() {
     _engine = _engineOverride ?? createAudioEngine();
+    _playRepo = _playRepoOverride ?? playRepository;
+    _lyricRepo = _lyricRepoOverride ?? lyricRepository;
     ref.listen(settingsControllerProvider, (prev, next) {
       if (prev?.mediaLyricSubtitle != next.mediaLyricSubtitle) {
         _lastMediaSubtitle = null;
@@ -169,6 +200,11 @@ class PlayerController extends Notifier<PlayerState> {
     });
     _bufferedSub = _engine.bufferedPositionStream.listen((pos) {
       _bufferedMs = pos.inMilliseconds;
+    });
+    // Engine duration wins over API metadata when available (metadata is often
+    // wrong / unit-mismatched; media_kit demuxes the real file length).
+    _durationSub = _engine.durationStream.listen((duration) {
+      _applyEngineDuration(duration?.inMilliseconds ?? 0);
     });
     // Sync play/pause UI from engine, but never override an explicit pause.
     _playingSub = _engine.playingStream.listen((playing) {
@@ -209,6 +245,7 @@ class PlayerController extends Notifier<PlayerState> {
     ref.onDispose(() {
       _posSub?.cancel();
       _bufferedSub?.cancel();
+      _durationSub?.cancel();
       _playingSub?.cancel();
       _completeSub?.cancel();
       _demoTimer?.cancel();
@@ -227,6 +264,8 @@ class PlayerController extends Notifier<PlayerState> {
     _sourceReady = false;
     _wantPlaying = false;
     _ignoreEnginePlayUntil = null;
+    _lyricsInFlightKey = null;
+    _lyricsLoadedKey = null;
     state = const PlayerState();
   }
 
@@ -250,6 +289,8 @@ class PlayerController extends Notifier<PlayerState> {
         _sourceReady = false;
         _wantPlaying = false;
         _ignoreEnginePlayUntil = null;
+        _lyricsInFlightKey = null;
+        _lyricsLoadedKey = null;
         state = state.copyWith(
           queue: List.unmodifiable(tracks),
           currentIndex: index,
@@ -257,9 +298,13 @@ class PlayerController extends Notifier<PlayerState> {
           display: PlayerDisplayState.paused,
           positionMs: 0,
           lyrics: const [],
+          lyricsStatus: LyricsStatus.idle,
           seq: seq,
+          engineDurationMs: 0,
         );
         _syncBridge();
+        // 冷启动只恢复队列、不起播；歌词与播放解耦，这里也要预取。
+        unawaited(_ensureLyrics());
       }
     } catch (_) {}
   }
@@ -316,18 +361,23 @@ class PlayerController extends Notifier<PlayerState> {
     _sourceReady = false;
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
+    _lyricsInFlightKey = null;
+    _lyricsLoadedKey = null;
     state = state.copyWith(
       queue: List.unmodifiable(tracks),
       currentIndex: index,
       display: PlayerDisplayState.loading,
       positionMs: 0,
       lyrics: const [],
+      lyricsStatus: LyricsStatus.loading,
       errorCode: '',
       seq: seq,
       queueSource: source,
+      engineDurationMs: 0,
     );
     _syncBridge();
     unawaited(_persistQueue());
+    unawaited(_ensureLyrics());
     await _loadCurrent(seq: seq);
   }
 
@@ -367,6 +417,35 @@ class PlayerController extends Notifier<PlayerState> {
     } catch (_) {}
   }
 
+  /// Prefer engine-reported duration; also patch the queue track so list UIs
+  /// stay consistent. Ignores zero (not ready) and sub-second glitch values
+  /// when metadata already has a plausible length.
+  void _applyEngineDuration(int ms) {
+    if (ms < 0) ms = 0;
+    if (ms == state.engineDurationMs) return;
+
+    final meta = state.current?.durationMs ?? 0;
+    final looksGlitched = ms > 0 && ms < 2000 && meta >= 30000;
+    if (looksGlitched) return;
+
+    final idx = state.currentIndex;
+    final queue = state.queue;
+    if (ms > 0 && idx >= 0 && idx < queue.length) {
+      final track = queue[idx];
+      if (track.durationMs != ms) {
+        final next = [...queue];
+        next[idx] = track.copyWith(durationMs: ms);
+        state = state.copyWith(
+          queue: List.unmodifiable(next),
+          engineDurationMs: ms,
+        );
+        unawaited(_persistQueue());
+        return;
+      }
+    }
+    state = state.copyWith(engineDurationMs: ms);
+  }
+
   Future<void> _loadCurrent({required int seq}) async {
     final track = state.current;
     if (track == null) return;
@@ -376,9 +455,14 @@ class PlayerController extends Notifier<PlayerState> {
 
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
-    state = state.copyWith(display: PlayerDisplayState.loading, errorCode: '');
+    state = state.copyWith(
+      display: PlayerDisplayState.loading,
+      errorCode: '',
+      engineDurationMs: 0,
+    );
     _syncBridge();
-    unawaited(_loadLyrics(track, seq));
+    // 歌词与起播解耦：URL resolve 失败也不该挡住歌词。
+    unawaited(_ensureLyrics());
 
     if (!track.hasHash) {
       _wantPlaying = true;
@@ -489,6 +573,22 @@ class PlayerController extends Notifier<PlayerState> {
   /// Resolve + load the current track into the engine (cold start / failed source).
   Future<void> reloadCurrent() => _reloadCurrent();
 
+  /// 播放页/歌词页打开时补拉：当前曲有 hash 但尚未拿到歌词结论则请求。
+  ///
+  /// [retryIfEmpty]：UI 主动打开时置 true，允许对「空结论」再试一次
+  ///（覆盖网络恢复后仍停在同一首的场景）；已有 ready 结论仍不会重复请求。
+  void ensureLyricsForCurrent({bool retryIfEmpty = false}) {
+    final track = state.current;
+    if (retryIfEmpty &&
+        track != null &&
+        track.hasHash &&
+        state.lyricsStatus == LyricsStatus.empty) {
+      final key = _lyricsTrackKey(track);
+      if (_lyricsLoadedKey == key) _lyricsLoadedKey = null;
+    }
+    unawaited(_ensureLyrics());
+  }
+
   /// 播放页切换音质：写入默认偏好并立即重载当前曲（对齐 EchoMusic）。
   Future<void> applyQuality(AppQuality quality) async {
     final settings = ref.read(settingsControllerProvider.notifier);
@@ -521,15 +621,66 @@ class PlayerController extends Notifier<PlayerState> {
     return updated.availableQualities;
   }
 
-  Future<void> _loadLyrics(Track track, int seq) async {
-    if (!track.hasHash) {
-      if (seq != state.seq) return;
-      state = state.copyWith(lyrics: const []);
+  static String _lyricsTrackKey(Track t) =>
+      '${t.id}|${t.hash.trim().toLowerCase()}';
+
+  /// 保证「当前曲」的歌词已发起加载；与播放/起播成败无关。
+  ///
+  /// - 无曲 / 无 hash：直接给出 empty/idle 结论
+  /// - 同一曲已有结论（ready 或 empty）：不重复请求
+  /// - 同一曲已在飞：去重
+  /// - 结果回来时若 current 已换成别的曲：丢弃，由新曲的 ensure 接管
+  Future<void> _ensureLyrics() async {
+    final track = state.current;
+    if (track == null) {
+      _lyricsInFlightKey = null;
+      _lyricsLoadedKey = null;
+      if (state.lyrics.isNotEmpty ||
+          state.lyricsStatus != LyricsStatus.idle) {
+        state = state.copyWith(
+          lyrics: const [],
+          lyricsStatus: LyricsStatus.idle,
+        );
+      }
       return;
     }
-    final lines = await _lyricRepo.fetchLyrics(track);
-    if (seq != state.seq) return;
-    state = state.copyWith(lyrics: lines);
+
+    if (!track.hasHash) {
+      _lyricsInFlightKey = null;
+      _lyricsLoadedKey = _lyricsTrackKey(track);
+      state = state.copyWith(
+        lyrics: const [],
+        lyricsStatus: LyricsStatus.empty,
+      );
+      return;
+    }
+
+    final key = _lyricsTrackKey(track);
+    if (_lyricsLoadedKey == key) return;
+    if (_lyricsInFlightKey == key) return;
+
+    _lyricsInFlightKey = key;
+    state = state.copyWith(
+      lyrics: const [],
+      lyricsStatus: LyricsStatus.loading,
+    );
+
+    List<LyricLine> lines = const [];
+    try {
+      lines = await _lyricRepo.fetchLyrics(track);
+    } catch (_) {}
+
+    final current = state.current;
+    if (current == null || _lyricsTrackKey(current) != key) {
+      return;
+    }
+
+    _lyricsInFlightKey = null;
+    _lyricsLoadedKey = key;
+    state = state.copyWith(
+      lyrics: lines,
+      lyricsStatus: lines.isEmpty ? LyricsStatus.empty : LyricsStatus.ready,
+    );
     _maybeUpdateMediaSubtitle();
   }
 
@@ -572,6 +723,8 @@ class PlayerController extends Notifier<PlayerState> {
     _sourceReady = false;
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
+    _lyricsInFlightKey = null;
+    _lyricsLoadedKey = null;
     state = state.copyWith(
       display: PlayerDisplayState.loading,
       positionMs: 0,
@@ -625,13 +778,18 @@ class PlayerController extends Notifier<PlayerState> {
 
   Future<void> _jumpTo(int index) async {
     final seq = ++_seq;
+    _lyricsInFlightKey = null;
+    _lyricsLoadedKey = null;
     state = state.copyWith(
       currentIndex: index,
       positionMs: 0,
       display: PlayerDisplayState.loading,
       seq: seq,
+      lyrics: const [],
+      lyricsStatus: LyricsStatus.loading,
     );
     unawaited(_persistQueue());
+    unawaited(_ensureLyrics());
     await _loadCurrent(seq: seq);
   }
 
@@ -916,9 +1074,17 @@ abstract class KugoMediaBridge {
 final playerControllerProvider =
     NotifierProvider<PlayerController, PlayerState>(PlayerController.new);
 
-/// Factory for tests: inject a fake engine.
-PlayerController createPlayerController(AudioPlayerPort engine) =>
-    PlayerController(engine: engine);
+/// Factory for tests: inject a fake engine (and optional fake repos).
+PlayerController createPlayerController(
+  AudioPlayerPort engine, {
+  LyricRepository? lyricRepo,
+  PlayRepository? playRepo,
+}) =>
+    PlayerController(
+      engine: engine,
+      lyricRepo: lyricRepo,
+      playRepo: playRepo,
+    );
 
 final currentTrackProvider = Provider<Track?>((ref) {
   return ref.watch(playerControllerProvider.select((s) => s.current));
