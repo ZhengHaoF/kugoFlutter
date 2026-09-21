@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/playlist_repository.dart';
+import '../../data/repositories/user_repository.dart';
+import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/profile/user_collections_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../features/rank/rank_list_page.dart'
@@ -17,11 +20,13 @@ class PlaylistDetailPage extends ConsumerStatefulWidget {
     required this.id,
     this.initialBrief,
     this.isRank,
+    this.userRepository,
   });
 
   final String id;
   final PlaylistBrief? initialBrief;
   final bool? isRank;
+  final UserRepository? userRepository;
 
   @override
   ConsumerState<PlaylistDetailPage> createState() =>
@@ -33,6 +38,8 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
   List<Track> _tracks = const [];
   bool _loading = true;
   String _error = '';
+
+  UserRepository get _userRepo => widget.userRepository ?? userRepository;
 
   @override
   void initState() {
@@ -57,11 +64,86 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
         return;
       }
     } else {
+      final auth = ref.read(authControllerProvider);
+      final collections = ref.read(userCollectionsProvider);
+      final brief = widget.initialBrief ?? _brief;
+
+      // Check if identified as a user cloud playlist
+      PlaylistBrief? matchingCreated;
+      for (final p in collections.createdPlaylists) {
+        if (p.id == widget.id) {
+          matchingCreated = p;
+          break;
+        }
+      }
+      PlaylistBrief? matchingCollected;
+      for (final p in collections.collectedPlaylists) {
+        if (p.id == widget.id) {
+          matchingCollected = p;
+          break;
+        }
+      }
+      final matchedPlaylist = brief ?? matchingCreated ?? matchingCollected;
+
+      final isUserPlaylist = matchedPlaylist != null &&
+          (matchedPlaylist.isDefault ||
+              matchedPlaylist.userId.isNotEmpty ||
+              matchingCreated != null ||
+              matchingCollected != null);
+
+      if (isUserPlaylist && auth.isLogged && auth.user != null) {
+        final isCollected = matchingCollected != null ||
+            (matchedPlaylist.userId.isNotEmpty &&
+                matchedPlaylist.userId != auth.user!.userId);
+
+        final userTracksResult = await _userRepo.fetchUserPlaylistTracks(
+          listId: widget.id,
+          userId: auth.user!.userId,
+          token: auth.user!.token,
+          type: isCollected ? 1 : 0,
+          page: 1,
+          pageSize: 300,
+        );
+        if (!mounted) return;
+        if (userTracksResult.tracks.isNotEmpty) {
+          _applyLoaded(matchedPlaylist, userTracksResult.tracks, isRank: false);
+          return;
+        } else if (userTracksResult.error.isEmpty) {
+          _applyLoaded(matchedPlaylist, const [], isRank: false);
+          return;
+        }
+      }
+
+      // Try public special playlist
       final remote = await playlistRepository.fetchPlaylist(widget.id);
       if (!mounted) return;
       if (remote != null && remote.tracks.isNotEmpty) {
         _applyLoaded(remote.brief, remote.tracks, isRank: false);
         return;
+      }
+
+      // Fallback: If public failed and user is logged in, attempt user playlist tracks
+      if (auth.isLogged && auth.user != null && !isUserPlaylist) {
+        final userTracksResult = await _userRepo.fetchUserPlaylistTracks(
+          listId: widget.id,
+          userId: auth.user!.userId,
+          token: auth.user!.token,
+          type: 0,
+          page: 1,
+          pageSize: 300,
+        );
+        if (!mounted) return;
+        if (userTracksResult.tracks.isNotEmpty) {
+          final fallbackBrief = matchedPlaylist ??
+              PlaylistBrief(
+                id: widget.id,
+                name: '歌单',
+                coverUrl: '',
+                trackCount: userTracksResult.tracks.length,
+              );
+          _applyLoaded(fallbackBrief, userTracksResult.tracks, isRank: false);
+          return;
+        }
       }
     }
 
@@ -106,11 +188,14 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
         creator: loadedBrief.creator.isNotEmpty
             ? loadedBrief.creator
             : (_brief?.creator ?? ''),
-        trackCount: loadedTracks.length,
+        trackCount: loadedTracks.isNotEmpty ? loadedTracks.length : loadedBrief.trackCount,
         playCountLabel: loadedBrief.playCountLabel.isNotEmpty
             ? loadedBrief.playCountLabel
             : (_brief?.playCountLabel ?? ''),
         isRank: isRank,
+        source: loadedBrief.source,
+        userId: loadedBrief.userId,
+        isDefault: loadedBrief.isDefault,
       );
       _tracks = loadedTracks;
       _loading = false;

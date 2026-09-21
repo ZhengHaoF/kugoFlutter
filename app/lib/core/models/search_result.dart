@@ -52,14 +52,23 @@ class AlbumBrief {
   final String publishDate;
 }
 
-/// An artist as returned by `search/singer`.
-///
-/// The endpoint gives **only** these two fields; do not try to backfill
-/// artwork or counts per row (that would be an N+1 request storm).
+/// An artist as returned by `search/singer` or `user/follow`.
 class ArtistBrief {
-  const ArtistBrief({required this.id, required this.name});
+  const ArtistBrief({
+    required this.id,
+    required this.name,
+    this.avatarUrl = '',
+    this.songCount = 0,
+    this.fansCount = 0,
+    this.sourceDesc = '',
+  });
 
   /// Numeric `singerid` — what `/artist/:id` expects.
   final String id;
   final String name;
+  final String avatarUrl;
+  final int songCount;
+  final int fansCount;
+  final String sourceDesc;
 }
+

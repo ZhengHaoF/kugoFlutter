@@ -13,7 +13,6 @@ import '../../data/repositories/search_repository.dart';
 import '../auth/auth_token_holder.dart';
 import '../likes/likes_controller.dart';
 import '../player/player_controller.dart';
-import '../settings/settings_controller.dart';
 
 /// How many tracks to keep in hand before asking for more.
 const kFmTargetPool = 30;
@@ -173,12 +172,16 @@ final fmSessionStore = FmSessionStore();
 /// 搬到这里。播放页只读 [FmSession] 渲染一个入口 + 一个 BottomSheet，
 /// 不再拥有任何 FM 状态。
 class FmController extends Notifier<FmSession> {
-  // ignore: prefer_initializing_formals — 参数名要能对外注入测试替身
-  FmController({SearchRepository? search}) : _search = search;
+  FmController({
+    this.search,
+    this.fmRepo,
+  });
 
-  final SearchRepository? _search;
+  final SearchRepository? search;
+  final FmRepository? fmRepo;
 
-  SearchRepository get _repo => _search ?? searchRepository;
+  SearchRepository get _repo => search ?? searchRepository;
+  FmRepository get _fmRepo => fmRepo ?? fmRepository;
 
   /// 上一次见到的播放器游标，用来判断「跨过了上一首」。
   int _lastIndex = -1;
@@ -214,9 +217,8 @@ class FmController extends Notifier<FmSession> {
     }
   }
 
-  bool get _gatewayWanted =>
-      ref.read(settingsControllerProvider).fmRealRecommend &&
-      AuthTokenHolder.instance.hasToken;
+  /// 已登录时默认优先走酷狗真实个性化推荐接口；未登录或失败自动降级关键词歌池。
+  bool get _gatewayWanted => AuthTokenHolder.instance.hasToken;
 
   // ---------------------------------------------------------------- 生命周期
 
@@ -324,7 +326,7 @@ class FmController extends Notifier<FmSession> {
 
     state = state.copyWith(disliked: {...state.disliked, key});
     if (state.fromServer) {
-      unawaited(fmRepository.reportGarbage(
+      unawaited(_fmRepo.reportGarbage(
         track: track,
         mode: state.mode,
         pool: state.pool,
@@ -388,7 +390,7 @@ class FmController extends Notifier<FmSession> {
       final current = player.current;
       final unplayed =
           (player.queue.length - player.currentIndex - 1).clamp(0, 1 << 30);
-      final page = await fmRepository.fetch(
+      final page = await _fmRepo.fetch(
         mode: state.mode,
         pool: state.pool,
         hash: current?.hash ?? '',

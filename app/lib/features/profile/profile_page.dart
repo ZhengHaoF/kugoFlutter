@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/track.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/fm/fm_controller.dart';
 import '../../features/likes/likes_controller.dart';
+import '../../features/profile/user_collections_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -26,6 +28,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   /// Distinct tracks in local play history. `null` until the DB answers, so the
   /// tile can render a placeholder instead of a wrong `0`.
   int? _historyCount;
+  int _selectedPlaylistTab = 0;
+  final GlobalKey _playlistsSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -53,7 +57,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     ref.watch(settingsControllerProvider.select((s) => s.themeMode));
     final settings = ref.watch(settingsControllerProvider);
     final auth = ref.watch(authControllerProvider);
+    final collections = ref.watch(userCollectionsProvider);
     final likesCount = ref.watch(likesProvider).length;
+    final realLikesCount = auth.isLogged
+        ? (collections.defaultLikedPlaylist?.trackCount ??
+            (collections.cloudFavoriteTracks.isNotEmpty
+                ? collections.cloudFavoriteTracks.length
+                : likesCount))
+        : likesCount;
     final user = auth.user;
     final displayName = auth.isLogged
         ? (user?.nickname ?? '用户')
@@ -65,6 +76,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final sleepLabel = settings.sleepMinutes == 0
         ? '关闭'
         : '${settings.sleepMinutes} 分钟';
+
+    final playlistStatValue = !auth.isLogged
+        ? '—'
+        : (collections.isLoadingPlaylists && !collections.loaded
+            ? '—'
+            : '${collections.totalPlaylistsCount}');
+    final playlistStatHint = !auth.isLogged ? '需登录' : null;
 
     return ListView(
       physics: const BouncingScrollPhysics(
@@ -152,24 +170,41 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Row(
                 children: [
                   const _Divider(),
-                  Expanded(child: _Stat(label: '我喜欢', value: '$likesCount')),
+                  Expanded(
+                    child: _Stat(
+                      label: '我喜欢',
+                      value: '$realLikesCount',
+                      onTap: () => context.push('/likes'),
+                    ),
+                  ),
                   const _Divider(),
                   Expanded(
                     child: _Stat(
                       label: '最近播放',
                       value: _historyCount == null ? '—' : '$_historyCount',
+                      onTap: () => context.push('/history'),
                     ),
                   ),
                   const _Divider(),
-                  // Playlist count needs an authenticated `/user/playlist`
-                  // round-trip that isn't wired up yet (see
-                  // docs/gap-vs-echomusic.md P1 #7). Placeholder for now —
-                  // a hardcoded number would be worse than none.
                   Expanded(
                     child: _Stat(
                       label: '歌单',
-                      value: '—',
-                      hint: auth.isLogged ? '待接入' : '需登录',
+                      value: playlistStatValue,
+                      hint: playlistStatHint,
+                      onTap: () {
+                        if (!auth.isLogged) {
+                          context.push('/login');
+                        } else {
+                          final ctx = _playlistsSectionKey.currentContext;
+                          if (ctx != null) {
+                            Scrollable.ensureVisible(
+                              ctx,
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        }
+                      },
                     ),
                   ),
                   const _Divider(),
@@ -192,13 +227,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           child: Column(
             children: [
               _EntryTile(
-                icon: Icons.favorite_rounded,
-                color: const Color(0xFFE87A90),
-                title: '我喜欢',
-                subtitle: '喜欢的歌曲',
-                onTap: () => context.push('/likes'),
-              ),
-              _EntryTile(
                 icon: Icons.radio_rounded,
                 color: const Color(0xFF5B7CFF),
                 title: '私人 FM',
@@ -212,23 +240,140 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 icon: Icons.history_rounded,
                 color: const Color(0xFFE8B86D),
                 title: '播放历史',
-                subtitle: '播放过的歌曲',
+                subtitle: '播放记录与听歌分析',
                 onTap: () => context.push('/history'),
               ),
               _EntryTile(
                 icon: Icons.download_rounded,
                 color: const Color(0xFF8B7CF6),
                 title: '本地音乐',
-                subtitle: '本地音乐文件',
-                onTap: () {},
+                subtitle: '本地音乐扫描',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('本地音乐扫描功能正在开发中，敬请期待'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
               _EntryTile(
                 icon: Icons.cloud_download_rounded,
                 color: const Color(0xFF5BB8A8),
                 title: '下载管理',
-                subtitle: '下载管理任务',
-                onTap: () {},
+                subtitle: '下载任务管理',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('下载管理功能正在开发中，敬请期待'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: KugoSpacing.lg),
+        GlassSurface(
+          key: _playlistsSectionKey,
+          padding: const EdgeInsets.all(KugoSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '我的歌单',
+                    style: kugo.section.copyWith(fontSize: 16),
+                  ),
+                  const Spacer(),
+                  if (auth.isLogged)
+                    IconButton(
+                      icon: collections.isLoadingPlaylists
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded, size: 20),
+                      tooltip: '刷新歌单',
+                      onPressed: collections.isLoadingPlaylists
+                          ? null
+                          : () => ref
+                              .read(userCollectionsProvider.notifier)
+                              .loadPlaylists(),
+                    ),
+                ],
+              ),
+              const SizedBox(height: KugoSpacing.md),
+              if (!auth.isLogged) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: KugoSpacing.md,
+                    vertical: KugoSpacing.lg,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kugo.surfaceElevated.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(KugoRadius.tile),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.queue_music_rounded,
+                        size: 38,
+                        color: kugo.textSecondary.withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(height: KugoSpacing.sm),
+                      Text(
+                        '登录酷狗账号后，即可同步自建与收藏歌单',
+                        style: kugo.caption.copyWith(fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: KugoSpacing.md),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () => context.push('/login'),
+                        child: const Text('立即登录'),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Center(
+                  child: SegmentedButton<int>(
+                    segments: [
+                      ButtonSegment<int>(
+                        value: 0,
+                        label: Text('自建 (${collections.createdPlaylists.length})'),
+                      ),
+                      ButtonSegment<int>(
+                        value: 1,
+                        label: Text('收藏 (${collections.collectedPlaylists.length})'),
+                      ),
+                    ],
+                    selected: {_selectedPlaylistTab},
+                    onSelectionChanged: (set) =>
+                        setState(() => _selectedPlaylistTab = set.first),
+                  ),
+                ),
+                const SizedBox(height: KugoSpacing.md),
+                ..._buildPlaylistList(
+                  _selectedPlaylistTab == 0
+                      ? collections.createdPlaylists
+                      : collections.collectedPlaylists,
+                  isCreatedTab: _selectedPlaylistTab == 0,
+                  isLoading: collections.isLoadingPlaylists && !collections.loaded,
+                  error: collections.playlistsError,
+                  kugo: kugo,
+                ),
+              ],
             ],
           ),
         ),
@@ -272,6 +417,95 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
       ],
     );
+  }
+
+  List<Widget> _buildPlaylistList(
+    List<PlaylistBrief> playlists, {
+    required bool isCreatedTab,
+    required bool isLoading,
+    required String error,
+    required KugoTheme kugo,
+  }) {
+    if (isLoading) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: KugoSpacing.xl),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+    if (playlists.isEmpty) {
+      final emptyHint = error.isNotEmpty
+          ? error
+          : (isCreatedTab ? '暂无自建歌单' : '暂无收藏歌单');
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: KugoSpacing.xl),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.music_note_rounded,
+                  size: 36,
+                  color: kugo.textSecondary.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 8),
+                Text(emptyHint, style: kugo.caption),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return playlists.map((p) {
+      final sub =
+          '${p.trackCount} 首${p.creator.isNotEmpty ? ' · ${p.creator}' : ''}';
+      return InkWell(
+        borderRadius: BorderRadius.circular(KugoRadius.tile),
+        onTap: () => context.push('/playlist/${p.id}', extra: p),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Row(
+            children: [
+              CoverBox(
+                seed: p.coverUrl.isNotEmpty ? p.coverUrl : p.id,
+                size: 48,
+                radius: KugoRadius.card,
+                child: p.coverUrl.isEmpty
+                    ? const Icon(
+                        Icons.queue_music_rounded,
+                        color: Colors.white70,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: KugoSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      p.name,
+                      style: kugo.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      sub,
+                      style: kugo.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: kugo.textSecondary),
+            ],
+          ),
+        ),
+      );
+    }).toList();
   }
 
   /// 定时停止 / 音质设置 / 关于 reuse the exact pickers the Settings page
@@ -356,37 +590,48 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, this.hint});
+  const _Stat({
+    required this.label,
+    required this.value,
+    this.hint,
+    this.onTap,
+  });
 
   final String label;
   final String value;
 
   /// Optional secondary line under the value (e.g. why a value is missing).
   final String? hint;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     // Fixed height so a placeholder (`—`) and a real number don't shift the
     // row when the async values land. Sized for label + value + hint.
-    return SizedBox(
-      height: 76,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Text(label, style: kugo.caption),
-          const SizedBox(height: 4),
-          Text(value, style: kugo.section.copyWith(fontSize: 20)),
-          if (hint != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              hint!,
-              style: kugo.caption.copyWith(fontSize: 10),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      child: SizedBox(
+        height: 76,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(label, style: kugo.caption),
+            const SizedBox(height: 4),
+            Text(value, style: kugo.section.copyWith(fontSize: 20)),
+            if (hint != null) ...[
+              const SizedBox(height: 3),
+              Text(
+                hint!,
+                style: kugo.caption.copyWith(fontSize: 10),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

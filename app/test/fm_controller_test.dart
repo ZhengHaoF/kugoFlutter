@@ -4,7 +4,9 @@ import 'package:kugo/core/api/kugo_client.dart';
 import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/playback_source.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/data/repositories/fm_repository.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:kugo/features/auth/auth_token_holder.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,6 +60,31 @@ class _FakeSearchRepo implements SearchRepository {
       throw UnimplementedError('${invocation.memberName} is not stubbed');
 }
 
+class _FakeFmRepo extends FmRepository {
+  _FakeFmRepo({this.tracks = const [], this.error = ''});
+  final List<Track> tracks;
+  final String error;
+  int fetchCalls = 0;
+
+  @override
+  Future<FmPage> fetch({
+    required FmMode mode,
+    required FmSongPool pool,
+    String hash = '',
+    String songid = '',
+    int playtime = 0,
+    int remainSongcnt = 0,
+    String action = 'play',
+    int limit = 30,
+  }) async {
+    fetchCalls++;
+    if (tracks.isNotEmpty) {
+      return FmPage(tracks: tracks, fromServer: true, mode: mode, pool: pool);
+    }
+    return FmPage(tracks: const [], error: error, fromServer: false, mode: mode, pool: pool);
+  }
+}
+
 /// 抽干微任务/定时器，让所有 `unawaited` 的后台取歌跑完。
 Future<void> _drain([int rounds = 24]) async {
   for (var i = 0; i < rounds; i++) {
@@ -65,22 +92,32 @@ Future<void> _drain([int rounds = 24]) async {
   }
 }
 
-typedef _Rig = ({ProviderContainer container, _FakeSearchRepo repo, FakeAudioPlayer engine});
+typedef _Rig = ({
+  ProviderContainer container,
+  _FakeSearchRepo repo,
+  _FakeFmRepo fmRepo,
+  FakeAudioPlayer engine,
+});
 
 Future<_Rig> _rig({
   int perKeyword = 4,
   List<int> durations = const [],
+  List<Track> fmServerTracks = const [],
+  String fmServerError = '',
 }) async {
   SharedPreferences.setMockInitialValues({});
   final engine = FakeAudioPlayer();
   final repo = _FakeSearchRepo(perKeyword: perKeyword, durations: durations);
+  final fmRepo = _FakeFmRepo(tracks: fmServerTracks, error: fmServerError);
   final container = ProviderContainer(
     overrides: [
       playerControllerProvider.overrideWith(() => PlayerController(engine: engine)),
-      fmControllerProvider.overrideWith(() => FmController(search: repo)),
+      fmControllerProvider.overrideWith(
+        () => FmController(search: repo, fmRepo: fmRepo),
+      ),
     ],
   );
-  return (container: container, repo: repo, engine: engine);
+  return (container: container, repo: repo, fmRepo: fmRepo, engine: engine);
 }
 
 PlayerState _player(ProviderContainer c) => c.read(playerControllerProvider);
@@ -287,6 +324,67 @@ void main() {
       expect([for (final p in FmSongPool.values) p.label],
           ['Alpha', 'Beta', 'Gamma']);
       expect(FmSongPool.explore.semantic, isEmpty);
+    });
+  });
+
+  group('automatic real recommendation strategy', () {
+    tearDown(() {
+      AuthTokenHolder.instance.clear();
+    });
+
+    test('when logged in and server returns tracks, uses server tracks directly', () async {
+      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
+      final serverTracks = List.generate(
+        10,
+        (i) => Track(
+          id: 'rec-$i',
+          name: '推荐曲目 $i',
+          artist: '歌手',
+          album: '专辑',
+          coverUrl: 'http://cover/rec-$i',
+          durationMs: 180000,
+        ),
+      );
+      final r = await _rig(fmServerTracks: serverTracks);
+      addTearDown(r.container.dispose);
+
+      await r.container.read(fmControllerProvider.notifier).start();
+      await _drain();
+
+      expect(r.fmRepo.fetchCalls, 1);
+      expect(_fm(r.container).fromServer, isTrue);
+      expect(_player(r.container).queue.map((t) => t.id), [
+        for (var i = 0; i < 10; i++) 'rec-$i',
+      ]);
+      expect(r.repo.calls, isEmpty, reason: 'should not fall back to search keywords');
+    });
+
+    test('when logged in but server returns error, automatically falls back to keyword pool', () async {
+      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
+      final r = await _rig(fmServerError: '网关繁忙');
+      addTearDown(r.container.dispose);
+
+      await r.container.read(fmControllerProvider.notifier).start();
+      await _drain();
+
+      expect(r.fmRepo.fetchCalls, 1);
+      expect(_fm(r.container).fromServer, isFalse);
+      expect(_fm(r.container).gatewayError, '网关繁忙');
+      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+      expect(_player(r.container).queue.isNotEmpty, isTrue);
+    });
+
+    test('when not logged in, directly uses keyword pool without calling server', () async {
+      AuthTokenHolder.instance.clear();
+      final r = await _rig();
+      addTearDown(r.container.dispose);
+
+      await r.container.read(fmControllerProvider.notifier).start();
+      await _drain();
+
+      expect(r.fmRepo.fetchCalls, 0);
+      expect(_fm(r.container).fromServer, isFalse);
+      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
     });
   });
 }

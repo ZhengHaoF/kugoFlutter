@@ -16,6 +16,11 @@ class QueueStore {
   static KugoDb? _dbCache;
   static Future<QueueStore>? _opening;
 
+  static void setDbForTesting(KugoDb? db) {
+    _dbCache = db;
+    _opening = null;
+  }
+
   ({List<Track> queue, int index, String mode})? _queueCache;
   List<Track> _historyCache = const [];
 
@@ -73,6 +78,21 @@ class QueueStore {
   /// Distinct tracks in history (capped at 200 by [KugoDb.appendHistory]).
   /// Prefer this over `loadHistoryAsync().length` when only a count is shown.
   Future<int> historyCount() => _db.countHistory();
+
+  /// Load history entries containing playedAt timestamps for statistics.
+  Future<List<HistoryEntry>> loadHistoryEntriesAsync() async {
+    return _db.readHistoryEntries();
+  }
+
+  Future<void> deleteHistory(String trackId) async {
+    await _db.deleteHistory(trackId);
+    _historyCache = _historyCache.where((t) => t.id != trackId).toList();
+  }
+
+  Future<void> clearHistory() async {
+    await _db.clearHistory();
+    _historyCache = const [];
+  }
 
   Future<void> clearAll() async {
     await _db.clearAll();

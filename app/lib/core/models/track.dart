@@ -121,6 +121,9 @@ class PlaylistBrief {
     this.trackCount = 0,
     this.playCountLabel = '',
     this.isRank = false,
+    this.source = 1,
+    this.userId = '',
+    this.isDefault = false,
   });
 
   final String id;
@@ -133,7 +136,17 @@ class PlaylistBrief {
   final int trackCount;
   final String playCountLabel;
   final bool isRank;
+
+  /// EchoMusic/Kugou source: 1 for playlist, 2 for album.
+  final int source;
+
+  /// Owner userid when reported by user playlist endpoints.
+  final String userId;
+
+  /// True for default favorites playlist.
+  final bool isDefault;
 }
+
 
 class LyricLine {
   const LyricLine({required this.timeMs, required this.text});

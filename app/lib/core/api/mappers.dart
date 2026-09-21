@@ -97,9 +97,21 @@ String _pickArtistId(Map<String, dynamic> json) {
 }
 
 Track mapMobileSearchSong(Map<String, dynamic> json) {
-  final hash = _s(json['hash']).toLowerCase();
-  final id = _s(json['audio_id'], _s(json['mixsongid'], hash));
-  final filename = _s(json['filename']);
+  final audioInfo = json['audio_info'] is Map
+      ? Map<String, dynamic>.from(json['audio_info'] as Map)
+      : const <String, dynamic>{};
+  final hash = _s(json['hash'], _s(audioInfo['hash'])).toLowerCase();
+  final id = _s(
+    json['audio_id'],
+    _s(
+      json['mixsongid'],
+      _s(
+        json['album_audio_id'],
+        _s(json['fileid'], _s(audioInfo['audio_id'], hash)),
+      ),
+    ),
+  );
+  final filename = _s(json['filename'], _s(audioInfo['filename']));
   // `special/song` omits songname/singername entirely and only carries
   // `filename` ("周杰伦 - 晴天"), so fall back to splitting it.
   final split = filename.isEmpty
@@ -107,10 +119,24 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
       : _splitFilename(filename);
   final name = _s(
     json['songname'],
-    _s(json['song_name'], _s(split.title, '未知歌曲')),
+    _s(
+      json['song_name'],
+      _s(
+        json['name'],
+        _s(
+          json['audio_name'],
+          _s(audioInfo['songname'], _s(audioInfo['name'], _s(split.title, '未知歌曲'))),
+        ),
+      ),
+    ),
   );
-  // Rank/song uses `authors[]`; search uses `singername` / `singer`.
-  final singers = json['singername'] ?? json['singer'] ?? json['authors'];
+  // Rank/song uses `authors[]`; search uses `singername` / `singer`; cloud uses `author_name`.
+  final singers = json['singername'] ??
+      json['singer'] ??
+      json['authors'] ??
+      json['author_name'] ??
+      audioInfo['author_name'] ??
+      audioInfo['singername'];
   var artist = _s(singers);
   if (singers is List) {
     artist = singers
@@ -125,9 +151,17 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
   }
   if (artist.isEmpty) artist = split.artist ?? '';
   final artistId = _pickArtistId(json);
-  final duration = _i(json['duration']) * 1000;
-  final albumId = _s(json['album_id']);
-  final albumName = _s(json['album_name'], _s(json['albumname']));
+  var duration = _i(json['duration']) * 1000;
+  if (duration == 0) {
+    final rawLen = _i2(json['timelen'], json['time_length']);
+    final len = rawLen != 0 ? rawLen : _i2(audioInfo['duration'], audioInfo['timelen']);
+    duration = len > 10000 ? len : len * 1000;
+  }
+  final albumId = _s(json['album_id'], _s(audioInfo['album_id']));
+  final albumName = _s(
+    json['album_name'],
+    _s(json['albumname'], _s(audioInfo['album_name'], _s(audioInfo['albumname']))),
+  );
   final coverRaw = _pickCover(json);
   final goods = AudioQualityUtil.buildRelateGoods(json);
   final available = AudioQualityUtil.availableFromGoods(goods);

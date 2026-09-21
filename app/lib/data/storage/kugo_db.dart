@@ -59,6 +59,16 @@ class HistoryTracks extends Table {
   Set<Column> get primaryKey => {playedAt, trackId};
 }
 
+class HistoryEntry {
+  const HistoryEntry({
+    required this.track,
+    required this.playedAt,
+  });
+
+  final Track track;
+  final int playedAt;
+}
+
 Track _trackFrom({
   required String id,
   required String name,
@@ -254,6 +264,39 @@ class KugoDb extends _$KugoDb {
           isVip: row.isVip,
         ),
     ];
+  }
+
+  Future<List<HistoryEntry>> readHistoryEntries() async {
+    final rows = await (select(historyTracks)
+          ..orderBy([(t) => OrderingTerm.desc(t.playedAt)]))
+        .get();
+    return [
+      for (final row in rows)
+        HistoryEntry(
+          track: _trackFrom(
+            id: row.trackId,
+            name: row.name,
+            artist: row.artist,
+            album: row.album,
+            coverUrl: row.coverUrl,
+            durationMs: row.durationMs,
+            hash: row.hash,
+            albumId: row.albumId,
+            mixSongId: row.mixSongId,
+            quality: row.quality,
+            isVip: row.isVip,
+          ),
+          playedAt: row.playedAt,
+        ),
+    ];
+  }
+
+  Future<void> clearHistory() async {
+    await delete(historyTracks).go();
+  }
+
+  Future<void> deleteHistory(String trackId) async {
+    await (delete(historyTracks)..where((t) => t.trackId.equals(trackId))).go();
   }
 
   /// Row count only — avoids materialising up to 200 [Track]s just for a badge.
