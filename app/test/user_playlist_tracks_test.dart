@@ -179,6 +179,63 @@ void main() {
       expect(result.error, '登录态失效');
       expect(result.tracks, isEmpty);
     });
+
+    test('correctly extracts artist and cleans audio extensions from composite names',
+        () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _FakeDioAdapter((options) async {
+        final payload = {
+          'status': 1,
+          'errcode': 0,
+          'data': {
+            'info': [
+              {
+                'name': '老王乐队 - 我还年轻 我还年轻',
+                'hash': 'HASH_1',
+              },
+              {
+                'name': '刘若英、黄立行 - 分开旅行',
+                'hash': 'HASH_2',
+              },
+              {
+                'name': '麋先生 - 坏蛋.mp3',
+                'hash': 'HASH_3',
+              },
+              {
+                'name': 'Miyauchi - Swag (Explicit)',
+                'hash': 'HASH_4',
+              },
+            ],
+          },
+        };
+        return ResponseBody.fromString(
+          jsonEncode(payload),
+          200,
+          headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+        );
+      });
+
+      final repo = UserRepository(dio: dio);
+      final result = await repo.fetchUserPlaylistTracks(
+        listId: '2',
+        userId: testUser.userId,
+        token: testUser.token,
+      );
+
+      expect(result.tracks.length, 4);
+
+      expect(result.tracks[0].artist, '老王乐队');
+      expect(result.tracks[0].name, '我还年轻 我还年轻');
+
+      expect(result.tracks[1].artist, '刘若英、黄立行');
+      expect(result.tracks[1].name, '分开旅行');
+
+      expect(result.tracks[2].artist, '麋先生');
+      expect(result.tracks[2].name, '坏蛋');
+
+      expect(result.tracks[3].artist, 'Miyauchi');
+      expect(result.tracks[3].name, 'Swag (Explicit)');
+    });
   });
 
   group('UserCollectionsController favorite tracks sync', () {

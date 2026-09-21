@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import 'cover_box.dart';
@@ -292,11 +293,21 @@ class PlaylistCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CoverBox(
-                    seed: playlist.coverUrl,
-                    size: width,
-                    radius: KugoRadius.card,
-                  ),
+                  if (playlist.id.isNotEmpty)
+                    CoverHero(
+                      tag: playlist.isRank
+                          ? KugoHeroTags.rankCover(playlist.id)
+                          : KugoHeroTags.playlistCover(playlist.id),
+                      seed: playlist.coverUrl,
+                      size: width,
+                      radius: KugoRadius.card,
+                    )
+                  else
+                    CoverBox(
+                      seed: playlist.coverUrl,
+                      size: width,
+                      radius: KugoRadius.card,
+                    ),
                   if (playlist.playCountLabel.isNotEmpty &&
                       !playlist.playCountLabel.contains('/'))
                     Positioned(
@@ -368,6 +379,7 @@ class SearchResultRow extends StatelessWidget {
     this.subtitle = '',
     this.trailingLabel = '',
     this.round = false,
+    this.heroTag,
     this.onTap,
   });
 
@@ -381,11 +393,36 @@ class SearchResultRow extends StatelessWidget {
 
   /// Circular art, for artists.
   final bool round;
+
+  /// Optional Hero tag for seamless route transition.
+  final String? heroTag;
+
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final radius = round ? 26.0 : KugoRadius.cover;
+    final cover = CoverBox(
+      seed: imageSeed,
+      size: 52,
+      radius: radius,
+      child: round && imageSeed.trim().isEmpty
+          ? Icon(
+              Icons.person_rounded,
+              size: 24,
+              color: kugo.onAccent.withValues(alpha: 0.85),
+            )
+          : null,
+    );
+    final coverWidget = (heroTag != null && heroTag!.isNotEmpty)
+        ? Hero(
+            tag: heroTag!,
+            flightShuttleBuilder: coverHeroFlightShuttle,
+            child: cover,
+          )
+        : cover;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(KugoRadius.tile),
@@ -396,22 +433,7 @@ class SearchResultRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius:
-                  BorderRadius.circular(round ? 26 : KugoRadius.cover),
-              child: CoverBox(
-                seed: imageSeed,
-                size: 52,
-                radius: round ? 26 : KugoRadius.cover,
-                child: round && imageSeed.trim().isEmpty
-                    ? Icon(
-                        Icons.person_rounded,
-                        size: 24,
-                        color: kugo.onAccent.withValues(alpha: 0.85),
-                      )
-                    : null,
-              ),
-            ),
+            coverWidget,
             const SizedBox(width: KugoSpacing.md),
             Expanded(
               child: Column(

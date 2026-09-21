@@ -133,7 +133,12 @@ class _CoverBoxState extends State<CoverBox> {
 
 CoverBox? _coverFromHeroContext(BuildContext context) {
   final w = context.widget;
-  if (w is Hero && w.child is CoverBox) return w.child as CoverBox;
+  if (w is Hero) {
+    final child = w.child;
+    if (child is CoverBox) return child;
+    if (child is ClipRRect && child.child is CoverBox) return child.child as CoverBox;
+    if (child is Material && child.child is CoverBox) return child.child as CoverBox;
+  }
   return null;
 }
 

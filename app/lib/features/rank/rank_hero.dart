@@ -194,6 +194,9 @@ Widget rankHeroFlightShuttle(
         final surface = w.child as RankCardSurface;
         brief ??= surface.brief;
         showTitle = surface.showTitle;
+      } else if (w.child is CoverBox) {
+        final box = w.child as CoverBox;
+        if (fallbackId.isEmpty) fallbackId = box.seed;
       }
     }
   }

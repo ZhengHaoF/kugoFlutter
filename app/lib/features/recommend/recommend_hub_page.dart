@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/recommend_repository.dart';
@@ -380,6 +381,7 @@ class _FeatureEntryRow extends StatelessWidget {
           child: _FeatureCard(
             key: const ValueKey('hub_daily_card'),
             badge: day,
+            heroTag: KugoHeroTags.dailyRecommendBadge,
             title: '每日推荐',
             subtitle: '为你量身定制',
             usePrimaryGradient: true,
@@ -409,6 +411,7 @@ class _FeatureCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.usePrimaryGradient,
+    this.heroTag,
     required this.onTap,
   });
 
@@ -416,6 +419,7 @@ class _FeatureCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool usePrimaryGradient;
+  final String? heroTag;
   final VoidCallback onTap;
 
   @override
@@ -440,6 +444,35 @@ class _FeatureCard extends StatelessWidget {
           );
     final accent = usePrimaryGradient ? kugo.primary : kugo.secondary;
 
+    final badgeContainer = Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: gradient,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        badge,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: badge.length > 2 ? 12 : 16,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.4,
+        ),
+      ),
+    );
+
+    final badgeWidget = (heroTag != null && heroTag!.isNotEmpty)
+        ? Hero(
+            tag: heroTag!,
+            child: Material(
+              type: MaterialType.transparency,
+              child: badgeContainer,
+            ),
+          )
+        : badgeContainer;
+
     return Material(
       color: kugo.surface,
       borderRadius: BorderRadius.circular(16),
@@ -455,24 +488,7 @@ class _FeatureCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: gradient,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  badge,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: badge.length > 2 ? 12 : 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-              ),
+              badgeWidget,
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

@@ -11,6 +11,7 @@ import '../../features/player/player_controller.dart';
 import '../../features/profile/user_collections_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankDetailHeaderSurface, rankHeroFlightShuttle;
 
@@ -223,7 +224,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Hero(
-                tag: rankCoverHeroTag(widget.id),
+                tag: (widget.isRank ?? widget.initialBrief?.isRank ?? false)
+                    ? rankCoverHeroTag(widget.id)
+                    : KugoHeroTags.playlistCover(widget.id),
                 flightShuttleBuilder: rankHeroFlightShuttle,
                 child: RankDetailHeaderSurface(
                   brief: brief,

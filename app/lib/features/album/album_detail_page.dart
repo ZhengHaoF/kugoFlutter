@@ -9,6 +9,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 
 class AlbumDetailPage extends ConsumerStatefulWidget {
@@ -76,10 +77,12 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (album != null)
-                    CoverBox(seed: album.coverUrl, size: 0, radius: 0)
-                  else
-                    ColoredBox(color: kugo.surface),
+                  CoverHero(
+                    tag: KugoHeroTags.albumCover(widget.id),
+                    seed: album?.coverUrl ?? widget.id,
+                    size: 0,
+                    radius: 0,
+                  ),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(

@@ -9,7 +9,6 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
-import '../../features/fm/fm_controller.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/profile/user_collections_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -226,16 +225,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             children: [
-              _EntryTile(
-                icon: Icons.radio_rounded,
-                color: const Color(0xFF5B7CFF),
-                title: '私人 FM',
-                subtitle: '电台流 · 直接开播',
-                onTap: () {
-                  unawaited(ref.read(fmControllerProvider.notifier).start());
-                  context.push('/player');
-                },
-              ),
               _EntryTile(
                 icon: Icons.history_rounded,
                 color: const Color(0xFFE8B86D),

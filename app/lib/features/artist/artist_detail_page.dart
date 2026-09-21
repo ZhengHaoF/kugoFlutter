@@ -9,6 +9,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 
 class ArtistDetailPage extends ConsumerStatefulWidget {
@@ -77,10 +78,12 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (artist != null)
-                    CoverBox(seed: artist.avatarUrl, size: 0, radius: 0)
-                  else
-                    ColoredBox(color: kugo.surface),
+                  CoverHero(
+                    tag: KugoHeroTags.artistAvatar(widget.id),
+                    seed: artist?.avatarUrl ?? widget.id,
+                    size: 0,
+                    radius: 0,
+                  ),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(

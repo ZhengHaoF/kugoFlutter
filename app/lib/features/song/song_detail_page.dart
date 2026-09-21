@@ -9,6 +9,7 @@ import '../../data/repositories/song_detail_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 
 /// Route: /song?id=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
@@ -194,7 +195,17 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
         children: [
           Row(
             children: [
-              CoverBox(seed: track.coverUrl, size: 88, radius: KugoRadius.card),
+              if (track.id.isNotEmpty || track.hash.isNotEmpty)
+                CoverHero(
+                  tag: track.id.isNotEmpty
+                      ? 'player-cover-${track.id}'
+                      : KugoHeroTags.songCover(track.hash),
+                  seed: track.coverUrl,
+                  size: 88,
+                  radius: KugoRadius.card,
+                )
+              else
+                CoverBox(seed: track.coverUrl, size: 88, radius: KugoRadius.card),
               const SizedBox(width: KugoSpacing.lg),
               Expanded(
                 child: Column(

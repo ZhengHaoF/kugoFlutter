@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/search_repository.dart';
@@ -96,32 +97,39 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               KugoSpacing.lg,
               KugoSpacing.md,
             ),
-            child: TextField(
-              controller: _controller,
-              focusNode: _focus,
-              autofocus: false,
-              textInputAction: TextInputAction.search,
-              onSubmitted: _submit,
-              style: kugo.body,
-              decoration: InputDecoration(
-                hintText: '搜索歌曲、歌单、专辑、歌手',
-                hintStyle: kugo.caption,
-                filled: true,
-                fillColor: kugo.surface,
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: kugo.textSecondary,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: () {
-                    _controller.clear();
-                    ref.read(searchControllerProvider.notifier).reset();
-                  },
-                  icon: const Icon(Icons.clear_rounded, size: 18),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(KugoRadius.chip),
-                  borderSide: BorderSide.none,
+            child: Hero(
+              tag: KugoHeroTags.searchBar,
+              flightShuttleBuilder: KugoHeroTags.searchBarFlightShuttle,
+              child: Material(
+                type: MaterialType.transparency,
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focus,
+                  autofocus: false,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: _submit,
+                  style: kugo.body,
+                  decoration: InputDecoration(
+                    hintText: '搜索歌曲、歌单、专辑、歌手',
+                    hintStyle: kugo.caption,
+                    filled: true,
+                    fillColor: kugo.surface,
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: kugo.textSecondary,
+                    ),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        _controller.clear();
+                        ref.read(searchControllerProvider.notifier).reset();
+                      },
+                      icon: const Icon(Icons.clear_rounded, size: 18),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(KugoRadius.chip),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -338,6 +346,7 @@ class _TabResults extends ConsumerWidget {
               imageSeed: p.coverUrl,
               title: p.name,
               subtitle: p.creator,
+              heroTag: p.id.isNotEmpty ? KugoHeroTags.playlistCover(p.id) : null,
               trailingLabel:
                   p.trackCount > 0 ? '${p.trackCount}首' : p.playCountLabel,
               onTap: p.id.isEmpty
@@ -352,6 +361,7 @@ class _TabResults extends ConsumerWidget {
               imageSeed: a.coverUrl,
               title: a.name,
               subtitle: a.artist,
+              heroTag: a.id.isNotEmpty ? KugoHeroTags.albumCover(a.id) : null,
               trailingLabel: a.trackCount > 0 ? '${a.trackCount}首' : '',
               onTap:
                   a.id.isEmpty ? null : () => context.push('/album/${a.id}'),
@@ -364,6 +374,7 @@ class _TabResults extends ConsumerWidget {
               imageSeed: '',
               title: a.name,
               round: true,
+              heroTag: a.id.isNotEmpty ? KugoHeroTags.artistAvatar(a.id) : null,
               // `search/singer` returns no artwork; a per-row lookup would be
               // an N+1 request storm, so artists render as a plain circle.
               onTap:

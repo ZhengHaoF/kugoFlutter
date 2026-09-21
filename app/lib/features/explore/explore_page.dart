@@ -11,6 +11,7 @@ import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankCardSurface, rankHeroFlightShuttle;
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import 'quick_entries.dart';
 
@@ -232,23 +233,27 @@ class _SearchPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
-    return Material(
-      color: kugo.surface,
-      borderRadius: BorderRadius.circular(KugoRadius.chip),
-      child: InkWell(
-        onTap: () => context.push('/search'),
+    return Hero(
+      tag: KugoHeroTags.searchBar,
+      flightShuttleBuilder: KugoHeroTags.searchBarFlightShuttle,
+      child: Material(
+        color: kugo.surface,
         borderRadius: BorderRadius.circular(KugoRadius.chip),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          child: Row(
-            children: [
-              Icon(Icons.search_rounded, color: kugo.textSecondary),
-              const SizedBox(width: 10),
-              Text(
-                '搜索歌曲、歌手、专辑',
-                style: kugo.caption.copyWith(fontSize: 14),
-              ),
-            ],
+        child: InkWell(
+          onTap: () => context.push('/search'),
+          borderRadius: BorderRadius.circular(KugoRadius.chip),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              children: [
+                Icon(Icons.search_rounded, color: kugo.textSecondary),
+                const SizedBox(width: 10),
+                Text(
+                  '搜索歌曲、歌手、专辑',
+                  style: kugo.caption.copyWith(fontSize: 14),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/fm_mode.dart';
 import '../../core/models/playback_source.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -554,35 +555,41 @@ class RecommendHubEntryCard extends StatelessWidget {
           child: Row(
             children: [
               // EchoMusic: .feature-icon .gradient-primary（大号日历数字）
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      kugo.primary,
-                      Color.lerp(kugo.primary, kugo.secondary, 0.35)!,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kugo.primary.withValues(alpha: 0.30),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+              Hero(
+                tag: KugoHeroTags.dailyRecommendBadge,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          kugo.primary,
+                          Color.lerp(kugo.primary, kugo.secondary, 0.35)!,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kugo.primary.withValues(alpha: 0.30),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    dayStr,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+                    child: Center(
+                      child: Text(
+                        dayStr,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
                     ),
                   ),
                 ),

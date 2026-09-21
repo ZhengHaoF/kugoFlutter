@@ -85,14 +85,48 @@ String _pickArtistId(Map<String, dynamic> json) {
   );
 }
 
+/// Cleans common audio container extensions from song titles or artist names.
+String cleanupAudioExtension(String value) {
+  var output = value.trim();
+  const extensions = [
+    '.mp3',
+    '.flac',
+    '.wav',
+    '.aac',
+    '.m4a',
+    '.ape',
+    '.ogg',
+    '.wma',
+  ];
+  final lower = output.toLowerCase();
+  for (final ext in extensions) {
+    if (lower.endsWith(ext)) {
+      output = output.substring(0, output.length - ext.length).trim();
+      break;
+    }
+  }
+  return output;
+}
+
+/// Strips "Artist - " prefix if raw title is composite.
+String processSongTitle(String rawTitle) {
+  final clean = cleanupAudioExtension(rawTitle);
+  final idx = clean.indexOf(' - ');
+  if (idx > 0) {
+    return clean.substring(idx + 3).trim();
+  }
+  return clean;
+}
+
 /// Split a kugou `filename` (`周杰伦 - 晴天`) into (artist, title).
 /// Returns `(null, filename)` when there is no ` - ` separator.
 ({String? artist, String title}) _splitFilename(String filename) {
-  final idx = filename.indexOf(' - ');
-  if (idx <= 0) return (artist: null, title: filename);
+  final clean = cleanupAudioExtension(filename);
+  final idx = clean.indexOf(' - ');
+  if (idx <= 0) return (artist: null, title: clean);
   return (
-    artist: filename.substring(0, idx).trim(),
-    title: filename.substring(idx + 3).trim(),
+    artist: clean.substring(0, idx).trim(),
+    title: clean.substring(idx + 3).trim(),
   );
 }
 
@@ -112,44 +146,94 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
     ),
   );
   final filename = _s(json['filename'], _s(audioInfo['filename']));
-  // `special/song` omits songname/singername entirely and only carries
-  // `filename` ("周杰伦 - 晴天"), so fall back to splitting it.
   final split = filename.isEmpty
       ? (artist: null, title: '')
       : _splitFilename(filename);
-  final name = _s(
+
+  // Extract song title:
+  // If `songname` exists and is clean, use it.
+  // Otherwise fall back to name, audio_name, filename and strip "Artist - " if needed.
+  var cleanSongName = cleanupAudioExtension(_s(
     json['songname'],
-    _s(
-      json['song_name'],
+    _s(json['song_name'], _s(audioInfo['songname'])),
+  ));
+  if (cleanSongName.isEmpty) {
+    final fallbackName = _s(
+      json['name'],
       _s(
-        json['name'],
+        json['audio_name'],
         _s(
-          json['audio_name'],
-          _s(audioInfo['songname'], _s(audioInfo['name'], _s(split.title, '未知歌曲'))),
+          json['ori_audio_name'],
+          _s(
+            json['filename'],
+            _s(audioInfo['name'], _s(audioInfo['filename'], _s(split.title, '未知歌曲'))),
+          ),
         ),
       ),
-    ),
-  );
+    );
+    cleanSongName = processSongTitle(fallbackName);
+  } else if (cleanSongName.contains(' - ')) {
+    cleanSongName = processSongTitle(cleanSongName);
+  }
+  cleanSongName = cleanupAudioExtension(cleanSongName);
+  final name = cleanSongName.isEmpty ? '未知歌曲' : cleanSongName;
+
+  // Extract artist name:
   // Rank/song uses `authors[]`; search uses `singername` / `singer`; cloud uses `author_name`.
   final singers = json['singername'] ??
       json['singer'] ??
       json['authors'] ??
+      json['singers'] ??
       json['author_name'] ??
       audioInfo['author_name'] ??
-      audioInfo['singername'];
-  var artist = _s(singers);
+      audioInfo['singername'] ??
+      audioInfo['singer'] ??
+      audioInfo['authors'] ??
+      audioInfo['singers'];
+  var artist = '';
   if (singers is List) {
     artist = singers
         .map((e) {
           if (e is Map) {
-            return _s(e['name'] ?? e['author_name'] ?? e['singername']);
+            return _s(e['name'] ?? e['author_name'] ?? e['singername'] ?? e['singer']);
           }
           return _s(e);
         })
         .where((s) => s.isNotEmpty)
         .join('/');
+  } else {
+    artist = _s(singers);
   }
+
+  // If artist is still empty, extract from composite raw title (e.g. "老王乐队 - 我还年轻", "麋先生 - 坏蛋.mp3")
+  if (artist.isEmpty) {
+    final rawCandidate = _s(
+      json['name'],
+      _s(
+        json['filename'],
+        _s(
+          json['audio_name'],
+          _s(
+            json['ori_audio_name'],
+            _s(
+              json['songname'],
+              _s(audioInfo['filename'], _s(audioInfo['name'], _s(audioInfo['songname']))),
+            ),
+          ),
+        ),
+      ),
+    );
+    final cleanCandidate = cleanupAudioExtension(rawCandidate);
+    final idx = cleanCandidate.indexOf(' - ');
+    if (idx > 0) {
+      artist = cleanCandidate.substring(0, idx).trim();
+    }
+  }
+
   if (artist.isEmpty) artist = split.artist ?? '';
+  artist = cleanupAudioExtension(artist);
+  if (artist.isEmpty) artist = '未知歌手';
+
   final artistId = _pickArtistId(json);
   var duration = _i(json['duration']) * 1000;
   if (duration == 0) {
@@ -158,10 +242,10 @@ Track mapMobileSearchSong(Map<String, dynamic> json) {
     duration = len > 10000 ? len : len * 1000;
   }
   final albumId = _s(json['album_id'], _s(audioInfo['album_id']));
-  final albumName = _s(
+  final albumName = cleanupAudioExtension(_s(
     json['album_name'],
     _s(json['albumname'], _s(audioInfo['album_name'], _s(audioInfo['albumname']))),
-  );
+  ));
   final coverRaw = _pickCover(json);
   final goods = AudioQualityUtil.buildRelateGoods(json);
   final available = AudioQualityUtil.availableFromGoods(goods);
@@ -342,17 +426,6 @@ String _joinSingers(List<dynamic> singers) {
       })
       .where((s) => s.isNotEmpty)
       .join('/');
-}
-
-/// EchoMusic processSongTitle: drop leading `artist - ` from filenames.
-String processSongTitle(String raw) {
-  if (raw.contains(' - ')) {
-    final parts = raw.split(' - ');
-    if (parts.length > 1) {
-      return parts.sublist(1).join(' - ').trim();
-    }
-  }
-  return raw;
 }
 
 /// EchoMusic extractors.ts — everyday/recommend list shapes vary by platform.
