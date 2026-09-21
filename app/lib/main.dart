@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/api/kugo_client.dart';
 import 'core/api/network_log.dart';
+import 'core/platform.dart';
 import 'core/theme/kugo_theme.dart';
 import 'data/repositories/fm_repository.dart';
 import 'data/repositories/play_repository.dart';
@@ -55,25 +56,31 @@ Future<void> main() async {
   // Restore login session (and device mid) BEFORE any play-url resolve.
   await container.read(authControllerProvider.notifier).ensureReady();
 
-  // Audio attributes + audio focus. Without this the app may not be treated as
-  // the active media player, and some car head units then show no progress bar.
-  final session = await AudioSession.instance;
-  await session.configure(const AudioSessionConfiguration.music());
+  // 系统媒体会话（通知栏 / 锁屏 / 蓝牙）只有移动端与 macOS 有插件实现；
+  // Windows 上 audio_session / audio_service 均缺失，直接跳过。
+  // PlayerController 的 bridge 可空，桌面端不挂就等于没有系统媒体 UI。
+  if (hasSystemMediaSession) {
+    // Audio attributes + audio focus. Without this the app may not be treated as
+    // the active media player, and some car head units then show no progress bar.
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration.music());
 
-  final handler = await AudioService.init(
-    builder: () => KugoAudioHandler(player),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.kugo.player',
-      androidNotificationChannelName: 'kugo 播放',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: true,
-      notificationColor: Color(0xFF5B7CFF),
-      // Monochrome white icon: needed for the seek bar to render on some
-      // Android builds / head units (see audio_service docs).
-      androidNotificationIcon: 'drawable/ic_stat_music',
-    ),
-  );
-  player.attachBridge(handler);
+    player.attachBridge(
+      await AudioService.init<KugoAudioHandler>(
+        builder: () => KugoAudioHandler(player),
+        config: const AudioServiceConfig(
+          androidNotificationChannelId: 'com.kugo.player',
+          androidNotificationChannelName: 'kugo 播放',
+          androidNotificationOngoing: true,
+          androidStopForegroundOnPause: true,
+          notificationColor: Color(0xFF5B7CFF),
+          // Monochrome white icon: needed for the seek bar to render on some
+          // Android builds / head units (see audio_service docs).
+          androidNotificationIcon: 'drawable/ic_stat_music',
+        ),
+      ),
+    );
+  }
   await player.restoreOrSeed();
 
   // 冷启动认领 FM 会话：播放器队列已恢复，若与 FM 指纹相符就把来源标回 fm，

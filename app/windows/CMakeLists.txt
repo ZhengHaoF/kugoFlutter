@@ -57,6 +57,23 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# --- just_audio_windows compatibility shim ---
+#
+# just_audio_windows 0.2.3 compiles C++/WinRT (cppwinrt 2.0.210806.1), which
+# still pulls in the deprecated <experimental/coroutine> header. Recent MSVC
+# promotes that deprecation to a hard error (STL1011) unless the matching
+# silence macro is defined. Its sources are UTF-8 as well, while the toolchain
+# defaults to the system code page (936 on zh-CN) — that raises C4819, which is
+# fatal here because plugin targets are built with /WX.
+#
+# Both fixes are scoped to that one plugin; drop this block once the package
+# ships a toolchain-compatible release.
+if(TARGET just_audio_windows_plugin)
+  target_compile_definitions(just_audio_windows_plugin PRIVATE
+    "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
+  target_compile_options(just_audio_windows_plugin PRIVATE /utf-8)
+endif()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

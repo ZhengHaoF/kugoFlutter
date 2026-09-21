@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../platform.dart';
 import 'kugo_tokens.dart';
 
 /// ThemeExtension — idiomatic `KugoTheme.of(context)` access.
@@ -184,6 +185,8 @@ ThemeData buildKugoTheme(Brightness brightness) {
 }
 
 void applyKugoSystemUi(Brightness brightness) {
+  // 桌面端没有状态栏 / 系统导航栏，SystemChrome 在 Windows 上无实现。
+  if (isDesktopPlatform) return;
   final isLight = brightness == Brightness.light;
   final p = kugoPaletteFor(brightness);
   SystemChrome.setSystemUIOverlayStyle(
