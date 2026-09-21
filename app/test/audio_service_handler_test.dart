@@ -167,6 +167,133 @@ void main() {
     ]);
   });
 
+  // ── 通知栏/锁屏「歌曲信息卡」验收（docs/gap-vs-echomusic.md §三）─────────
+  // 前置：测试环境已视为「通知权限已授予」（Q9）；主路径在 mediaLyricSubtitle
+  // 关闭时断言（Q10-D）。实现与锁屏共用 MediaItem/PlaybackState（Q6-B）。
+
+  test('notification card MediaItem carries song identity (acceptance C)', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    final track = Track(
+      id: 'song_1',
+      name: '晴天',
+      artist: '周杰伦',
+      album: '叶惠美',
+      coverUrl: 'https://img.example/cover_qingtian.jpg',
+      durationMs: 269000,
+    );
+    await controller.playQueue([track]);
+
+    final item = handler.mediaItem.value;
+    expect(item, isNotNull, reason: '播放中系统媒体卡必须有 MediaItem');
+    expect(item!.title, '晴天');
+    // 主验收：歌词副标题关闭时 artist 必须等于 track.artist（Q10-D）。
+    expect(item.artist, '周杰伦');
+    expect(item.album, '叶惠美');
+    expect(item.duration, const Duration(milliseconds: 269000));
+    // Q5-B：artUri 非空且指向该曲 cover；实机大图渲染另作抽测。
+    expect(item.artUri, isNotNull);
+    expect(item.artUri.toString(), 'https://img.example/cover_qingtian.jpg');
+
+    final state = handler.playbackState.value;
+    final actions = [for (final c in state.controls) c.action];
+    expect(state.processingState, AudioProcessingState.ready);
+    expect(actions, contains(MediaAction.pause), reason: '播放中至少要有暂停');
+    expect(state.systemActions, contains(MediaAction.playPause));
+  });
+
+  test('paused session still exposes card fields (acceptance lifecycle B)',
+      () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    await controller.playQueue([_t('a')]);
+    await handler.pause();
+
+    final state = handler.playbackState.value;
+    // Q4-B：有 track 且未 idle —— 暂停中卡片信息仍在，不得掉成 idle。
+    expect(state.playing, isFalse);
+    expect(state.processingState, AudioProcessingState.ready,
+        reason: '暂停不得把会话标成 idle，否则锁屏/通知栏无卡片');
+    expect(handler.mediaItem.value?.title, 'a');
+    expect(handler.mediaItem.value?.artist, 'artist');
+    final actions = [for (final c in state.controls) c.action];
+    expect(actions, contains(MediaAction.play), reason: '暂停后仍要能播放');
+  });
+
+  test('stop() drops session to idle (card may disappear)', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    await controller.playQueue([_t('a')]);
+    await handler.stop();
+
+    // Q4-B：主动 stop 允许消失；产品不保证 stop 后通知栏仍有卡。
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.idle);
+  });
+
+  test('FM tracks use the same notification card path (acceptance A/FM)', () async {
+    final engine = FakeAudioPlayer();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider
+            .overrideWith(() => PlayerController(engine: engine)),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    // Q8-A：FM 无第二条通知链路，同一 PlayerController → KugoAudioHandler。
+    final fmTrack = Track(
+      id: 'fm_1',
+      name: '夜曲',
+      artist: '周杰伦',
+      album: '十一月的萧邦',
+      coverUrl: 'https://img.example/fm_yequ.jpg',
+      durationMs: 226000,
+      recDesc: '口味推荐',
+    );
+    await controller.playQueue([fmTrack]);
+
+    final item = handler.mediaItem.value;
+    expect(item?.title, '夜曲');
+    expect(item?.artist, '周杰伦');
+    expect(item?.artUri.toString(), 'https://img.example/fm_yequ.jpg');
+    expect(handler.playbackState.value.processingState,
+        AudioProcessingState.ready);
+  });
+
   test('stop() pauses the engine and holds the queue', () async {
     final engine = FakeAudioPlayer();
     final container = ProviderContainer(
