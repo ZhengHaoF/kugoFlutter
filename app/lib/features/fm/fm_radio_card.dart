@@ -267,13 +267,260 @@ class FmRadioCard extends StatelessWidget {
   }
 }
 
-/// 唱片区：一行排开 —— 当前盘在左（可点暂停/起播），右侧最多 [sideCount] 个槽位。
+/// 横向可滑盘阵（方案 A）：整队列一盘一页，滑到左侧吸附位后由外部起播。
+///
+/// 吸附位 = viewport 左缘（桌面舞台上即电台卡右缘探出处）。交互约定：
+/// - **用户滚动 settle** 到与 [currentIndex] 不同的下标 → [onPlayIndex]；
+/// - **程序滚动**（外部改了 [currentIndex]，如自动下一首）→ 只对齐，不回调；
+/// - 同下标 settle / 重复回调一律吞掉，避免「滑一下连播两次」。
+///
+/// 队列为空时画一张 ghost 当前盘，不参与滚动。
+class FmVinylCarousel extends StatefulWidget {
+  const FmVinylCarousel({
+    super.key,
+    required this.kugo,
+    required this.accent,
+    required this.spin,
+    required this.tracks,
+    required this.currentIndex,
+    required this.fallbackCoverUrl,
+    required this.playing,
+    required this.onPlayIndex,
+    required this.onTapCurrent,
+    this.discSize = FmStageMetrics.discSize,
+    this.sideGap = FmStageMetrics.sideGap,
+    double? height,
+  }) : height = height ?? discSize;
+
+  final KugoTheme kugo;
+  final Color accent;
+  final AnimationController spin;
+  final List<Track> tracks;
+  final int currentIndex;
+
+  /// 队列空时当前盘的占位封面（与页面 `player.current` 同源）。
+  final String fallbackCoverUrl;
+  final bool playing;
+  final ValueChanged<int> onPlayIndex;
+  final VoidCallback onTapCurrent;
+  final double discSize;
+  final double sideGap;
+  final double height;
+
+  /// 测试/调试用：盘阵容器。
+  static const Key carouselKey = ValueKey('fm_vinyl_carousel');
+
+  @override
+  State<FmVinylCarousel> createState() => _FmVinylCarouselState();
+}
+
+class _FmVinylCarouselState extends State<FmVinylCarousel> {
+  late final ScrollController _scrollController;
+
+  /// 最近一次已处理的 settle 下标：吞掉重复 ScrollEnd / 程序回滚。
+  int? _lastSettledIndex;
+
+  /// 外部改 currentIndex 触发的对齐滚动，结束后不要再 onPlayIndex。
+  bool _suppressPlayOnce = false;
+
+  bool _attached = false;
+
+  double get _pitch => widget.discSize + widget.sideGap;
+
+  int get _clampedCurrent {
+    if (widget.tracks.isEmpty) return 0;
+    final max = widget.tracks.length - 1;
+    return widget.currentIndex.clamp(0, max);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _lastSettledIndex = _clampedCurrent;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _attached = true;
+      _jumpTo(_clampedCurrent, animated: false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant FmVinylCarousel old) {
+    super.didUpdateWidget(old);
+    if (widget.currentIndex != old.currentIndex) {
+      _lastSettledIndex = _clampedCurrent;
+      _suppressPlayOnce = true;
+      _jumpTo(_clampedCurrent, animated: _attached);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _jumpTo(int index, {required bool animated}) {
+    if (widget.tracks.isEmpty || !_scrollController.hasClients) return;
+    final target = index * _pitch;
+    final pixels = _scrollController.offset;
+    if ((pixels - target).abs() < 0.5) {
+      _suppressPlayOnce = false;
+      return;
+    }
+    if (animated) {
+      _scrollController
+          .animateTo(
+            target,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          )
+          .whenComplete(() {
+        if (mounted) _suppressPlayOnce = false;
+      });
+    } else {
+      _scrollController.jumpTo(target);
+      _suppressPlayOnce = false;
+    }
+  }
+
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is! ScrollEndNotification) return false;
+    if (notification.metrics.axis != Axis.horizontal) return false;
+    if (widget.tracks.length <= 1) return false;
+    // 等本帧布局稳定后再算吸附，避免 drag 结束当帧 offset 尚未落地。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _handleSettle();
+    });
+    return false;
+  }
+
+  void _handleSettle() {
+    if (!_scrollController.hasClients || widget.tracks.length <= 1) return;
+
+    final pitch = _pitch;
+    if (pitch <= 0) return;
+
+    final pixels = _scrollController.offset;
+    final idx = (pixels / pitch)
+        .round()
+        .clamp(0, widget.tracks.length - 1);
+    final target = idx * pitch;
+
+    // 未对齐先吸到最近一页；下一次 settle 再判定是否起播。
+    if ((pixels - target).abs() > 1.0) {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+
+    if (_suppressPlayOnce) {
+      _suppressPlayOnce = false;
+      _lastSettledIndex = idx;
+      return;
+    }
+
+    if (idx == _lastSettledIndex) return;
+    _lastSettledIndex = idx;
+
+    if (idx != _clampedCurrent) {
+      widget.onPlayIndex(idx);
+    }
+  }
+
+  void _handleTap(int index) {
+    if (index == _clampedCurrent) {
+      widget.onTapCurrent();
+      return;
+    }
+    _lastSettledIndex = index;
+    widget.onPlayIndex(index);
+  }
+
+  Widget _buildDisc(int index) {
+    final isCurrent = index == _clampedCurrent && widget.tracks.isNotEmpty;
+    final track = widget.tracks.isEmpty ? null : widget.tracks[index];
+    final coverUrl = track?.coverUrl ?? widget.fallbackCoverUrl;
+    final disc = _Vinyl(
+      coverUrl: coverUrl,
+      size: widget.discSize,
+      accent: isCurrent ? widget.accent : Colors.transparent,
+      kugo: widget.kugo,
+      onTap: () => _handleTap(index),
+      isCurrent: isCurrent,
+      ghost: false,
+    );
+    if (!isCurrent) return disc;
+    return AnimatedBuilder(
+      animation: widget.spin,
+      builder: (context, child) {
+        final angle = widget.playing ? widget.spin.value * 2 * math.pi : 0.0;
+        return Transform.rotate(angle: angle, child: child);
+      },
+      child: disc,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.tracks.isEmpty) {
+      return SizedBox(
+        key: FmVinylCarousel.carouselKey,
+        height: widget.height,
+        width: widget.discSize,
+        child: Center(child: _buildDisc(0)),
+      );
+    }
+
+    final pitch = _pitch;
+    return SizedBox(
+      key: FmVinylCarousel.carouselKey,
+      height: widget.height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final viewportW = constraints.maxWidth;
+          // 尾垫让最后一盘也能滑到左缘吸附位：maxScroll = (n-1)*pitch。
+          final trailing = math.max(0.0, viewportW - pitch);
+          return NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.only(right: trailing),
+              itemCount: widget.tracks.length,
+              itemExtent: pitch,
+              itemBuilder: (context, index) {
+                return SizedBox(
+                  width: pitch,
+                  height: widget.height,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _buildDisc(index),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 唱片区（静态）：一行排开 —— 当前盘在左（可点暂停/起播），右侧最多 [sideCount] 个槽位。
 ///
 /// 槽位优先用 [upcoming] 里的真实封面；不足时用空盘占位（ghost），
 /// 避免「半截舞台」——未起播或歌池见底时右侧仍是完整盘阵。
 ///
 /// [overlap] > 0 时整行向左平移，让当前盘压住左边电台卡的右缘
 /// （EchoMusic 的 `radio-current-overlap` 摆法）；页面外的复用方传 0 即可。
+///
+/// 播放页 FM 面板仍用这版；桌面 /fm 舞台已换成 [FmVinylCarousel]。
 class FmVinylStage extends StatelessWidget {
   const FmVinylStage({
     super.key,

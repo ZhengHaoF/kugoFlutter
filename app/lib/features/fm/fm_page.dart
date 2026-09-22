@@ -15,6 +15,7 @@ import '../../shared/widgets/cover_box.dart';
 import '../player/player_controller.dart';
 import 'fm_controller.dart';
 import 'fm_radio_card.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// Windows / wide desktop: dedicated Personal FM page.
 ///
@@ -24,7 +25,7 @@ import 'fm_radio_card.dart';
 /// start-session → player (not this route).
 ///
 /// 版式对齐 EchoMusic `views/PersonalFm.vue`：抬头（标题 + 右上角歌池轴）→
-/// 舞台（深底电台卡 + 一行黑胶盘）→ 「当前播放」面板 → 「接下来」面板。
+/// 舞台（深底电台卡 + 横向可滑盘阵，滑到吸附位起播）→ 「当前播放」面板 → 「接下来」。
 /// 底色是纯色：颜色只由电台卡、黑胶和主色按钮提供，整页不再铺渐变。
 class FmPage extends ConsumerStatefulWidget {
   const FmPage({super.key});
@@ -38,7 +39,7 @@ class _FmPageState extends ConsumerState<FmPage>
   late final AnimationController _spin;
   late final AnimationController _bars;
 
-  /// 「接下来」最多列几条：全列会把面板撑成列表页，预览由侧盘 + 前几条负责。
+  /// 「接下来」最多列几条：全列会把面板撑成列表页，预览由盘阵轮播 + 前几条负责。
   static const int _maxUpcoming = 8;
 
   @override
@@ -59,13 +60,6 @@ class _FmPageState extends ConsumerState<FmPage>
     _spin.dispose();
     _bars.dispose();
     super.dispose();
-  }
-
-  List<Track> _sideDiscs(PlayerState player) {
-    final from = player.currentIndex + 1;
-    if (player.queue.length <= from) return const [];
-    final to = math.min(from + 3, player.queue.length);
-    return player.queue.sublist(from, to);
   }
 
   Future<void> _startOrToggle({
@@ -135,45 +129,38 @@ class _FmPageState extends ConsumerState<FmPage>
       compact: !desktop,
     );
 
-    // 盘阵预告直接读播放器队列（与「接下来」同一数据源）。
-    // 以前只在 fmActive 时取，半激活态会整排 ghost，看起来像封面没加载。
-    final stageUpcoming = _sideDiscs(player);
-
-    Widget buildVinyl({
-      required int sideCount,
-      required double overlap,
+    // 盘阵 = 整条播放器队列的横向轮播（方案 A）：滑到左缘吸附位起播。
+    // 数据与「接下来」同源；不再按 maxSideDiscs 截成 3 张。
+    Widget buildCarousel({
       double discSize = FmStageMetrics.discSize,
       double sideGap = FmStageMetrics.sideGap,
     }) {
-      return FmVinylStage(
+      return FmVinylCarousel(
         kugo: kugo,
         accent: accent,
         spin: _spin,
-        coverUrl: current?.coverUrl ?? 'fm',
+        tracks: player.queue,
+        currentIndex: player.currentIndex,
+        fallbackCoverUrl: current?.coverUrl ?? 'fm',
         playing: player.isPlaying && fmActive,
-        upcoming: stageUpcoming,
-        onPick: (t) {
-          final i = player.queue.indexWhere((e) => e.id == t.id);
-          if (i >= 0) playerCtl.playAtIndex(i);
+        onPlayIndex: (index) {
+          if (index < 0 || index >= player.queue.length) return;
+          // 同下标不重入（settle 与点击都可能到达）。
+          if (index == player.currentIndex) return;
+          playerCtl.playAtIndex(index);
         },
         onTapCurrent: () => _startOrToggle(fm: fm, player: player),
-        sideCount: sideCount,
-        overlap: overlap,
         discSize: discSize,
         sideGap: sideGap,
-        showGhosts: true,
       );
     }
 
     // EchoMusic `radio-hero`：卡片 z-index 2，当前盘 z-index 1 从卡后探出。
     // Flutter Row 后画的子节点盖在前面，所以必须改用 Stack：盘在下、卡在上。
+    // 轮播 viewport 左缘 = `cardWidth - overlap`，吸附位即「半截进卡」。
     final stage = desktop
         ? LayoutBuilder(
             builder: (context, constraints) {
-              final contentW = constraints.maxWidth;
-              final sideCount = FmStageMetrics.visibleSideCountForContent(
-                contentW,
-              );
               final discLeft =
                   FmStageMetrics.cardWidth - FmStageMetrics.overlap;
               return SizedBox(
@@ -181,7 +168,6 @@ class _FmPageState extends ConsumerState<FmPage>
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    // 盘行：从卡右缘内侧起画，当前盘左半藏在卡下。
                     Positioned(
                       left: discLeft,
                       top: 0,
@@ -189,10 +175,7 @@ class _FmPageState extends ConsumerState<FmPage>
                       right: 0,
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: buildVinyl(
-                          sideCount: sideCount,
-                          overlap: 0,
-                        ),
+                        child: buildCarousel(),
                       ),
                     ),
                     // 电台卡压在盘上（EchoMusic z-index: 2）。
@@ -210,26 +193,13 @@ class _FmPageState extends ConsumerState<FmPage>
               );
             },
           )
-        : LayoutBuilder(
-            builder: (context, constraints) {
-              final sideCount = math.min(
-                1,
-                FmStageMetrics.visibleSideCount(constraints.maxWidth),
-              );
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  radioCard,
-                  const SizedBox(height: KugoSpacing.lg),
-                  buildVinyl(
-                    sideCount: sideCount,
-                    overlap: 0,
-                    discSize: 148,
-                    sideGap: 16,
-                  ),
-                ],
-              );
-            },
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              radioCard,
+              const SizedBox(height: KugoSpacing.lg),
+              buildCarousel(discSize: 148, sideGap: 16),
+            ],
           );
 
     final startCta = FilledButton.icon(
@@ -415,7 +385,7 @@ class _FmPageState extends ConsumerState<FmPage>
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
+              child: SmoothSingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   desktop ? KugoSpacing.xl : KugoSpacing.md,
                   KugoSpacing.sm,
