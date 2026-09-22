@@ -9,6 +9,7 @@ import 'package:kugo/core/models/track.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
 import 'package:kugo/features/explore/quick_entries.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
+import 'package:kugo/features/fm/fm_radio_card.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,6 +63,13 @@ class _FakeSearch implements SearchRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  /// 播放时舞台有常驻动画（盘自旋 / 频谱），`pumpAndSettle` 等不到静止。
+  Future<void> settle(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+  }
 
   Future<({GoRouter router, _FakeSearch search})> pump(
     WidgetTester tester, {
@@ -135,12 +143,13 @@ void main() {
       (tester) async {
     final rig = await pump(tester);
 
-    expect(find.byKey(const ValueKey('fm_vinyl')), findsOneWidget);
-    expect(find.text('私人 FM'), findsOneWidget);
-    expect(find.text('猜你喜欢 · 动态歌池'), findsOneWidget);
+    expect(find.byType(FmVinylCarousel), findsOneWidget);
+    // 与 /fm 同构：台名 + 未起播副文案（歌池轴标签）。
+    expect(find.text('红心电台'), findsOneWidget);
+    expect(find.text('猜你喜欢 · Alpha'), findsOneWidget);
 
-    await tester.tap(find.text('私人 FM'));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await settle(tester);
 
     // FM 会话直接在发现页就地起播，不跳进全屏播放页。
     expect(rig.search.calls, isNotEmpty);
@@ -151,7 +160,7 @@ void main() {
       (tester) async {
     final rig = await pump(tester, gate: Completer<void>());
 
-    await tester.tap(find.text('私人 FM'));
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -164,7 +173,7 @@ void main() {
     await pump(tester);
 
     await tester.tap(find.textContaining('为你推荐'));
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.text('RECOMMEND_STUB'), findsOneWidget);
   });
 
@@ -177,12 +186,12 @@ void main() {
     expect(find.text('速览'), findsOneWidget);
 
     await tester.tap(find.text('小众'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     final container =
         ProviderScope.containerOf(tester.element(find.byType(QuickEntries)));
     expect(container.read(fmControllerProvider).pendingMode, FmMode.niche);
-    expect(find.text('小众精选 · 动态歌池'), findsOneWidget);
+    expect(find.text('小众精选 · Alpha'), findsOneWidget);
   });
 
   testWidgets(
@@ -190,9 +199,9 @@ void main() {
       (tester) async {
     final rig = await pump(tester);
 
-    // 先点击播放开启 FM
-    await tester.tap(find.text('私人 FM'));
-    await tester.pumpAndSettle();
+    // 先点播放开启 FM
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await settle(tester);
 
     final container =
         ProviderScope.containerOf(tester.element(find.byType(QuickEntries)));
@@ -202,11 +211,10 @@ void main() {
     // 切换到小众
     rig.search.calls.clear();
     await tester.tap(find.text('小众'));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     // 立即以 niche 模式重开会话
     expect(container.read(fmControllerProvider).mode, FmMode.niche);
     expect(rig.search.calls, isNotEmpty);
   });
 }
-

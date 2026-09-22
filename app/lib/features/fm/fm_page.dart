@@ -155,52 +155,15 @@ class _FmPageState extends ConsumerState<FmPage>
       );
     }
 
-    // EchoMusic `radio-hero`：卡片 z-index 2，当前盘 z-index 1 从卡后探出。
-    // Flutter Row 后画的子节点盖在前面，所以必须改用 Stack：盘在下、卡在上。
     // 轮播 viewport 左缘 = `cardWidth - overlap`，吸附位即「半截进卡」。
-    final stage = desktop
-        ? LayoutBuilder(
-            builder: (context, constraints) {
-              final discLeft =
-                  FmStageMetrics.cardWidth - FmStageMetrics.overlap;
-              return SizedBox(
-                height: FmStageMetrics.stageHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      left: discLeft,
-                      top: 0,
-                      bottom: 0,
-                      right: 0,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: buildCarousel(),
-                      ),
-                    ),
-                    // 电台卡压在盘上（EchoMusic z-index: 2）。
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: SizedBox(
-                        width: FmStageMetrics.cardWidth,
-                        child: radioCard,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              radioCard,
-              const SizedBox(height: KugoSpacing.lg),
-              buildCarousel(discSize: 148, sideGap: 16),
-            ],
-          );
+    final stage = FmStage(
+      desktop: desktop,
+      radioCard: radioCard,
+      carousel: buildCarousel(
+        discSize: desktop ? FmStageMetrics.discSize : 148,
+        sideGap: desktop ? FmStageMetrics.sideGap : 16,
+      ),
+    );
 
     final startCta = FilledButton.icon(
       key: const ValueKey('fm_start_cta'),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../core/models/fm_mode.dart';
 import '../../core/models/track.dart';
@@ -74,6 +75,73 @@ class FmStageMetrics {
   static int visibleSideCountForContent(double contentWidth) {
     if (!contentWidth.isFinite || contentWidth <= 0) return 0;
     return visibleSideCount(discAreaWidth(contentWidth));
+  }
+}
+
+/// 电台舞台布局：卡在上、盘阵从卡右缘抽出（EchoMusic `radio-hero`）。
+///
+/// 桌面 / 宽屏用 Stack 压边；窄屏改两行（卡在上、盘阵在下）。
+/// 只负责构图，卡与盘的内容由调用方组装（发现页入口与 /fm 页共用）。
+class FmStage extends StatelessWidget {
+  const FmStage({
+    super.key,
+    required this.radioCard,
+    required this.carousel,
+    this.desktop = true,
+  });
+
+  final Widget radioCard;
+  final Widget carousel;
+  final bool desktop;
+
+  /// 发现页 hero / 测试定位。
+  static const Key stageKey = ValueKey('fm_hero_card');
+
+  @override
+  Widget build(BuildContext context) {
+    if (!desktop) {
+      return Column(
+        key: stageKey,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          radioCard,
+          const SizedBox(height: KugoSpacing.lg),
+          carousel,
+        ],
+      );
+    }
+
+    // EchoMusic `radio-hero`：卡片 z-index 2，当前盘 z-index 1 从卡后探出。
+    // Flutter Row 后画的子节点盖在前面，所以必须改用 Stack：盘在下、卡在上。
+    final discLeft = FmStageMetrics.cardWidth - FmStageMetrics.overlap;
+    return SizedBox(
+      key: stageKey,
+      height: FmStageMetrics.stageHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: discLeft,
+            top: 0,
+            bottom: 0,
+            right: 0,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: carousel,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: SizedBox(
+              width: FmStageMetrics.cardWidth,
+              child: radioCard,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -491,6 +559,11 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
               physics: const ClampingScrollPhysics(),
+              // 盘外还有一圈圆形阴影（blur≈30–42）。ListView 默认按 viewport
+              // 硬裁，会把圆影裁成矩形色块。Clip.none 放行溢出绘制；
+              // scrollCacheExtent:0 避免屏外 item 的阴影提前漏进视口。
+              clipBehavior: Clip.none,
+              scrollCacheExtent: const ScrollCacheExtent.pixels(0),
               padding: EdgeInsets.only(right: trailing),
               itemCount: widget.tracks.length,
               itemExtent: pitch,
