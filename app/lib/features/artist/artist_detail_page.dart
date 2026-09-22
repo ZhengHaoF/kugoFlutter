@@ -11,6 +11,7 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class ArtistDetailPage extends ConsumerStatefulWidget {
   const ArtistDetailPage({super.key, required this.id});
@@ -62,10 +63,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     final displayName = artist?.name ?? Uri.decodeComponent(widget.id);
 
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
+      body: SmoothCustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 240,

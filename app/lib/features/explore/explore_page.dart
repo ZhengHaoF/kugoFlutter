@@ -15,6 +15,7 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import 'quick_entries.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// Unified browse tab: former Home + Explore merged into one page.
 class ExplorePage extends ConsumerStatefulWidget {
@@ -96,10 +97,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     final isEmpty = !_loading && _rankings.isEmpty && _songs.isEmpty;
 
     return DesktopContentConstraint(
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
+      child: SmoothCustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: Padding(

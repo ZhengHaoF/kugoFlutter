@@ -10,6 +10,7 @@ import '../../data/storage/queue_store.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class HistoryPage extends ConsumerStatefulWidget {
   const HistoryPage({super.key});
@@ -297,7 +298,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           ),
         ),
         Expanded(
-          child: ListView.builder(
+          child: SmoothListViewBuilder(
             itemCount: filteredTracks.length,
             itemBuilder: (context, index) {
               final track = filteredTracks[index];
@@ -408,8 +409,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
       ..sort((a, b) => b.value.compareTo(a.value));
     final topArtistsList = topArtists.take(5).toList();
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
+    return SmoothListView(
       padding: const EdgeInsets.fromLTRB(
         KugoSpacing.lg,
         KugoSpacing.md,

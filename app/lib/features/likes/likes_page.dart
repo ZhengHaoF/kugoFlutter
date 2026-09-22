@@ -13,6 +13,7 @@ import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import 'likes_controller.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 enum LikesSortType {
   added('默认排序'),
@@ -393,7 +394,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                   },
                   child: const SizedBox.shrink(),
                 )
-              : ListView.builder(
+              : SmoothListViewBuilder(
                   itemCount: displayed.length,
                   itemBuilder: (context, index) {
                     final track = displayed[index];
@@ -512,7 +513,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                   },
                   child: const SizedBox.shrink(),
                 )
-              : ListView.builder(
+              : SmoothListViewBuilder(
                   itemCount: singers.length,
                   itemBuilder: (context, index) {
                     final singer = singers[index];
@@ -635,7 +636,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                   },
                   child: const SizedBox.shrink(),
                 )
-              : ListView.builder(
+              : SmoothListViewBuilder(
                   itemCount: albums.length,
                   itemBuilder: (context, index) {
                     final album = albums[index];

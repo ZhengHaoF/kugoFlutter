@@ -10,6 +10,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import 'search_controller.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// Multi-type search: songs / playlists / albums / artists.
 ///
@@ -307,7 +308,7 @@ class _TabResults extends ConsumerWidget {
     }
 
     final rows = _rowsFor(context, ref, state, type);
-    return ListView.builder(
+    return SmoothListViewBuilder(
       controller: scroll,
       // One extra slot for the load-more footer.
       itemCount: rows.length + 1,

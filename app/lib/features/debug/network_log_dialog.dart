@@ -8,6 +8,7 @@ import '../../core/api/kugo_client.dart';
 import '../../core/api/network_log.dart';
 import '../../core/theme/kugo_theme.dart';
 import 'network_log_provider.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// 网络请求日志弹窗（对齐 z_ai_img 的 NetworkLogDialog + 探测/复制）
 class NetworkLogDialog extends ConsumerStatefulWidget {
@@ -309,7 +310,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
                   ? Center(
                       child: Text('暂无日志', style: kugo.caption),
                     )
-                  : ListView.separated(
+                  : SmoothListViewSeparated(
                       itemCount: filteredLogs.length,
                       separatorBuilder: (context, index) =>
                           const Divider(height: 1),

@@ -17,6 +17,7 @@ import 'fm_controls.dart';
 import '../../shared/widgets/quality_sheet.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class FullPlayerPage extends ConsumerWidget {
   const FullPlayerPage({super.key});
@@ -330,7 +331,7 @@ class FullPlayerPage extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Flexible(
-              child: ListView.builder(
+              child: SmoothListViewBuilder(
                 shrinkWrap: true,
                 itemCount: player.queue.length,
                 itemBuilder: (context, index) {

@@ -11,6 +11,7 @@ import '../../data/repositories/recommend_repository.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// 为你推荐聚合页（对齐 EchoMusic Home.vue「为您推荐」信息架构）。
 ///
@@ -197,10 +198,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
       ),
       body: RefreshIndicator(
         onRefresh: _refreshAll,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
+        child: SmoothCustomScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Padding(

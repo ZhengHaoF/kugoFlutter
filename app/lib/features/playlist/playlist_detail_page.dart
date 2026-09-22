@@ -15,6 +15,7 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankDetailHeaderSurface, rankHeroFlightShuttle;
+import '../../shared/widgets/smooth_scroll.dart';
 
 class PlaylistDetailPage extends ConsumerStatefulWidget {
   const PlaylistDetailPage({
@@ -226,10 +227,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
 
     return Scaffold(
       body: DesktopContentConstraint(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
+        child: SmoothCustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 240,

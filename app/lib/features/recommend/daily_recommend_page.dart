@@ -11,6 +11,7 @@ import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class DailyRecommendPage extends ConsumerStatefulWidget {
   const DailyRecommendPage({super.key});
@@ -203,10 +204,7 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
               emptyMessage: _needLogin ? '登录后查看每日推荐' : '今日暂无推荐',
               errorMessage: _error,
               onRetry: _load,
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
+              child: SmoothListViewBuilder(
                 itemCount: _tracks.length,
                 itemBuilder: (context, index) {
                   final track = _tracks[index];

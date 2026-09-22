@@ -15,6 +15,7 @@ import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/settings_pickers.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -83,10 +84,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             : '${collections.totalPlaylistsCount}');
     final playlistStatHint = !auth.isLogged ? '需登录' : null;
 
-    return ListView(
-      physics: const BouncingScrollPhysics(
-        parent: AlwaysScrollableScrollPhysics(),
-      ),
+    return SmoothListView(
       padding: const EdgeInsets.fromLTRB(
         KugoSpacing.lg,
         KugoSpacing.xl,

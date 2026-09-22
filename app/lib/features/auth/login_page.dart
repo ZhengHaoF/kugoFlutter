@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/kugo_theme.dart';
 import 'auth_controller.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -338,7 +339,7 @@ class _QrLoginView extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
+    return SmoothSingleChildScrollView(
       padding: const EdgeInsets.all(KugoSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

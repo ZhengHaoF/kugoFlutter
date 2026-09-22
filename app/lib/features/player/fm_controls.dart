@@ -14,6 +14,7 @@ import '../../shared/widgets/cover_box.dart';
 import '../fm/fm_controller.dart';
 import '../fm/fm_radio_card.dart';
 import '../player/player_controller.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// 播放页上的 FM 紧凑入口：一行药丸，点开 [showFmSheet]。
 ///
@@ -337,7 +338,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
                 children: [
                   Positioned.fill(
                     child: SafeArea(
-                      child: CustomScrollView(
+                      child: SmoothCustomScrollView(
                         slivers: slivers,
                       ),
                     ),
@@ -383,6 +384,8 @@ class _FmSheetState extends ConsumerState<_FmSheet>
                   kugo.palette,
                 ),
               ),
+              // DraggableScrollableSheet 必须用自己的 ScrollPosition，
+              // 不能再包 SilkyScroll（会类型断言失败）。
               child: CustomScrollView(
                 controller: scrollController,
                 slivers: slivers,

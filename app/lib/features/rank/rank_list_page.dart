@@ -10,6 +10,7 @@ import '../../data/repositories/playlist_repository.dart';
 import '../../shared/widgets/async_body.dart';
 
 import 'rank_hero.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 export 'rank_hero.dart';
 
 class RankListPage extends ConsumerStatefulWidget {
@@ -76,15 +77,12 @@ class _RankListPageState extends ConsumerState<RankListPage> {
                       constraints.maxWidth > 0
                   ? constraints.maxWidth
                   : MediaQuery.sizeOf(context).width;
-              return GridView.builder(
+              return SmoothGridViewBuilder(
                 padding: EdgeInsets.fromLTRB(
                   KugoSpacing.lg,
                   KugoSpacing.md,
                   KugoSpacing.lg,
                   desktop ? KugoSpacing.xxl : 120,
-                ),
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
                 ),
                 gridDelegate: coverGridDelegateForWidth(
                   context,

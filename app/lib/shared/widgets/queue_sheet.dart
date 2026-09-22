@@ -5,6 +5,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// Shows the current playback queue in a bottom sheet or modal.
 void showQueueSheet(BuildContext context, WidgetRef ref) {
@@ -48,7 +49,7 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
               )
             else
               Flexible(
-                child: ListView.builder(
+                child: SmoothListViewBuilder(
                   shrinkWrap: true,
                   itemCount: player.queue.length,
                   itemBuilder: (context, index) {

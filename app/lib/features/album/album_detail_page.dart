@@ -11,6 +11,7 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 class AlbumDetailPage extends ConsumerStatefulWidget {
   const AlbumDetailPage({super.key, required this.id});
@@ -61,10 +62,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
     final songs = album?.songs ?? const <Track>[];
 
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
+      body: SmoothCustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 260,
