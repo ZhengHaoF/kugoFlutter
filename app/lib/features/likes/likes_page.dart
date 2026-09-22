@@ -45,6 +45,19 @@ class _LikesPageState extends ConsumerState<LikesPage>
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+    // Actively pull cloud collections when the page opens (EchoMusic onMounted).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = ref.read(authControllerProvider);
+      if (!auth.isLogged) return;
+      final collections = ref.read(userCollectionsProvider);
+      if (!collections.loaded) {
+        ref.read(userCollectionsProvider.notifier).loadAll();
+      } else if (collections.cloudFavoriteTracks.isEmpty &&
+          collections.favoriteTracksError.isEmpty) {
+        ref.read(userCollectionsProvider.notifier).loadFavoriteTracks();
+      }
+    });
   }
 
   @override
@@ -111,18 +124,19 @@ class _LikesPageState extends ConsumerState<LikesPage>
     final localLikes = ref.watch(likesProvider);
     final player = ref.watch(playerControllerProvider);
 
-    final List<Track> songsSource;
+    // Keep local heart cache in sync with cloud favorites.
     if (auth.isLogged && collections.cloudFavoriteTracks.isNotEmpty) {
-      final cloudHashes = collections.cloudFavoriteTracks
-          .map((t) => t.hash.toLowerCase())
-          .toSet();
-      final extraLocals = localLikes
-          .where((t) => !cloudHashes.contains(t.hash.toLowerCase()))
-          .toList();
-      songsSource = [...collections.cloudFavoriteTracks, ...extraLocals];
-    } else {
-      songsSource = localLikes;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref
+            .read(likesProvider.notifier)
+            .absorbCloudTracks(collections.cloudFavoriteTracks);
+      });
     }
+
+    // 登录后只认云端「我喜欢」；本地红心仅作离线缓存/红心态，不拼进列表。
+    final List<Track> songsSource =
+        auth.isLogged ? collections.cloudFavoriteTracks : localLikes;
 
     final displayedSongs = _applyFilterAndSort(songsSource);
     final displayedSingers = _filterSingers(collections.followedSingers);
@@ -267,6 +281,8 @@ class _LikesPageState extends ConsumerState<LikesPage>
             displayed: displayedSongs,
             totalCount: songsSource.length,
             isLoading: collections.isLoadingFavoriteTracks && songsSource.isEmpty,
+            error: auth.isLogged ? collections.favoriteTracksError : '',
+            auth: auth,
             player: player,
             kugo: kugo,
           ),
@@ -298,7 +314,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
     required int totalCount,
     required PlayerState player,
     required KugoTheme kugo,
+    required AuthState auth,
     bool isLoading = false,
+    String error = '',
   }) {
     if (isLoading) {
       return const AsyncBody(
@@ -310,12 +328,21 @@ class _LikesPageState extends ConsumerState<LikesPage>
     }
 
     if (totalCount == 0) {
+      final emptyMessage = !auth.isLogged
+          ? '登录酷狗账号后，即可同步云端「我喜欢」'
+          : (error.isNotEmpty
+              ? error
+              : '还没有红心歌曲\n播放时点 ♥ 即可收藏到云端');
       return AsyncBody(
         loading: false,
-        hasError: false,
+        hasError: error.isNotEmpty,
         isEmpty: true,
-        emptyMessage: '还没有红心歌曲\n播放时点 ♥ 即可收藏',
-        onRetry: () {},
+        emptyMessage: emptyMessage,
+        onRetry: auth.isLogged
+            ? () => ref
+                .read(userCollectionsProvider.notifier)
+                .loadFavoriteTracks(force: true)
+            : () => context.push('/login'),
         child: const SizedBox.shrink(),
       );
     }
@@ -380,8 +407,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
                           color: Color(0xFFE87A90),
                           size: 20,
                         ),
-                        onPressed: () =>
-                            ref.read(likesProvider.notifier).remove(track.id),
+                        onPressed: () => ref
+                            .read(likesProvider.notifier)
+                            .removeTrack(track),
                       ),
                       onArtistTap: artistTapFor(context, track),
                       onTap: () {

@@ -176,12 +176,17 @@ class UserRepository {
           );
         } else {
           // Playlist
-          final listId = '${m['listid'] ?? m['specialid'] ?? m['id'] ?? ''}';
+          // Prefer /user/playlist listid for track APIs; never use public specialid.
+          final rawListId = '${m['listid'] ?? ''}';
+          final listId = rawListId.isNotEmpty && rawListId != '0'
+              ? rawListId
+              : '${m['list_create_listid'] ?? m['id'] ?? ''}';
           final name = '${m['name'] ?? m['specialname'] ?? ''}';
           final cover = normalizeCoverUrl('${m['pic'] ?? m['imgurl'] ?? m['cover'] ?? ''}');
           final creator = '${m['nickname'] ?? m['list_create_username'] ?? ''}';
           final trackCount = int.tryParse('${m['count'] ?? m['songcount'] ?? m['song_count'] ?? 0}') ?? 0;
           final isDef = m['is_def'] == 1 || m['is_default'] == 1 || m['is_def'] == 2;
+          final typeVal = int.tryParse('${m['type'] ?? 0}') ?? 0;
           final createUserId = '${m['list_create_userid'] ?? ''}';
           final brief = PlaylistBrief(
             id: listId,
@@ -192,6 +197,8 @@ class UserRepository {
             source: source,
             userId: createUserId,
             isDefault: isDef,
+            type: typeVal,
+            listId: rawListId.isNotEmpty && rawListId != '0' ? rawListId : listId,
           );
           if (createUserId == userId || (createUserId.isEmpty && isDef)) {
             created.add(brief);
@@ -452,6 +459,181 @@ class UserRepository {
     } catch (e) {
       return UserPlaylistTracksResult(error: e.toString());
     }
+  }
+
+  /// Adds a song to a cloud playlist (including default 「我喜欢」).
+  ///
+  /// Ported from KuGouMusicApi `playlist_tracks_add.js` → `/cloudlist.service/v6/add_song`.
+  Future<({bool ok, String error})> addPlaylistTrack({
+    required String listId,
+    required String userId,
+    required String token,
+    required String name,
+    required String hash,
+    required String albumId,
+    required String mixSongId,
+  }) async {
+    if (userId.isEmpty || token.isEmpty) {
+      return (ok: false, error: '未登录');
+    }
+    try {
+      final device = await DeviceIdentity.ensure();
+      final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final query = <String, dynamic>{
+        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        'plat': 1,
+        'userid': int.tryParse(userId) ?? userId,
+        'token': token,
+      };
+      final dataMap = <String, dynamic>{
+        'userid': int.tryParse(userId) ?? userId,
+        'token': token,
+        'listid': int.tryParse(listId) ?? listId,
+        'list_ver': 0,
+        'type': 0,
+        'slow_upload': 1,
+        'scene': 'false;null',
+        'data': [
+          {
+            'number': 1,
+            'name': name,
+            'hash': hash,
+            'size': 0,
+            'sort': 0,
+            'timelen': 0,
+            'bitrate': 0,
+            'album_id': int.tryParse(albumId) ?? 0,
+            'mixsongid': int.tryParse(mixSongId) ?? 0,
+          },
+        ],
+      };
+      final bodyJson = jsonEncode(dataMap);
+      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['last_time'] = clienttime;
+      query['last_area'] = 'gztx';
+
+      final headers = _authHeaders(device: device, token: token, userId: userId, clienttime: clienttime);
+      headers['x-router'] = 'cloudlist.service.kugou.com';
+
+      final res = await _dio.post<dynamic>(
+        '${KugoEndpoints.gateway}/v6/add_song',
+        queryParameters: query,
+        data: bodyJson,
+        options: Options(headers: headers),
+      );
+      return _parseCloudOp(res, '添加到我喜欢失败');
+    } on DioException catch (e) {
+      final msg = e.message ?? e.toString();
+      return (
+        ok: false,
+        error: msg.contains('URL过滤')
+            ? '网络网关拦截（URL过滤），无法访问酷狗'
+            : '网络请求失败',
+      );
+    } catch (e) {
+      return (ok: false, error: e.toString());
+    }
+  }
+
+  /// Removes songs from a cloud playlist by fileid (mixsongid).
+  ///
+  /// Ported from KuGouMusicApi `playlist_tracks_del.js` → `/v4/delete_songs`.
+  Future<({bool ok, String error})> deletePlaylistTracks({
+    required String listId,
+    required String userId,
+    required String token,
+    required List<String> fileIds,
+  }) async {
+    if (userId.isEmpty || token.isEmpty) {
+      return (ok: false, error: '未登录');
+    }
+    if (fileIds.isEmpty) {
+      return (ok: true, error: '');
+    }
+    try {
+      final device = await DeviceIdentity.ensure();
+      final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final query = <String, dynamic>{
+        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        'plat': 1,
+        'userid': int.tryParse(userId) ?? userId,
+        'token': token,
+      };
+      final dataMap = <String, dynamic>{
+        'listid': int.tryParse(listId) ?? listId,
+        'userid': int.tryParse(userId) ?? userId,
+        'data': [
+          for (final id in fileIds) {'fileid': int.tryParse(id) ?? 0},
+        ],
+        'type': 0,
+        'token': token,
+        'list_ver': 0,
+      };
+      final bodyJson = jsonEncode(dataMap);
+      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+
+      final headers = _authHeaders(device: device, token: token, userId: userId, clienttime: clienttime);
+      headers['x-router'] = 'cloudlist.service.kugou.com';
+
+      final res = await _dio.post<dynamic>(
+        '${KugoEndpoints.gateway}/v4/delete_songs',
+        queryParameters: query,
+        data: bodyJson,
+        options: Options(headers: headers),
+      );
+      return _parseCloudOp(res, '从我喜欢移除失败');
+    } on DioException catch (e) {
+      final msg = e.message ?? e.toString();
+      return (
+        ok: false,
+        error: msg.contains('URL过滤')
+            ? '网络网关拦截（URL过滤），无法访问酷狗'
+            : '网络请求失败',
+      );
+    } catch (e) {
+      return (ok: false, error: e.toString());
+    }
+  }
+
+  Map<String, dynamic> _authHeaders({
+    required dynamic device,
+    required String token,
+    required String userId,
+    required int clienttime,
+  }) {
+    final cookieParts = <String>[
+      'token=$token',
+      'userid=$userId',
+      'dfid=${device.dfid}',
+      'KUGOU_API_MID=${device.mid}',
+      'KUGOU_API_GUID=${device.guid}',
+      'KUGOU_API_DEV=${device.dev}',
+    ];
+    return <String, dynamic>{
+      'User-Agent': KugoSign.userAgent,
+      'Content-Type': 'application/json',
+      'dfid': device.dfid,
+      'mid': device.mid,
+      'clienttime': '$clienttime',
+      'Cookie': cookieParts.join(';'),
+    };
+  }
+
+  ({bool ok, String error}) _parseCloudOp(Response<dynamic> res, String fallback) {
+    final raw = res.data?.toString() ?? '';
+    if (looksLikeUrlFilter(raw)) {
+      return (ok: false, error: '网络网关拦截（URL过滤），无法访问酷狗');
+    }
+    final decoded = decodeKugoBody(res.data);
+    if (decoded is! Map) {
+      return (ok: false, error: fallback);
+    }
+    final map = Map<String, dynamic>.from(decoded);
+    final status = map['status'];
+    final ok = status == 1 || status == '1' || status == true;
+    if (ok) return (ok: true, error: '');
+    final msg = (map['msg'] ?? map['error'] ?? map['message'] ?? '').toString();
+    return (ok: false, error: msg.isNotEmpty ? msg : fallback);
   }
 }
 

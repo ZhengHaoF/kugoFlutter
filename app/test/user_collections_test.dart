@@ -316,7 +316,17 @@ void main() {
     testWidgets('can switch between songs, singers, and albums tabs',
         (tester) async {
       final engine = FakeAudioPlayer();
+      const likedTrack = Track(
+        id: 's1',
+        name: '半岛铁盒',
+        artist: '周杰伦',
+        album: '八度空间',
+        coverUrl: '',
+        durationMs: 240000,
+        hash: 'h_s1',
+      );
       const seededState = UserCollectionsState(
+        cloudFavoriteTracks: [likedTrack],
         followedSingers: [
           ArtistBrief(
             id: 'a1',
@@ -365,18 +375,8 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      // Add a like song
-      await container.read(likesProvider.notifier).toggle(
-            const Track(
-              id: 's1',
-              name: '半岛铁盒',
-              artist: '周杰伦',
-              album: '八度空间',
-              coverUrl: '',
-              durationMs: 240000,
-              hash: 'h_s1',
-            ),
-          );
+      // Logged-in list is cloud-only; seed local heart for like-state only.
+      await container.read(likesProvider.notifier).like(likedTrack);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

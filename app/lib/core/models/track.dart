@@ -124,6 +124,8 @@ class PlaylistBrief {
     this.source = 1,
     this.userId = '',
     this.isDefault = false,
+    this.type = 0,
+    this.listId = '',
   });
 
   final String id;
@@ -146,6 +148,13 @@ class PlaylistBrief {
   /// True for default favorites playlist.
   final bool isDefault;
 
+  /// Kugou list `type`: 0 self-created (incl. 我喜欢), 1 collected.
+  final int type;
+
+  /// Cloud `listid` from `/user/playlist` — required for track APIs.
+  /// Never fall back to public `specialid`.
+  final String listId;
+
   PlaylistBrief copyWith({
     String? id,
     String? name,
@@ -158,6 +167,8 @@ class PlaylistBrief {
     int? source,
     String? userId,
     bool? isDefault,
+    int? type,
+    String? listId,
   }) {
     return PlaylistBrief(
       id: id ?? this.id,
@@ -171,6 +182,8 @@ class PlaylistBrief {
       source: source ?? this.source,
       userId: userId ?? this.userId,
       isDefault: isDefault ?? this.isDefault,
+      type: type ?? this.type,
+      listId: listId ?? this.listId,
     );
   }
 }

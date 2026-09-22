@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
+import '../../data/repositories/user_repository.dart';
+import '../auth/auth_controller.dart';
+import '../profile/user_collections_controller.dart';
 
 class LikesNotifier extends Notifier<List<Track>> {
   static const _kKey = 'likes.v1';
@@ -32,22 +36,81 @@ class LikesNotifier extends Notifier<List<Track>> {
 
   Future<void> toggle(Track track) async {
     if (isLiked(track.id)) {
-      state = state.where((t) => t.id != track.id).toList();
+      await remove(track.id);
     } else {
-      state = [track, ...state];
+      await like(track);
     }
-    await _persist();
   }
 
   Future<void> like(Track track) async {
     if (isLiked(track.id)) return;
     state = [track, ...state];
     await _persist();
+    await _syncAddToCloud(track);
   }
 
   Future<void> remove(String id) async {
+    final track = state.where((t) => t.id == id).firstOrNull;
     state = state.where((t) => t.id != id).toList();
     await _persist();
+    if (track != null) {
+      await _syncRemoveFromCloud(track);
+    }
+  }
+
+  /// Removes by track so cloud fileid is available even when only cloud has it.
+  Future<void> removeTrack(Track track) async {
+    state = state.where((t) => t.id != track.id).toList();
+    await _persist();
+    await _syncRemoveFromCloud(track);
+  }
+
+  /// Merges cloud favorite tracks into the local heart set (offline cache).
+  void absorbCloudTracks(List<Track> cloudTracks) {
+    if (cloudTracks.isEmpty) return;
+    final existing = state.map((t) => t.id).toSet();
+    final incoming = cloudTracks.where((t) => !existing.contains(t.id)).toList();
+    if (incoming.isEmpty) return;
+    state = [...incoming, ...state];
+    unawaited(_persist());
+  }
+
+  ({String listId, String userId, String token})? _cloudContext() {
+    final auth = ref.read(authControllerProvider);
+    final user = auth.user;
+    if (!auth.isLogged || user == null) return null;
+    final liked = ref.read(userCollectionsProvider).defaultLikedPlaylist;
+    if (liked == null) return null;
+    final listId = liked.listId.isNotEmpty ? liked.listId : liked.id;
+    if (listId.isEmpty) return null;
+    return (listId: listId, userId: user.userId, token: user.token);
+  }
+
+  Future<void> _syncAddToCloud(Track track) async {
+    final ctx = _cloudContext();
+    if (ctx == null) return;
+    await userRepository.addPlaylistTrack(
+      listId: ctx.listId,
+      userId: ctx.userId,
+      token: ctx.token,
+      name: track.name,
+      hash: track.hash,
+      albumId: track.albumId,
+      mixSongId: track.mixSongId,
+    );
+  }
+
+  Future<void> _syncRemoveFromCloud(Track track) async {
+    final ctx = _cloudContext();
+    if (ctx == null) return;
+    final fileId = track.mixSongId.isNotEmpty ? track.mixSongId : track.id;
+    if (fileId.isEmpty) return;
+    await userRepository.deletePlaylistTracks(
+      listId: ctx.listId,
+      userId: ctx.userId,
+      token: ctx.token,
+      fileIds: [fileId],
+    );
   }
 
   Future<void> _persist() async {

@@ -39,9 +39,38 @@ class UserCollectionsState {
   bool get isLoading =>
       isLoadingPlaylists || isLoadingFollow || isLoadingFavoriteTracks;
 
+  /// Multi-level 「我喜欢」 resolution aligned with EchoMusic `findLikedPlaylist`.
+  ///
+  /// Searches created + collected so a mis-bucketed default list is still found.
   PlaylistBrief? get defaultLikedPlaylist {
-    for (final p in createdPlaylists) {
-      if (p.isDefault) return p;
+    final all = [...createdPlaylists, ...collectedPlaylists];
+    PlaylistBrief? byName(String exact) {
+      for (final p in all) {
+        if (p.name.trim() == exact) return p;
+      }
+      return null;
+    }
+
+    PlaylistBrief? byNameContains(String part) {
+      for (final p in all) {
+        if (p.name.trim().contains(part)) return p;
+      }
+      return null;
+    }
+
+    return byName('我喜欢的音乐') ??
+        byName('我喜欢') ??
+        byNameContains('喜欢') ??
+        _firstWhere(all, (p) => p.type == 1 || p.isDefault) ??
+        byName('默认收藏');
+  }
+
+  static PlaylistBrief? _firstWhere(
+    List<PlaylistBrief> items,
+    bool Function(PlaylistBrief) test,
+  ) {
+    for (final p in items) {
+      if (test(p)) return p;
     }
     return null;
   }
@@ -141,9 +170,8 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
       loaded: true,
     );
 
-    if (state.defaultLikedPlaylist != null) {
-      await loadFavoriteTracks();
-    }
+    // Always try to pull cloud favorite tracks after playlists arrive.
+    await loadFavoriteTracks();
   }
 
   Future<void> loadFavoriteTracks({bool force = false}) async {
@@ -159,6 +187,10 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
 
     final likedPlaylist = state.defaultLikedPlaylist;
     if (likedPlaylist == null) {
+      state = state.copyWith(
+        isLoadingFavoriteTracks: false,
+        favoriteTracksError: '未找到云端「我喜欢」歌单',
+      );
       return;
     }
 
@@ -171,8 +203,12 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
       favoriteTracksError: '',
     );
 
+    // Only pass /user/playlist listid — never the public specialid.
+    final cloudListId = likedPlaylist.listId.isNotEmpty
+        ? likedPlaylist.listId
+        : likedPlaylist.id;
     final res = await _repo.fetchUserPlaylistTracks(
-      listId: likedPlaylist.id,
+      listId: cloudListId,
       userId: user.userId,
       token: user.token,
       type: 0,
@@ -205,6 +241,8 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
             source: p.source,
             userId: p.userId,
             isDefault: p.isDefault,
+            type: p.type,
+            listId: p.listId,
           );
         }
         return p;
