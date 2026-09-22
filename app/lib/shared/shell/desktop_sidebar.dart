@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerEnterEvent, PointerExitEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,8 +15,12 @@ class DesktopSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kugo = KugoTheme.of(context);
-    final isFmActive =
-        ref.watch(playerControllerProvider).queueSource == PlaybackQueueSource.fm;
+    // Only the LIVE badge depends on player state — don't rebuild the whole
+    // rail (and its hover regions) on every position tick.
+    final isFmActive = ref.watch(
+      playerControllerProvider
+          .select((s) => s.queueSource == PlaybackQueueSource.fm),
+    );
 
     return Container(
       width: 220,
@@ -212,17 +217,33 @@ class _SidebarItem extends StatefulWidget {
 class _SidebarItemState extends State<_SidebarItem> {
   bool _hovered = false;
 
+  // Stable tear-offs so MouseRegion doesn't see new closures every rebuild.
+  void _handleEnter(PointerEnterEvent _) {
+    if (_hovered) return;
+    setState(() => _hovered = true);
+  }
+
+  void _handleExit(PointerExitEvent _) {
+    if (!_hovered || !mounted) return;
+    setState(() => _hovered = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     final activeColor = kugo.primary;
     final inactiveColor = kugo.textSecondary;
+    // Same RGB as the hover fill (black); only alpha animates. Avoids
+    // Colors.transparent (transparent black) lerping through gray.
+    final hoverFill = Colors.black.withValues(alpha: kugo.isLight ? 0.08 : 0.18);
+    final idleFill = Colors.black.withValues(alpha: 0);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onEnter: _handleEnter,
+      onExit: _handleExit,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -232,8 +253,8 @@ class _SidebarItemState extends State<_SidebarItem> {
             color: widget.selected
                 ? kugo.primary.withValues(alpha: 0.14)
                 : _hovered
-                    ? kugo.surfaceElevated.withValues(alpha: 0.6)
-                    : Colors.transparent,
+                    ? hoverFill
+                    : idleFill,
             borderRadius: BorderRadius.circular(8),
             border: widget.selected
                 ? Border(
