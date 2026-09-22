@@ -22,7 +22,7 @@ class AppSettings {
     this.wifiCoverOnly = false,
     this.lyricTranslation = true,
     this.mediaLyricSubtitle = false,
-    this.themeMode = AppThemeMode.dark,
+    this.themeMode = AppThemeMode.light,
   });
 
   final AppQuality quality;
@@ -125,7 +125,7 @@ class SettingsController extends Notifier<AppSettings> {
         mediaLyricSubtitle: prefs.getBool(_kMediaLyric) ?? false,
         themeMode: AppThemeMode.values.firstWhere(
           (e) => e.name == themeName,
-          orElse: () => AppThemeMode.dark,
+          orElse: () => AppThemeMode.light,
         ),
       );
     } catch (_) {}
