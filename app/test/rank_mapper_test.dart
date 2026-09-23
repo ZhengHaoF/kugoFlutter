@@ -11,6 +11,8 @@ void main() {
       'imgurl': 'http://imge.kugou.com/mcommon/{size}/20241219/x.png',
       'play_times': 10169437,
       'intro': '数据来源：全曲库歌曲',
+      'updatefrequency': '日更',
+      'rank_type_name': '推荐',
     });
 
     expect(brief.id, '8888');
@@ -19,6 +21,19 @@ void main() {
     expect(brief.coverUrl, contains('imge.kugou.com'));
     expect(brief.coverUrl, isNot(contains('{size}')));
     expect(brief.isRank, isTrue);
+    expect(brief.updateFrequency, '日更');
+    expect(brief.rankTypeName, '推荐');
+  });
+
+  test('mapRankBrief reads updatefrequency / type_info fallbacks', () {
+    final brief = mapRankBrief({
+      'rankname': '飙升榜',
+      'rankid': 6666,
+      'updateFrequency': '实时',
+      'type_info': {'name': '特色榜'},
+    });
+    expect(brief.updateFrequency, '实时');
+    expect(brief.rankTypeName, '特色榜');
   });
 
   test('rank/list trackCount prefers extra.resp.all_total over degraded total',

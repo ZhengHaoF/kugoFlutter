@@ -217,10 +217,25 @@ class RankDetailHeaderSurface extends StatelessWidget {
                 Text(
                   b == null
                       ? '在线加载'
-                      : '$tracksCount 首'
-                          '${b.playCountLabel.isNotEmpty ? ' · ${b.playCountLabel}' : ''}',
+                      : [
+                          '$tracksCount 首',
+                          if (b.playCountLabel.isNotEmpty) b.playCountLabel,
+                          if (b.updateFrequency.isNotEmpty) b.updateFrequency,
+                        ].join(' · '),
                   style: kugo.caption.copyWith(decoration: TextDecoration.none),
                 ),
+                if (b?.rankTypeName.isNotEmpty == true) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    b!.rankTypeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: kugo.caption.copyWith(
+                      color: kugo.textSecondary.withValues(alpha: 0.85),
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
                 if (b?.description.isNotEmpty == true) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -395,11 +410,29 @@ Widget rankHeroFlightShuttle(
                         Text(
                           brief == null
                               ? '在线加载'
-                              : '$tracksCount 首'
-                                  '${brief.playCountLabel.isNotEmpty ? ' · ${brief.playCountLabel}' : ''}',
+                              : [
+                                  '$tracksCount 首',
+                                  if (brief.playCountLabel.isNotEmpty)
+                                    brief.playCountLabel,
+                                  if (brief.updateFrequency.isNotEmpty)
+                                    brief.updateFrequency,
+                                ].join(' · '),
                           style: kugo.caption
                               .copyWith(decoration: TextDecoration.none),
                         ),
+                        if (brief?.rankTypeName.isNotEmpty == true) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            brief!.rankTypeName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: kugo.caption.copyWith(
+                              color: kugo.textSecondary
+                                  .withValues(alpha: 0.85),
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
                         if (brief?.description.isNotEmpty == true) ...[
                           const SizedBox(height: 8),
                           Text(

@@ -126,6 +126,8 @@ class PlaylistBrief {
     this.isDefault = false,
     this.type = 0,
     this.listId = '',
+    this.rankTypeName = '',
+    this.updateFrequency = '',
   });
 
   final String id;
@@ -155,6 +157,12 @@ class PlaylistBrief {
   /// Never fall back to public `specialid`.
   final String listId;
 
+  /// 榜单分类名（如「推荐」）；空 = 接口未提供。
+  final String rankTypeName;
+
+  /// 更新频率（如「日更」）；空 = 接口未提供。
+  final String updateFrequency;
+
   PlaylistBrief copyWith({
     String? id,
     String? name,
@@ -169,6 +177,8 @@ class PlaylistBrief {
     bool? isDefault,
     int? type,
     String? listId,
+    String? rankTypeName,
+    String? updateFrequency,
   }) {
     return PlaylistBrief(
       id: id ?? this.id,
@@ -184,6 +194,8 @@ class PlaylistBrief {
       isDefault: isDefault ?? this.isDefault,
       type: type ?? this.type,
       listId: listId ?? this.listId,
+      rankTypeName: rankTypeName ?? this.rankTypeName,
+      updateFrequency: updateFrequency ?? this.updateFrequency,
     );
   }
 }

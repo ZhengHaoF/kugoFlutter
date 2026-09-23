@@ -393,6 +393,18 @@ PlaylistBrief mapRankBrief(Map<String, dynamic> json) {
     json['all_total'],
     _i2(resp['all_total'], _i2(json['song_count'], json['total'])),
   );
+  // EchoMusic RankMeta: rankTypeName / updateFrequency drive grouping + meta.
+  final typeInfo = json['type_info'] is Map
+      ? Map<String, dynamic>.from(json['type_info'] as Map)
+      : const <String, dynamic>{};
+  final rankTypeName = _s(
+    json['rank_type_name'],
+    _s(json['type_name'], _s(json['group'], _s(typeInfo['name'], _s(typeInfo['title'])))),
+  );
+  final updateFrequency = _s(
+    json['updatefrequency'],
+    _s(json['updateFrequency'], _s(json['update'])),
+  );
   return PlaylistBrief(
     id: rankId,
     name: name,
@@ -402,6 +414,8 @@ PlaylistBrief mapRankBrief(Map<String, dynamic> json) {
     trackCount: count,
     playCountLabel: play > 0 ? formatCount(play) : '',
     isRank: true,
+    rankTypeName: rankTypeName,
+    updateFrequency: updateFrequency,
   );
 }
 
