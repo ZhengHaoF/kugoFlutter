@@ -1,22 +1,31 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
+import '../taskbar/taskbar_bridge.dart';
 import 'desktop_tray.dart';
 
-/// Windows / 桌面壳：托盘 + 关闭到托盘。
+/// Windows / 桌面壳：托盘 + 关闭到托盘 + 任务栏 Thumbar/进度条。
 ///
 /// 只在 `main()` 调用；测试直接 pump [KugoApp]，不会碰到 window_manager。
 class DesktopShell with WindowListener {
   DesktopShell(this._container);
 
+  /// Echo taskbarProgress THROTTLE_MS / RATIO_EPSILON.
+  static const _progressThrottle = Duration(milliseconds: 200);
+
   final ProviderContainer _container;
   DesktopTray? _tray;
   bool _quitting = false;
+  Timer? _progressTimer;
+  VoidCallback? _positionListener;
+  int _lastProgressPermille = -1;
+  String _lastProgressMode = 'none';
 
   PlayerController get _player => _container.read(playerControllerProvider.notifier);
 
@@ -53,8 +62,35 @@ class DesktopShell with WindowListener {
     _tray = tray;
     await tray.init();
     _syncTray();
+    _wireTaskbar();
 
-    _container.listen<PlayerState>(playerControllerProvider, (_, _) => _syncTray());
+    _container.listen<PlayerState>(playerControllerProvider, (_, _) {
+      _syncTray();
+      _syncTaskbarFromState();
+    });
+  }
+
+  void _wireTaskbar() {
+    if (!isWindowsPlatform) return;
+    TaskbarBridge.ensureListening();
+    TaskbarBridge.onThumbarCommand = _onThumbarCommand;
+    final position = _player.position;
+    void onPosition() => _scheduleProgressSync();
+    position.addListener(onPosition);
+    _positionListener = onPosition;
+    _syncTaskbarFromState();
+    _scheduleProgressSync();
+  }
+
+  void _onThumbarCommand(String command) {
+    switch (command) {
+      case 'previous':
+        _player.previous();
+      case 'playPause':
+        _player.togglePlay();
+      case 'next':
+        _player.next();
+    }
   }
 
   void _syncTray() {
@@ -70,17 +106,75 @@ class DesktopShell with WindowListener {
     );
   }
 
+  void _syncTaskbarFromState() {
+    final s = _playerState;
+    final hasTrack = s.current != null;
+    unawaited(
+      TaskbarBridge.updateButtons(hasTrack: hasTrack, isPlaying: s.isPlaying),
+    );
+    // Mode is discrete — push immediately so pause turns yellow at once.
+    _pushProgress(force: true);
+  }
+
+  void _scheduleProgressSync() {
+    if (_progressTimer?.isActive ?? false) return;
+    _progressTimer = Timer(_progressThrottle, () => _pushProgress(force: false));
+  }
+
+  void _pushProgress({required bool force}) {
+    final s = _playerState;
+    final hasTrack = s.current != null;
+    final mode = taskbarModeFor(
+      hasTrack: hasTrack,
+      isPlaying: s.isPlaying,
+      durationMs: s.durationMs,
+    );
+    final durationMs = s.durationMs;
+    final positionMs = _player.position.value.clamp(0, durationMs <= 0 ? 0 : durationMs);
+    var permille = 0;
+    if (durationMs > 0) {
+      permille = (positionMs * 1000) ~/ durationMs;
+    }
+    final modeName = mode.wireName;
+    final modeChanged = modeName != _lastProgressMode;
+    final ratioChanged =
+        _lastProgressPermille < 0 || (permille - _lastProgressPermille).abs() >= 1;
+    if (!force && !modeChanged && !ratioChanged) return;
+
+    _lastProgressMode = modeName;
+    _lastProgressPermille = permille;
+    unawaited(
+      TaskbarBridge.updateProgress(
+        mode: modeName,
+        positionMs: positionMs,
+        durationMs: durationMs,
+      ),
+    );
+  }
+
   Future<void> showWindow() async {
     if (await windowManager.isMinimized()) {
       await windowManager.restore();
     }
     await windowManager.show();
     await windowManager.focus();
+    // 任务栏按钮重建后 thumbar 会丢，显示时重放一次。
+    if (isWindowsPlatform) {
+      unawaited(TaskbarBridge.refresh());
+    }
   }
 
   Future<void> quit() async {
     if (_quitting) return;
     _quitting = true;
+    _progressTimer?.cancel();
+    _progressTimer = null;
+    final listener = _positionListener;
+    if (listener != null) {
+      _player.position.removeListener(listener);
+      _positionListener = null;
+    }
+    TaskbarBridge.onThumbarCommand = null;
     final tray = _tray;
     _tray = null;
     await tray?.destroy();
@@ -97,5 +191,12 @@ class DesktopShell with WindowListener {
       return;
     }
     unawaited(quit());
+  }
+
+  @override
+  void onWindowRestore() {
+    if (isWindowsPlatform) {
+      unawaited(TaskbarBridge.refresh());
+    }
   }
 }

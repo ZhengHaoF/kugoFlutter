@@ -8,6 +8,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 bool get isDesktopPlatform =>
     !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
+/// Windows-only desktop shell extras (taskbar Thumbar / progress).
+bool get isWindowsPlatform => !kIsWeb && Platform.isWindows;
+
 /// Whether the platform has an implementation for the system media session
 /// (notification / lock screen / Bluetooth AVRCP / Windows SMTC).
 ///
