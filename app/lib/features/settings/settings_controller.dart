@@ -14,6 +14,27 @@ enum SleepTimerMode { off, m15, m30, m60, custom }
 
 enum AppThemeMode { dark, light, system }
 
+/// Desktop: what the window close button does.
+///
+/// `ask` is the "don't remember" state — the close prompt shows every time,
+/// unless the user ticks「记住我的选择」there (which persists `tray` / `quit`).
+enum CloseBehavior { ask, tray, quit }
+
+extension CloseBehaviorX on CloseBehavior {
+  String get label => switch (this) {
+        CloseBehavior.ask => '每次询问',
+        CloseBehavior.tray => '最小化到托盘',
+        CloseBehavior.quit => '退出应用',
+      };
+
+  /// Settings-row subtitle / close-prompt hint.
+  String get closeHint => switch (this) {
+        CloseBehavior.ask => '关闭时弹出提示，可勾选「记住我的选择」',
+        CloseBehavior.tray => '关闭时最小化到系统托盘，不退出应用',
+        CloseBehavior.quit => '关闭时直接退出应用',
+      };
+}
+
 class AppSettings {
   const AppSettings({
     this.quality = AppQuality.hq,
@@ -24,7 +45,7 @@ class AppSettings {
     this.lyricRomanization = false,
     this.mediaLyricSubtitle = false,
     this.themeMode = AppThemeMode.light,
-    this.closeToTray = true,
+    this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
   });
 
@@ -43,8 +64,8 @@ class AppSettings {
   final bool mediaLyricSubtitle;
   final AppThemeMode themeMode;
 
-  /// Desktop only: hide to tray instead of quitting on window close.
-  final bool closeToTray;
+  /// Desktop only: what the window close button does (ask / tray / quit).
+  final CloseBehavior closeBehavior;
 
   /// Windows only: taskbar button progress bar (Echo「任务栏播放进度条」).
   final bool taskbarProgress;
@@ -83,7 +104,7 @@ class AppSettings {
     bool? lyricRomanization,
     bool? mediaLyricSubtitle,
     AppThemeMode? themeMode,
-    bool? closeToTray,
+    CloseBehavior? closeBehavior,
     bool? taskbarProgress,
   }) {
     return AppSettings(
@@ -95,7 +116,7 @@ class AppSettings {
       lyricRomanization: lyricRomanization ?? this.lyricRomanization,
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       themeMode: themeMode ?? this.themeMode,
-      closeToTray: closeToTray ?? this.closeToTray,
+      closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
     );
   }
@@ -110,7 +131,10 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kLyricRo = 'settings.lyricRomanization';
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kThemeMode = 'settings.themeMode';
-  static const _kCloseToTray = 'settings.closeToTray';
+  static const _kCloseBehavior = 'settings.closeBehavior';
+
+  /// Legacy boolean key (`closeToTray`); read once for migration, then removed.
+  static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
 
   @override
@@ -151,10 +175,25 @@ class SettingsController extends Notifier<AppSettings> {
           (e) => e.name == themeName,
           orElse: () => AppThemeMode.light,
         ),
-        closeToTray: prefs.getBool(_kCloseToTray) ?? true,
+        closeBehavior: _readCloseBehavior(prefs),
         taskbarProgress: prefs.getBool(_kTaskbarProgress) ?? true,
       );
     } catch (_) {}
+  }
+
+  /// New key wins; otherwise migrate the old `closeToTray` boolean.
+  /// Missing both → the new default「每次询问」.
+  CloseBehavior _readCloseBehavior(SharedPreferences prefs) {
+    final name = prefs.getString(_kCloseBehavior);
+    if (name != null) {
+      return CloseBehavior.values.firstWhere(
+        (e) => e.name == name,
+        orElse: () => CloseBehavior.ask,
+      );
+    }
+    final legacy = prefs.getBool(_kCloseToTrayLegacy);
+    if (legacy == null) return CloseBehavior.ask;
+    return legacy ? CloseBehavior.tray : CloseBehavior.quit;
   }
 
   Future<void> setThemeMode(AppThemeMode mode) async {
@@ -199,9 +238,14 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kMediaLyric, v);
   }
 
-  Future<void> setCloseToTray(bool v) async {
-    state = state.copyWith(closeToTray: v);
-    await _save(_kCloseToTray, v);
+  Future<void> setCloseBehavior(CloseBehavior v) async {
+    state = state.copyWith(closeBehavior: v);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kCloseBehavior, v.name);
+      // Migration done — drop the stale boolean so it can't shadow the new key.
+      await prefs.remove(_kCloseToTrayLegacy);
+    } catch (_) {}
   }
 
   Future<void> setTaskbarProgress(bool v) async {

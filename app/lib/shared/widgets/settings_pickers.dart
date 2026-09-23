@@ -83,6 +83,35 @@ Future<void> showSleepPicker(BuildContext context, WidgetRef ref) async {
   }
 }
 
+/// Pick what the desktop window close button does (每次询问 / 最小化到托盘 / 退出应用).
+Future<void> showCloseBehaviorPicker(BuildContext context, WidgetRef ref) async {
+  final kugo = KugoTheme.of(context);
+  final controller = ref.read(settingsControllerProvider.notifier);
+  final current = ref.read(settingsControllerProvider).closeBehavior;
+  final selected = await showKugoBottomSheet<CloseBehavior>(
+    context: context,
+    builder: (sheetContext) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+        for (final behavior in CloseBehavior.values)
+          ListTile(
+            title: Text(behavior.label, style: kugo.body),
+            subtitle: Text(behavior.closeHint, style: kugo.caption),
+            trailing: behavior == current
+                ? Icon(Icons.check_rounded, color: kugo.primary)
+                : null,
+            onTap: () => Navigator.pop(sheetContext, behavior),
+          ),
+        const SizedBox(height: 8),
+      ],
+    ),
+  );
+  if (selected != null) {
+    await controller.setCloseBehavior(selected);
+  }
+}
+
 /// About sheet: version, project scope and the compliance disclaimer.
 Future<void> showAboutSheet(BuildContext context) {
   return showKugoBottomSheet<void>(

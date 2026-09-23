@@ -66,14 +66,14 @@ class SettingsPage extends ConsumerWidget {
             _Section(
               title: '窗口',
               children: [
-                SwitchListTile(
-                  title: Text('关闭到托盘', style: kugo.body),
+                ListTile(
+                  title: Text('关闭主窗口时', style: kugo.body),
                   subtitle: Text(
-                    '点关闭按钮时隐藏到系统托盘，不退出应用',
+                    settings.closeBehavior.closeHint,
                     style: kugo.caption,
                   ),
-                  value: settings.closeToTray,
-                  onChanged: controller.setCloseToTray,
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => showCloseBehaviorPicker(context, ref),
                 ),
                 if (isWindowsPlatform)
                   SwitchListTile(

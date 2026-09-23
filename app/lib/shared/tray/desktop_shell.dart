@@ -4,11 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/app_navigator.dart';
 import '../../core/platform.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../taskbar/taskbar_bridge.dart';
+import 'close_behavior_dialog.dart';
 import 'desktop_tray.dart';
 
 /// Windows / 桌面壳：托盘 + 关闭到托盘 + 任务栏 Thumbar/进度条。
@@ -23,6 +25,10 @@ class DesktopShell with WindowListener {
   final ProviderContainer _container;
   DesktopTray? _tray;
   bool _quitting = false;
+
+  /// Guards the「每次询问」prompt against a second close (taskbar / Alt+F4)
+  /// arriving while it is already on screen.
+  bool _closePromptOpen = false;
   Timer? _progressTimer;
   VoidCallback? _positionListener;
   int _lastProgressPermille = -1;
@@ -32,7 +38,8 @@ class DesktopShell with WindowListener {
 
   PlayerState get _playerState => _container.read(playerControllerProvider);
 
-  bool get _closeToTray => _container.read(settingsControllerProvider).closeToTray;
+  CloseBehavior get _closeBehavior =>
+      _container.read(settingsControllerProvider).closeBehavior;
 
   bool get _taskbarProgressEnabled =>
       _container.read(settingsControllerProvider).taskbarProgress;
@@ -212,17 +219,60 @@ class DesktopShell with WindowListener {
     await tray?.destroy();
     windowManager.removeListener(this);
     await windowManager.setPreventClose(false);
-    await windowManager.destroy();
+    if (isWindowsPlatform) {
+      // window_manager 的 destroy() 在 Windows 上只 PostQuitMessage(0)：消息循环
+      // 先退出、窗口没被销毁，引擎 shutdown 跑在正常窗口生命周期之外，表现就是
+      // 进程卡住不退出（leanflutter/window_manager#502 / #478 / #590）。
+      // 改走标准关闭路径：SC_CLOSE → WM_CLOSE → DestroyWindow → WM_DESTROY →
+      // FlutterWindow::OnDestroy（引擎收尾）→ main.cpp 里 quit_on_close 的
+      // PostQuitMessage。此处的 close 不会再触发 onWindowClose 分支：监听已摘、
+      // preventClose 已关。
+      await windowManager.close();
+    } else {
+      await windowManager.destroy();
+    }
   }
 
   @override
   void onWindowClose() {
-    if (_quitting) return;
-    if (_closeToTray) {
-      unawaited(windowManager.hide());
+    if (_quitting || _closePromptOpen) return;
+    switch (_closeBehavior) {
+      case CloseBehavior.tray:
+        unawaited(windowManager.hide());
+      case CloseBehavior.quit:
+        unawaited(quit());
+      case CloseBehavior.ask:
+        unawaited(_promptClose());
+    }
+  }
+
+  ///「每次询问」branch: show the prompt, then act on the answer (and persist it
+  /// when「记住我的选择」was ticked).
+  Future<void> _promptClose() async {
+    final context = kugoNavigatorKey.currentContext;
+    if (context == null) {
+      // First frame has not been mounted yet (close during startup). The tray
+      // already exists, so hide instead of risking a half-built navigator.
+      await windowManager.hide();
       return;
     }
-    unawaited(quit());
+    _closePromptOpen = true;
+    try {
+      final choice = await showCloseBehaviorDialog(context);
+      if (choice == null) return; // 取消 / 点遮罩 → 保持窗口打开
+      if (choice.remember) {
+        await _container
+            .read(settingsControllerProvider.notifier)
+            .setCloseBehavior(choice.behavior);
+      }
+      if (choice.behavior == CloseBehavior.tray) {
+        await windowManager.hide();
+      } else {
+        await quit();
+      }
+    } finally {
+      _closePromptOpen = false;
+    }
   }
 
   @override

@@ -22,7 +22,7 @@
 | 微软雅黑 | `core/theme/kugo_theme.dart` |
 | **系统媒体 SMTC / 媒体键 / 系统媒体卡** | `audio_service` + `audio_service_win`；`features/player/audio_service_handler.dart`；`core/platform.dart` 的 `hasSystemMediaSession` 含 Windows |
 | **系统托盘**（图标 / 菜单 / 播控 / 模式 / 音量 / 退出） | `shared/tray/desktop_tray.dart`、`shared/tray/desktop_shell.dart` |
-| **关闭到托盘**（设置项，默认开） | `settings_controller.closeToTray` + 设置页「窗口」 |
+| **关闭到托盘**（三态设置：每次询问 / 最小化到托盘 / 退出应用，默认**每次询问**） | `settings_controller.closeBehavior` + 设置页「窗口」 + 关闭弹窗（`close_behavior_dialog.dart`） |
 | **Thumbar 播控**（上一曲 / 播停 / 下一曲） | `windows/runner/taskbar_host.cpp` + `shared/taskbar/taskbar_bridge.dart` |
 | **任务栏进度条**（normal / paused / indeterminate / none） | 同上；Dart 侧 200ms 节流 |
 | Windows 音频探针工具 | `tool/windows_audio_probe.dart` |
@@ -69,7 +69,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | **系统媒体控制 SMTC** | `native/echo-media-controls` + `main/mediaControls.ts`：媒体键、进度、封面 thumbnail、音频类别 | ✅ **已落地**：Windows 走 `audio_service_win`；`hasSystemMediaSession` 含 Windows；`KugoAudioHandler` 推送曲名/歌手/专辑/时长/`artUri` 封面与进度 | 媒体键、系统媒体卡可用。音频焦点（`audio_session`）Windows 仍无实现（`hasAudioFocusSession=false`） |
 | 2 | **系统托盘** | `main/tray.ts` + `ipc/tray.ts`：图标、播放状态同步、播放模式、音量、显示/隐藏主窗、桌面歌词开关/锁定、退出 | ✅ **已落地**：`DesktopTray`（`tray_manager`）左键显示主窗、右键菜单；含播停/上下曲/播放模式/音量/退出 | 无桌面歌词项（按「可暂缓」故意去掉）；tooltip 固定 `kugo`，未跟播放态 |
-| 3 | **关闭行为** | `closeBehavior: 'tray' \| quit`，设置可选 | ✅ **已落地**：`AppSettings.closeToTray`（默认 `true`），设置页「窗口 → 关闭到托盘」；`DesktopShell.onWindowClose` 分支 hide 或 `quit()` | 依赖托盘已就绪 |
+| 3 | **关闭行为** | `closeBehavior: 'tray' \| quit`，设置可选 | ✅ **已落地（Echo 的超集）**：`AppSettings.closeBehavior`（`每次询问 / 最小化到托盘 / 退出应用`，默认 `每次询问`）；设置页「窗口 → 关闭主窗口时」三选一；`每次询问` 时关窗弹出 `close_behavior_dialog`（退出应用 / 最小化到托盘 + 「记住我的选择」，勾选即落盘为常选项）；旧 `closeToTray` 布尔在读设置时迁移 | 依赖托盘已就绪；弹窗经 `kugoNavigatorKey` 挂到 root navigator |
 | 4 | **全局快捷键** | `ipc/shortcuts.ts` + `renderer/utils/shortcuts.ts`：15 项命令，窗口内 + 全局双轨，逐项录制与恢复默认；Windows 本地快捷键绕过输入法抢占 | ⬜ 仅窗口内 3 键（空格 / ±5s），见 `root_shell.dart` | 焦点不在窗口时按键无效；无录制 UI。**P0 剩余唯一项** |
 
 ### P1 · 任务栏 / 窗口形态（Windows 专属）
@@ -125,7 +125,7 @@
 
 设置侧对照：Echo「窗口与启动」分区 = 界面缩放、记住窗口大小、全屏按钮、任务栏封面预览、任务栏进度条、任务栏快捷播控、关闭行为、开机自启、启动时最小化。
 
-kugo 当前「设置 → 窗口」仅有 **关闭到托盘**；其余桌面开关尚无挂载点。
+kugo 当前「设置 → 窗口」有 **关闭主窗口时**（每次询问 / 最小化到托盘 / 退出应用）与 **任务栏播放进度**；其余桌面开关尚无挂载点。
 
 ### kugo 已落地侧的入口（便于续做时接线）
 
@@ -136,7 +136,8 @@ kugo 当前「设置 → 窗口」仅有 **关闭到托盘**；其余桌面开�
 | Thumbar / 进度 | `shared/taskbar/taskbar_bridge.dart`（Dart）→ `windows/runner/taskbar_host.{h,cpp}` | `windows/runner/flutter_window.cpp` 注册 `kugo/taskbar` |
 | SMTC | `features/player/audio_service_handler.dart` | `audio_service` + `audio_service_win`；`PlayerController.attachBridge` |
 | 平台开关 | `core/platform.dart` | `hasSystemMediaSession` / `hasAudioFocusSession` / `isWindowsPlatform` |
-| 关闭到托盘设置 | `features/settings/settings_controller.dart`、`settings_page.dart` | `settings.closeToTray` |
+| 关闭行为设置 | `features/settings/settings_controller.dart`、`settings_page.dart`、`shared/tray/close_behavior_dialog.dart` | `settings.closeBehavior`（`ask`/`tray`/`quit`，旧 `settings.closeToTray` 自动迁移） |
+| 关闭弹窗入口 | `shared/tray/close_behavior_dialog.dart` + `core/app_navigator.dart` | `DesktopShell.onWindowClose` → `kugoNavigatorKey` → root navigator |
 
 ---
 
@@ -175,9 +176,10 @@ kugo 当前「设置 → 窗口」仅有 **关闭到托盘**；其余桌面开�
 已落地实现要点（续做时别踩回去）：
 
 - **SMTC 不必自研 WinRT**：`audio_service_win` 覆盖媒体键 / 系统媒体卡 / 进度；`KugoAudioHandler` 已按车机 AVRCP 语义钉住 3 槽 carousel 与位置推送。若只缺缩略图质量或音频类别，再考虑补 `Windows.Media.Control` 旁路。
-- **托盘与关闭到托盘已同居 `DesktopShell`**：`setPreventClose(true)` 统一拦截关闭，`closeToTray` 决定 hide 还是 `quit()`；退出路径会销毁托盘、摘掉任务栏监听。
+- **托盘与关闭行为已同居 `DesktopShell`**：`setPreventClose(true)` 统一拦截关闭，`closeBehavior` 决定 hide / `quit()` / 弹窗（`ask`）。`quit()` 路径会销毁托盘、摘掉任务栏监听，托盘菜单的「退出」直接走 `quit()`，不再二次询问。`ask` 弹窗通过 `kugoNavigatorKey.currentContext` 拿到 root navigator；`_closePromptOpen` 防止弹窗未关时重复关窗叠出多个对话框。
 - **任务栏通道是双向的**：Dart → `updateButtons` / `updateProgress` / `refresh`；原生 → `thumbarEvent`（`previous` / `playPause` / `next`）。Explorer 重建任务栏（`TaskbarCreated`）与窗口 restore 时都会 Refresh。
 - **进度节流双层**：Dart 200ms + 1‰ 门槛；C++ 再做 mode/permille 去重。paused 最低 10‰，避免黄条看不见。
+- **退桌路径别用 `windowManager.destroy()`**：Windows 上它只 `PostQuitMessage(0)`，跳过窗口销毁与引擎收尾，进程会「卡住不退出」（leanflutter/window_manager#478 / #502 / #590）。`DesktopShell.quit()` 在 Windows 改为 `setPreventClose(false)` + `windowManager.close()`，走 `WM_CLOSE → DestroyWindow → WM_DESTROY → FlutterWindow::OnDestroy → PostQuitMessage` 的标准路径；非 Windows 仍用 `destroy()`。
 - **`audio_session` 仍无 Windows 实现**（`hasAudioFocusSession=false`），不要在 Windows 路径调 `AudioSession.instance`。
 - media_kit（libmpv）只负责解码输出；媒体键 / 系统媒体卡 / 任务栏状态都不在它职责内。
 - 窗口默认 **4:3 约束**（`ConstrainToFourByThree`）与 1280×960 启动尺寸写在 runner 里；若做「记住窗口」或自由缩放，需先决定是否保留该约束。
@@ -192,7 +194,7 @@ kugo 当前「设置 → 窗口」仅有 **关闭到托盘**；其余桌面开�
 | --- | --- |
 | 媒体键 / SMTC | 耳机 / 键盘媒体键可播停、上下曲；系统媒体卡可见曲名封面 |
 | 托盘 | 关窗后进程在托盘；托盘菜单可播停 / 显示主窗 / 退出 |
-| 关闭行为 | 选「托盘」时关窗不退出；关掉开关后关窗进程结束 |
+| 关闭行为 | 默认「每次询问」关窗弹窗，可选退出 / 最小化到托盘；勾选「记住我的选择」后不再弹窗、重启仍生效；设为「最小化到托盘」时关窗不退出，「退出应用」时进程结束；旧 `closeToTray` 设置能迁移 |
 | Thumbar | 悬停任务栏图标出现上一曲 / 播停 / 下一曲，点击有效 |
 | 任务栏进度 | 播放中任务栏图标有进度，暂停态可区分 |
 
