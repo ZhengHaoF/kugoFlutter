@@ -11,6 +11,7 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 
 /// Route: /song?id=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
 class SongDetailPage extends ConsumerStatefulWidget {
@@ -185,7 +186,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('歌曲详情')),
-      body: ListView(
+      body: SmoothListView(
         padding: const EdgeInsets.fromLTRB(
           KugoSpacing.lg,
           KugoSpacing.md,

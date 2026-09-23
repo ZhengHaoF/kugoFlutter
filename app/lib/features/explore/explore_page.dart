@@ -76,7 +76,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
     if (!mounted) return;
 
-    final rankList = ranks.take(6).toList();
+    final rankList = ranks.take(12).toList();
 
     setState(() {
       _rankings = rankList;
@@ -106,8 +106,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     };
     final isEmpty = !_loading && _rankings.isEmpty && _songs.isEmpty;
 
-    return DesktopContentConstraint(
-      child: SmoothCustomScrollView(
+    // 浏览型页面：内容铺满侧栏之外的全部宽度（与「我的」「历史」一致），
+    // 不再做居中限宽——最大化窗口时两侧不会再留大片空白。
+    return SmoothCustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -153,22 +154,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               ),
             ),
             SliverToBoxAdapter(
-              child: SizedBox(
-                height: 230,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-                  itemCount: _rankings.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final rank = _rankings[index];
-                    return _RankingCard(
-                      rank: rank,
-                      onTap: () => context.push('/rank/${rank.id}', extra: rank),
-                    );
-                  },
-                ),
+              child: _RankStrip(
+                ranks: _rankings,
+                onRankTap: (rank) =>
+                    context.push('/rank/${rank.id}', extra: rank),
               ),
             ),
           ],
@@ -221,7 +210,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         ],
         const SliverToBoxAdapter(child: SizedBox(height: 140)),
       ],
-    ),
     );
   }
 }
@@ -241,6 +229,77 @@ PlaylistBrief? _pickHotBoard(List<PlaylistBrief> ranks) {
   return hot ?? top ?? (ranks.isEmpty ? null : ranks.first);
 }
 
+/// 发现页「排行榜」横排。
+///
+/// 桌面：按可用宽度铺满——先取「还能放下几张」，再把这几张等分拉伸到整行，
+/// 所以卡片右缘总是贴住内容右缘（不会右侧挂一条空白）。一行放不下的榜单
+/// 横向滚动看。手机：保持设计稿的 168 宽卡片 + 露边（提示可滑）。
+class _RankStrip extends StatelessWidget {
+  const _RankStrip({required this.ranks, required this.onRankTap});
+
+  final List<PlaylistBrief> ranks;
+  final ValueChanged<PlaylistBrief> onRankTap;
+
+  /// 设计稿基准尺寸（旧版写死的 168×230，卡面比例由它决定）。
+  static const double _baseCardWidth = 168;
+  static const double _baseCardHeight = 230;
+  static const double _aspectRatio = _baseCardWidth / _baseCardHeight;
+
+  /// 卡片宽度上限：再宽就显得笨了（铺不满时退化为居中）。
+  static const double _maxCardWidth = 260;
+  static const double _gap = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final desktop = isDesktopView(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final count = ranks.length;
+        final available = constraints.maxWidth - KugoSpacing.lg * 2;
+
+        var cardWidth = _baseCardWidth;
+        var side = KugoSpacing.lg;
+        if (desktop && count > 0) {
+          final fit = fitStripRow(
+            available: available,
+            count: count,
+            minWidth: _baseCardWidth,
+            maxWidth: _maxCardWidth,
+            gap: _gap,
+          );
+          cardWidth = fit.width;
+          // 卡片被 [_maxCardWidth] 封顶时一行铺不满，居中免得一侧挂空白。
+          final rowWidth =
+              fit.visible * cardWidth + _gap * (fit.visible - 1);
+          side += (available - rowWidth).clamp(0.0, double.infinity) / 2;
+        }
+
+        return SizedBox(
+          // 卡片等比缩放，高度跟着走，封面裁切与文字比例保持不变。
+          height: cardWidth / _aspectRatio,
+          child: ListView.separated(
+            key: const ValueKey('explore_rank_strip'),
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: side),
+            itemCount: count,
+            separatorBuilder: (_, _) => const SizedBox(width: _gap),
+            itemBuilder: (context, index) {
+              final rank = ranks[index];
+              return SizedBox(
+                width: cardWidth,
+                child: _RankingCard(
+                  rank: rank,
+                  onTap: () => onRankTap(rank),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _RankingCard extends StatelessWidget {
   const _RankingCard({required this.rank, required this.onTap});
 
@@ -249,17 +308,15 @@ class _RankingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 宽度由 [_RankStrip] 按可用空间给出，这里只负责视觉。
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
-        width: 168,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(KugoRadius.card),
-          child: Hero(
-            tag: rankCoverHeroTag(rank.id),
-            flightShuttleBuilder: rankHeroFlightShuttle,
-            child: RankCardSurface(brief: rank, showTitle: true),
-          ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(KugoRadius.card),
+        child: Hero(
+          tag: rankCoverHeroTag(rank.id),
+          flightShuttleBuilder: rankHeroFlightShuttle,
+          child: RankCardSurface(brief: rank, showTitle: true),
         ),
       ),
     );

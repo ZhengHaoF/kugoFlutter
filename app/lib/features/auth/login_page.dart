@@ -91,7 +91,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               onRefresh: controller.startQrLogin,
             ),
             // --- SMS ---
-            ListView(
+            SmoothListView(
               padding: const EdgeInsets.all(KugoSpacing.xl),
               children: [
                 Text('手机验证码登录', style: kugo.section),
@@ -185,7 +185,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ],
             ),
             // --- Password ---
-            ListView(
+            SmoothListView(
               padding: const EdgeInsets.all(KugoSpacing.xl),
               children: [
                 Text('账号密码登录', style: kugo.section),

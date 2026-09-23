@@ -8,6 +8,30 @@ bool isDesktopView(BuildContext context) =>
 /// aligned with the explore rank strip (~168px) and typical desktop music apps.
 const double kDesktopCoverExtent = 180;
 
+/// 把一行条目按 [available] 宽度铺满：[minWidth] 是卡片最小宽度，
+/// 先算出「至少还能放下几张」，再把这几张等分拉伸到整行宽度。
+///
+/// 返回 `(visible, width)`：`visible` 是铺满一行需要的张数（不超过 [count]），
+/// `width` 是每张卡的宽度（不超过 [maxWidth]）。
+///
+/// 例：可用 2308、12 张、最小 168、间距 12 → 12 张每张 181，刚好铺满；
+/// 窗口变窄到 768 时 → 4 张每张 183，剩余的可横向滚动。
+({int visible, double width}) fitStripRow({
+  required double available,
+  required int count,
+  required double minWidth,
+  required double maxWidth,
+  double gap = 0,
+}) {
+  if (count <= 0) return (visible: 0, width: minWidth);
+  if (!available.isFinite || available <= 0) {
+    return (visible: count, width: minWidth);
+  }
+  final visible = ((available + gap) / (minWidth + gap)).floor().clamp(1, count);
+  final width = (available - gap * (visible - 1)) / visible;
+  return (visible: visible, width: width > maxWidth ? maxWidth : width);
+}
+
 /// Adaptive cover-grid delegate for playlist / rank board cards.
 ///
 /// Mobile keeps the 2-column layout pages were designed for. Desktop picks

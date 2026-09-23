@@ -226,43 +226,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
         ),
         const SizedBox(height: KugoSpacing.lg),
-        GlassSurface(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              // 「播放历史」入口已去掉：与用户卡「最近播放」重复，统一从统计进 /history。
-              _EntryTile(
-                icon: Icons.download_rounded,
-                color: const Color(0xFF8B7CF6),
-                title: '本地音乐',
-                subtitle: '本地音乐扫描',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('本地音乐扫描功能正在开发中，敬请期待'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-              _EntryTile(
-                icon: Icons.cloud_download_rounded,
-                color: const Color(0xFF5BB8A8),
-                title: '下载管理',
-                subtitle: '下载任务管理',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('下载管理功能正在开发中，敬请期待'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: KugoSpacing.lg),
+        // 用户卡与「我的歌单」之间不再放入口卡片：
+        // * 「本地音乐」/「下载管理」两个占位入口已砍掉（旧版只弹「开发中」提示，无真实能力）；
+        // * 「播放历史」与用户卡「最近播放」重复，统一从统计进 /history。
+        // 将来新增入口时在此重建卡片；不要留只弹提示的假入口。
         GlassSurface(
           key: _playlistsSectionKey,
           padding: const EdgeInsets.all(KugoSpacing.lg),
@@ -622,49 +589,6 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(width: 1, height: 36, color: KugoTheme.of(context).divider);
-  }
-}
-
-class _EntryTile extends StatelessWidget {
-  const _EntryTile({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final kugo = KugoTheme.of(context);
-    final body = kugo.body.copyWith(color: scheme.onSurface);
-    final caption = kugo.caption.copyWith(color: scheme.onSurfaceVariant);
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: color, size: 22),
-      ),
-      title: Text(title, style: body),
-      subtitle: Text(subtitle, style: caption),
-      trailing: Icon(
-        Icons.chevron_right_rounded,
-        color: scheme.onSurfaceVariant,
-      ),
-      onTap: onTap,
-    );
   }
 }
 

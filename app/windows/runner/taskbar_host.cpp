@@ -12,57 +12,88 @@
 namespace {
 
 constexpr int kIconSize = 32;
+constexpr int kIconPixels = kIconSize * kIconSize;
 
-// GDI writes RGB but leaves alpha at 0 on a 32bpp DIB. CreateIconIndirect then
-// produces fully transparent bitmaps that the taskbar renders as black squares.
-// After drawing, rebuild alpha from coverage and premultiply.
-unsigned MaxChannel(unsigned b, unsigned g, unsigned r) {
-  unsigned m = b > g ? b : g;
-  return r > m ? r : m;
+// Thumbar glyphs are written as premultiplied BGRA directly into the DIB.
+// Do NOT use GDI here: Polygon/Rectangle leave alpha at 0 on 32bpp DIBs, and
+// CreateIconIndirect then hands the taskbar a fully transparent icon which it
+// paints as a solid black square.
+struct Bgra {
+  uint8_t b, g, r, a;
+};
+
+void PutPixel(uint8_t* bits, int x, int y, Bgra c) {
+  if (x < 0 || y < 0 || x >= kIconSize || y >= kIconSize) return;
+  uint8_t* p = bits + (y * kIconSize + x) * 4;
+  p[0] = static_cast<uint8_t>(c.b * c.a / 255);
+  p[1] = static_cast<uint8_t>(c.g * c.a / 255);
+  p[2] = static_cast<uint8_t>(c.r * c.a / 255);
+  p[3] = c.a;
 }
 
-// GDI writes RGB but leaves alpha at 0 on a 32bpp DIB. CreateIconIndirect then
-// produces fully transparent bitmaps that the taskbar renders as black squares.
-// After drawing, rebuild alpha from coverage and premultiply.
-void FixupAlphaFromCoverage(void* bits) {
-  auto* px = static_cast<uint8_t*>(bits);
-  for (int i = 0; i < kIconSize * kIconSize; ++i) {
-    uint8_t* p = px + i * 4;  // BGRA
-    const unsigned coverage = MaxChannel(p[0], p[1], p[2]);
-    if (coverage == 0) {
-      p[0] = p[1] = p[2] = p[3] = 0;
-      continue;
+void FillRect(uint8_t* bits, int x0, int y0, int x1, int y1, Bgra c) {
+  for (int y = y0; y < y1; ++y) {
+    for (int x = x0; x < x1; ++x) {
+      PutPixel(bits, x, y, c);
     }
-    // Soft edges: treat max channel as coverage, force the glyph colour to
-    // full brightness so anti-aliased rims do not darken the stroke.
-    p[0] = static_cast<uint8_t>(coverage);
-    p[1] = static_cast<uint8_t>(coverage);
-    p[2] = static_cast<uint8_t>(coverage);
-    p[3] = static_cast<uint8_t>(coverage);  // premultiplied white
   }
 }
 
-// Preserve chromatic glyphs (heart fill) while still writing a real alpha.
-void FixupAlphaPreserveColour(void* bits) {
-  auto* px = static_cast<uint8_t*>(bits);
-  for (int i = 0; i < kIconSize * kIconSize; ++i) {
-    uint8_t* p = px + i * 4;  // BGRA
-    const unsigned b = p[0], g = p[1], r = p[2];
-    const unsigned coverage = MaxChannel(b, g, r);
-    if (coverage == 0) {
-      p[0] = p[1] = p[2] = p[3] = 0;
-      continue;
+// Barycentric triangle fill (hard edge — thumbar is tiny).
+void FillTriangle(uint8_t* bits, int ax, int ay, int bx, int by, int cx, int cy,
+                  Bgra c) {
+  const int min_x = std::min({ax, bx, cx});
+  const int max_x = std::max({ax, bx, cx});
+  const int min_y = std::min({ay, by, cy});
+  const int max_y = std::max({ay, by, cy});
+  const int area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  if (area == 0) return;
+  for (int y = min_y; y <= max_y; ++y) {
+    for (int x = min_x; x <= max_x; ++x) {
+      const int w0 = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+      const int w1 = (cx - bx) * (y - by) - (cy - by) * (x - bx);
+      const int w2 = (ax - cx) * (y - cy) - (ay - cy) * (x - cx);
+      const bool inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) ||
+                          (w0 <= 0 && w1 <= 0 && w2 <= 0);
+      if (inside) PutPixel(bits, x, y, c);
     }
-    p[3] = static_cast<uint8_t>(coverage);
-    // Premultiply so CreateIconIndirect gets consistent ARGB.
-    p[0] = static_cast<uint8_t>(b * coverage / 255);
-    p[1] = static_cast<uint8_t>(g * coverage / 255);
-    p[2] = static_cast<uint8_t>(r * coverage / 255);
   }
 }
 
-// Transparent 32bpp top-down DIB + GDI glyph, converted to HICON.
-HICON BuildGlyphIcon(void (*draw)(HDC, int), bool preserve_colour = false) {
+// Implicit heart: (x²+y²-1)³ - x²y³ <= 0, scaled into the icon box.
+void FillHeart(uint8_t* bits, Bgra c, float scale) {
+  for (int y = 0; y < kIconSize; ++y) {
+    for (int x = 0; x < kIconSize; ++x) {
+      const float nx = (x - (kIconSize - 1) / 2.0f) / (11.0f * scale);
+      const float ny = ((kIconSize - 1) / 2.0f - y) / (11.0f * scale);
+      const float sum = nx * nx + ny * ny - 1.0f;
+      const float d = sum * sum * sum - nx * nx * ny * ny * ny;
+      if (d <= 0.0f) PutPixel(bits, x, y, c);
+    }
+  }
+}
+
+void FillHeartOutline(uint8_t* bits, Bgra c) {
+  // Two nested hearts → ring.
+  for (int y = 0; y < kIconSize; ++y) {
+    for (int x = 0; x < kIconSize; ++x) {
+      const float nx = (x - (kIconSize - 1) / 2.0f) / 11.0f;
+      const float ny = ((kIconSize - 1) / 2.0f - y) / 11.0f;
+      const float sum = nx * nx + ny * ny - 1.0f;
+      const float d = sum * sum * sum - nx * nx * ny * ny * ny;
+      if (d > 0.0f) continue;
+      const float sx = nx / 0.72f;
+      const float sy = ny / 0.72f;
+      const float ssum = sx * sx + sy * sy - 1.0f;
+      const float inner = ssum * ssum * ssum - sx * sx * sy * sy * sy;
+      if (inner > 0.0f) PutPixel(bits, x, y, c);
+    }
+  }
+}
+
+// 字形颜色由调用方按任务栏主题给出 —— Explorer 只负责把图标画出来，
+// 不会帮我们把白色反成黑色。
+HICON BuildGlyphIcon(void (*paint)(uint8_t*, Bgra), Bgra glyph) {
   BITMAPINFO bmi{};
   bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
   bmi.bmiHeader.biWidth = kIconSize;
@@ -73,34 +104,19 @@ HICON BuildGlyphIcon(void (*draw)(HDC, int), bool preserve_colour = false) {
 
   void* bits = nullptr;
   HDC screen = ::GetDC(nullptr);
-  HBITMAP color = ::CreateDIBSection(screen, &bmi, DIB_RGB_COLORS, &bits,
-                                    nullptr, 0);
+  HBITMAP color =
+      ::CreateDIBSection(screen, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
   ::ReleaseDC(nullptr, screen);
   if (!color || !bits) {
     if (color) ::DeleteObject(color);
     return nullptr;
   }
-  std::memset(bits, 0, kIconSize * kIconSize * 4);
+  std::memset(bits, 0, kIconPixels * 4);
+  paint(static_cast<uint8_t*>(bits), glyph);
 
-  // 1-bit AND mask. 0-bits = opaque; real transparency lives in the colour
-  // alpha after FixupAlpha*.
+  // 1-bit AND mask all 0 = opaque; transparency lives in the colour alpha.
   std::vector<uint8_t> mask_bits(((kIconSize + 31) / 32) * 4 * kIconSize, 0);
   HBITMAP mask = ::CreateBitmap(kIconSize, kIconSize, 1, 1, mask_bits.data());
-
-  HDC mem = ::CreateCompatibleDC(screen);
-  HGDIOBJ old = ::SelectObject(mem, color);
-  // GDI needs an opaque background write or the DIB may stay all-zero.
-  ::SetBkMode(mem, OPAQUE);
-  ::SetBkColor(mem, RGB(0, 0, 0));
-  draw(mem, kIconSize);
-  ::SelectObject(mem, old);
-  ::DeleteDC(mem);
-
-  if (preserve_colour) {
-    FixupAlphaPreserveColour(bits);
-  } else {
-    FixupAlphaFromCoverage(bits);
-  }
 
   ICONINFO ii{};
   ii.fIcon = TRUE;
@@ -112,79 +128,71 @@ HICON BuildGlyphIcon(void (*draw)(HDC, int), bool preserve_colour = false) {
   return icon;
 }
 
-void DrawPrev(HDC dc, int /*size*/) {
-  HPEN pen = ::CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-  HBRUSH brush = ::CreateSolidBrush(RGB(255, 255, 255));
-  HGDIOBJ old_p = ::SelectObject(dc, pen);
-  HGDIOBJ old_b = ::SelectObject(dc, brush);
-  POINT bar[4] = {{8, 8}, {12, 8}, {12, 24}, {8, 24}};
-  ::Polygon(dc, bar, 4);
-  POINT t1[3] = {{22, 8}, {22, 24}, {12, 16}};
-  POINT t2[3] = {{30, 8}, {30, 24}, {20, 16}};
-  ::Polygon(dc, t1, 3);
-  ::Polygon(dc, t2, 3);
-  ::SelectObject(dc, old_p);
-  ::SelectObject(dc, old_b);
-  ::DeleteObject(pen);
-  ::DeleteObject(brush);
+const Bgra kPink{91, 43, 232, 255};  // BGR of #E82B5B
+
+// 缩略图工具栏由 Explorer 绘制，字形颜色不会被系统改写：浅色任务栏下白色字形
+// 等于隐形（按钮底色约 #FDFDFD，对比度 4/255），所以颜色必须自己跟主题。
+uint32_t ResolveGlyphArgb() {
+  // 高对比度主题优先：直接用系统文字色，别和用户的配色打架。
+  HIGHCONTRASTW hc{};
+  hc.cbSize = sizeof(hc);
+  if (::SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
+      (hc.dwFlags & HCF_HIGHCONTRASTON) != 0) {
+    const COLORREF text = ::GetSysColor(COLOR_WINDOWTEXT);
+    return 0xFF000000u | (static_cast<uint32_t>(GetRValue(text)) << 16) |
+           (static_cast<uint32_t>(GetGValue(text)) << 8) |
+           static_cast<uint32_t>(GetBValue(text));
+  }
+
+  // 任务栏跟的是「Windows 模式」（SystemUsesLightTheme），不是「应用模式」
+  // （AppsUseLightTheme）—— 这两个键经常被读错，缩略图工具栏归任务栏管。
+  DWORD light = 1;
+  DWORD size = sizeof(light);
+  const LSTATUS status = ::RegGetValueW(
+      HKEY_CURRENT_USER,
+      L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+      L"SystemUsesLightTheme", RRF_RT_REG_DWORD, nullptr, &light, &size);
+  // 读不到（旧系统 / 键被删）按浅色处理：浅色是 Windows 的默认观感。
+  if (status != ERROR_SUCCESS || light != 0) {
+    return 0xFF1A1A1Au;  // 浅色底 → 深色字形
+  }
+  return 0xFFFFFFFFu;  // 深色底 → 白色字形
 }
 
-void DrawNext(HDC dc, int /*size*/) {
-  HPEN pen = ::CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-  HBRUSH brush = ::CreateSolidBrush(RGB(255, 255, 255));
-  HGDIOBJ old_p = ::SelectObject(dc, pen);
-  HGDIOBJ old_b = ::SelectObject(dc, brush);
-  POINT bar[4] = {{20, 8}, {24, 8}, {24, 24}, {20, 24}};
-  ::Polygon(dc, bar, 4);
-  POINT t1[3] = {{2, 8}, {2, 24}, {12, 16}};
-  POINT t2[3] = {{10, 8}, {10, 24}, {20, 16}};
-  ::Polygon(dc, t1, 3);
-  ::Polygon(dc, t2, 3);
-  ::SelectObject(dc, old_p);
-  ::SelectObject(dc, old_b);
-  ::DeleteObject(pen);
-  ::DeleteObject(brush);
+Bgra BgraFromArgb(uint32_t argb) {
+  return Bgra{static_cast<uint8_t>(argb & 0xFFu),
+              static_cast<uint8_t>((argb >> 8) & 0xFFu),
+              static_cast<uint8_t>((argb >> 16) & 0xFFu),
+              static_cast<uint8_t>((argb >> 24) & 0xFFu)};
 }
 
-void DrawPlay(HDC dc, int /*size*/) {
-  HPEN pen = ::CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-  HBRUSH brush = ::CreateSolidBrush(RGB(255, 255, 255));
-  HGDIOBJ old_p = ::SelectObject(dc, pen);
-  HGDIOBJ old_b = ::SelectObject(dc, brush);
-  POINT t[3] = {{10, 6}, {10, 26}, {26, 16}};
-  ::Polygon(dc, t, 3);
-  ::SelectObject(dc, old_p);
-  ::SelectObject(dc, old_b);
-  ::DeleteObject(pen);
-  ::DeleteObject(brush);
+void PaintPrev(uint8_t* bits, Bgra c) {
+  FillRect(bits, 8, 8, 12, 24, c);
+  FillTriangle(bits, 22, 8, 22, 24, 12, 16, c);
+  FillTriangle(bits, 30, 8, 30, 24, 20, 16, c);
 }
 
-void DrawPause(HDC dc, int /*size*/) {
-  HBRUSH brush = ::CreateSolidBrush(RGB(255, 255, 255));
-  HGDIOBJ old = ::SelectObject(dc, brush);
-  ::Rectangle(dc, 9, 7, 14, 25);
-  ::Rectangle(dc, 18, 7, 23, 25);
-  ::SelectObject(dc, old);
-  ::DeleteObject(brush);
+void PaintNext(uint8_t* bits, Bgra c) {
+  FillRect(bits, 20, 8, 24, 24, c);
+  FillTriangle(bits, 2, 8, 2, 24, 12, 16, c);
+  FillTriangle(bits, 10, 8, 10, 24, 20, 16, c);
 }
 
-// Heart glyph via Segoe UI Symbol — cleaner than polygon soup at 32px.
-void DrawHeart(HDC dc, int /*size*/, bool filled) {
-  HFONT font = ::CreateFontW(
-      22, 0, 0, 0, filled ? FW_BOLD : FW_NORMAL, FALSE, FALSE, FALSE,
-      DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY,
-      DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI Symbol");
-  HGDIOBJ old_font = ::SelectObject(dc, font);
-  ::SetBkMode(dc, TRANSPARENT);
-  ::SetTextColor(dc, filled ? RGB(232, 43, 91) : RGB(255, 255, 255));
-  RECT rc{0, 0, kIconSize, kIconSize};
-  ::DrawTextW(dc, L"♥", 1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-  ::SelectObject(dc, old_font);
-  ::DeleteObject(font);
+void PaintPlay(uint8_t* bits, Bgra c) {
+  FillTriangle(bits, 10, 6, 10, 26, 26, 16, c);
 }
 
-void DrawHeartOutline(HDC dc, int size) { DrawHeart(dc, size, false); }
-void DrawHeartFilled(HDC dc, int size) { DrawHeart(dc, size, true); }
+void PaintPause(uint8_t* bits, Bgra c) {
+  FillRect(bits, 9, 7, 14, 25, c);
+  FillRect(bits, 18, 7, 23, 25, c);
+}
+
+void PaintHeart(uint8_t* bits, Bgra c) { FillHeartOutline(bits, c); }
+
+// 已收藏的实心心固定用品牌粉：在浅色底 / 深色底都够清楚，不跟主题走。
+void PaintHeartFilled(uint8_t* bits, Bgra /*c*/) {
+  FillHeart(bits, kPink, 1.0f);
+}
 
 void CopyTip(wchar_t* dest, size_t dest_chars, const wchar_t* src) {
   std::wmemset(dest, 0, dest_chars);
@@ -218,9 +226,18 @@ void TaskbarHost::Destroy() {
   DestroyIcons();
   hwnd_ = nullptr;
   buttons_added_ = false;
+  glyph_argb_ = 0;  // 下次 Create 重新按当时的主题解析
 }
 
 void TaskbarHost::Refresh() {
+  // Keep buttons_added_ — ThumbBarAddButtons may run only once per HWND.
+  last_applied_mode_ = ProgressMode::kNone;
+  last_progress_permille_ = -1;
+  ApplyButtons();
+  ApplyProgress();
+}
+
+void TaskbarHost::RefreshAfterTaskbarCreated() {
   buttons_added_ = false;
   last_applied_mode_ = ProgressMode::kNone;
   last_progress_permille_ = -1;
@@ -228,6 +245,16 @@ void TaskbarHost::Refresh() {
   EnsureList();
   ApplyButtons();
   ApplyProgress();
+}
+
+void TaskbarHost::OnSystemThemeChanged() {
+  const uint32_t argb = ResolveGlyphArgb();
+  if (argb == glyph_argb_) return;  // 主题没变（只是别的设置项）→ 不动图标
+  glyph_argb_ = argb;
+  DestroyIcons();
+  CreateIcons();
+  // 按钮若已 Add 过，只能用 ThumbBarUpdateButtons 换图。
+  ApplyButtons();
 }
 
 void TaskbarHost::SyncButtons(bool has_track, bool is_playing, bool is_favorite,
@@ -397,6 +424,7 @@ void TaskbarHost::ApplyProgress() {
 
 void TaskbarHost::CreateIcons() {
   if (icon_prev_) return;
+  if (glyph_argb_ == 0) glyph_argb_ = ResolveGlyphArgb();
   icon_prev_ = MakeGlyphIcon(0);
   icon_play_ = MakeGlyphIcon(1);
   icon_pause_ = MakeGlyphIcon(2);
@@ -416,20 +444,19 @@ void TaskbarHost::DestroyIcons() {
 }
 
 HICON TaskbarHost::MakeGlyphIcon(int kind) {
+  const Bgra glyph = BgraFromArgb(glyph_argb_);
   switch (kind) {
     case 0:
-      return BuildGlyphIcon(DrawPrev);
+      return BuildGlyphIcon(PaintPrev, glyph);
     case 1:
-      return BuildGlyphIcon(DrawPlay);
+      return BuildGlyphIcon(PaintPlay, glyph);
     case 2:
-      return BuildGlyphIcon(DrawPause);
+      return BuildGlyphIcon(PaintPause, glyph);
     case 3:
-      return BuildGlyphIcon(DrawNext);
+      return BuildGlyphIcon(PaintNext, glyph);
     case 4:
-      // Outline heart is monochrome — reuse the white-coverage path.
-      return BuildGlyphIcon(DrawHeartOutline);
+      return BuildGlyphIcon(PaintHeart, glyph);
     default:
-      // Filled heart must keep its pink hue.
-      return BuildGlyphIcon(DrawHeartFilled, /*preserve_colour=*/true);
+      return BuildGlyphIcon(PaintHeartFilled, glyph);
   }
 }

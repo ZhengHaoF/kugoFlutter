@@ -54,7 +54,8 @@ lib/
 - [x] M2 真机验收：搜索 → 出声 → 锁屏 → 杀进程恢复队列
 - [x] M4：正式签名 Release APK；MuMu 性能主观验收
 - [x] 本地库：队列/历史 **Drift (SQLite)**（自动迁移旧 SharedPreferences）
-- [ ] 未做：自建歌单 CRUD、倍速 UI、本地音乐/下载、逐字歌词、分享（见 `docs/gap-vs-echomusic.md`）
+- [ ] 未做：自建歌单 CRUD、倍速 UI、逐字歌词、分享（见 `docs/gap-vs-echomusic.md`）
+- [x] 已砍：本地音乐 / 下载管理占位入口（从「我的」页移除；参考项目无对应实现）
 
 ### 网络说明
 

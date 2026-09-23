@@ -1,5 +1,6 @@
 #include "flutter_window.h"
 
+#include <cwchar>
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -30,6 +31,15 @@ TaskbarHost::ProgressMode ParseProgressMode(const std::string& mode) {
     return TaskbarHost::ProgressMode::kIndeterminate;
   }
   return TaskbarHost::ProgressMode::kNone;
+}
+
+// WM_SETTINGCHANGE 的 lParam 是设置名。可能是 0，也可能被乱发的程序写脏，
+// 所以先验一下指针再比字符串。
+bool IsSettingName(LPARAM lparam, const wchar_t* expected) {
+  if (lparam == 0) return false;
+  const auto* name = reinterpret_cast<const wchar_t*>(lparam);
+  if (::IsBadStringPtrW(name, 64)) return false;
+  return std::wcscmp(name, expected) == 0;
 }
 
 }  // namespace
@@ -172,6 +182,7 @@ void FlutterWindow::RegisterTaskbarChannel() {
           return;
         }
         if (call.method_name() == "refresh") {
+          // Window show / restore only — do not ThumbBarAddButtons again.
           taskbar_.Refresh();
           result->Success();
           return;
@@ -201,8 +212,17 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   if (taskbar_created_msg_ != 0 && message == taskbar_created_msg_) {
-    taskbar_.Refresh();
+    // Explorer rebuilt the taskbar — previous thumbar slots are gone.
+    taskbar_.RefreshAfterTaskbarCreated();
     return 0;
+  }
+
+  // 浅色/深色模式或高对比度切换：缩略图工具栏的字形颜色得自己跟。
+  if (message == WM_THEMECHANGED || message == WM_SYSCOLORCHANGE ||
+      (message == WM_SETTINGCHANGE &&
+       (IsSettingName(lparam, L"ImmersiveColorSet") ||
+        IsSettingName(lparam, L"HighContrast")))) {
+    taskbar_.OnSystemThemeChanged();
   }
 
   if (message == WM_COMMAND && taskbar_.HandleCommand(wparam)) {

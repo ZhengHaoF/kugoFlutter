@@ -50,7 +50,7 @@ class TaskbarBridge {
     });
   }
 
-  /// Explorer 重建任务栏后强制重放当前状态。
+  /// 窗口 show/restore 后重放按钮与进度（只 Update，不重新 Add）。
   static Future<void> refresh() => _channel.invokeMethod('refresh');
 }
 

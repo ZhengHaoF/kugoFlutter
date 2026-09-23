@@ -69,42 +69,40 @@ class _RankListPageState extends ConsumerState<RankListPage> {
         emptyMessage: '暂无榜单',
         errorMessage: _error,
         onRetry: _load,
-        child: DesktopContentConstraint(
-          maxWidth: desktop ? 1280 : double.infinity,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth.isFinite &&
-                      constraints.maxWidth > 0
-                  ? constraints.maxWidth
-                  : MediaQuery.sizeOf(context).width;
-              return SmoothGridViewBuilder(
-                padding: EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.md,
-                  KugoSpacing.lg,
-                  desktop ? KugoSpacing.xxl : 120,
-                ),
-                gridDelegate: coverGridDelegateForWidth(
-                  context,
-                  width,
-                  preferredExtent: kDesktopCoverExtent,
-                  mobileAspectRatio: 0.78,
-                  desktopAspectRatio: 0.78,
-                  mainAxisSpacing: KugoSpacing.lg,
-                  crossAxisSpacing: KugoSpacing.lg,
-                  maxColumns: 6,
-                ),
-                itemCount: _ranks.length,
-                itemBuilder: (context, index) {
-                  final rank = _ranks[index];
-                  return _RankGridCard(
-                    rank: rank,
-                    onTap: () => context.push('/rank/${rank.id}', extra: rank),
-                  );
-                },
-              );
-            },
-          ),
+        // 不再居中限宽：网格列数自适应，铺满侧栏之外的宽度。
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth.isFinite &&
+                    constraints.maxWidth > 0
+                ? constraints.maxWidth
+                : MediaQuery.sizeOf(context).width;
+            return SmoothGridViewBuilder(
+              padding: EdgeInsets.fromLTRB(
+                KugoSpacing.lg,
+                KugoSpacing.md,
+                KugoSpacing.lg,
+                desktop ? KugoSpacing.xxl : 120,
+              ),
+              gridDelegate: coverGridDelegateForWidth(
+                context,
+                width,
+                preferredExtent: kDesktopCoverExtent,
+                mobileAspectRatio: 0.78,
+                desktopAspectRatio: 0.78,
+                mainAxisSpacing: KugoSpacing.lg,
+                crossAxisSpacing: KugoSpacing.lg,
+                maxColumns: 10,
+              ),
+              itemCount: _ranks.length,
+              itemBuilder: (context, index) {
+                final rank = _ranks[index];
+                return _RankGridCard(
+                  rank: rank,
+                  onTap: () => context.push('/rank/${rank.id}', extra: rank),
+                );
+              },
+            );
+          },
         ),
       ),
     );

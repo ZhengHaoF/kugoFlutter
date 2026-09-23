@@ -151,8 +151,14 @@ void main() {
     });
   });
 
-  group('ProfilePage interactive features', () {
-    testWidgets('entry tiles trigger feedback on tap', (tester) async {
+  group('ProfilePage entry tiles', () {
+    testWidgets('已砍掉的假入口不再出现，页面仍可渲染到底部', (tester) async {
+      // 用高视口让整页在一次布局内全部构建 —— 否则懒构建的 ListView
+      // 会让 findsNothing 因「没滚到」而假通过。
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
       final engine = FakeAudioPlayer();
       final container = ProviderContainer(
         overrides: [
@@ -173,19 +179,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Scroll to local music tile
-      await tester.scrollUntilVisible(
-        find.text('本地音乐'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      // 真实入口仍在。页尾的「关于」也在同一屏内 → 证明整页确已布局，
+      // 下面的 findsNothing 不是「没滚到」导致的假通过。
+      expect(find.text('我的歌单'), findsOneWidget);
+      expect(find.text('设置'), findsOneWidget);
+      expect(find.text('关于'), findsOneWidget);
 
-      await tester.tap(find.text('本地音乐'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text('本地音乐扫描功能正在开发中，敬请期待'), findsOneWidget);
+      // 「本地音乐」/「下载管理」是只弹「开发中」的假入口，已明确砍掉。
+      // 若将来重做，请删掉下面两条断言并补真实能力测试。
+      expect(find.text('本地音乐'), findsNothing);
+      expect(find.text('下载管理'), findsNothing);
     });
   });
 }

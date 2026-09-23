@@ -345,14 +345,14 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
     }
     return [
       SliverToBoxAdapter(
-        child: DesktopContentConstraint(
-          maxWidth: 1280,
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-          child: Builder(
-            builder: (context) {
-              final contentWidth =
-                  (MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2)
-                      .clamp(0.0, 1280.0);
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final contentWidth = constraints.maxWidth.isFinite &&
+                      constraints.maxWidth > 0
+                  ? constraints.maxWidth
+                  : MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2;
               final grid = coverGridDelegateForWidth(
                 context,
                 contentWidth,
@@ -361,7 +361,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
                 desktopAspectRatio: 0.72,
                 mainAxisSpacing: KugoSpacing.lg,
                 crossAxisSpacing: KugoSpacing.lg,
-                maxColumns: 6,
+                maxColumns: 10,
               );
               return GridView.builder(
                 shrinkWrap: true,

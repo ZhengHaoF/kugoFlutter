@@ -9,7 +9,8 @@
 
 // ITaskbarList3 wrapper: thumbnail toolbar buttons + taskbar progress.
 // Lifecycle: Create() once the top-level HWND exists (after first Show),
-// then SyncButtons / SyncProgress from Flutter; Refresh() after TaskbarCreated.
+// then SyncButtons / SyncProgress from Flutter; RefreshAfterTaskbarCreated()
+// when Explorer rebuilds the taskbar.
 class TaskbarHost {
  public:
   // Button ids reported to Flutter via thumbarEvent ('previous' / 'playPause' /
@@ -31,8 +32,15 @@ class TaskbarHost {
   bool Create(HWND hwnd);
   void Destroy();
 
-  // Explorer restart rebuilds the taskbar - drop cached state and re-apply.
+  // Window show / restore: re-apply button + progress state via Update only.
   void Refresh();
+
+  // TaskbarCreated (Explorer restart): thumbar slots are gone — Add again.
+  void RefreshAfterTaskbarCreated();
+
+  // 浅色/深色模式、高对比度切换：Explorer 画缩略图工具栏时不会改字形颜色，
+  // 必须自己重建图标（颜色没变则 no-op）。
+  void OnSystemThemeChanged();
 
   void SyncButtons(bool has_track, bool is_playing, bool is_favorite,
                    bool can_step_back);
@@ -48,7 +56,7 @@ class TaskbarHost {
   void ReleaseList();
   void ApplyButtons();
   void ApplyProgress();
-  static HICON MakeGlyphIcon(
+  HICON MakeGlyphIcon(
       int kind);  // 0 prev, 1 play, 2 pause, 3 next, 4 heart, 5 heart filled
   void DestroyIcons();
   void CreateIcons();
@@ -69,6 +77,9 @@ class TaskbarHost {
   // Skip no-op SetProgressValue spam (Echo: 0.001 ratio epsilon).
   int last_progress_permille_ = -1;
   ProgressMode last_applied_mode_ = ProgressMode::kNone;
+
+  // 字形颜色的 ARGB（0 = 尚未解析）。跟任务栏主题 / 高对比度走。
+  uint32_t glyph_argb_ = 0;
 
   HICON icon_prev_ = nullptr;
   HICON icon_play_ = nullptr;

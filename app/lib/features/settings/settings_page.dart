@@ -9,6 +9,7 @@ import '../../features/debug/network_log_dialog.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
+import '../../shared/widgets/smooth_scroll.dart';
 import 'settings_controller.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -25,7 +26,9 @@ class SettingsPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('设置')),
       body: DesktopContentConstraint(
         maxWidth: 800,
-        child: ListView(
+        // 桌面滚轮平滑：与发现页 / 我的 / 历史等页同源（SilkyScroll）。
+        // 原来是裸 ListView，桌面滚轮会显得「一格一格跳」。
+        child: SmoothListView(
           padding: const EdgeInsets.fromLTRB(
             KugoSpacing.lg,
             KugoSpacing.lg,

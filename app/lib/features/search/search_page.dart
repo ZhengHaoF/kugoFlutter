@@ -435,7 +435,7 @@ class _HotKeywords extends StatelessWidget {
     final items = hot.isEmpty
         ? const ['周杰伦', '林俊杰', '陈奕迅', '民谣', '说唱', '粤语']
         : hot;
-    return ListView(
+    return SmoothListView(
       padding: const EdgeInsets.all(KugoSpacing.lg),
       children: [
         Text(
