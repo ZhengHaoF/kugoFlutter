@@ -14,6 +14,7 @@ import '../../shared/widgets/lyrics_view.dart';
 import '../../core/models/playback_source.dart';
 import '../fm/fm_controller.dart';
 import 'fm_controls.dart';
+import '../../shared/widgets/lyric_display_sheet.dart';
 import '../../shared/widgets/quality_sheet.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
@@ -1068,6 +1069,8 @@ class _PlayerQualityChip extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(width: 4),
+        const LyricDisplayButton(),
       ],
     );
   }

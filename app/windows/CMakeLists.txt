@@ -57,6 +57,34 @@ add_subdirectory("runner")
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# audio_service_win 用 C++/WinRT，默认跟 APPLY_STANDARD_SETTINGS 走 C++17，
+# 会拉进 MSVC 已废弃的 <experimental/coroutine>。VS 17.14 / MSVC 14.5x 将其
+# 判为硬错误（STL1011）。升到 C++20 让 WinRT 走 <coroutine>，并按 MS 提示
+# 定义静默宏兜底——与 just_audio_windows 同类补丁。
+#
+# 另：插件把 winrt::hstring::c_str()（wchar_t*）打到 std::cerr，MSVC 新版
+# 已删除该重载（C2280/C2088）。配置阶段就地改成 winrt::to_string，pub get
+# 重写 symlink 后下次 cmake 会再打一次。
+set(_asw_cpp
+  "${CMAKE_CURRENT_SOURCE_DIR}/flutter/ephemeral/.plugin_symlinks/audio_service_win/windows/audio_service_win_plugin.cpp")
+if(EXISTS "${_asw_cpp}")
+  file(READ "${_asw_cpp}" _asw_src)
+  string(REPLACE
+    "std::cerr << \"Failed to set thumbnail: \" << e.message().c_str() << std::endl;"
+    "std::cerr << \"Failed to set thumbnail: \" << winrt::to_string(e.message()) << std::endl;"
+    _asw_src_patched "${_asw_src}")
+  if(NOT _asw_src STREQUAL _asw_src_patched)
+    file(WRITE "${_asw_cpp}" "${_asw_src_patched}")
+    message(STATUS "Patched audio_service_win_plugin.cpp (wchar_t stream / MSVC 14.5x)")
+  endif()
+endif()
+
+if(TARGET audio_service_win_plugin)
+  target_compile_features(audio_service_win_plugin PRIVATE cxx_std_20)
+  target_compile_definitions(audio_service_win_plugin PRIVATE
+    _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+endif()
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

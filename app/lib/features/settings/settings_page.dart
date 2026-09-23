@@ -105,24 +105,7 @@ class SettingsPage extends ConsumerWidget {
           _Section(
             title: '歌词与封面',
             children: [
-              SwitchListTile(
-                title: Text('显示翻译', style: kugo.body),
-                subtitle: Text(
-                  '外语歌等有译文时，在歌词下方显示',
-                  style: kugo.caption,
-                ),
-                value: settings.lyricTranslation,
-                onChanged: controller.setLyricTranslation,
-              ),
-              SwitchListTile(
-                title: Text('显示罗马音', style: kugo.body),
-                subtitle: Text(
-                  '日文等有音译时，在歌词下方显示罗马音',
-                  style: kugo.caption,
-                ),
-                value: settings.lyricRomanization,
-                onChanged: controller.setLyricRomanization,
-              ),
+              // 翻译 / 罗马音：播放页 VIP/HQ 旁「歌词显示」入口（lyric_display_sheet）。
               SwitchListTile(
                 title: Text('锁屏/蓝牙显示歌词', style: kugo.body),
                 subtitle: Text(
