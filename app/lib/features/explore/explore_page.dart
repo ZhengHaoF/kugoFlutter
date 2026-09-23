@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/playlist_repository.dart';
-import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
@@ -28,6 +27,7 @@ class ExplorePage extends ConsumerStatefulWidget {
 class _ExplorePageState extends ConsumerState<ExplorePage> {
   List<PlaylistBrief> _rankings = const [];
   List<Track> _songs = const [];
+  PlaylistBrief? _hotBoard;
   bool _loading = true;
   String _error = '';
 
@@ -59,10 +59,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     } catch (e) {
       noteError(e);
     }
-    try {
-      songs = await searchRepository.searchSongs('热门', pageSize: 10);
-    } catch (e) {
-      noteError(e);
+    // 「今日热歌」= 热歌榜 Top，公开趋势；与 /daily「每日推荐」的
+    // `/everyday_song_recommend` 不是同一数据源。
+    final hotBoard = _pickHotBoard(ranks);
+    if (hotBoard != null) {
+      try {
+        final detail = await playlistRepository.fetchRankDetail(
+          hotBoard.id,
+          pageSize: 10,
+        );
+        songs = detail?.tracks.take(10).toList() ?? const [];
+      } catch (e) {
+        noteError(e);
+      }
     }
 
     if (!mounted) return;
@@ -72,6 +81,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     setState(() {
       _rankings = rankList;
       _songs = songs;
+      _hotBoard = hotBoard;
       _loading = false;
       if (rankList.isEmpty && songs.isEmpty) {
         _error = filtered
@@ -163,8 +173,20 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
           ],
           if (_songs.isNotEmpty) ...[
-            const SliverToBoxAdapter(
-              child: SectionHeader(title: '今日热歌', showAccent: true),
+            SliverToBoxAdapter(
+              child: SectionHeader(
+                title: '今日热歌',
+                showAccent: true,
+                actionLabel: '更多',
+                onAction: () {
+                  final board = _hotBoard;
+                  if (board != null) {
+                    context.push('/rank/${board.id}', extra: board);
+                  } else {
+                    context.push('/ranks');
+                  }
+                },
+              ),
             ),
             SliverList.builder(
               itemCount: _songs.length,
@@ -202,6 +224,21 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     ),
     );
   }
+}
+
+/// Prefer 热歌榜 → TOP/500 → first board for the 「今日热歌」section.
+PlaylistBrief? _pickHotBoard(List<PlaylistBrief> ranks) {
+  PlaylistBrief? hot;
+  PlaylistBrief? top;
+  for (final r in ranks) {
+    final n = r.name;
+    if (hot == null && n.contains('热歌')) hot = r;
+    if (top == null &&
+        (n.contains('TOP') || n.contains('Top') || n.contains('500'))) {
+      top = r;
+    }
+  }
+  return hot ?? top ?? (ranks.isEmpty ? null : ranks.first);
 }
 
 class _RankingCard extends StatelessWidget {
