@@ -189,11 +189,62 @@ class PlaylistBrief {
 }
 
 
+/// 逐字（KRC）时间片：一个汉字/音节/单词。
+class LyricChar {
+  const LyricChar({
+    required this.text,
+    required this.startMs,
+    required this.endMs,
+  });
+
+  final String text;
+  final int startMs;
+  final int endMs;
+
+  bool contains(int positionMs) =>
+      positionMs >= startMs && positionMs < endMs;
+}
+
 class LyricLine {
-  const LyricLine({required this.timeMs, required this.text});
+  const LyricLine({
+    required this.timeMs,
+    required this.text,
+    this.endMs,
+    this.chars = const [],
+    this.translated,
+    this.romanized,
+  });
 
   final int timeMs;
   final String text;
+
+  /// 行结束时间；KRC 有精确值，LRC 可空。
+  final int? endMs;
+
+  /// 逐字时间轴；空 = 仅整行（LRC）。
+  final List<LyricChar> chars;
+
+  /// 译文副行（KRC `[language:]` type=1），无则 null。
+  final String? translated;
+
+  /// 音译/罗马音副行（type=0），无则 null。
+  final String? romanized;
+
+  bool get hasCharTiming => chars.isNotEmpty;
+
+  /// 该行内已唱过的字符数（含当前正在唱的）。
+  int sungCharCount(int positionMs) {
+    if (chars.isEmpty) return positionMs >= timeMs ? text.length : 0;
+    var n = 0;
+    for (final c in chars) {
+      if (c.startMs <= positionMs) {
+        n += c.text.length;
+      } else {
+        break;
+      }
+    }
+    return n;
+  }
 }
 
 /// 歌词加载状态：与是否正在播放解耦。

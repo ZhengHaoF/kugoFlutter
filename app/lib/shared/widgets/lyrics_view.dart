@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
+import '../../features/settings/settings_controller.dart';
 
-class LyricsView extends StatefulWidget {
+class LyricsView extends ConsumerStatefulWidget {
   const LyricsView({
     super.key,
     required this.lines,
@@ -27,16 +29,13 @@ class LyricsView extends StatefulWidget {
   final bool compact;
 
   @override
-  State<LyricsView> createState() => _LyricsViewState();
+  ConsumerState<LyricsView> createState() => _LyricsViewState();
 }
 
-class _LyricsViewState extends State<LyricsView> {
+class _LyricsViewState extends ConsumerState<LyricsView> {
   final _controller = ScrollController();
   int _lastActive = -1;
   double _lastViewport = 0;
-
-  /// Uniform row height so scroll offset math stays exact.
-  static const double _itemExtent = 56.0;
 
   int get activeIndex {
     var active = 0;
@@ -48,6 +47,17 @@ class _LyricsViewState extends State<LyricsView> {
 
   /// Half-viewport top/bottom padding so first/last lines can sit on center.
   static double _verticalPad(double viewport) => viewport / 2;
+
+  bool _showTr(AppSettings s) => s.lyricTranslation;
+  bool _showRo(AppSettings s) => s.lyricRomanization;
+
+  double _itemExtent() {
+    final s = ref.read(settingsControllerProvider);
+    var h = 56.0;
+    if (_showTr(s)) h += 18;
+    if (_showRo(s)) h += 16;
+    return h;
+  }
 
   @override
   void initState() {
@@ -78,9 +88,9 @@ class _LyricsViewState extends State<LyricsView> {
     final pos = _controller.position;
     final viewport = pos.viewportDimension;
     final padTop = _verticalPad(viewport);
-    final lineCenter = padTop + activeIndex * _itemExtent + _itemExtent / 2;
-    final target =
-        (lineCenter - viewport / 2).clamp(0.0, pos.maxScrollExtent);
+    final extent = _itemExtent();
+    final lineCenter = padTop + activeIndex * extent + extent / 2;
+    final target = (lineCenter - viewport / 2).clamp(0.0, pos.maxScrollExtent);
     if (!animated || (target - pos.pixels).abs() < 0.5) {
       _controller.jumpTo(target);
       return;
@@ -109,6 +119,10 @@ class _LyricsViewState extends State<LyricsView> {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final settings = ref.watch(settingsControllerProvider);
+    final showTr = _showTr(settings);
+    final showRo = _showRo(settings);
+
     if (widget.lines.isEmpty) {
       final loading = widget.status == LyricsStatus.loading ||
           widget.status == LyricsStatus.idle;
@@ -120,33 +134,11 @@ class _LyricsViewState extends State<LyricsView> {
     }
 
     if (widget.compact) {
-      final start = (activeIndex - 1).clamp(0, widget.lines.length - 1);
-      final visible = widget.lines.skip(start).take(2).toList();
-      return ClipRect(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < visible.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                child: Text(
-                  visible[i].text,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _lineStyle(kugo, start + i == activeIndex).copyWith(
-                    fontSize: start + i == activeIndex ? 14 : 13,
-                    height: 1.25,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
+      return _buildCompact(kugo, showTr, showRo);
     }
 
     final desktop = isDesktopView(context);
+    final extent = _itemExtent();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -166,7 +158,6 @@ class _LyricsViewState extends State<LyricsView> {
 
         final listView = ListView.builder(
           controller: _controller,
-          // Desktop: no rubber-band; mobile keeps platform feel.
           physics: desktop
               ? const ClampingScrollPhysics()
               : const BouncingScrollPhysics(
@@ -176,32 +167,46 @@ class _LyricsViewState extends State<LyricsView> {
             horizontal: desktop ? KugoSpacing.xl : KugoSpacing.lg,
             vertical: vPad,
           ),
-          itemExtent: _itemExtent,
+          itemExtent: extent,
           itemCount: widget.lines.length,
           itemBuilder: (context, index) {
             final isActive = index == activeIndex;
             final opacity = _lineOpacity(index, activeIndex);
+            final line = widget.lines[index];
             return GestureDetector(
               onTap: widget.onTapLine == null
                   ? null
-                  : () => widget.onTapLine!(widget.lines[index].timeMs),
+                  : () => widget.onTapLine!(line.timeMs),
               behavior: HitTestBehavior.opaque,
               child: SizedBox(
-                height: _itemExtent,
+                height: extent,
                 child: Center(
                   child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOut,
                     opacity: opacity,
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      style: _lineStyle(kugo, isActive, desktop: desktop),
-                      child: Text(
-                        widget.lines[index].text,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _PrimaryLine(
+                          line: line,
+                          positionMs: widget.positionMs,
+                          isActive: isActive,
+                          desktop: desktop,
+                          style: _lineStyle(kugo, isActive, desktop: desktop),
+                          accent: kugo.primary,
+                        ),
+                        if (showTr && line.translated != null)
+                          _SecondaryLine(
+                            text: line.translated!,
+                            style: _secondaryStyle(kugo, isActive),
+                          ),
+                        if (showRo && line.romanized != null)
+                          _SecondaryLine(
+                            text: line.romanized!,
+                            style: _secondaryStyle(kugo, isActive, roman: true),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -210,8 +215,6 @@ class _LyricsViewState extends State<LyricsView> {
           },
         );
 
-        // Constrain lyric column so wide desktop windows don't leave text
-        // floating in a huge empty gradient.
         final content = Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -221,7 +224,6 @@ class _LyricsViewState extends State<LyricsView> {
           ),
         );
 
-        // Hide desktop scrollbar / overscroll glow — auto-follow is the UX.
         final noBars = ScrollConfiguration.of(context).copyWith(
           scrollbars: false,
           overscroll: false,
@@ -260,15 +262,147 @@ class _LyricsViewState extends State<LyricsView> {
     );
   }
 
+  Widget _buildCompact(KugoTheme kugo, bool showTr, bool showRo) {
+    final start = (activeIndex - 1).clamp(0, widget.lines.length - 1);
+    final visible = widget.lines.skip(start).take(2).toList();
+    return ClipRect(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < visible.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Column(
+                children: [
+                  Text(
+                    visible[i].text,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _lineStyle(kugo, start + i == activeIndex).copyWith(
+                      fontSize: start + i == activeIndex ? 14 : 13,
+                      height: 1.25,
+                    ),
+                  ),
+                  if (start + i == activeIndex) ...[
+                    if (showTr && visible[i].translated != null)
+                      Text(
+                        visible[i].translated!,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: kugo.caption.copyWith(fontSize: 11),
+                      ),
+                    if (showRo && visible[i].romanized != null)
+                      Text(
+                        visible[i].romanized!,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: kugo.caption.copyWith(
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   TextStyle _lineStyle(KugoTheme kugo, bool active, {bool desktop = false}) {
     return TextStyle(
-      fontSize: active
-          ? (desktop ? 22 : 18)
-          : (desktop ? 16 : 15),
+      fontSize: active ? (desktop ? 22 : 18) : (desktop ? 16 : 15),
       fontWeight: active ? FontWeight.w700 : FontWeight.w400,
       color: active ? kugo.textPrimary : kugo.textSecondary,
       height: 1.35,
       letterSpacing: active ? 0.2 : 0,
+    );
+  }
+
+  TextStyle _secondaryStyle(KugoTheme kugo, bool active, {bool roman = false}) {
+    return kugo.caption.copyWith(
+      fontSize: roman ? 11 : 12,
+      fontStyle: roman ? FontStyle.italic : FontStyle.normal,
+      color: active
+          ? kugo.textSecondary
+          : kugo.textSecondary.withValues(alpha: 0.7),
+      height: 1.25,
+    );
+  }
+}
+
+/// 当前行：有逐字时间轴时做卡拉 OK 已唱/未唱着色。
+class _PrimaryLine extends StatelessWidget {
+  const _PrimaryLine({
+    required this.line,
+    required this.positionMs,
+    required this.isActive,
+    required this.desktop,
+    required this.style,
+    required this.accent,
+  });
+
+  final LyricLine line;
+  final int positionMs;
+  final bool isActive;
+  final bool desktop;
+  final TextStyle style;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = line.text;
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    if (!isActive || !line.hasCharTiming) {
+      return Text(
+        text,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+
+    final sung = line.sungCharCount(positionMs).clamp(0, text.length);
+    final played = style.copyWith(
+      color: accent,
+      fontWeight: FontWeight.w700,
+    );
+    return Text.rich(
+      TextSpan(
+        children: [
+          if (sung > 0) TextSpan(text: text.substring(0, sung), style: played),
+          if (sung < text.length)
+            TextSpan(text: text.substring(sung), style: style),
+        ],
+      ),
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _SecondaryLine extends StatelessWidget {
+  const _SecondaryLine({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
     );
   }
 }

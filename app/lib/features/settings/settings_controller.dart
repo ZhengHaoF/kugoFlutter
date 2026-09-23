@@ -21,19 +21,29 @@ class AppSettings {
     this.sleepCustomMinutes = 45,
     this.wifiCoverOnly = false,
     this.lyricTranslation = true,
+    this.lyricRomanization = false,
     this.mediaLyricSubtitle = false,
     this.themeMode = AppThemeMode.light,
+    this.closeToTray = true,
   });
 
   final AppQuality quality;
   final SleepTimerMode sleepMode;
   final int sleepCustomMinutes;
   final bool wifiCoverOnly;
+
+  /// 歌词副行：译文（KRC `[language:]` type=1）。
   final bool lyricTranslation;
+
+  /// 歌词副行：音译/罗马音（type=0）。默认关，中文歌收益低。
+  final bool lyricRomanization;
 
   /// System media (lock screen / Bluetooth) subtitle shows `artist · lyric`.
   final bool mediaLyricSubtitle;
   final AppThemeMode themeMode;
+
+  /// Desktop only: hide to tray instead of quitting on window close.
+  final bool closeToTray;
 
   ThemeMode get materialThemeMode => switch (themeMode) {
         AppThemeMode.dark => ThemeMode.dark,
@@ -66,8 +76,10 @@ class AppSettings {
     int? sleepCustomMinutes,
     bool? wifiCoverOnly,
     bool? lyricTranslation,
+    bool? lyricRomanization,
     bool? mediaLyricSubtitle,
     AppThemeMode? themeMode,
+    bool? closeToTray,
   }) {
     return AppSettings(
       quality: quality ?? this.quality,
@@ -75,8 +87,10 @@ class AppSettings {
       sleepCustomMinutes: sleepCustomMinutes ?? this.sleepCustomMinutes,
       wifiCoverOnly: wifiCoverOnly ?? this.wifiCoverOnly,
       lyricTranslation: lyricTranslation ?? this.lyricTranslation,
+      lyricRomanization: lyricRomanization ?? this.lyricRomanization,
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       themeMode: themeMode ?? this.themeMode,
+      closeToTray: closeToTray ?? this.closeToTray,
     );
   }
 }
@@ -87,8 +101,10 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kSleepCustom = 'settings.sleepCustom';
   static const _kWifiCover = 'settings.wifiCover';
   static const _kLyricTr = 'settings.lyricTranslation';
+  static const _kLyricRo = 'settings.lyricRomanization';
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kThemeMode = 'settings.themeMode';
+  static const _kCloseToTray = 'settings.closeToTray';
 
   @override
   AppSettings build() {
@@ -122,11 +138,13 @@ class SettingsController extends Notifier<AppSettings> {
         sleepCustomMinutes: prefs.getInt(_kSleepCustom) ?? 45,
         wifiCoverOnly: prefs.getBool(_kWifiCover) ?? false,
         lyricTranslation: prefs.getBool(_kLyricTr) ?? true,
+        lyricRomanization: prefs.getBool(_kLyricRo) ?? false,
         mediaLyricSubtitle: prefs.getBool(_kMediaLyric) ?? false,
         themeMode: AppThemeMode.values.firstWhere(
           (e) => e.name == themeName,
           orElse: () => AppThemeMode.light,
         ),
+        closeToTray: prefs.getBool(_kCloseToTray) ?? true,
       );
     } catch (_) {}
   }
@@ -163,9 +181,19 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kLyricTr, v);
   }
 
+  Future<void> setLyricRomanization(bool v) async {
+    state = state.copyWith(lyricRomanization: v);
+    await _save(_kLyricRo, v);
+  }
+
   Future<void> setMediaLyricSubtitle(bool v) async {
     state = state.copyWith(mediaLyricSubtitle: v);
     await _save(_kMediaLyric, v);
+  }
+
+  Future<void> setCloseToTray(bool v) async {
+    state = state.copyWith(closeToTray: v);
+    await _save(_kCloseToTray, v);
   }
 
   /// Clear cover disk/memory cache + play history. Returns a status label.

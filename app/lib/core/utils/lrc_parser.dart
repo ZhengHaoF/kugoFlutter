@@ -30,6 +30,18 @@ List<LyricLine> parseLrc(String raw) {
     }
   }
   lines.sort((a, b) => a.timeMs.compareTo(b.timeMs));
+  // 回填 endMs：用下一行起点，末行 +3s（无精确时长）。
+  for (var i = 0; i < lines.length; i++) {
+    final start = lines[i].timeMs;
+    final end = i + 1 < lines.length
+        ? lines[i + 1].timeMs
+        : start + 3000;
+    lines[i] = LyricLine(
+      timeMs: start,
+      endMs: end > start ? end : start + 1,
+      text: lines[i].text,
+    );
+  }
   return lines;
 }
 

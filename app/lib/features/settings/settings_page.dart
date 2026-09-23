@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/platform.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/debug/network_log_dialog.dart';
@@ -61,6 +62,21 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
+          if (isDesktopPlatform)
+            _Section(
+              title: '窗口',
+              children: [
+                SwitchListTile(
+                  title: Text('关闭到托盘', style: kugo.body),
+                  subtitle: Text(
+                    '点关闭按钮时隐藏到系统托盘，不退出应用',
+                    style: kugo.caption,
+                  ),
+                  value: settings.closeToTray,
+                  onChanged: controller.setCloseToTray,
+                ),
+              ],
+            ),
           _Section(
             title: '播放',
             children: [
@@ -91,8 +107,21 @@ class SettingsPage extends ConsumerWidget {
             children: [
               SwitchListTile(
                 title: Text('显示翻译', style: kugo.body),
+                subtitle: Text(
+                  '外语歌等有译文时，在歌词下方显示',
+                  style: kugo.caption,
+                ),
                 value: settings.lyricTranslation,
                 onChanged: controller.setLyricTranslation,
+              ),
+              SwitchListTile(
+                title: Text('显示罗马音', style: kugo.body),
+                subtitle: Text(
+                  '日文等有音译时，在歌词下方显示罗马音',
+                  style: kugo.caption,
+                ),
+                value: settings.lyricRomanization,
+                onChanged: controller.setLyricRomanization,
               ),
               SwitchListTile(
                 title: Text('锁屏/蓝牙显示歌词', style: kugo.body),
