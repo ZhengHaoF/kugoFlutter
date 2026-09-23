@@ -113,11 +113,19 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
   }
 }
 
-/// Elegant, unscaled desktop cross-fade transition.
+/// Elegant, unscaled desktop fade-through + light horizontal drift.
 ///
-/// Unlike [ZoomPageTransitionsBuilder], this does not scale the entering or exiting route,
-/// does not snapshot raster images, and keeps underlying routes 100% stationary so
-/// [Hero] overlay coordinates and destination geometries land with zero subpixel flicker.
+/// Unlike [ZoomPageTransitionsBuilder], this does not scale the entering or
+/// exiting route and does not snapshot raster images, so [Hero] overlay
+/// coordinates and destination geometries land with zero subpixel flicker.
+///
+/// Rhythm (Material fade-through):
+/// - covered route fades out early via [secondaryAnimation]
+/// - entering route waits briefly, then fades in
+/// - push drifts +16 → 0 (enter) and 0 → -8 (cover); pop mirrors
+///
+/// [ClipRect] keeps nested-navigator drift from painting over the desktop
+/// sidebar. Settled frames paint [child] raw (no opacity/transform layer).
 class DesktopPageTransitionsBuilder extends PageTransitionsBuilder {
   const DesktopPageTransitionsBuilder();
 
@@ -129,12 +137,79 @@ class DesktopPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double>? secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
-      opacity: CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
+    return _DesktopFadeThroughTransition(
+      animation: animation,
+      secondaryAnimation: secondaryAnimation ?? kAlwaysDismissedAnimation,
+      child: child,
+    );
+  }
+}
+
+class _DesktopFadeThroughTransition extends StatelessWidget {
+  const _DesktopFadeThroughTransition({
+    required this.animation,
+    required this.secondaryAnimation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Animation<double> secondaryAnimation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    // Enter late (0.22–1.0), leave early on pop (0.0–0.62).
+    final selfOpacity = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.22, 1.0, curve: Curves.easeOutCubic),
+      reverseCurve: const Interval(0.0, 0.62, curve: Curves.easeInCubic),
+    );
+
+    // 1 = fully visible, 0 = fully hidden while covered.
+    // Cover: fade out in the first ~half so pages never sit double-opaque.
+    // Reveal: restore almost immediately so pop uncovers cleanly.
+    final coverOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: const Interval(0.0, 0.48, curve: Curves.easeOutCubic),
+        reverseCurve: const Interval(0.82, 1.0, curve: Curves.easeOutCubic),
       ),
+    );
+
+    // Push enter +16 → 0; pop exits back to +16 via the same tween.
+    final enterDx = Tween<double>(begin: 16.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.15, 1.0, curve: Curves.easeOutCubic),
+        reverseCurve: const Interval(0.0, 0.7, curve: Curves.easeInCubic),
+      ),
+    );
+    // Covered route nudges left; reveal returns to 0.
+    final coverDx = Tween<double>(begin: 0.0, end: -8.0).animate(
+      CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+        reverseCurve: const Interval(0.7, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([animation, secondaryAnimation]),
+      builder: (context, child) {
+        final opacity = (selfOpacity.value * coverOpacity.value).clamp(0.0, 1.0);
+        final dx = enterDx.value + coverDx.value;
+        // Settled: paint raw child — zero transform/opacity (Hero + pixel grid).
+        if (opacity >= 1.0 && dx == 0.0) return child!;
+        return ClipRect(
+          child: Opacity(
+            opacity: opacity,
+            child: Transform.translate(
+              offset: Offset(dx, 0),
+              child: child,
+            ),
+          ),
+        );
+      },
       child: child,
     );
   }
