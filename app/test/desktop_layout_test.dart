@@ -46,7 +46,8 @@ void main() {
     expect(find.byType(DesktopPlayerBar), findsOneWidget);
     expect(find.byType(MiniPlayerBar), findsNothing);
     expect(find.text('每日推荐'), findsWidgets);
-    expect(find.text('排行榜'), findsWidgets);
+    expect(find.text('探索'), findsWidgets);
+    expect(find.text('排行榜'), findsNothing);
   });
 
   testWidgets('mobile narrow screen (400x800) displays mobile dock and mini bar',

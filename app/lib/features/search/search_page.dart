@@ -36,13 +36,37 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.initState();
     _loadHot();
     _scroll.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final q = GoRouterState.of(context).uri.queryParameters['q'];
-      if (q == null || q.trim().isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleInitialQuery());
+  }
+
+  /// Deep-link `?q=` runs a search; otherwise put the caret in the field so
+  /// Explore → Search is immediately typable (RootShell also autofocuses).
+  void _handleInitialQuery() {
+    if (!mounted) return;
+    final q = GoRouterState.of(context).uri.queryParameters['q'];
+    if (q != null && q.trim().isNotEmpty) {
       _controller.text = q.trim();
       _submit(q.trim());
-    });
+      return;
+    }
+    _focusWhenRouteReady();
+  }
+
+  void _focusWhenRouteReady() {
+    if (!mounted) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.isCompleted) {
+      _focus.requestFocus();
+      return;
+    }
+    // Hero/search-route transition can steal focus mid-flight — wait for landing.
+    void onStatus(AnimationStatus status) {
+      if (status != AnimationStatus.completed) return;
+      animation.removeStatusListener(onStatus);
+      if (mounted) _focus.requestFocus();
+    }
+
+    animation.addStatusListener(onStatus);
   }
 
   @override
@@ -106,7 +130,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: TextField(
                   controller: _controller,
                   focusNode: _focus,
-                  autofocus: false,
+                  autofocus: true,
                   textInputAction: TextInputAction.search,
                   onSubmitted: _submit,
                   style: kugo.body,
@@ -282,8 +306,10 @@ class _TabResults extends ConsumerWidget {
     final tab = state.activeTab;
     final type = state.active;
 
-    // A first-page load shows the skeleton; a failed load shows retry.
-    if (tab.loading && tab.isEmpty) {
+    // First page (or not-yet-requested tab) shows the skeleton; a failed load
+    // shows retry. Unopened tabs used to fall through to "empty" which looked
+    // like a silent no-op with zero network traffic.
+    if ((tab.loading || !tab.hasLoaded) && tab.isEmpty) {
       return const SkeletonList();
     }
     if (tab.error.isNotEmpty && tab.isEmpty) {
@@ -372,12 +398,12 @@ class _TabResults extends ConsumerWidget {
         return [
           for (final a in artistItemsOf(tab))
             SearchResultRow(
-              imageSeed: '',
+              imageSeed: a.avatarUrl,
               title: a.name,
               round: true,
               heroTag: a.id.isNotEmpty ? KugoHeroTags.artistAvatar(a.id) : null,
-              // `search/singer` returns no artwork; a per-row lookup would be
-              // an N+1 request storm, so artists render as a plain circle.
+              // Avatar is backfilled from `singer/info` (search payload has
+              // none). Empty seed still falls back to the person glyph.
               onTap:
                   a.id.isEmpty ? null : () => context.push('/artist/${a.id}'),
             ),

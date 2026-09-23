@@ -7,6 +7,7 @@ import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../data/storage/device_identity.dart';
 import '../../features/auth/auth_token_holder.dart';
+import '../../features/profile/user_profile_detail.dart';
 
 class LoginSession {
   const LoginSession({
@@ -445,9 +446,9 @@ class LoginRepository {
     );
   }
 
-  /// Fetch profile (nickname / avatar) after login.
+  /// Fetch profile (nickname / avatar / archive) after login.
   /// Matches KuGouMusicApi `user_info` (relation.user) + `user_detail` (usercenter).
-  Future<({String nickname, String avatarUrl, bool isVip})?> fetchMyInfo({
+  Future<MyProfile?> fetchMyInfo({
     required String token,
     required String userId,
   }) async {
@@ -476,8 +477,7 @@ class LoginRepository {
   }
 
   /// POST http://relation.user.kugou.com/v1/get_my_userinfo
-  Future<({String nickname, String avatarUrl, bool isVip})?>
-      _fetchMyUserInfoRelation({
+  Future<MyProfile?> _fetchMyUserInfoRelation({
     required String token,
     required String userId,
   }) async {
@@ -522,7 +522,7 @@ class LoginRepository {
       );
       final body = _decode(res.data);
       if (_ok(body)) {
-        return _mapProfile(body!);
+        return _mapProfile(body!, fallbackUserId: userId);
       }
       lastError = _err(body, '获取用户资料失败(relation)');
     } on DioException catch (e) {
@@ -532,8 +532,7 @@ class LoginRepository {
   }
 
   /// POST gateway /v3/get_my_info (usercenter)
-  Future<({String nickname, String avatarUrl, bool isVip})?>
-      _fetchMyInfoUsercenter({
+  Future<MyProfile?> _fetchMyInfoUsercenter({
     required String token,
     required String userId,
   }) async {
@@ -577,16 +576,17 @@ class LoginRepository {
         lastError = _err(body, '获取用户资料失败');
         return null;
       }
-      return _mapProfile(body!);
+      return _mapProfile(body!, fallbackUserId: userId);
     } on DioException catch (e) {
       lastError = e.message ?? '网络错误';
       return null;
     }
   }
 
-  ({String nickname, String avatarUrl, bool isVip}) _mapProfile(
-    Map<String, dynamic> json,
-  ) {
+  MyProfile _mapProfile(
+    Map<String, dynamic> json, {
+    String fallbackUserId = '',
+  }) {
     // Flatten common nesting: data / info / userinfo / user_info / profile / base
     final candidates = <Map<String, dynamic>>[json];
     for (final key in const [
@@ -605,13 +605,51 @@ class LoginRepository {
       }
     }
 
+    // EchoMusic keeps archive/social fields under extendsInfo.detail and VIP
+    // under extendsInfo.vip — walk those leaves explicitly so they are not
+    // flattened away by the generic pick().
+    Map<String, dynamic> asMap(Object? v) =>
+        v is Map ? Map<String, dynamic>.from(v) : const {};
+
+    final detailLeaf = <String, dynamic>{};
+    for (final map in candidates) {
+      detailLeaf.addAll(asMap(map['detail']));
+      final ext = asMap(map['extendsInfo']);
+      detailLeaf.addAll(asMap(ext['detail']));
+      detailLeaf.addAll(asMap(asMap(map['extends'])['detail']));
+    }
+    // Some payloads put social counters at the top of extendsInfo itself.
+    final extendsLeaf = <String, dynamic>{};
+    for (final map in candidates) {
+      extendsLeaf.addAll(asMap(map['extendsInfo']));
+      extendsLeaf.addAll(asMap(map['extends']));
+    }
+
+    int? numFrom(
+      List<String> keys, {
+      List<Map<String, dynamic>>? scopes,
+    }) {
+      final maps = scopes ?? [...candidates, detailLeaf, extendsLeaf];
+      for (final map in maps) {
+        for (final k in keys) {
+          final v = map[k];
+          if (v == null || v == '') continue;
+          final n = v is num ? v : num.tryParse(v.toString());
+          if (n == null) continue;
+          return n.toInt();
+        }
+      }
+      return null;
+    }
+
     String pick(List<String> keys) {
-      for (final map in candidates) {
+      final maps = [...candidates, detailLeaf, extendsLeaf];
+      for (final map in maps) {
         for (final k in keys) {
           final v = map[k];
           if (v == null) continue;
           final s = v.toString().trim();
-          if (s.isNotEmpty && s != 'null' && s != '0') return s;
+          if (s.isNotEmpty && s != 'null') return s;
         }
       }
       return '';
@@ -642,12 +680,104 @@ class LoginRepository {
     }
     final vipType = int.tryParse(pick(['vip_type', 'viptype', 'vipType'])) ?? 0;
     final vip = pick(['vip']);
-    return (
+    final userId = pick(['userid', 'userId', 'user_id', 'uid']);
+    final signature = pick(['descri', 'signature', 'sign']);
+    final province = pick(['province']);
+    final city = pick(['city']);
+    final ipLocation = pick(['loc', 'ip_loc', 'ipLocation', 'ip_location']);
+
+    // 0/1/2 are real gender codes — pick() would drop a legitimate `0`.
+    int? gender;
+    for (final map in [detailLeaf, ...candidates]) {
+      final v = map['gender'] ?? map['sex'];
+      if (v == null || v == '') continue;
+      gender = v is num ? v.toInt() : int.tryParse(v.toString());
+      if (gender != null) break;
+    }
+
+    final detail = UserProfileDetail(
+      gender: gender,
+      signature: signature,
+      province: province,
+      city: city,
+      ipLocation: ipLocation,
+      follows: numFrom(['follows', 'follow', 'follow_count']),
+      fans: numFrom(['fans', 'fans_count', 'fan_count']),
+      visitors: numFrom(['hvisitors', 'visitors', 'visitor', 'visit_count']),
+      registerTime: numFrom(['rtime', 'reg_time', 'register_time', 'createTime']),
+      listenSeconds: numFrom(['d_sec', 'dsec', 'listen_seconds']),
+      listenMinutes: numFrom(['duration', 'listen_duration']),
+      grade: numFrom(['p_grade', 'grade']),
+      currentPoint: numFrom(['p_current_point', 'current_point']),
+      nextGrade: numFrom(['p_next_grade', 'next_grade']),
+      nextGradePoint: numFrom(['p_next_grade_point', 'next_grade_point']),
+    ).merge(_mapVipDetail(json, candidates));
+
+    return MyProfile(
       nickname: nickname.isEmpty ? '用户' : nickname,
       avatarUrl: avatarUrl,
-      isVip: vipType != 0 || vip == '1',
+      isVip: vipType != 0 || vip == '1' || detail.tvipActive || detail.svipActive,
+      userId: userId.isEmpty ? fallbackUserId : userId,
+      detail: detail,
+    );
+  }
+
+  /// Parse `extendsInfo.vip.busi_vip[]` (Echo `tvip` / `svip` product types).
+  UserProfileDetail _mapVipDetail(
+    Map<String, dynamic> json,
+    List<Map<String, dynamic>> candidates,
+  ) {
+    List<Map<String, dynamic>> busi = const [];
+    void absorb(Object? node) {
+      if (node is! Map) return;
+      final m = Map<String, dynamic>.from(node);
+      final list = m['busi_vip'] ?? m['busiVip'];
+      if (list is List) {
+        busi = [
+          ...busi,
+          for (final item in list)
+            if (item is Map) Map<String, dynamic>.from(item),
+        ];
+      }
+    }
+
+    absorb(json['vip']);
+    for (final map in candidates) {
+      absorb(map['vip']);
+      absorb(map['extendsInfo']);
+      final ext = map['extendsInfo'];
+      if (ext is Map) absorb(ext['vip']);
+      absorb(map);
+    }
+
+    Map<String, dynamic>? findType(String type) {
+      for (final item in busi) {
+        final t = '${item['product_type'] ?? item['productType'] ?? ''}';
+        if (t == type) return item;
+      }
+      return null;
+    }
+
+    Map<String, dynamic>? active(String type) {
+      final item = findType(type);
+      if (item == null) return null;
+      final isVip = item['is_vip'] ?? item['isVip'];
+      final on = isVip is num ? isVip == 1 : '$isVip' == '1' || isVip == true;
+      return on ? item : null;
+    }
+
+    final tvip = active('tvip');
+    final svip = active('svip');
+    return UserProfileDetail(
+      tvipActive: tvip != null,
+      svipActive: svip != null,
+      tvipBegin: tvip?['vip_begin_time'] ?? tvip?['vipBeginTime'],
+      tvipEnd: tvip?['vip_end_time'] ?? tvip?['vipEndTime'],
+      svipBegin: svip?['vip_begin_time'] ?? svip?['vipBeginTime'],
+      svipEnd: svip?['vip_end_time'] ?? svip?['vipEndTime'],
     );
   }
 }
+
 
 final loginRepository = LoginRepository();

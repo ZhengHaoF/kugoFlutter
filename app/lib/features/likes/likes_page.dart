@@ -340,6 +340,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
         hasError: error.isNotEmpty,
         isEmpty: true,
         emptyMessage: emptyMessage,
+        errorMessage: error.isEmpty ? '加载失败' : error,
         onRetry: auth.isLogged
             ? () => ref
                 .read(userCollectionsProvider.notifier)
@@ -472,9 +473,10 @@ class _LikesPageState extends ConsumerState<LikesPage>
     if (totalCount == 0) {
       return AsyncBody(
         loading: false,
-        hasError: false,
+        hasError: error.isNotEmpty,
         isEmpty: true,
         emptyMessage: error.isNotEmpty ? error : '暂无关注的歌手\n搜索歌手并点击关注即可在此查看',
+        errorMessage: error.isEmpty ? '加载失败' : error,
         onRetry: () =>
             ref.read(userCollectionsProvider.notifier).loadFollow(),
         child: const SizedBox.shrink(),
@@ -596,9 +598,10 @@ class _LikesPageState extends ConsumerState<LikesPage>
     if (totalCount == 0) {
       return AsyncBody(
         loading: false,
-        hasError: false,
+        hasError: error.isNotEmpty,
         isEmpty: true,
         emptyMessage: error.isNotEmpty ? error : '暂无收藏的专辑\n在专辑详情中点击收藏即可在此查看',
+        errorMessage: error.isEmpty ? '加载失败' : error,
         onRetry: () =>
             ref.read(userCollectionsProvider.notifier).loadPlaylists(),
         child: const SizedBox.shrink(),

@@ -171,6 +171,12 @@ class PlayerController extends Notifier<PlayerState> {
   /// True once this session has a playable engine source for the current track.
   /// Cold-start restore fills the queue but not the engine — play must resolve URL first.
   bool _sourceReady = false;
+  /// Engine `positionStream` belongs to the *currently loaded* source. During a
+  /// track switch the previous source keeps emitting until `playUrl` swaps it,
+  /// and those leftovers (e.g. 10s into song A) must not re-anchor the media
+  /// tick — that is exactly how a car head unit ends up showing song B starting
+  /// at 10s. Cleared on load/stop; re-armed only after the new source is live.
+  bool _acceptEnginePosition = false;
   /// User/system intent: should audio be playing? Engine events must not flip
   /// the pause/play icon against this (late `playing=true` after user pause).
   bool _wantPlaying = false;
@@ -204,6 +210,10 @@ class PlayerController extends Notifier<PlayerState> {
     });
     _posSub = _engine.positionStream.listen((pos) {
       final ms = pos.inMilliseconds;
+      // Drop samples from the *previous* source (track switch / stop). They
+      // arrive while the next URL is still resolving and would otherwise drag
+      // `_tickBaseMs` back to the old track's cursor.
+      if (!_acceptEnginePosition) return;
       // Only let the engine advance the extrapolation base. just_audio emits on
       // a fixed 200ms cadence that beats against the 1s media tick, so an
       // unconditional assignment would occasionally anchor the base to a
@@ -291,6 +301,7 @@ class PlayerController extends Notifier<PlayerState> {
     _stopDemoTick();
     _seq++;
     _sourceReady = false;
+    _acceptEnginePosition = false;
     _wantPlaying = false;
     _ignoreEnginePlayUntil = null;
     _lyricsInFlightKey = null;
@@ -363,6 +374,7 @@ class PlayerController extends Notifier<PlayerState> {
     _wantPlaying = false;
     _ignoreEnginePlayUntil = DateTime.now().add(const Duration(seconds: 1));
     _sourceReady = false;
+    _acceptEnginePosition = false;
     if (state.current != null) {
       await _engine.pause();
     }
@@ -484,6 +496,9 @@ class PlayerController extends Notifier<PlayerState> {
     if (track == null) return;
     if (seq != state.seq) return;
 
+    // Freeze the media cursor at 0 and ignore the outgoing source's samples
+    // until the new one is actually live (see [_acceptEnginePosition]).
+    _acceptEnginePosition = false;
     _resetMediaPosition(0);
 
     _wantPlaying = true;
@@ -580,6 +595,7 @@ class PlayerController extends Notifier<PlayerState> {
       // User paused while URL was resolving — stop engine, keep paused icon.
       unawaited(_engine.pause());
       _sourceReady = true;
+      _armEnginePositionAfterLoad();
       state = state.copyWith(
         display: PlayerDisplayState.paused,
         resolvedQuality: () => resolved.qualityEnum,
@@ -589,11 +605,20 @@ class PlayerController extends Notifier<PlayerState> {
     }
     _failStreak = 0;
     _sourceReady = true;
+    _armEnginePositionAfterLoad();
     state = state.copyWith(
       display: PlayerDisplayState.playing,
       resolvedQuality: () => resolved.qualityEnum,
     );
     _syncBridge(track: liveTrack);
+  }
+
+  /// New source is live: re-accept engine samples and force the platform cursor
+  /// back to 0 so a car head unit cannot keep the previous track's elapsed time.
+  void _armEnginePositionAfterLoad() {
+    _acceptEnginePosition = true;
+    _resetMediaPosition(0);
+    _publishMediaPosition(0, force: true);
   }
 
   void _patchCurrentTrack(Track updated) {
@@ -844,9 +869,10 @@ class PlayerController extends Notifier<PlayerState> {
     await _jumpTo(index);
   }
 
-  /// Snap the live cursor (and [PlayerState.positionMs]) back to 0.
+  /// Snap the live cursor (and the media-session cursor) back to 0.
   void _zeroCursor() {
     if (position.value != 0) position.value = 0;
+    _resetMediaPosition(0);
   }
 
   /// Relative seek from the live cursor (keyboard ±5s etc.).

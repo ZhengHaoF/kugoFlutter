@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/repositories/login_repository.dart';
 import '../../data/storage/device_identity.dart';
+import '../profile/user_profile_detail.dart';
 import 'auth_token_holder.dart';
 
 class AuthUser {
@@ -16,6 +18,7 @@ class AuthUser {
     this.isVip = false,
     this.isLocalDemo = false,
     this.t1 = '',
+    this.detail = UserProfileDetail.empty,
   });
 
   final String userId;
@@ -25,6 +28,7 @@ class AuthUser {
   final bool isVip;
   final bool isLocalDemo;
   final String t1;
+  final UserProfileDetail detail;
 
   AuthUser copyWith({
     String? userId,
@@ -34,6 +38,7 @@ class AuthUser {
     bool? isVip,
     bool? isLocalDemo,
     String? t1,
+    UserProfileDetail? detail,
   }) {
     return AuthUser(
       userId: userId ?? this.userId,
@@ -43,6 +48,7 @@ class AuthUser {
       isVip: isVip ?? this.isVip,
       isLocalDemo: isLocalDemo ?? this.isLocalDemo,
       t1: t1 ?? this.t1,
+      detail: detail ?? this.detail,
     );
   }
 
@@ -54,11 +60,23 @@ class AuthUser {
         'isVip': isVip,
         'isLocalDemo': isLocalDemo,
         't1': t1,
+        // Flat key=value prefs encoding — stash the archive as one JSON blob.
+        'detailJson': jsonEncode(detail.toJson()),
       };
 
   static AuthUser? fromJson(Map<String, dynamic> json) {
     final id = json['userId']?.toString() ?? '';
     if (id.isEmpty) return null;
+    var detail = UserProfileDetail.empty;
+    final rawDetail = json['detailJson']?.toString() ?? '';
+    if (rawDetail.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawDetail);
+        if (decoded is Map) {
+          detail = UserProfileDetail.fromJson(Map<String, dynamic>.from(decoded));
+        }
+      } catch (_) {}
+    }
     return AuthUser(
       userId: id,
       nickname: json['nickname']?.toString() ?? '用户',
@@ -67,6 +85,7 @@ class AuthUser {
       isVip: json['isVip'] == true,
       isLocalDemo: json['isLocalDemo'] == true,
       t1: json['t1']?.toString() ?? '',
+      detail: detail,
     );
   }
 }
@@ -401,8 +420,9 @@ class AuthController extends Notifier<AuthState> {
     var nickname = session.nickname.isEmpty ? '用户' : session.nickname;
     var avatarUrl = session.avatarUrl;
     var isVip = session.isVip;
+    var detail = UserProfileDetail.empty;
 
-    // Enrich profile (nickname / avatar) from user detail.
+    // Enrich profile (nickname / avatar / archive) from user detail.
     try {
       final profile = await loginRepository.fetchMyInfo(
         token: session.token,
@@ -414,6 +434,7 @@ class AuthController extends Notifier<AuthState> {
         }
         if (profile.avatarUrl.isNotEmpty) avatarUrl = profile.avatarUrl;
         isVip = profile.isVip || isVip;
+        detail = profile.detail;
       }
     } catch (_) {}
 
@@ -425,6 +446,7 @@ class AuthController extends Notifier<AuthState> {
       isVip: isVip,
       isLocalDemo: false,
       t1: session.t1,
+      detail: detail,
     );
     state = AuthState(
       status: LoginStatus.logged,
@@ -445,7 +467,7 @@ class AuthController extends Notifier<AuthState> {
     } catch (_) {}
   }
 
-  /// Re-fetch profile (avatar / nickname) when opening 我的.
+  /// Re-fetch profile (avatar / nickname / archive) when opening 我的.
   Future<void> refreshProfile() async {
     final user = state.user;
     if (!state.isLogged || user == null || user.token.isEmpty) return;
@@ -460,10 +482,12 @@ class AuthController extends Notifier<AuthState> {
         avatarUrl:
             profile.avatarUrl.isEmpty ? user.avatarUrl : profile.avatarUrl,
         isVip: profile.isVip || user.isVip,
+        detail: user.detail.merge(profile.detail),
       );
       if (next.nickname == user.nickname &&
           next.avatarUrl == user.avatarUrl &&
-          next.isVip == user.isVip) {
+          next.isVip == user.isVip &&
+          next.detail == user.detail) {
         return;
       }
       AuthTokenHolder.instance.setSession(

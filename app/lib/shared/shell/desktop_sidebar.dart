@@ -102,23 +102,22 @@ class DesktopSidebar extends ConsumerWidget {
               children: [
                 _buildGroupHeader('在线音乐', kugo),
                 _SidebarItem(
-                  icon: Icons.explore_rounded,
+                  icon: Icons.auto_awesome_rounded,
                   label: '发现',
                   selected: location.startsWith('/explore') || location == '/',
                   onTap: () => onNavigate('/explore'),
+                ),
+                _SidebarItem(
+                  icon: Icons.explore_rounded,
+                  label: '探索',
+                  selected: location.startsWith('/discovery'),
+                  onTap: () => onNavigate('/discovery'),
                 ),
                 _SidebarItem(
                   icon: Icons.today_rounded,
                   label: '每日推荐',
                   selected: location.startsWith('/daily'),
                   onTap: () => onNavigate('/daily'),
-                ),
-                _SidebarItem(
-                  icon: Icons.leaderboard_rounded,
-                  label: '排行榜',
-                  selected: location.startsWith('/ranks') ||
-                      location.startsWith('/rank/'),
-                  onTap: () => onNavigate('/ranks'),
                 ),
                 _SidebarItem(
                   icon: Icons.radio_rounded,
@@ -150,8 +149,16 @@ class DesktopSidebar extends ConsumerWidget {
                 _SidebarItem(
                   icon: Icons.person_rounded,
                   label: '我的',
-                  selected: location.startsWith('/profile'),
+                  selected: location == '/profile' ||
+                      (location.startsWith('/profile') &&
+                          !location.startsWith('/profile/detail')),
                   onTap: () => onNavigate('/profile'),
+                ),
+                _SidebarItem(
+                  icon: Icons.badge_outlined,
+                  label: '个人中心',
+                  selected: location.startsWith('/profile/detail'),
+                  onTap: () => onNavigate('/profile/detail'),
                 ),
                 _SidebarItem(
                   icon: Icons.favorite_rounded,

@@ -9,12 +9,14 @@ import 'core/theme/kugo_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
+import 'features/discovery/discovery_page.dart';
 import 'features/explore/explore_page.dart';
 import 'features/fm/fm_page.dart';
 import 'features/history/history_page.dart';
 import 'features/likes/likes_page.dart';
 import 'features/player/full_player_page.dart';
 import 'features/playlist/playlist_detail_page.dart';
+import 'features/profile/profile_detail_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/rank/rank_list_page.dart';
 import 'features/recommend/daily_recommend_page.dart';
@@ -100,6 +102,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 path: '/daily',
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: DailyRecommendPage()),
+              ),
+              GoRoute(
+                path: '/discovery',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: DiscoveryPage()),
               ),
               GoRoute(
                 path: '/ranks',
@@ -190,6 +197,12 @@ final _routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfilePage(),
+              ),
+              // EchoMusic 风格「个人中心」独立内容页（身份/等级/档案/会员）。
+              GoRoute(
+                path: '/profile/detail',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: ProfileDetailPage()),
               ),
               GoRoute(
                 path: '/history',

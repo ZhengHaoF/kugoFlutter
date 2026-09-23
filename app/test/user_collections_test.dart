@@ -14,8 +14,10 @@ import 'package:kugo/features/auth/auth_controller.dart';
 import 'package:kugo/features/likes/likes_controller.dart';
 import 'package:kugo/features/likes/likes_page.dart';
 import 'package:kugo/features/player/player_controller.dart';
+import 'package:kugo/features/profile/profile_detail_page.dart';
 import 'package:kugo/features/profile/profile_page.dart';
 import 'package:kugo/features/profile/user_collections_controller.dart';
+import 'package:kugo/features/profile/user_profile_detail.dart';
 import 'fakes/fake_audio_player.dart';
 
 class _FakeDioAdapter implements HttpClientAdapter {
@@ -324,6 +326,130 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('Profile detail page shows identity, archive and membership',
+        (tester) async {
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final engine = FakeAudioPlayer();
+      final richUser = AuthUser(
+        userId: '8888',
+        nickname: '测试达人',
+        token: 'test_token',
+        isVip: true,
+        detail: const UserProfileDetail(
+          gender: 1,
+          signature: '认真听歌',
+          province: '广东',
+          city: '广州',
+          ipLocation: '广东',
+          follows: 5,
+          fans: 0,
+          visitors: 3,
+          registerTime: 1600000000,
+          listenSeconds: 3600,
+          tvipActive: true,
+          svipActive: true,
+          tvipEnd: '2099-01-01 00:00:00',
+          svipEnd: '2099-01-01 00:00:00',
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          playerControllerProvider.overrideWith(
+            () => PlayerController(engine: engine),
+          ),
+          authControllerProvider.overrideWith(
+            () => _FakeAuthController(
+              AuthState(status: LoginStatus.logged, user: richUser),
+            ),
+          ),
+          userCollectionsProvider.overrideWith(() {
+            return UserCollectionsNotifier(
+              initialState: const UserCollectionsState(loaded: true),
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: ProfileDetailPage())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('个人中心'), findsOneWidget);
+      expect(find.text('测试达人'), findsOneWidget);
+      expect(find.text('认真听歌'), findsOneWidget);
+      expect(find.text('畅听'), findsOneWidget);
+      expect(find.text('概念'), findsOneWidget);
+
+      // Social stats live only on the dedicated detail page.
+      expect(find.text('升级进度'), findsOneWidget);
+      expect(find.text('关注'), findsOneWidget);
+      expect(find.text('粉丝'), findsOneWidget);
+      expect(find.text('访客'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('账号档案'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('账号档案'), findsOneWidget);
+      expect(find.text('用户 ID'), findsOneWidget);
+      expect(find.text('8888'), findsOneWidget);
+      expect(find.text('性别'), findsOneWidget);
+      expect(find.text('男'), findsOneWidget);
+      expect(find.text('乐龄'), findsOneWidget);
+      expect(find.text('累计听歌'), findsOneWidget);
+      expect(find.text('1 小时'), findsOneWidget);
+      expect(find.text('所在地区'), findsOneWidget);
+
+      expect(find.text('会员状态'), findsOneWidget);
+      expect(find.text('畅听会员'), findsOneWidget);
+      expect(find.text('概念会员'), findsOneWidget);
+    });
+
+    testWidgets('Profile hub keeps library stats off the identity card',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final engine = FakeAudioPlayer();
+      final container = ProviderContainer(
+        overrides: [
+          playerControllerProvider.overrideWith(
+            () => PlayerController(engine: engine),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: ProfilePage())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Hub is 乐库入口 — identity social stats stay on /profile/detail.
+      expect(find.text('我的'), findsOneWidget);
+      expect(find.text('升级进度'), findsNothing);
+      expect(find.text('关注'), findsNothing);
+      expect(find.text('粉丝'), findsNothing);
+      expect(find.text('访客'), findsNothing);
+      expect(find.text('账号档案'), findsNothing);
+      expect(find.text('会员状态'), findsNothing);
     });
   });
 

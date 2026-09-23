@@ -459,14 +459,28 @@ AlbumBrief mapAlbumBrief(Map<String, dynamic> json) {
   );
 }
 
-/// Maps a `search/singer` item — the payload carries only id + name.
+/// Maps a `search/singer` / follow-list artist item.
+///
+/// Mobile `search/singer` only carries id + name; avatar/counts are optional
+/// (present on `user/follow` and `singer/info` backfill). Never invent them.
 ArtistBrief mapArtistBrief(Map<String, dynamic> json) {
+  final avatarRaw = _s(
+    json['imgurl'],
+    _s(
+      json['avatar'],
+      _s(json['sizable_avatar'], _s(json['pic'], _s(json['k_pic']))),
+    ),
+  );
   return ArtistBrief(
     id: _s(json['singerid'], _s(json['singer_id'], _s(json['AuthorId']))),
     name: _s(
       json['singername'],
       _s(json['singer_name'], _s(json['AuthorName'], _s(json['name']))),
     ),
+    avatarUrl: avatarRaw.isEmpty ? '' : normalizeCoverUrl(avatarRaw),
+    songCount: _i2(json['songcount'], json['song_count']),
+    fansCount: _i2(json['fans_count'], json['fans']),
+    sourceDesc: _s(json['source_desc'], _s(json['identity'])),
   );
 }
 

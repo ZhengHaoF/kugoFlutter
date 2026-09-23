@@ -53,6 +53,9 @@ class AlbumBrief {
 }
 
 /// An artist as returned by `search/singer` or `user/follow`.
+///
+/// `search/singer` itself only carries id + name; [avatarUrl] is backfilled
+/// from `singer/info` (see [SearchRepository.searchArtists]).
 class ArtistBrief {
   const ArtistBrief({
     required this.id,
@@ -70,5 +73,21 @@ class ArtistBrief {
   final int songCount;
   final int fansCount;
   final String sourceDesc;
+
+  ArtistBrief copyWith({
+    String? avatarUrl,
+    int? songCount,
+    int? fansCount,
+    String? sourceDesc,
+  }) {
+    return ArtistBrief(
+      id: id,
+      name: name,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      songCount: songCount ?? this.songCount,
+      fansCount: fansCount ?? this.fansCount,
+      sourceDesc: sourceDesc ?? this.sourceDesc,
+    );
+  }
 }
 

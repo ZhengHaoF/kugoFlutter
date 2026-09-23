@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugo_client.dart';
 import '../../core/api/mappers.dart';
@@ -28,6 +30,10 @@ class SearchRepository {
   SearchRepository({KugoClient? client}) : _client = client ?? kugoClient;
 
   final KugoClient _client;
+
+  /// `search/singer` has no artwork; cache `singer/info` avatars by id so
+  /// re-search / pagination don't re-hit the same singers.
+  final Map<String, String> _avatarCache = {};
 
   /// Songs only, without pagination metadata.
   ///
@@ -98,7 +104,69 @@ class SearchRepository {
         .toList();
     // `search/singer` reports no total; the caller falls back to
     // "did we get a full page?".
-    return SearchPageResult(items: items, total: _total(body));
+    final enriched = await _withAvatars(items);
+    return SearchPageResult(items: enriched, total: _total(body));
+  }
+
+  /// Backfill [ArtistBrief.avatarUrl] from `singer/info` (the search payload
+  /// has no image). Limited concurrency + cache so a page of 30 doesn't stampede.
+  Future<List<ArtistBrief>> _withAvatars(List<ArtistBrief> artists) async {
+    if (artists.isEmpty) return artists;
+
+    final needFetch = <String>[];
+    for (final a in artists) {
+      if (a.avatarUrl.isNotEmpty) continue;
+      if (_avatarCache[a.id]?.isNotEmpty == true) continue;
+      needFetch.add(a.id);
+    }
+
+    const concurrency = 6;
+    for (var start = 0; start < needFetch.length; start += concurrency) {
+      final end = (start + concurrency).clamp(0, needFetch.length);
+      await Future.wait([
+        for (var i = start; i < end; i++)
+          _fillAvatar(needFetch[i]),
+      ]);
+    }
+
+    return [
+      for (final a in artists)
+        a.avatarUrl.isNotEmpty
+            ? a
+            : a.copyWith(avatarUrl: _avatarCache[a.id] ?? ''),
+    ];
+  }
+
+  Future<void> _fillAvatar(String singerId) async {
+    if (_avatarCache[singerId]?.isNotEmpty == true) return;
+    try {
+      final url = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.singerInfo, {
+        'singerid': singerId,
+        'format': 'json',
+      });
+      // Cap wait so a hung singer/info can't block the whole artist tab.
+      final body = await _client
+          .getJson(url)
+          .timeout(const Duration(seconds: 6));
+      if (body is! Map) return;
+      final map = Map<String, dynamic>.from(body);
+      final data = map['data'] is Map
+          ? Map<String, dynamic>.from(map['data'] as Map)
+          : map;
+      for (final v in [
+        data['imgurl'],
+        data['avatar'],
+        data['sizable_avatar'],
+        data['pic'],
+      ]) {
+        final s = v?.toString().trim() ?? '';
+        if (s.isEmpty || s == 'null') continue;
+        _avatarCache[singerId] = normalizeCoverUrl(s);
+        return;
+      }
+    } catch (_) {
+      // Keep the person-glyph fallback; don't fail the search page.
+    }
   }
 
   Future<dynamic> _get(

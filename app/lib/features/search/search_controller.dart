@@ -120,6 +120,9 @@ class SearchController extends Notifier<SearchState> {
   /// Also returns to the song tab: a brand-new keyword should always start
   /// from the same place, not from whichever tab the user happened to be
   /// looking at when they typed it.
+  ///
+  /// All four tabs load in parallel so counts fill in without extra taps and
+  /// every request shows up in the network log immediately.
   Future<void> submit(String rawKeyword) async {
     final keyword = rawKeyword.trim();
     if (keyword.isEmpty) return;
@@ -128,7 +131,9 @@ class SearchController extends Notifier<SearchState> {
       keyword: keyword,
       searched: true,
     );
-    await _loadPage(SearchType.song, 1);
+    await Future.wait([
+      for (final type in SearchType.values) _loadPage(type, 1),
+    ]);
   }
 
   /// Switches tab, loading its first page on demand.

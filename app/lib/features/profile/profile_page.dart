@@ -8,6 +8,7 @@ import '../../core/models/track.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/likes/likes_controller.dart';
@@ -19,6 +20,10 @@ import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/settings_pickers.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
+/// 「我的」— 乐库入口页。
+///
+/// 只放：紧凑用户入口（→ `/profile/detail` 个人中心）、乐库统计、歌单、设置快捷。
+/// 账号身份 / 等级 / 关注粉丝 / 档案 / 会员**不在此页**，见 [ProfileDetailPage]。
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
@@ -56,6 +61,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final isDesktop = isDesktopView(context);
     ref.watch(settingsControllerProvider.select((s) => s.themeMode));
     final settings = ref.watch(settingsControllerProvider);
     final auth = ref.watch(authControllerProvider);
@@ -68,11 +74,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 : likesCount))
         : likesCount;
     final user = auth.user;
+
     final displayName = auth.isLogged
         ? (user?.nickname ?? '用户')
         : (auth.restored ? '游客' : '…');
     final displaySub = auth.isLogged
-        ? (user!.isVip ? '概念会员' : '已登录')
+        ? (user!.isVip ? '概念会员' : '已登录 · 查看个人中心')
         : '未登录 · 公开内容可用';
     final avatarUrl = user?.avatarUrl ?? '';
     final sleepLabel = settings.sleepMinutes == 0
@@ -87,11 +94,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final playlistStatHint = !auth.isLogged ? '需登录' : null;
 
     return SmoothListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         KugoSpacing.lg,
         KugoSpacing.xl,
         KugoSpacing.lg,
-        140,
+        isDesktop ? 48 : 140,
       ),
       children: [
         Text('我的', style: kugo.greeting),
@@ -100,25 +107,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           padding: const EdgeInsets.all(KugoSpacing.lg),
           child: Column(
             children: [
+              // 紧凑用户入口 → 独立「个人中心」页（对齐 Echo 的 Profile 内容页）。
               InkWell(
                 borderRadius: BorderRadius.circular(KugoRadius.tile),
-                onTap: () {
-                  if (!auth.isLogged) {
-                    context.push('/login');
-                  }
-                },
+                onTap: () => context.push('/profile/detail'),
                 child: Row(
                   children: [
                     CoverBox(
                       seed: avatarUrl.isNotEmpty ? avatarUrl : 'avatar-guest',
-                      size: 64,
+                      size: 56,
                       radius: 999,
                       child: avatarUrl.isNotEmpty
                           ? null
                           : const Icon(
                               Icons.person_rounded,
                               color: Colors.white70,
-                              size: 32,
+                              size: 28,
                             ),
                     ),
                     const SizedBox(width: KugoSpacing.md),
@@ -127,33 +131,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(displayName, style: kugo.title),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: auth.isLogged
-                                  ? kugo.accentGradient
-                                  : null,
-                              color: auth.isLogged
-                                  ? null
-                                  : kugo.surfaceElevated,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              displaySub,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                // White only reads on the accent gradient; the
-                                // guest chip uses the page surface.
-                                color: auth.isLogged
-                                    ? kugo.onAccent
-                                    : kugo.textSecondary,
-                              ),
-                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            displaySub,
+                            style: kugo.caption.copyWith(fontSize: 12),
                           ),
                         ],
                       ),
@@ -218,6 +199,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     minimumSize: const Size(64, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     visualDensity: VisualDensity.compact,
+                    foregroundColor: Colors.redAccent,
                   ),
                   child: const Text('退出登录'),
                 ),
@@ -816,4 +798,3 @@ class _PlaylistTileCover extends ConsumerWidget {
     );
   }
 }
-

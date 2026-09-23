@@ -41,6 +41,9 @@ class FakePlayRepository extends PlayRepository {
   String _err = '';
   int resolveCalls = 0;
 
+  /// When set, resolve awaits this future (for track-switch race tests).
+  Future<void>? gate;
+
   @override
   String get lastError => _err;
 
@@ -61,6 +64,8 @@ class FakePlayRepository extends PlayRepository {
     String? ppageId,
   }) async {
     resolveCalls += 1;
+    final g = gate;
+    if (g != null) await g;
     final resolved = nextResolved;
     if (resolved == null) {
       lastError = errorText;

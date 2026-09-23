@@ -47,6 +47,7 @@ void main() {
     final page = repo.debugParseForTest(_fmBody);
 
     expect(page.fromServer, isTrue);
+    expect(page.serverAccepted, isFalse);
     expect(page.tracks, hasLength(2));
     expect(page.tracks[0].name, 'Houdini');
     expect(page.tracks[0].artist, 'Dua Lipa');
@@ -65,5 +66,58 @@ void main() {
     });
     expect(track.durationMs, 245000);
     expect(track.artist, '歌手');
+  });
+
+  test('meta-only success (remain_songcnt>4) is accepted, not a load failure', () {
+    // 2026-09-23 实测：remain_songcnt=25 时 data 只回会话元数据。
+    const body = {
+      'status': 1,
+      'error_code': 0,
+      'data': {
+        'mode': 'normal',
+        'algorithm_id': 3,
+        'sync_point': 0,
+        'clientver': '6.1.1',
+      },
+    };
+    final repo = FmRepository();
+    // ignore: invalid_use_of_visible_for_testing_member
+    final page = repo.debugParseForTest(body);
+
+    expect(page.tracks, isEmpty);
+    expect(page.serverAccepted, isTrue);
+    expect(page.fromServer, isFalse);
+    expect(page.error, isEmpty, reason: '不能写成「私人FM加载失败」');
+    expect(page.needLogin, isFalse);
+  });
+
+  test('empty + status=0 is still an error', () {
+    const body = {
+      'status': 0,
+      'error_code': 200101,
+      'data': '',
+    };
+    final repo = FmRepository();
+    // ignore: invalid_use_of_visible_for_testing_member
+    final page = repo.debugParseForTest(body);
+
+    expect(page.serverAccepted, isFalse);
+    expect(page.error, isNotEmpty);
+  });
+
+  group('clampRemainSongcnt', () {
+    test('fresh fetch always asks for songs with 0', () {
+      expect(clampRemainSongcnt(fresh: true, unplayed: 25), 0);
+      expect(clampRemainSongcnt(fresh: true, unplayed: 0), 0);
+      expect(clampRemainSongcnt(fresh: true, unplayed: 3), 0);
+    });
+
+    test('refill keeps real remaining but caps at 4', () {
+      expect(clampRemainSongcnt(fresh: false, unplayed: 0), 0);
+      expect(clampRemainSongcnt(fresh: false, unplayed: 3), 3);
+      expect(clampRemainSongcnt(fresh: false, unplayed: 4), 4);
+      expect(clampRemainSongcnt(fresh: false, unplayed: 5), 4);
+      expect(clampRemainSongcnt(fresh: false, unplayed: 25), 4);
+    });
   });
 }

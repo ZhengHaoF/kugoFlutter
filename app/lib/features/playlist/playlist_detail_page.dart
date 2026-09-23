@@ -491,9 +491,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
     final desktop = isDesktopView(context);
 
     return Scaffold(
-      body: DesktopContentConstraint(
-        child: SmoothCustomScrollView(
-          slivers: [
+      // 浏览型详情页：铺满侧栏之外的全部宽度，与发现/探索/榜单一致。
+      body: SmoothCustomScrollView(
+        slivers: [
             SliverAppBar(
               expandedHeight: 240,
               pinned: true,
@@ -700,7 +700,6 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 120)),
           ],
-        ),
       ),
     );
   }

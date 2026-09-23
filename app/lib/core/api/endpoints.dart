@@ -75,6 +75,15 @@ abstract final class KugoEndpoints {
   static const musicAdService = 'http://musicadservice.kugou.com';
   static const topIp = '/v1/daily_recommend';
 
+  /// Discovery tabs (KuGouMusicApi top_song / top_album / artist_lists / playlist_tags).
+  ///
+  /// New songs / new albums live on musicadservice (same host as [topIp]).
+  /// Artist list + playlist tags go through the signed gateway.
+  static const newSongPublish = '/container/v1/newsong_publish';
+  static const mobileNewAlbum = '/v1/mobile_newalbum_sp';
+  static const singerList = '/ocean/v6/singer/list';
+  static const playlistTags = '/pubsongs/v1/get_tags_by_type';
+
   /// Real personal FM (KuGouMusicApi personal_fm.js → upstream).
   static const personalRecommend = '/v2/personal_recommend';
   static const personalFmRouter = 'persnfm.service.kugou.com';

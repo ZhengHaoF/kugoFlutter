@@ -350,31 +350,27 @@ class _FmPageState extends ConsumerState<FmPage>
             ),
             Expanded(
               child: SmoothSingleChildScrollView(
+                // 浏览型页面：内容铺满侧栏之外的全部宽度（与发现页 /「我的」「历史」一致），
+                // 不再做居中限宽——最大化窗口时两侧不会再留大片空白。
                 padding: EdgeInsets.fromLTRB(
-                  desktop ? KugoSpacing.xl : KugoSpacing.md,
+                  KugoSpacing.lg,
                   KugoSpacing.sm,
-                  desktop ? KugoSpacing.xl : KugoSpacing.md,
+                  KugoSpacing.lg,
                   isDesktopPlatform ? KugoSpacing.lg : 100,
                 ),
-                child: Center(
-                  child: ConstrainedBox(
-                    // 略宽于旧 1100：舞台要给 3 张大封面盘留出铺开的空间。
-                    constraints: const BoxConstraints(maxWidth: 1180),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        errorBanner,
-                        stage,
-                        pendingBar,
-                        const SizedBox(height: KugoSpacing.xxl),
-                        nowPanel,
-                        if (showUpcoming) ...[
-                          const SizedBox(height: KugoSpacing.xl),
-                          upcomingPanel,
-                        ],
-                      ],
-                    ),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    errorBanner,
+                    stage,
+                    pendingBar,
+                    const SizedBox(height: KugoSpacing.xxl),
+                    nowPanel,
+                    if (showUpcoming) ...[
+                      const SizedBox(height: KugoSpacing.xl),
+                      upcomingPanel,
+                    ],
+                  ],
                 ),
               ),
             ),

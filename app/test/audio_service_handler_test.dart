@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,7 @@ import 'package:kugo/features/player/audio_service_handler.dart';
 import 'package:kugo/features/player/player_controller.dart';
 
 import 'fakes/fake_audio_player.dart';
+import 'fakes/fake_lyric_play_repos.dart';
 
 Track _t(String id) => Track(
       id: id,
@@ -90,6 +93,75 @@ void main() {
     // EVENT_PLAYBACK_POS_CHANGED once two consecutive reads are equal, so every
     // position handed to the platform has to move strictly forward.
     await _exercisePositionPushes(engine, handler);
+  });
+
+  test('track switch resets media position despite leftover engine samples',
+      () async {
+    // Car head units read PlaybackState.updatePosition. If a leftover sample
+    // from the previous source (10s into song A) re-anchors the media tick
+    // while song B's URL is still resolving, song B's progress bar starts at
+    // 10s. This is the regression that made FM/list skips look "mixed".
+    final engine = FakeAudioPlayer();
+    final play = FakePlayRepository();
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider.overrideWith(
+          () => PlayerController(engine: engine, playRepo: play),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+    final handler = KugoAudioHandler(controller);
+    controller.attachBridge(handler);
+
+    Track hashed(String id, String hash) => Track(
+          id: id,
+          name: id,
+          artist: 'artist',
+          album: 'album',
+          coverUrl: 'https://example.com/$id.jpg',
+          durationMs: 30000,
+          hash: hash,
+        );
+
+    await controller.playQueue(
+      [hashed('a', 'hash_a'), hashed('b', 'hash_b')],
+      startIndex: 0,
+    );
+    expect(container.read(playerControllerProvider).isPlaying, isTrue);
+
+    // Song A is 10s in.
+    engine.emitPosition(const Duration(milliseconds: 10000));
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.position.value, 10000);
+
+    // Hold URL resolve open so we can inject the previous source's leftovers.
+    final gate = Completer<void>();
+    play.gate = gate.future;
+    final nextFuture = controller.next();
+    await Future<void>.delayed(Duration.zero);
+
+    engine.emitPosition(const Duration(milliseconds: 10000));
+    engine.emitPosition(const Duration(milliseconds: 10200));
+    await Future<void>.delayed(Duration.zero);
+
+    gate.complete();
+    await nextFuture;
+
+    expect(container.read(playerControllerProvider).current?.id, 'b');
+    // Leftovers during the switch must not drag the live cursor.
+    expect(controller.position.value, 0);
+    // Platform cursor is forced back to 0 with the new source.
+    expect(handler.playbackState.value.updatePosition.inMilliseconds, 0);
+
+    // One media tick later the car must still be near the start of song B —
+    // without the fix the tick extrapolates from the leftover 10s base.
+    engine.emitPosition(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 1100));
+    final afterTick = handler.playbackState.value.updatePosition.inMilliseconds;
+    expect(afterTick, lessThan(2000),
+        reason: 'media tick continued from the previous track ($afterTick ms)');
   });
 
   test('swiping the notification away keeps the session usable', () async {

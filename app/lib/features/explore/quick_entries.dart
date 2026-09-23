@@ -174,12 +174,141 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
           radioCard: radioCard,
           carousel: carousel,
         ),
-        // 舞台阴影外溢略多，给下方「为你推荐」留一点空气。
+        // 舞台阴影外溢略多，给下方入口留一点空气。
         const SizedBox(height: KugoSpacing.lg),
-        RecommendHubEntryCard(
-          onTap: () => context.push('/recommend'),
+        // Android 无桌面侧栏：挂「为你推荐 + 探索」入口。窄屏纵向堆叠，
+        // 半宽卡片里的副标题会把 68 高的卡挤爆。
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final sideBySide = constraints.maxWidth >= 520;
+            final recommend = RecommendHubEntryCard(
+              onTap: () => context.push('/recommend'),
+            );
+            final discovery = DiscoveryEntryCard(
+              onTap: () => context.push('/discovery'),
+            );
+            if (!sideBySide) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  recommend,
+                  const SizedBox(height: 12),
+                  discovery,
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: recommend),
+                const SizedBox(width: 12),
+                Expanded(child: discovery),
+              ],
+            );
+          },
         ),
       ],
+    );
+  }
+}
+
+/// 发现页「探索」入口卡（对齐侧栏「探索」/ EchoMusic 探索发现）。
+class DiscoveryEntryCard extends StatelessWidget {
+  const DiscoveryEntryCard({
+    super.key,
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return Material(
+      key: const ValueKey('discovery_entry_card'),
+      color: kugo.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kugo.divider),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      kugo.secondary,
+                      Color.lerp(kugo.secondary, kugo.primary, 0.40)!,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kugo.secondary.withValues(alpha: 0.28),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.explore_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '探索',
+                      style: kugo.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '歌单 · 榜单 · 新碟 · 歌手',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: kugo.caption.copyWith(
+                        fontSize: 12,
+                        color: kugo.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: kugo.secondary.withValues(alpha: 0.12),
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: kugo.secondary,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

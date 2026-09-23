@@ -401,20 +401,28 @@ class FmController extends Notifier<FmSession> {
       final current = player.current;
       final unplayed =
           (player.queue.length - player.currentIndex - 1).clamp(0, 1 << 30);
+      // remain_songcnt>4 时服务端只回会话元数据、不给歌。开新会话必须传 0，
+      // 否则会带着旧队列剩余数（如 25）去要 FM，被误判成「私人FM加载失败」。
       final page = await _fmRepo.fetch(
         mode: state.mode,
         pool: state.pool,
         hash: current?.hash ?? '',
         songid: current?.id ?? '',
-        remainSongcnt: unplayed,
+        remainSongcnt: clampRemainSongcnt(fresh: fresh, unplayed: unplayed),
         action: fresh ? 'play' : 'play',
       );
       if (page.tracks.isNotEmpty) {
         state = state.copyWith(fromServer: true, gatewayError: '');
         return page.tracks;
       }
-      // 网关拒了（未登录/空/报错）：记下原因并落回关键词池，页面不空转。
-      state = state.copyWith(fromServer: false, gatewayError: page.error);
+      if (page.serverAccepted) {
+        // 服务端收下了但暂不补歌：不是失败，不要把「加载失败」写进 UI。
+        // 仍落回关键词池，避免开一场空电台。
+        state = state.copyWith(fromServer: false, gatewayError: '');
+      } else {
+        // 网关拒了（未登录/空/报错）：记下原因并落回关键词池，页面不空转。
+        state = state.copyWith(fromServer: false, gatewayError: page.error);
+      }
     }
     return _collectFromKeywords(fresh: fresh);
   }

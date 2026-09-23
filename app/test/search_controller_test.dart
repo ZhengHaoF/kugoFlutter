@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/kugo_client.dart';
 import 'package:kugo/core/models/search_result.dart';
@@ -186,7 +186,12 @@ void main() {
       expect(s.searched, isTrue);
       expect(s.keyword, 'jay');
       expect(s.active, SearchType.song);
-      expect(repo.calls, ['song:jay:1']);
+      expect(repo.calls, [
+        'song:jay:1',
+        'playlist:jay:1',
+        'album:jay:1',
+        'artist:jay:1',
+      ]);
       expect(s.activeTab.items, hasLength(30));
     });
 
@@ -212,7 +217,6 @@ void main() {
       final n = c.read(searchControllerProvider.notifier);
 
       await n.submit('a');
-      await n.select(SearchType.album);
       expect(
         c.read(searchControllerProvider).tab(SearchType.album).hasLoaded,
         isTrue,
@@ -220,9 +224,22 @@ void main() {
 
       await n.submit('b');
       final s = c.read(searchControllerProvider);
-      expect(s.tab(SearchType.album).hasLoaded, isFalse);
+      expect(s.tab(SearchType.album).hasLoaded, isTrue);
       expect(s.tab(SearchType.song).items, hasLength(30));
-      expect(repo.calls, ['song:a:1', 'album:a:1', 'song:b:1']);
+      // First keyword loads all four tabs, second keyword reloads all four.
+      expect(
+        repo.calls,
+        [
+          'song:a:1',
+          'playlist:a:1',
+          'album:a:1',
+          'artist:a:1',
+          'song:b:1',
+          'playlist:b:1',
+          'album:b:1',
+          'artist:b:1',
+        ],
+      );
     });
 
     test('does not accumulate duplicate items on repeat submits', () async {
@@ -237,21 +254,23 @@ void main() {
     });
   });
 
-  group('select — lazy loading', () {
-    test('only fetches the tab the user actually opens', () async {
+  group('select — no refetch of loaded tabs', () {
+    test('submit loads every tab up front', () async {
       final repo = _RecordingRepo();
       final c = _container(repo);
       final n = c.read(searchControllerProvider.notifier);
 
       await n.submit('jay');
-      // Four tabs exist but only the song tab has been requested.
-      expect(repo.calls, ['song:jay:1']);
-
-      await n.select(SearchType.artist);
-      expect(repo.calls, ['song:jay:1', 'artist:jay:1']);
+      expect(repo.calls, [
+        'song:jay:1',
+        'playlist:jay:1',
+        'album:jay:1',
+        'artist:jay:1',
+      ]);
       final s = c.read(searchControllerProvider);
-      expect(s.tab(SearchType.playlist).hasLoaded, isFalse);
-      expect(s.tab(SearchType.album).hasLoaded, isFalse);
+      expect(s.tab(SearchType.playlist).hasLoaded, isTrue);
+      expect(s.tab(SearchType.album).hasLoaded, isTrue);
+      expect(s.tab(SearchType.artist).hasLoaded, isTrue);
     });
 
     test('switching back to an already-loaded tab does not refetch', () async {
@@ -264,7 +283,12 @@ void main() {
       await n.select(SearchType.song);
       await n.select(SearchType.album);
 
-      expect(repo.calls, ['song:jay:1', 'album:jay:1']);
+      expect(repo.calls, [
+        'song:jay:1',
+        'playlist:jay:1',
+        'album:jay:1',
+        'artist:jay:1',
+      ]);
     });
 
     test('selecting the already-active tab is a no-op', () async {
@@ -274,7 +298,12 @@ void main() {
 
       await n.submit('jay');
       await n.select(SearchType.song);
-      expect(repo.calls, ['song:jay:1']);
+      expect(repo.calls, [
+        'song:jay:1',
+        'playlist:jay:1',
+        'album:jay:1',
+        'artist:jay:1',
+      ]);
     });
 
     test('selecting before any search does not hit the network', () async {
@@ -291,9 +320,8 @@ void main() {
       final c = _container(repo);
       final n = c.read(searchControllerProvider.notifier);
 
-      await n.submit('x'); // song page 1
+      await n.submit('x'); // all tabs page 1
       await n.loadMore(SearchType.song); // song page 2
-      await n.select(SearchType.album); // album page 1
 
       final s = c.read(searchControllerProvider);
       // Song tab accumulated both pages.
@@ -301,7 +329,13 @@ void main() {
       expect(s.tab(SearchType.song).items, hasLength(60));
       expect(s.tab(SearchType.album).page, 1);
       expect(s.tab(SearchType.album).items, hasLength(30));
-      expect(repo.calls, ['song:x:1', 'song:x:2', 'album:x:1']);
+      expect(repo.calls, [
+        'song:x:1',
+        'playlist:x:1',
+        'album:x:1',
+        'artist:x:1',
+        'song:x:2',
+      ]);
     });
 
     test('loadMore appends rather than replacing', () async {
@@ -340,7 +374,13 @@ void main() {
       expect(c.read(searchControllerProvider).activeTab.hasMore, isFalse);
 
       await n.loadMore(SearchType.song);
-      expect(repo.calls, ['song:x:1']); // no page 2 requested
+      // All four first pages, but no page 2 for song.
+      expect(repo.calls, [
+        'song:x:1',
+        'playlist:x:1',
+        'album:x:1',
+        'artist:x:1',
+      ]);
     });
 
     test('falls back to page fullness when total is absent (artist tab)',

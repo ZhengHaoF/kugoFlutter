@@ -131,6 +131,7 @@ class TrackTile extends StatelessWidget {
     this.onArtistTap,
     this.isPlaying = false,
     this.index,
+    this.showAlbum = false,
   });
 
   final Track track;
@@ -139,6 +140,9 @@ class TrackTile extends StatelessWidget {
   final VoidCallback? onArtistTap;
   final bool isPlaying;
   final int? index;
+
+  /// 在时长前展示专辑名（歌手页等宽列表）。默认关闭，不影响其他页面。
+  final bool showAlbum;
 
   /// Catalog quality chip for lists: highest known tag, hide plain SD/SQ-default.
   static String? _listQualityBadge(Track track) {
@@ -253,9 +257,34 @@ class TrackTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (showAlbum && track.album.isNotEmpty) ...[
+              const SizedBox(width: KugoSpacing.md),
+              SizedBox(
+                width: 140,
+                child: Text(
+                  track.album,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: kugo.caption.copyWith(color: kugo.textSecondary),
+                ),
+              ),
+            ],
             if (trailing != null)
               trailing!
-            else
+            else if (showAlbum) ...[
+              const SizedBox(width: KugoSpacing.md),
+              SizedBox(
+                width: 48,
+                child: Text(
+                  track.durationLabel,
+                  textAlign: TextAlign.right,
+                  style: kugo.caption.copyWith(
+                    color: kugo.textTertiary,
+                  ),
+                ),
+              ),
+            ] else
               Text(
                 track.durationLabel,
                 style: kugo.caption.copyWith(

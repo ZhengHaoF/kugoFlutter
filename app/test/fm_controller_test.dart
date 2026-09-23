@@ -61,10 +61,16 @@ class _FakeSearchRepo implements SearchRepository {
 }
 
 class _FakeFmRepo extends FmRepository {
-  _FakeFmRepo({this.tracks = const [], this.error = ''});
+  _FakeFmRepo({
+    this.tracks = const [],
+    this.error = '',
+    this.serverAccepted = false,
+  });
   final List<Track> tracks;
   final String error;
+  final bool serverAccepted;
   int fetchCalls = 0;
+  final List<int> remainSongcnts = [];
 
   @override
   Future<FmPage> fetch({
@@ -78,10 +84,18 @@ class _FakeFmRepo extends FmRepository {
     int limit = 30,
   }) async {
     fetchCalls++;
+    remainSongcnts.add(remainSongcnt);
     if (tracks.isNotEmpty) {
       return FmPage(tracks: tracks, fromServer: true, mode: mode, pool: pool);
     }
-    return FmPage(tracks: const [], error: error, fromServer: false, mode: mode, pool: pool);
+    return FmPage(
+      tracks: const [],
+      error: error,
+      fromServer: false,
+      serverAccepted: serverAccepted,
+      mode: mode,
+      pool: pool,
+    );
   }
 }
 
@@ -104,6 +118,7 @@ Future<_Rig> _rig({
   List<int> durations = const [],
   List<Track> fmServerTracks = const [],
   String fmServerError = '',
+  bool fmServerAccepted = false,
   bool loggedIn = false,
 }) async {
   // start() 会 await AuthController.ensureReady()：prefs 里没有会话时会清掉
@@ -119,7 +134,11 @@ Future<_Rig> _rig({
   });
   final engine = FakeAudioPlayer();
   final repo = _FakeSearchRepo(perKeyword: perKeyword, durations: durations);
-  final fmRepo = _FakeFmRepo(tracks: fmServerTracks, error: fmServerError);
+  final fmRepo = _FakeFmRepo(
+    tracks: fmServerTracks,
+    error: fmServerError,
+    serverAccepted: fmServerAccepted,
+  );
   final container = ProviderContainer(
     overrides: [
       playerControllerProvider.overrideWith(() => PlayerController(engine: engine)),
@@ -396,6 +415,62 @@ void main() {
       expect(r.fmRepo.fetchCalls, 0);
       expect(_fm(r.container).fromServer, isFalse);
       expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+    });
+
+    test('fresh fetch sends remain_songcnt=0 even with a leftover queue', () async {
+      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
+      // 服务端只回会话元数据：以前会因 remain_songcnt=25 被写成「私人FM加载失败」。
+      final r = await _rig(fmServerAccepted: true, loggedIn: true);
+      addTearDown(r.container.dispose);
+
+      // 先塞一条普通队列，模拟开 FM 前用户正在听别的歌单。
+      final leftover = List.generate(
+        26,
+        (i) => Track(
+          id: 'old-$i',
+          name: 'old-$i',
+          artist: 'a',
+          album: 'b',
+          coverUrl: 'http://c/$i',
+          durationMs: 180000,
+          hash: 'hash-$i',
+        ),
+      );
+      await r.container
+          .read(playerControllerProvider.notifier)
+          .playQueue(leftover, source: PlaybackQueueSource.none);
+      await _drain();
+
+      await r.container.read(fmControllerProvider.notifier).start();
+      await _drain();
+
+      expect(r.fmRepo.fetchCalls, 1);
+      expect(
+        r.fmRepo.remainSongcnts.single,
+        0,
+        reason: '开新会话必须明确要歌，不能把旧队列剩余数传上去',
+      );
+      expect(
+        _fm(r.container).gatewayError,
+        isEmpty,
+        reason: '服务端收下但无新歌不能写成加载失败',
+      );
+      expect(_fm(r.container).fromServer, isFalse);
+      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+    });
+
+    test('server-accepted empty page falls back without gatewayError', () async {
+      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
+      final r = await _rig(fmServerAccepted: true, loggedIn: true);
+      addTearDown(r.container.dispose);
+
+      await r.container.read(fmControllerProvider.notifier).start();
+      await _drain();
+
+      expect(_fm(r.container).fromServer, isFalse);
+      expect(_fm(r.container).gatewayError, isEmpty);
+      expect(_fm(r.container).error, isEmpty);
+      expect(_player(r.container).queue.isNotEmpty, isTrue);
     });
   });
 }

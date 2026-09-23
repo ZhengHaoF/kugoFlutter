@@ -106,6 +106,11 @@ void main() {
           builder: (_, _) =>
               const Scaffold(body: Center(child: Text('RECOMMEND_STUB'))),
         ),
+        GoRoute(
+          path: '/discovery',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('DISCOVERY_STUB'))),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -124,19 +129,46 @@ void main() {
     return (router: router, search: search);
   }
 
-  testWidgets('FM hero takes its own full-width row above the recommend card',
+  testWidgets('FM hero takes its own full-width row above entry cards',
       (tester) async {
     await pump(tester);
 
     final hero = tester.getRect(find.byKey(const ValueKey('fm_hero_card')));
     final daily =
         tester.getRect(find.byKey(const ValueKey('recommend_hub_entry_card')));
+    final explore =
+        tester.getRect(find.byKey(const ValueKey('discovery_entry_card')));
 
-    // 800 视口 - 左右 16 padding = 768：两张卡都吃满整行，FM 不再是半宽格。
+    // 800 视口 - 左右 16 padding = 768：FM 吃满整行；宽屏两卡对分。
     expect(hero.width, 768);
-    expect(daily.width, 768);
-    // Hero 在上、为你推荐在下。
+    expect(daily.width + explore.width + 12, moreOrLessEquals(768));
+    // Hero 在上、入口卡在下。
     expect(hero.bottom, lessThanOrEqualTo(daily.top));
+    expect(daily.top, moreOrLessEquals(explore.top));
+  });
+
+  testWidgets('narrow phone stacks recommend and discovery entry cards',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(tester);
+
+    final daily =
+        tester.getRect(find.byKey(const ValueKey('recommend_hub_entry_card')));
+    final explore =
+        tester.getRect(find.byKey(const ValueKey('discovery_entry_card')));
+
+    expect(daily.width, moreOrLessEquals(358));
+    expect(explore.width, moreOrLessEquals(358));
+    expect(daily.bottom, lessThanOrEqualTo(explore.top + 1));
+  });
+
+  testWidgets('discovery entry card navigates to /discovery', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byKey(const ValueKey('discovery_entry_card')));
+    await settle(tester);
+    expect(find.text('DISCOVERY_STUB'), findsOneWidget);
   });
 
   testWidgets('FM hero keeps radio card and vinyl on one row on phone width',

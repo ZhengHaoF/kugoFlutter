@@ -23,6 +23,17 @@ class AlbumDetail {
   final List<Track> songs;
 }
 
+/// 歌曲排序：接口侧 `sort=hot|new`。
+enum ArtistSongSort {
+  hot('hot', '热门'),
+  newest('new', '最新');
+
+  const ArtistSongSort(this.apiValue, this.label);
+
+  final String apiValue;
+  final String label;
+}
+
 class ArtistDetail {
   const ArtistDetail({
     required this.id,
@@ -30,6 +41,10 @@ class ArtistDetail {
     required this.avatarUrl,
     this.intro = '',
     this.fansLabel = '',
+    this.birthday = '',
+    this.songCount = 0,
+    this.albumCount = 0,
+    this.mvCount = 0,
     this.songs = const [],
   });
 
@@ -38,7 +53,23 @@ class ArtistDetail {
   final String avatarUrl;
   final String intro;
   final String fansLabel;
+  final String birthday;
+  final int songCount;
+  final int albumCount;
+  final int mvCount;
   final List<Track> songs;
+}
+
+class ArtistSongsPage {
+  const ArtistSongsPage({
+    this.songs = const [],
+    this.total = 0,
+    this.hasMore = false,
+  });
+
+  final List<Track> songs;
+  final int total;
+  final bool hasMore;
 }
 
 class CatalogRepository {
@@ -123,21 +154,62 @@ class CatalogRepository {
       final data = _asMap(info?['data']) ?? info;
 
       final name = _s(data?['singername'], _s(data?['name'], '歌手'));
-      final avatarRaw = _s(data?['avatar'], _s(data?['imgurl'], id));
+      final avatarRaw = _s(
+        data?['avatar'],
+        _s(data?['imgurl'], _s(data?['pic'], _s(data?['sizable_avatar'], id))),
+      );
       final avatar = normalizeCoverUrl(avatarRaw.isEmpty ? id : avatarRaw);
-      final intro = _s(data?['intro'], _s(data?['description']));
-      final fans = _i(data?['fans_count'] ?? data?['fans']);
+      final intro = _s(data?['intro'], _s(data?['description'], _s(data?['info'])));
+      final fans = _i2(data?['fans_count'], data?['fans']);
+      final birthday = _s(
+        data?['birthday'],
+        _s(data?['birth'], _s(data?['birthday_str'])),
+      );
+      final songCount = _i2(data?['songcount'], data?['song_count']);
+      final albumCount = _i2(data?['albumcount'], data?['album_count']);
+      final mvCount = _i2(data?['mvcount'], data?['mv_count']);
 
+      // Songs load separately via [fetchArtistSongs] so the page can paginate.
+      return ArtistDetail(
+        id: id,
+        name: name,
+        avatarUrl: avatar,
+        intro: intro,
+        fansLabel: fans > 0 ? formatCount(fans) : '',
+        birthday: birthday,
+        songCount: songCount,
+        albumCount: albumCount,
+        mvCount: mvCount,
+        songs: const [],
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 歌手单曲分页。`sort`：`hot` 热门 / `new` 最新。
+  Future<ArtistSongsPage> fetchArtistSongs(
+    String singerId, {
+    int page = 1,
+    int pageSize = 50,
+    ArtistSongSort sort = ArtistSongSort.hot,
+  }) async {
+    final id = singerId.trim();
+    if (id.isEmpty) return const ArtistSongsPage();
+    try {
       final songsUrl = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.singerSong, {
         'singerid': id,
-        'page': 1,
-        'pagesize': 50,
+        'page': page,
+        'pagesize': pageSize,
+        'sort': sort.apiValue,
         'format': 'json',
       });
       final songsData = await _client.getJson(songsUrl);
       final songsMap = _asMap(songsData);
-      final listNode = songsMap?['info'] ?? songsMap?['data'];
-      final rawList = listNode is Map ? listNode['info'] : listNode;
+      final data = _asMap(songsMap?['data']);
+      final listNode = songsMap?['info'] ?? data?['info'] ?? songsMap?['data'];
+      final rawList = listNode is Map ? (listNode['info'] ?? listNode['list']) : listNode;
+
       final songs = <Track>[];
       if (rawList is List) {
         for (final item in rawList) {
@@ -146,16 +218,18 @@ class CatalogRepository {
         }
       }
 
-      return ArtistDetail(
-        id: id,
-        name: name,
-        avatarUrl: avatar,
-        intro: intro,
-        fansLabel: fans > 0 ? formatCount(fans) : '',
+      final total = _i2(songsMap?['total'], data?['total']);
+      final resolvedTotal = total > 0 ? total : songs.length;
+      final hasMore = songs.length >= pageSize &&
+          (total <= 0 ? songs.isNotEmpty : songs.length * page < total);
+
+      return ArtistSongsPage(
         songs: songs,
+        total: resolvedTotal,
+        hasMore: hasMore,
       );
     } catch (_) {
-      return null;
+      return const ArtistSongsPage();
     }
   }
 
@@ -177,6 +251,11 @@ class CatalogRepository {
     if (v is int) return v;
     if (v is num) return v.round();
     return int.tryParse(_s(v)) ?? 0;
+  }
+
+  int _i2(Object? a, Object? b) {
+    final x = _i(a);
+    return x != 0 ? x : _i(b);
   }
 }
 

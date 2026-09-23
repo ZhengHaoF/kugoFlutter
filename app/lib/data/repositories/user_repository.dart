@@ -9,7 +9,26 @@ import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
+
+/// Maps Kugou gateway error_code to a user-facing message.
+String describeKugoErrorCode(int? code, {String fallback = '请求失败'}) {
+  switch (code) {
+    case 20006:
+      return '签名校验失败（20006）';
+    case 20010:
+      return '请求参数缺失（20010）';
+    case 20017:
+      return '云端歌单鉴权失败（20017），请退出后重新登录';
+    case 20018:
+      return '登录态无效（20018），请退出后重新登录';
+    case 20028:
+      return '触发安全校验（SSA 20028），请重新登录后再试';
+    default:
+      return code == null ? fallback : '$fallback（$code）';
+  }
+}
 
 class UserPlaylistsResult {
   const UserPlaylistsResult({
@@ -104,6 +123,8 @@ class UserRepository {
       final cookieParts = <String>[
         'token=$token',
         'userid=$userId',
+        if (AuthTokenHolder.instance.t1.isNotEmpty)
+          't1=${AuthTokenHolder.instance.t1}',
         'dfid=${device.dfid}',
         'KUGOU_API_MID=${device.mid}',
         'KUGOU_API_GUID=${device.guid}',
@@ -141,7 +162,14 @@ class UserRepository {
       final ok = status == 1 || status == '1' || status == true;
       if (!ok) {
         final msg = (map['msg'] ?? map['error'] ?? map['message'] ?? '').toString();
-        return UserPlaylistsResult(error: msg.isNotEmpty ? msg : '获取用户歌单失败');
+        final code = int.tryParse(
+          '${map['error_code'] ?? map['err_code'] ?? map['errcode'] ?? ''}',
+        );
+        return UserPlaylistsResult(
+          error: msg.isNotEmpty
+              ? msg
+              : describeKugoErrorCode(code, fallback: '获取用户歌单失败'),
+        );
       }
 
       final dataNode = map['data'];
@@ -260,6 +288,8 @@ class UserRepository {
       final cookieParts = <String>[
         'token=$token',
         'userid=$userId',
+        if (AuthTokenHolder.instance.t1.isNotEmpty)
+          't1=${AuthTokenHolder.instance.t1}',
         'dfid=${device.dfid}',
         'KUGOU_API_MID=${device.mid}',
         'KUGOU_API_GUID=${device.guid}',
@@ -297,7 +327,14 @@ class UserRepository {
       final ok = status == 1 || status == '1' || status == true;
       if (!ok) {
         final msg = (map['msg'] ?? map['error'] ?? map['message'] ?? '').toString();
-        return UserFollowResult(error: msg.isNotEmpty ? msg : '获取关注列表失败');
+        final code = int.tryParse(
+          '${map['error_code'] ?? map['err_code'] ?? map['errcode'] ?? ''}',
+        );
+        return UserFollowResult(
+          error: msg.isNotEmpty
+              ? msg
+              : describeKugoErrorCode(code, fallback: '获取关注列表失败'),
+        );
       }
 
       final dataNode = map['data'];
@@ -379,6 +416,8 @@ class UserRepository {
       final cookieParts = <String>[
         'token=$token',
         'userid=$userId',
+        if (AuthTokenHolder.instance.t1.isNotEmpty)
+          't1=${AuthTokenHolder.instance.t1}',
         'dfid=${device.dfid}',
         'KUGOU_API_MID=${device.mid}',
         'KUGOU_API_GUID=${device.guid}',
@@ -417,8 +456,13 @@ class UserRepository {
       if (!ok) {
         final msg =
             (map['msg'] ?? map['error'] ?? map['message'] ?? '').toString();
+        final code = int.tryParse(
+          '${map['error_code'] ?? map['err_code'] ?? map['errcode'] ?? ''}',
+        );
         return UserPlaylistTracksResult(
-          error: msg.isNotEmpty ? msg : '获取用户歌单歌曲失败',
+          error: msg.isNotEmpty
+              ? msg
+              : describeKugoErrorCode(code, fallback: '获取用户歌单歌曲失败'),
         );
       }
 
@@ -604,6 +648,8 @@ class UserRepository {
     final cookieParts = <String>[
       'token=$token',
       'userid=$userId',
+      if (AuthTokenHolder.instance.t1.isNotEmpty)
+        't1=${AuthTokenHolder.instance.t1}',
       'dfid=${device.dfid}',
       'KUGOU_API_MID=${device.mid}',
       'KUGOU_API_GUID=${device.guid}',

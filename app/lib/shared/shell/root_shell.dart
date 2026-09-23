@@ -59,15 +59,16 @@ class _RootShellState extends ConsumerState<RootShell>
 
   /// Sidebar reading order — used for content drift direction.
   static int _sidebarOrder(String location) => switch (true) {
-        _ when location.startsWith('/daily') => 1,
+        _ when location.startsWith('/discovery') => 1,
+        _ when location.startsWith('/daily') => 2,
         _ when location.startsWith('/ranks') || location.startsWith('/rank/') =>
-          2,
-        _ when location.startsWith('/fm') => 3,
-        _ when location.startsWith('/profile') => 4,
-        _ when location.startsWith('/likes') => 5,
-        _ when location.startsWith('/history') => 6,
-        _ when location.startsWith('/search') => 7,
-        _ when location.startsWith('/settings') => 8,
+          3,
+        _ when location.startsWith('/fm') => 4,
+        _ when location.startsWith('/profile') => 5,
+        _ when location.startsWith('/likes') => 6,
+        _ when location.startsWith('/history') => 7,
+        _ when location.startsWith('/search') => 8,
+        _ when location.startsWith('/settings') => 9,
         _ => 0,
       };
 

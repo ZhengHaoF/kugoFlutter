@@ -380,46 +380,65 @@ class _LogTile extends StatelessWidget {
           Expanded(
             child: Text(
               log.method,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          if (log.statusCode != null) ...[
-            Text(
-              '${log.statusCode}',
-              style: TextStyle(
-                fontSize: 12,
-                color: log.statusCode! >= 200 && log.statusCode! < 300
-                    ? Colors.green
-                    : Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            log.formattedTime,
-            style: TextStyle(
-              fontSize: 11,
-              color: kugo.textTertiary,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            tooltip: '复制此条',
-            onPressed: onCopy,
-          ),
         ],
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          log.url,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (log.statusCode != null) ...[
+                  Text(
+                    '${log.statusCode}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: log.statusCode! >= 200 && log.statusCode! < 300
+                          ? Colors.green
+                          : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Flexible(
+                  child: Text(
+                    log.formattedTime,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: kugo.textTertiary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  tooltip: '复制此条',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  padding: EdgeInsets.zero,
+                  onPressed: onCopy,
+                ),
+              ],
+            ),
+            Text(
+              log.url,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
         ),
       ),
       children: [

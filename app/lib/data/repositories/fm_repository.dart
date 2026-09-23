@@ -19,12 +19,18 @@ import '../../features/auth/auth_token_holder.dart';
 /// [fromServer] = true 表示 [tracks] 来自酷狗真实 `/v2/personal_recommend`
 /// 接口；false 表示未登录 / 被网关拦截 / 解析失败（此时 [tracks] 通常为空，
 /// [needLogin] / [error] 说明原因）。数据层**从不抛异常**，错误用 [error] 承载。
+///
+/// [serverAccepted] = true 表示服务端收下了本次请求（`status=1` +
+/// `error_code=0`），但本页没有新歌。这不是失败：常见于 `remain_songcnt > 4`
+/// 时只回会话元数据（`mode` / `algorithm_id` / `sync_point`）。上报
+/// （play / garbage）应视为成功；取歌侧按「暂不补歌」处理，不要写成加载失败。
 class FmPage {
   const FmPage({
     this.tracks = const [],
     this.needLogin = false,
     this.error = '',
     this.fromServer = false,
+    this.serverAccepted = false,
     this.mode = FmMode.heart,
     this.pool = FmSongPool.taste,
   });
@@ -33,6 +39,7 @@ class FmPage {
   final bool needLogin;
   final String error;
   final bool fromServer;
+  final bool serverAccepted;
 
   /// 产出本页的电台档位 / 口味池（UI 取文案用，如 `pool.reasonLabel`）。
   final FmMode mode;
@@ -146,7 +153,8 @@ class FmRepository {
   /// 两条轴分别对应真实接口的两个参数：[mode] → `mode`（normal/small/peak），
   /// [pool] → `song_pool_id`（0/1/2）。未登录或出错时返回空
   /// [FmPage.tracks] + needLogin/error，
-  /// 不抛异常。`remain_songcnt > 4` 时服务端不返回新推荐（沿用上游语义）。
+  /// 不抛异常。`remain_songcnt > 4` 时服务端不返回新推荐（沿用上游语义，
+  /// 只回会话元数据）；取歌请传 0–4，见 [clampRemainSongcnt]。
   Future<FmPage> fetch({
     required FmMode mode,
     required FmSongPool pool,
@@ -220,8 +228,11 @@ class FmRepository {
   }
 
   bool _reportOk(FmPage page) {
-    // 成功条件：不是需要登录、没有被拦截/解析失败（即拿到了真实响应）。
-    return page.fromServer || (!page.needLogin && page.error.isEmpty);
+    // 上报成功 = 服务端收下了（有歌 / 无歌均算），或明确未登录/未拦截且无错。
+    // 「收下但无新歌」（serverAccepted）必须算成功，否则 play/garbage 会误报失败。
+    return page.fromServer ||
+        page.serverAccepted ||
+        (!page.needLogin && page.error.isEmpty);
   }
 
   Future<FmPage> _request({
@@ -351,19 +362,30 @@ class FmRepository {
 
       // 未登录 / 空 data（实测 error_code=200101）。
       if (list.isEmpty) {
+        final s =
+            (body0['msg'] ?? body0['message'] ?? body0['error'] ?? '').toString();
+        // status=1 + error_code=0 且无 message：服务端收下了，只是没给歌。
+        // 实测 remain_songcnt>4 时 data 只剩 {mode, algorithm_id, sync_point}。
+        final serverOk =
+            (status == 1 || status == true) && errNum == 0 && s.isEmpty;
+        if (serverOk) {
+          lastError = '';
+          return FmPage(
+            needLogin: false,
+            serverAccepted: true,
+            mode: mode,
+            pool: pool,
+          );
+        }
         final String msg;
         if (errNum == 200101) {
           msg = useToken ? '私人FM暂无推荐' : '登录后可获取私人FM';
+        } else if (s.contains('登录')) {
+          msg = '登录后可获取私人FM';
+        } else if (status == 0 && s.isEmpty) {
+          msg = useToken ? '私人FM暂无推荐' : '登录后可获取私人FM';
         } else {
-          final s =
-              (body0['msg'] ?? body0['message'] ?? body0['error'] ?? '').toString();
-          if (s.contains('登录')) {
-            msg = '登录后可获取私人FM';
-          } else if (status == 0 && s.isEmpty) {
-            msg = useToken ? '私人FM暂无推荐' : '登录后可获取私人FM';
-          } else {
-            msg = s.isNotEmpty ? s : (useToken ? '私人FM加载失败' : '私人FM需要登录后查看');
-          }
+          msg = s.isNotEmpty ? s : (useToken ? '私人FM加载失败' : '私人FM需要登录后查看');
         }
         lastError = msg;
         return FmPage(
@@ -419,6 +441,17 @@ class FmRepository {
     final body0 = Map<String, dynamic>.from(body);
     final list = _extractList(body0);
     if (list.isEmpty) {
+      final status = body0['status'];
+      final errRaw =
+          body0['error_code'] ?? body0['err_code'] ?? body0['errcode'];
+      final errNum = errRaw is int ? errRaw : int.tryParse('$errRaw') ?? 0;
+      final s =
+          (body0['msg'] ?? body0['message'] ?? body0['error'] ?? '').toString();
+      final serverOk =
+          (status == 1 || status == true) && errNum == 0 && s.isEmpty;
+      if (serverOk) {
+        return FmPage(serverAccepted: true, mode: mode, pool: pool);
+      }
       return FmPage(error: 'empty', mode: mode, pool: pool);
     }
     final tracks = _mapTracks(list, limit: 30, mode: mode);
@@ -497,6 +530,21 @@ class FmRepository {
       ]),
     );
   }
+}
+
+/// 服务端 `remain_songcnt` 的合法上界：>4 时不返回新推荐。
+const int kFmRemainSongcntMax = 4;
+
+/// 把「还剩几首没播」压成接口要的 `remain_songcnt`。
+///
+/// 开新会话 / 主动取歌一律传 0（明确要歌）；续流传真实剩余并 cap 在
+/// [kFmRemainSongcntMax]。绝不能把整条旧队列的剩余数原样传上去——
+/// 2026-09 实测 `remain_songcnt=25` 时服务端只回会话元数据，客户端
+/// 会误判成「私人FM加载失败」。
+int clampRemainSongcnt({required bool fresh, required int unplayed}) {
+  if (fresh) return 0;
+  if (unplayed <= 0) return 0;
+  return unplayed > kFmRemainSongcntMax ? kFmRemainSongcntMax : unplayed;
 }
 
 Map<String, dynamic> _asMap(Object? v) =>
