@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/theme/hero_tags.dart';
 import 'package:kugo/data/repositories/user_repository.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
 import 'package:kugo/features/likes/likes_controller.dart';
@@ -309,6 +310,20 @@ void main() {
       expect(find.text('我喜欢'), findsOneWidget);
       expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
       expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+
+      // Covers fly into PlaylistDetailPage's header Hero.
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('1'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('2'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 
@@ -399,6 +414,18 @@ void main() {
       expect(find.text('周杰伦'), findsOneWidget);
       expect(find.text('林俊杰'), findsOneWidget);
       expect(find.text('华语流行天王 · 380 首单曲'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('a1'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('a2'),
+        ),
+        findsOneWidget,
+      );
 
       // Search in 歌手 tab
       await tester.tap(find.byIcon(Icons.search_rounded));
@@ -420,6 +447,18 @@ void main() {
 
       expect(find.text('范特西'), findsOneWidget);
       expect(find.text('江南'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Hero && w.tag == KugoHeroTags.albumCover('alb1'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Hero && w.tag == KugoHeroTags.albumCover('alb2'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('周杰伦 · 10首'), findsOneWidget);
     });
   });

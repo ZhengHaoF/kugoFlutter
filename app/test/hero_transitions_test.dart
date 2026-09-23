@@ -6,6 +6,7 @@ import 'package:kugo/core/theme/hero_tags.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/recommend/daily_recommend_page.dart';
 import 'package:kugo/shared/widgets/common.dart';
+import 'package:kugo/shared/widgets/cover_box.dart';
 
 import 'fakes/fake_audio_player.dart';
 
@@ -64,6 +65,28 @@ void main() {
         (w) => w is Hero && w.tag == KugoHeroTags.albumCover('album_99'),
       );
       expect(heroFinder, findsOneWidget);
+    });
+
+    testWidgets('CoverHero supports placeholder child for empty art', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CoverHero(
+              tag: KugoHeroTags.artistAvatar('singer_7'),
+              seed: 'singer_7',
+              size: 48,
+              radius: 999,
+              child: const Icon(Icons.person_rounded),
+            ),
+          ),
+        ),
+      );
+
+      final heroFinder = find.byWidgetPredicate(
+        (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('singer_7'),
+      );
+      expect(heroFinder, findsOneWidget);
+      expect(find.byIcon(Icons.person_rounded), findsOneWidget);
     });
 
     testWidgets('DailyRecommendPage mounts dailyRecommendBadge Hero on initial loading frame', (tester) async {

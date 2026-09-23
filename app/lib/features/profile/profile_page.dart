@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/profile/user_collections_controller.dart';
+import '../../features/rank/rank_hero.dart' show rankHeroFlightShuttle;
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -721,6 +723,17 @@ class _PlaylistTileCover extends ConsumerWidget {
         !s.contains('mock://');
   }
 
+  /// Matches [PlaylistDetailPage]'s non-rank header Hero so the tile flies.
+  Widget _withHero(Widget cover) {
+    final id = playlist.id;
+    if (id.isEmpty) return cover;
+    return Hero(
+      tag: KugoHeroTags.playlistCover(id),
+      flightShuttleBuilder: rankHeroFlightShuttle,
+      child: cover,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = playlist;
@@ -749,15 +762,17 @@ class _PlaylistTileCover extends ConsumerWidget {
 
     // 1. If we have a valid network cover, show CoverBox with real image!
     if (targetCover.isNotEmpty) {
-      final coverWidget = CoverBox(
-        seed: targetCover,
-        size: size,
-        radius: KugoRadius.card,
-        child: isLiked
-            ? const Icon(Icons.favorite_rounded, color: Colors.white70, size: 24)
-            : (isDefaultCollect
-                ? const Icon(Icons.bookmark_rounded, color: Colors.white70, size: 24)
-                : const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 24)),
+      final coverWidget = _withHero(
+        CoverBox(
+          seed: targetCover,
+          size: size,
+          radius: KugoRadius.card,
+          child: isLiked
+              ? const Icon(Icons.favorite_rounded, color: Colors.white70, size: 24)
+              : (isDefaultCollect
+                  ? const Icon(Icons.bookmark_rounded, color: Colors.white70, size: 24)
+                  : const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 24)),
+        ),
       );
 
       // If it's "我喜欢", add a subtle corner heart badge on top of the first song's cover
@@ -801,72 +816,78 @@ class _PlaylistTileCover extends ConsumerWidget {
 
     // 2. No network cover available: render dedicated iconic gradient cover!
     if (isLiked) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KugoRadius.card),
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFF416C).withValues(alpha: 0.3),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+      return _withHero(
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(KugoRadius.card),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.favorite_rounded,
-            color: Colors.white,
-            size: 24,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF416C).withValues(alpha: 0.3),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.favorite_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ),
       );
     }
 
     if (isDefaultCollect) {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(KugoRadius.card),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF667EEA).withValues(alpha: 0.25),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+      return _withHero(
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(KugoRadius.card),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.bookmark_rounded,
-            color: Colors.white,
-            size: 24,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF667EEA).withValues(alpha: 0.25),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.bookmark_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ),
       );
     }
 
     // 3. Generic playlist fallback
-    return CoverBox(
-      seed: p.id,
-      size: size,
-      radius: KugoRadius.card,
-      child: const Icon(
-        Icons.queue_music_rounded,
-        color: Colors.white70,
-        size: 24,
+    return _withHero(
+      CoverBox(
+        seed: p.id,
+        size: size,
+        radius: KugoRadius.card,
+        child: const Icon(
+          Icons.queue_music_rounded,
+          color: Colors.white70,
+          size: 24,
+        ),
       ),
     );
   }

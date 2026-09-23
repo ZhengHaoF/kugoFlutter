@@ -9,9 +9,10 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/profile/user_collections_controller.dart';
+import '../../core/theme/hero_tags.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/cover_box.dart' show CoverHero;
 import 'likes_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -524,7 +525,8 @@ class _LikesPageState extends ConsumerState<LikesPage>
                         ? '$desc · ${singer.songCount} 首单曲'
                         : desc;
                     return ListTile(
-                      leading: CoverBox(
+                      leading: CoverHero(
+                        tag: KugoHeroTags.artistAvatar(singer.id),
                         seed: singer.avatarUrl.isNotEmpty
                             ? singer.avatarUrl
                             : singer.id,
@@ -642,7 +644,8 @@ class _LikesPageState extends ConsumerState<LikesPage>
                     final album = albums[index];
                     final sub = '${album.artist}${album.trackCount > 0 ? " · ${album.trackCount}首" : ""}';
                     return ListTile(
-                      leading: CoverBox(
+                      leading: CoverHero(
+                        tag: KugoHeroTags.albumCover(album.id),
                         seed: album.coverUrl.isNotEmpty
                             ? album.coverUrl
                             : album.id,

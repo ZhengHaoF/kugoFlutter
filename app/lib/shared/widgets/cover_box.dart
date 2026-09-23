@@ -190,7 +190,7 @@ Widget coverHeroFlightShuttle(
   );
 }
 
-/// Shared mini-player ↔ full-player cover hero.
+/// Shared cover hero for list/grid → detail (and mini-player ↔ full-player).
 class CoverHero extends StatelessWidget {
   const CoverHero({
     super.key,
@@ -198,6 +198,7 @@ class CoverHero extends StatelessWidget {
     required this.seed,
     this.size = 56,
     this.radius = KugoRadius.cover,
+    this.child,
   });
 
   final String tag;
@@ -205,12 +206,15 @@ class CoverHero extends StatelessWidget {
   final double size;
   final double radius;
 
+  /// Placeholder overlay when the seed has no network art (e.g. person icon).
+  final Widget? child;
+
   @override
   Widget build(BuildContext context) {
     return Hero(
       tag: tag,
       flightShuttleBuilder: coverHeroFlightShuttle,
-      child: CoverBox(seed: seed, size: size, radius: radius),
+      child: CoverBox(seed: seed, size: size, radius: radius, child: child),
     );
   }
 }
