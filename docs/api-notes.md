@@ -102,6 +102,35 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 - 播放地址：`data.url` + `data.backup_url`（或嵌套 `urls`）
 - 歌词候选：`candidates[]` → `id` + `accesskey` → download 得 LRC 文本
 
+### 多类型搜索（已落地，`SearchType` 四 Tab）
+
+多类型是**五个独立接口**，不是同一接口换 `showtype`（`showtype` 0/1 响应相同，2 只多 `relative.singer` 纠错块）。
+
+| 接口 | 结构 | 备注 |
+| --- | --- | --- |
+| `/api/v3/search/song` | `data.info[]` + `data.total` | 字段 `hash`/`songname`/`singername`/`duration`/`album_id`/`mvhash` 等 |
+| `/api/v3/search/special` | `data.info[]` + `data.total` | 歌单：`specialid`/`specialname`/`playcount`/`songcount`/`imgurl`(含 `{size}`) |
+| `/api/v3/search/album` | `data.info[]` + `data.total` | 专辑：`albumid`/`albumname`/`singername`/`songcount`/`imgurl` |
+| `/api/v3/search/singer` | **`data` 直接是数组**，无 `total` | 仅 `singerid` + `singername`，无头像/计数 |
+| `/api/v3/search/mv` | `data.info[]` + `data.total` | **未做 UI**（无 MV 播放页） |
+| `/api/v3/search/lyric` | **404** | 6 个候选主机全 404，永久砍掉歌词搜索 |
+
+歌手详情必须传数字 `singerid`（如 `3520`）；传名字会得到 `{"status":0,"error":"参数错误"}`。
+`Track.artistId` + `artistTapFor()` 已统一走 id（见 `shared/widgets/common.dart`）。
+
+### 私人 FM（已落地）
+
+| 项 | 值 |
+| --- | --- |
+| 端点 | `POST https://gateway.kugou.com/v2/personal_recommend` |
+| 路由头 | `x-router: persnfm.service.kugou.com`（拼写少一个 `o`） |
+| 平台 | concept/lite：`appid=3116` `clientver=11440` |
+| 参数 | `mode=normal/small/peak`、`song_pool_id=0/1/2`、`action=play/garbage`、`remain_songcnt` 等 |
+| 鉴权 | 登录 token 时个性化；无 token 返回随机/热歌 |
+| 回落 | 接口失败 → 关键词歌池（诚实标注来源，不冒充个性化） |
+
+> 历史笔记里的「`/personal/fm` 本网络不可达 / DNS 劫持」结论已作废：那是路径和 `x-router` 猜错。
+
 ### 已知被拒端点（2026-09 实测）
 
 | 端点 | 结果 |
@@ -109,7 +138,7 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 | `/api/v3/playlist/square` | HTTP 200，body=`Access Deny ! No Actions !` |
 | `/api/v3/playlist/class` | 同上 |
 | `/api/v3/playlist/recommend` | 同上 |
-| `/api/v3/rank/list` | 可用（首页 Hero / 推荐卡兜底数据源） |
+| `/api/v3/rank/list` | 可用 |
 | `/api/v3/search/song` | 可用 |
 | `/api/v3/search/hot` | 可用 |
 
@@ -133,8 +162,8 @@ cd app
 dart run tool/probe_api.dart
 ```
 
-## 下一步（网络可达时）
+## 下一步（可选）
 
-1. 用 `probe_api.dart` 确认 search / play / lyric 全通
-2. 真机：发现 → 搜索「周杰伦」→ 点播 → 锁屏控制
-3. 校准字段映射（不同接口版本字段名有差异）
+1. 校准多版本接口字段差异（mapper 已做多候选宽容解析）
+2. 真机网络异常场景复测（URL 过滤 / 风控 20028）
+3. 自建歌单写入接口调研（若做 CRUD）
