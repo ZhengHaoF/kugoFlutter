@@ -139,6 +139,31 @@ void main() {
     expect(hero.bottom, lessThanOrEqualTo(daily.top));
   });
 
+  testWidgets('FM hero keeps radio card and vinyl on one row on phone width',
+      (tester) async {
+    // 安卓手机宽度：舞台仍是「卡左 + 黑胶从卡右缘抽出」，不再上下两截。
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pump(tester);
+
+    final hero = tester.getRect(find.byKey(const ValueKey('fm_hero_card')));
+    final carousel =
+        tester.getRect(find.byKey(FmVinylCarousel.carouselKey));
+    final card = tester.getRect(find.byType(FmRadioCard));
+
+    // 一行舞台：高度约等于方卡边长（180），不再是「大卡 + 下方黑胶」的两截。
+    expect(hero.height, moreOrLessEquals(FmStageMetrics.stageHeightMobile));
+    expect(card.width, moreOrLessEquals(FmStageMetrics.cardWidthMobile));
+    // 黑胶与卡垂直同带（居中叠在一行里），水平上从卡内探出到右侧。
+    expect(
+      carousel.center.dy,
+      moreOrLessEquals(card.center.dy, epsilon: 2),
+    );
+    expect(carousel.left, lessThan(card.right));
+    expect(carousel.right, greaterThan(card.right));
+  });
+
   testWidgets('FM hero starts a session without navigating to the player',
       (tester) async {
     final rig = await pump(tester);

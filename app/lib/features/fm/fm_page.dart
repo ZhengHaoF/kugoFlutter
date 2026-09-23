@@ -156,12 +156,13 @@ class _FmPageState extends ConsumerState<FmPage>
     }
 
     // 轮播 viewport 左缘 = `cardWidth - overlap`，吸附位即「半截进卡」。
+    // 桌面 / 窄屏同一行构图，只换 mobile 档尺度。
     final stage = FmStage(
       desktop: desktop,
       radioCard: radioCard,
       carousel: buildCarousel(
-        discSize: desktop ? FmStageMetrics.discSize : 148,
-        sideGap: desktop ? FmStageMetrics.sideGap : 16,
+        discSize: FmStageMetrics.discSizeFor(desktop),
+        sideGap: FmStageMetrics.sideGapFor(desktop),
       ),
     );
 

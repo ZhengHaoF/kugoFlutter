@@ -17,8 +17,8 @@ import '../player/player_controller.dart';
 
 /// 发现页搜索框正下方的快捷入口：私人 FM 舞台（与 /fm 同构）+ 为你推荐入口卡。
 ///
-/// 舞台直接复用 [FmStage] / [FmRadioCard] / [FmVinylCarousel]（原尺寸 272），
-/// 与独立私人 FM 页同一套视觉；起播/切模式仍就地完成，不跳全屏播放页。
+/// 舞台直接复用 [FmStage] / [FmRadioCard] / [FmVinylCarousel]（桌面 272 / 手机 180），
+/// 与独立私人 FM 页同一套「卡 + 黑胶一行」视觉；起播/切模式仍就地完成，不跳全屏播放页。
 ///
 /// 独立成文件是为了可测试：[ExplorePage] 的 initState 会发起真实网络请求
 /// （dio 的超时 Timer 在 FakeAsync 测试里永远挂起），入口本身无网络副作用，
@@ -162,8 +162,8 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
         playerCtl.playAtIndex(index);
       },
       onTapCurrent: _startOrToggle,
-      discSize: desktop ? FmStageMetrics.discSize : 148,
-      sideGap: desktop ? FmStageMetrics.sideGap : 16,
+      discSize: FmStageMetrics.discSizeFor(desktop),
+      sideGap: FmStageMetrics.sideGapFor(desktop),
     );
 
     return Column(
