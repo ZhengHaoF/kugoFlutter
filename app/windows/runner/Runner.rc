@@ -91,8 +91,8 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "com.kugo" "\0"
             VALUE "FileDescription", "kugo" "\0"
-            VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "kugo" "\0"
+            VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.kugo. All rights reserved." "\0"
             VALUE "OriginalFilename", "kugo.exe" "\0"
             VALUE "ProductName", "kugo" "\0"

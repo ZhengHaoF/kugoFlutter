@@ -2,6 +2,7 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include "app_identity.h"
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -16,6 +17,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  // Must run before any SMTC / taskbar surface. Without an AUMID + Start Menu
+  // shortcut, Win11 media card shows「未知应用」instead of「kugo」.
+  ApplyAppUserModelId();
+  EnsureStartMenuShortcut();
 
   flutter::DartProject project(L"data");
 

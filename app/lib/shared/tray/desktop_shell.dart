@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform.dart';
+import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../taskbar/taskbar_bridge.dart';
@@ -32,6 +33,9 @@ class DesktopShell with WindowListener {
   PlayerState get _playerState => _container.read(playerControllerProvider);
 
   bool get _closeToTray => _container.read(settingsControllerProvider).closeToTray;
+
+  bool get _taskbarProgressEnabled =>
+      _container.read(settingsControllerProvider).taskbarProgress;
 
   static Future<DesktopShell?> boot(ProviderContainer container) async {
     if (!isDesktopPlatform) return null;
@@ -68,6 +72,15 @@ class DesktopShell with WindowListener {
       _syncTray();
       _syncTaskbarFromState();
     });
+    _container.listen<List>(likesProvider, (_, _) => _syncTaskbarFromState());
+    _container.listen<AppSettings>(settingsControllerProvider, (prev, next) {
+      if (prev?.taskbarProgress != next.taskbarProgress) {
+        // Toggle off must clear immediately; on re-applies current ratio.
+        _lastProgressMode = 'none';
+        _lastProgressPermille = -1;
+        _pushProgress(force: true);
+      }
+    });
   }
 
   void _wireTaskbar() {
@@ -90,6 +103,11 @@ class DesktopShell with WindowListener {
         _player.togglePlay();
       case 'next':
         _player.next();
+      case 'favorite':
+        final track = _playerState.current;
+        if (track != null) {
+          unawaited(_container.read(likesProvider.notifier).toggle(track));
+        }
     }
   }
 
@@ -108,9 +126,17 @@ class DesktopShell with WindowListener {
 
   void _syncTaskbarFromState() {
     final s = _playerState;
-    final hasTrack = s.current != null;
+    final track = s.current;
+    final hasTrack = track != null;
+    final isFavorite =
+        track != null && _container.read(likesProvider).any((t) => t.id == track.id);
     unawaited(
-      TaskbarBridge.updateButtons(hasTrack: hasTrack, isPlaying: s.isPlaying),
+      TaskbarBridge.updateButtons(
+        hasTrack: hasTrack,
+        isPlaying: s.isPlaying,
+        isFavorite: isFavorite,
+        canStepBack: s.canStepBack,
+      ),
     );
     // Mode is discrete — push immediately so pause turns yellow at once.
     _pushProgress(force: true);
@@ -124,11 +150,15 @@ class DesktopShell with WindowListener {
   void _pushProgress({required bool force}) {
     final s = _playerState;
     final hasTrack = s.current != null;
-    final mode = taskbarModeFor(
-      hasTrack: hasTrack,
-      isPlaying: s.isPlaying,
-      durationMs: s.durationMs,
-    );
+    // Setting off is equivalent to Echo's enabled=false → always clear.
+    final enabled = _taskbarProgressEnabled;
+    final mode = !enabled
+        ? TaskbarProgressMode.none
+        : taskbarModeFor(
+            hasTrack: hasTrack,
+            isPlaying: s.isPlaying,
+            durationMs: s.durationMs,
+          );
     final durationMs = s.durationMs;
     final positionMs = _player.position.value.clamp(0, durationMs <= 0 ? 0 : durationMs);
     var permille = 0;
@@ -140,9 +170,11 @@ class DesktopShell with WindowListener {
     final ratioChanged =
         _lastProgressPermille < 0 || (permille - _lastProgressPermille).abs() >= 1;
     if (!force && !modeChanged && !ratioChanged) return;
+    // Already cleared and still none — skip the channel round-trip.
+    if (!force && modeName == 'none' && _lastProgressMode == 'none') return;
 
     _lastProgressMode = modeName;
-    _lastProgressPermille = permille;
+    _lastProgressPermille = modeName == 'none' ? -1 : permille;
     unawaited(
       TaskbarBridge.updateProgress(
         mode: modeName,

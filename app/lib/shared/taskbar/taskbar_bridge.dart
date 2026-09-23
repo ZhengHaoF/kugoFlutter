@@ -9,7 +9,7 @@ class TaskbarBridge {
 
   static bool _listening = false;
 
-  /// Thumbar 按钮点击：previous / playPause / next。
+  /// Thumbar 按钮点击：previous / playPause / next / favorite。
   static void Function(String command)? onThumbarCommand;
 
   static void ensureListening() {
@@ -26,10 +26,14 @@ class TaskbarBridge {
   static Future<void> updateButtons({
     required bool hasTrack,
     required bool isPlaying,
+    bool isFavorite = false,
+    bool canStepBack = true,
   }) {
     return _channel.invokeMethod('updateButtons', {
       'hasTrack': hasTrack,
       'isPlaying': isPlaying,
+      'isFavorite': isFavorite,
+      'canStepBack': canStepBack,
     });
   }
 

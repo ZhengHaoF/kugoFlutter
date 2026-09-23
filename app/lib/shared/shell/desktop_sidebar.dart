@@ -75,14 +75,15 @@ class DesktopSidebar extends ConsumerWidget {
                       style: kugo.title.copyWith(
                         fontSize: 18,
                         letterSpacing: -0.5,
-                        height: 1.1,
+                        height: 1.15,
                       ),
                     ),
+                    const SizedBox(height: 3),
                     Text(
                       '概念版 · Windows',
                       style: kugo.caption.copyWith(
                         fontSize: 10,
-                        height: 1.2,
+                        height: 1.25,
                         color: kugo.textTertiary,
                       ),
                     ),
@@ -167,12 +168,6 @@ class DesktopSidebar extends ConsumerWidget {
 
                 const SizedBox(height: 16),
                 _buildGroupHeader('通用', kugo),
-                _SidebarItem(
-                  icon: Icons.search_rounded,
-                  label: '快速搜索',
-                  selected: location.startsWith('/search'),
-                  onTap: () => onNavigate('/search'),
-                ),
                 _SidebarItem(
                   icon: Icons.settings_rounded,
                   label: '系统设置',

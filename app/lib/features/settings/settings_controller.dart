@@ -25,6 +25,7 @@ class AppSettings {
     this.mediaLyricSubtitle = false,
     this.themeMode = AppThemeMode.light,
     this.closeToTray = true,
+    this.taskbarProgress = true,
   });
 
   final AppQuality quality;
@@ -44,6 +45,9 @@ class AppSettings {
 
   /// Desktop only: hide to tray instead of quitting on window close.
   final bool closeToTray;
+
+  /// Windows only: taskbar button progress bar (Echo「任务栏播放进度条」).
+  final bool taskbarProgress;
 
   ThemeMode get materialThemeMode => switch (themeMode) {
         AppThemeMode.dark => ThemeMode.dark,
@@ -80,6 +84,7 @@ class AppSettings {
     bool? mediaLyricSubtitle,
     AppThemeMode? themeMode,
     bool? closeToTray,
+    bool? taskbarProgress,
   }) {
     return AppSettings(
       quality: quality ?? this.quality,
@@ -91,6 +96,7 @@ class AppSettings {
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       themeMode: themeMode ?? this.themeMode,
       closeToTray: closeToTray ?? this.closeToTray,
+      taskbarProgress: taskbarProgress ?? this.taskbarProgress,
     );
   }
 }
@@ -105,6 +111,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kThemeMode = 'settings.themeMode';
   static const _kCloseToTray = 'settings.closeToTray';
+  static const _kTaskbarProgress = 'settings.taskbarProgress';
 
   @override
   AppSettings build() {
@@ -145,6 +152,7 @@ class SettingsController extends Notifier<AppSettings> {
           orElse: () => AppThemeMode.light,
         ),
         closeToTray: prefs.getBool(_kCloseToTray) ?? true,
+        taskbarProgress: prefs.getBool(_kTaskbarProgress) ?? true,
       );
     } catch (_) {}
   }
@@ -194,6 +202,11 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setCloseToTray(bool v) async {
     state = state.copyWith(closeToTray: v);
     await _save(_kCloseToTray, v);
+  }
+
+  Future<void> setTaskbarProgress(bool v) async {
+    state = state.copyWith(taskbarProgress: v);
+    await _save(_kTaskbarProgress, v);
   }
 
   /// Clear cover disk/memory cache + play history. Returns a status label.

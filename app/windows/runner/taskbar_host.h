@@ -13,10 +13,11 @@
 class TaskbarHost {
  public:
   // Button ids reported to Flutter via thumbarEvent ('previous' / 'playPause' /
-  // 'next'). Must stay stable - the shell keys THBN_CLICKED by iId.
+  // 'next' / 'favorite'). Must stay stable - the shell keys THBN_CLICKED by iId.
   static constexpr int kCmdPrevious = 1001;
   static constexpr int kCmdPlayPause = 1002;
   static constexpr int kCmdNext = 1003;
+  static constexpr int kCmdFavorite = 1004;
 
   TaskbarHost();
   ~TaskbarHost();
@@ -33,7 +34,8 @@ class TaskbarHost {
   // Explorer restart rebuilds the taskbar - drop cached state and re-apply.
   void Refresh();
 
-  void SyncButtons(bool has_track, bool is_playing);
+  void SyncButtons(bool has_track, bool is_playing, bool is_favorite,
+                   bool can_step_back);
   void SyncProgress(ProgressMode mode, int64_t position_ms, int64_t duration_ms);
 
   void SetEventHandler(std::function<void(const std::string&)> handler);
@@ -46,7 +48,8 @@ class TaskbarHost {
   void ReleaseList();
   void ApplyButtons();
   void ApplyProgress();
-  static HICON MakeGlyphIcon(int kind);  // 0 prev, 1 play, 2 pause, 3 next
+  static HICON MakeGlyphIcon(
+      int kind);  // 0 prev, 1 play, 2 pause, 3 next, 4 heart, 5 heart filled
   void DestroyIcons();
   void CreateIcons();
 
@@ -57,6 +60,8 @@ class TaskbarHost {
   bool buttons_added_ = false;
   bool has_track_ = false;
   bool is_playing_ = false;
+  bool is_favorite_ = false;
+  bool can_step_back_ = true;
 
   ProgressMode progress_mode_ = ProgressMode::kNone;
   int64_t progress_pos_ms_ = 0;
@@ -69,6 +74,8 @@ class TaskbarHost {
   HICON icon_play_ = nullptr;
   HICON icon_pause_ = nullptr;
   HICON icon_next_ = nullptr;
+  HICON icon_heart_ = nullptr;
+  HICON icon_heart_filled_ = nullptr;
 };
 
 #endif  // RUNNER_TASKBAR_HOST_H_

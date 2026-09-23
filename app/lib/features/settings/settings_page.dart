@@ -75,6 +75,16 @@ class SettingsPage extends ConsumerWidget {
                   value: settings.closeToTray,
                   onChanged: controller.setCloseToTray,
                 ),
+                if (isWindowsPlatform)
+                  SwitchListTile(
+                    title: Text('任务栏播放进度', style: kugo.body),
+                    subtitle: Text(
+                      '在任务栏按钮上显示播放进度（播放绿 / 暂停黄）',
+                      style: kugo.caption,
+                    ),
+                    value: settings.taskbarProgress,
+                    onChanged: controller.setTaskbarProgress,
+                  ),
               ],
             ),
           _Section(

@@ -110,6 +110,8 @@ void FlutterWindow::RegisterTaskbarChannel() {
         if (call.method_name() == "updateButtons") {
           bool has_track = false;
           bool is_playing = false;
+          bool is_favorite = false;
+          bool can_step_back = true;
           if (args) {
             for (const auto& kv : *args) {
               const auto* key = std::get_if<std::string>(&kv.first);
@@ -122,10 +124,18 @@ void FlutterWindow::RegisterTaskbarChannel() {
                 if (const auto* play_v = std::get_if<bool>(&kv.second)) {
                   is_playing = *play_v;
                 }
+              } else if (*key == "isFavorite") {
+                if (const auto* fav_v = std::get_if<bool>(&kv.second)) {
+                  is_favorite = *fav_v;
+                }
+              } else if (*key == "canStepBack") {
+                if (const auto* back_v = std::get_if<bool>(&kv.second)) {
+                  can_step_back = *back_v;
+                }
               }
             }
           }
-          taskbar_.SyncButtons(has_track, is_playing);
+          taskbar_.SyncButtons(has_track, is_playing, is_favorite, can_step_back);
           result->Success();
           return;
         }
