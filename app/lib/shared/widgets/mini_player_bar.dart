@@ -16,10 +16,7 @@ class MiniPlayerBar extends ConsumerWidget {
     final player = ref.watch(playerControllerProvider);
     final track = player.current;
     if (track == null) return const SizedBox.shrink();
-
-    final progress = player.durationMs == 0
-        ? 0.0
-        : (player.positionMs / player.durationMs).clamp(0.0, 1.0);
+    final durationMs = player.durationMs;
 
     final isLight = kugo.palette.isLight;
 
@@ -134,29 +131,38 @@ class MiniPlayerBar extends ConsumerWidget {
                 ),
               ),
             ),
+            // Progress alone listens to the live cursor — no TweenAnimationBuilder
+            // (it used to restart a 200ms animation on every tick and never settle).
             SizedBox(
               height: 2,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0, end: progress),
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                builder: (context, value, _) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: value.clamp(0.0, 1.0),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            CoverPalette.accentFromSeed(track.coverUrl, kugo.palette),
-                            CoverPalette.accentFromSeed(track.coverUrl, kugo.palette)
-                                .withValues(alpha: 0.4),
-                          ],
+              child: PlayerPositionBuilder(
+                builder: (context, positionMs) {
+                  final progress = durationMs == 0
+                      ? 0.0
+                      : (positionMs / durationMs).clamp(0.0, 1.0);
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: progress,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              CoverPalette.accentFromSeed(
+                                track.coverUrl,
+                                kugo.palette,
+                              ),
+                              CoverPalette.accentFromSeed(
+                                track.coverUrl,
+                                kugo.palette,
+                              ).withValues(alpha: 0.4),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],

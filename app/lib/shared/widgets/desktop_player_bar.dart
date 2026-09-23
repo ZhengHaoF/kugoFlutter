@@ -45,10 +45,6 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
     final track = player.current;
 
     final duration = player.durationMs <= 0 ? 1 : player.durationMs;
-    final currentPos = _isDraggingProgress
-        ? (_dragProgress * duration).round()
-        : player.positionMs.clamp(0, duration);
-    final progress = (currentPos / duration).clamp(0.0, 1.0);
 
     final isLiked =
         track != null && ref.watch(likesProvider).any((t) => t.id == track.id);
@@ -271,53 +267,63 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                     ),
                   ),
 
-                  // 进度条
+                  // 进度条 — only this row tracks the live cursor.
                   SizedBox(
                     height: 18,
-                    child: Row(
-                      children: [
-                        Text(
-                          _formatDuration(currentPos),
-                          style: kugo.caption.copyWith(fontSize: 11),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              trackHeight: 3,
-                              thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 5,
-                              ),
-                              overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 10,
-                              ),
-                              activeTrackColor: kugo.primary,
-                              inactiveTrackColor: kugo.divider,
-                              thumbColor: kugo.primary,
+                    child: PlayerPositionBuilder(
+                      builder: (context, positionMs) {
+                        final currentPos = _isDraggingProgress
+                            ? (_dragProgress * duration).round()
+                            : positionMs.clamp(0, duration);
+                        final progress =
+                            (currentPos / duration).clamp(0.0, 1.0);
+                        return Row(
+                          children: [
+                            Text(
+                              _formatDuration(currentPos),
+                              style: kugo.caption.copyWith(fontSize: 11),
                             ),
-                            child: Slider(
-                              value: progress,
-                              onChanged: (v) {
-                                setState(() {
-                                  _isDraggingProgress = true;
-                                  _dragProgress = v;
-                                });
-                              },
-                              onChangeEnd: (v) {
-                                controller.seekTo((v * duration).round());
-                                setState(() {
-                                  _isDraggingProgress = false;
-                                });
-                              },
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: SliderTheme(
+                                data: SliderTheme.of(context).copyWith(
+                                  trackHeight: 3,
+                                  thumbShape: const RoundSliderThumbShape(
+                                    enabledThumbRadius: 5,
+                                  ),
+                                  overlayShape:
+                                      const RoundSliderOverlayShape(
+                                    overlayRadius: 10,
+                                  ),
+                                  activeTrackColor: kugo.primary,
+                                  inactiveTrackColor: kugo.divider,
+                                  thumbColor: kugo.primary,
+                                ),
+                                child: Slider(
+                                  value: progress,
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _isDraggingProgress = true;
+                                      _dragProgress = v;
+                                    });
+                                  },
+                                  onChangeEnd: (v) {
+                                    controller.seekTo((v * duration).round());
+                                    setState(() {
+                                      _isDraggingProgress = false;
+                                    });
+                                  },
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '-${_formatDuration((duration - currentPos).clamp(0, duration))}',
-                          style: kugo.caption.copyWith(fontSize: 11),
-                        ),
-                      ],
+                            const SizedBox(width: 8),
+                            Text(
+                              '-${_formatDuration((duration - currentPos).clamp(0, duration))}',
+                              style: kugo.caption.copyWith(fontSize: 11),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],

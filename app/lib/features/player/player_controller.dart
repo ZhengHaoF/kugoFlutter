@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/audio_quality.dart';
@@ -14,6 +16,15 @@ import 'audio_engine.dart';
 import 'audio_player_port.dart';
 
 enum PlayerLoopMode { order, listLoop, shuffle, single }
+
+extension PlayerLoopModeLabel on PlayerLoopMode {
+  String get label => switch (this) {
+        PlayerLoopMode.order => '顺序播放',
+        PlayerLoopMode.listLoop => '列表循环',
+        PlayerLoopMode.shuffle => '随机播放',
+        PlayerLoopMode.single => '单曲循环',
+      };
+}
 
 enum PlayerDisplayState { idle, loading, playing, paused, error }
 
@@ -55,6 +66,13 @@ class PlayerState {
   /// Preferred over [Track.durationMs] when > 0 — API metadata is often wrong
   /// or unit-mismatched on desktop play paths.
   final int engineDurationMs;
+
+  /// Last *discrete* cursor (seek / track load / stop). Live engine ticks do
+  /// **not** land here — those go to [PlayerController.position] so progress
+  /// UI can listen without rebuilding every full-state consumer.
+  ///
+  /// Prefer `ref.watch(playerPositionProvider)` (or `controller.position`)
+  /// for anything that must track playback in real time.
 
   /// 「上一首」当前是否可点。
   ///
@@ -133,6 +151,11 @@ class PlayerController extends Notifier<PlayerState> {
   late final PlayRepository _playRepo;
   late final LyricRepository _lyricRepo;
 
+  /// High-frequency playback cursor (ms). Engine `positionStream` only writes
+  /// here — never into Riverpod [PlayerState] — so listening widgets rebuild
+  /// in isolation instead of dragging the whole UI tree along every tick.
+  final ValueNotifier<int> position = ValueNotifier(0);
+
   KugoMediaBridge? _bridge;
   StreamSubscription<void>? _posSub;
   StreamSubscription<Duration>? _bufferedSub;
@@ -190,8 +213,13 @@ class PlayerController extends Notifier<PlayerState> {
         _tickBaseMs = ms;
         _tickBaseAt = DateTime.now();
       }
-      state = state.copyWith(positionMs: ms);
-      // NB: the engine sample is deliberately NOT forwarded to the media
+      // NB: engine samples must NOT assign Riverpod state. media_kit / mpv
+      // emits position very often; copyWith(positionMs:) would rebuild every
+      // full-state watcher (player bar, explore, lists…) on each tick. Live
+      // UI listens to [position] instead. Discrete jumps (seek / track load)
+      // still mirror into [PlayerState.positionMs] for logic and tests.
+      if (position.value != ms) position.value = ms;
+      // The engine sample is deliberately NOT forwarded to the media
       // session here. The MediaSession holds a snapshot, not a live value, and
       // positions must never be published out of order (AVRCP only refreshes
       // when the value changes, and a sample arriving out of order looks like a
@@ -251,6 +279,7 @@ class PlayerController extends Notifier<PlayerState> {
       _demoTimer?.cancel();
       _sleepTimer?.cancel();
       _mediaTick?.cancel();
+      position.dispose();
       _engine.dispose();
     });
 
@@ -266,6 +295,7 @@ class PlayerController extends Notifier<PlayerState> {
     _ignoreEnginePlayUntil = null;
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
+    _zeroCursor();
     state = const PlayerState();
   }
 
@@ -291,6 +321,7 @@ class PlayerController extends Notifier<PlayerState> {
         _ignoreEnginePlayUntil = null;
         _lyricsInFlightKey = null;
         _lyricsLoadedKey = null;
+        _zeroCursor();
         state = state.copyWith(
           queue: List.unmodifiable(tracks),
           currentIndex: index,
@@ -339,6 +370,7 @@ class PlayerController extends Notifier<PlayerState> {
       // Already stopped — broadcasting again would only churn setState().
       return;
     }
+    _zeroCursor();
     state = state.copyWith(
       display: PlayerDisplayState.idle,
       positionMs: 0,
@@ -363,6 +395,7 @@ class PlayerController extends Notifier<PlayerState> {
     _ignoreEnginePlayUntil = null;
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
+    _zeroCursor();
     state = state.copyWith(
       queue: List.unmodifiable(tracks),
       currentIndex: index,
@@ -725,6 +758,7 @@ class PlayerController extends Notifier<PlayerState> {
     _ignoreEnginePlayUntil = null;
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
+    _zeroCursor();
     state = state.copyWith(
       display: PlayerDisplayState.loading,
       positionMs: 0,
@@ -749,6 +783,7 @@ class PlayerController extends Notifier<PlayerState> {
       if (state.mode == PlayerLoopMode.order) {
         await _engine.pause();
         _stopDemoTick();
+        _zeroCursor();
         state = state.copyWith(
           display: PlayerDisplayState.paused,
           positionMs: 0,
@@ -780,6 +815,7 @@ class PlayerController extends Notifier<PlayerState> {
     final seq = ++_seq;
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
+    _zeroCursor();
     state = state.copyWith(
       currentIndex: index,
       positionMs: 0,
@@ -808,9 +844,18 @@ class PlayerController extends Notifier<PlayerState> {
     await _jumpTo(index);
   }
 
+  /// Snap the live cursor (and [PlayerState.positionMs]) back to 0.
+  void _zeroCursor() {
+    if (position.value != 0) position.value = 0;
+  }
+
+  /// Relative seek from the live cursor (keyboard ±5s etc.).
+  void seekBy(int deltaMs) => seekTo(position.value + deltaMs);
+
   void seekTo(int positionMs) {
     final duration = state.durationMs;
     final clamped = positionMs.clamp(0, duration);
+    if (position.value != clamped) position.value = clamped;
     state = state.copyWith(positionMs: clamped);
     final track = state.current;
     if (track != null && track.hasHash) {
@@ -827,10 +872,16 @@ class PlayerController extends Notifier<PlayerState> {
     unawaited(_engine.setVolume(clamped));
   }
 
+  void setMode(PlayerLoopMode mode) {
+    if (state.mode == mode) return;
+    state = state.copyWith(mode: mode);
+    unawaited(_persistQueue());
+  }
+
   void cycleMode() {
     const order = PlayerLoopMode.values;
     final nextIndex = (order.indexOf(state.mode) + 1) % order.length;
-    state = state.copyWith(mode: order[nextIndex]);
+    setMode(order[nextIndex]);
   }
 
   /// Sleep timer: [minutes] == 0 cancels.
@@ -882,11 +933,13 @@ class PlayerController extends Notifier<PlayerState> {
     _stopDemoTick();
     _demoTimer = Timer.periodic(const Duration(milliseconds: 400), (_) {
       if (!state.isPlaying) return;
-      final nextPos = state.positionMs + 400;
+      final nextPos = position.value + 400;
       if (nextPos >= state.durationMs) {
         _onCompleted();
         return;
       }
+      // Demo path is 2.5 Hz — safe to mirror into state for tests / snapshot.
+      position.value = nextPos;
       state = state.copyWith(positionMs: nextPos);
       // Keep MediaSession/Bluetooth progress in sync for non-engine demo tracks.
       _publishMediaPosition(nextPos);
@@ -924,7 +977,7 @@ class PlayerController extends Notifier<PlayerState> {
         PlayerDisplayState.error => AudioProcessingState.error,
         PlayerDisplayState.idle => AudioProcessingState.idle,
       },
-      position: Duration(milliseconds: state.positionMs),
+      position: Duration(milliseconds: position.value),
       bufferedPosition: _bufferedDuration,
       track: current,
       subtitle: subtitle,
@@ -1035,7 +1088,7 @@ class PlayerController extends Notifier<PlayerState> {
     if (lines.isEmpty) return '';
     var active = '';
     for (final line in lines) {
-      if (line.timeMs > state.positionMs) break;
+      if (line.timeMs > position.value) break;
       active = line.text.trim();
     }
     return active;
@@ -1073,6 +1126,35 @@ abstract class KugoMediaBridge {
 
 final playerControllerProvider =
     NotifierProvider<PlayerController, PlayerState>(PlayerController.new);
+
+/// Live playback cursor. **Use this for progress bars, time labels, lyrics.**
+///
+/// Engine ticks only notify this listenable — assigning [PlayerState] on every
+/// position sample used to rebuild every full-state watcher in the app.
+final playerPositionProvider = Provider<ValueListenable<int>>((ref) {
+  // Tie lifetime to the controller (created on first read, disposed with it).
+  ref.watch(playerControllerProvider);
+  return ref.read(playerControllerProvider.notifier).position;
+});
+
+/// Rebuilds only when the live playback cursor ticks (or [when] changes).
+class PlayerPositionBuilder extends ConsumerWidget {
+  const PlayerPositionBuilder({
+    super.key,
+    required this.builder,
+  });
+
+  final Widget Function(BuildContext context, int positionMs) builder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listenable = ref.watch(playerPositionProvider);
+    return ValueListenableBuilder<int>(
+      valueListenable: listenable,
+      builder: (context, ms, _) => builder(context, ms),
+    );
+  }
+}
 
 /// Factory for tests: inject a fake engine (and optional fake repos).
 PlayerController createPlayerController(

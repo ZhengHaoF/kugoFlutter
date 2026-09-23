@@ -69,7 +69,6 @@ class FullPlayerPage extends ConsumerWidget {
     controller.ensureLyricsForCurrent(retryIfEmpty: true);
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
-    final progress = (player.positionMs / duration).clamp(0.0, 1.0);
     final isDesktop = isDesktopView(context);
 
     if (isDesktop) {
@@ -151,40 +150,46 @@ class FullPlayerPage extends ConsumerWidget {
 
                         const Spacer(),
 
-                        // 进度滑块
+                        // 进度滑块 — only this block tracks the live cursor.
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Column(
-                            children: [
-                              SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                                ),
-                                child: Slider(
-                                  value: progress,
-                                  onChanged: (v) =>
-                                      controller.seekTo((v * duration).round()),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      FullPlayerPage.format(player.positionMs),
-                                      style: kugo.caption.copyWith(fontSize: 11),
+                          child: PlayerPositionBuilder(
+                            builder: (context, positionMs) {
+                              final progress =
+                                  (positionMs / duration).clamp(0.0, 1.0);
+                              return Column(
+                                children: [
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 3,
+                                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                                     ),
-                                    Text(
-                                      '-${FullPlayerPage.format(duration - player.positionMs)}',
-                                      style: kugo.caption.copyWith(fontSize: 11),
+                                    child: Slider(
+                                      value: progress,
+                                      onChanged: (v) =>
+                                          controller.seekTo((v * duration).round()),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          FullPlayerPage.format(positionMs),
+                                          style: kugo.caption.copyWith(fontSize: 11),
+                                        ),
+                                        Text(
+                                          '-${FullPlayerPage.format(duration - positionMs)}',
+                                          style: kugo.caption.copyWith(fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
 
@@ -230,11 +235,13 @@ class FullPlayerPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         Expanded(
-                          child: LyricsView(
-                            lines: player.lyrics,
-                            positionMs: player.positionMs,
-                            status: player.lyricsStatus,
-                            onTapLine: (ms) => controller.seekTo(ms),
+                          child: PlayerPositionBuilder(
+                            builder: (context, positionMs) => LyricsView(
+                              lines: player.lyrics,
+                              positionMs: positionMs,
+                              status: player.lyricsStatus,
+                              onTapLine: (ms) => controller.seekTo(ms),
+                            ),
                           ),
                         ),
                       ],
@@ -276,7 +283,6 @@ class FullPlayerPage extends ConsumerWidget {
                   track: track,
                   player: player,
                   controller: controller,
-                  progress: progress,
                   duration: duration,
                   onExpandLyrics: () => _openLyrics(context),
                 ),
@@ -411,7 +417,6 @@ class PlayerLyricsPage extends ConsumerWidget {
     controller.ensureLyricsForCurrent(retryIfEmpty: true);
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
-    final progress = (player.positionMs / duration).clamp(0.0, 1.0);
 
     return Scaffold(
       backgroundColor: kugo.bg,
@@ -504,11 +509,13 @@ class PlayerLyricsPage extends ConsumerWidget {
                     ),
                   ),
                 Expanded(
-                  child: LyricsView(
-                    lines: player.lyrics,
-                    positionMs: player.positionMs,
-                    status: player.lyricsStatus,
-                    onTapLine: (ms) => controller.seekTo(ms),
+                  child: PlayerPositionBuilder(
+                    builder: (context, positionMs) => LyricsView(
+                      lines: player.lyrics,
+                      positionMs: positionMs,
+                      status: player.lyricsStatus,
+                      onTapLine: (ms) => controller.seekTo(ms),
+                    ),
                   ),
                 ),
                 Padding(
@@ -521,45 +528,59 @@ class PlayerLyricsPage extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
-                        height: 48,
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 5,
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 10,
-                            ),
-                          ),
-                          child: Slider(
-                            value: progress,
-                            onChanged: (v) =>
-                                controller.seekTo((v * duration).round()),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 22,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      PlayerPositionBuilder(
+                        builder: (context, positionMs) {
+                          final progress =
+                              (positionMs / duration).clamp(0.0, 1.0);
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                FullPlayerPage.format(player.positionMs),
-                                style: kugo.caption
-                                    .copyWith(height: 1.2),
+                              SizedBox(
+                                height: 48,
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 3,
+                                    thumbShape: const RoundSliderThumbShape(
+                                      enabledThumbRadius: 5,
+                                    ),
+                                    overlayShape: const RoundSliderOverlayShape(
+                                      overlayRadius: 10,
+                                    ),
+                                  ),
+                                  child: Slider(
+                                    value: progress,
+                                    onChanged: (v) => controller
+                                        .seekTo((v * duration).round()),
+                                  ),
+                                ),
                               ),
-                              Text(
-                                '-${FullPlayerPage.format((duration - player.positionMs).clamp(0, duration))}',
-                                style: kugo.caption
-                                    .copyWith(height: 1.2),
+                              SizedBox(
+                                height: 22,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        FullPlayerPage.format(positionMs),
+                                        style: kugo.caption
+                                            .copyWith(height: 1.2),
+                                      ),
+                                      Text(
+                                        '-${FullPlayerPage.format((duration - positionMs).clamp(0, duration))}',
+                                        style: kugo.caption
+                                            .copyWith(height: 1.2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
-                          ),
-                        ),
+                          );
+                        },
                       ),
                       _ControlBar(
                         player: player,
@@ -712,7 +733,6 @@ class _CollapsedPlayerBody extends StatelessWidget {
     required this.track,
     required this.player,
     required this.controller,
-    required this.progress,
     required this.duration,
     required this.onExpandLyrics,
     this.useHero = true,
@@ -721,7 +741,6 @@ class _CollapsedPlayerBody extends StatelessWidget {
   final Track track;
   final PlayerState player;
   final PlayerController controller;
-  final double progress;
   final int duration;
   final VoidCallback onExpandLyrics;
   final bool useHero;
@@ -771,11 +790,13 @@ class _CollapsedPlayerBody extends StatelessWidget {
               if (v < -200) onExpandLyrics();
             },
             child: ClipRect(
-              child: LyricsView(
-                compact: true,
-                lines: player.lyrics,
-                positionMs: player.positionMs,
-                status: player.lyricsStatus,
+              child: PlayerPositionBuilder(
+                builder: (context, positionMs) => LyricsView(
+                  compact: true,
+                  lines: player.lyrics,
+                  positionMs: positionMs,
+                  status: player.lyricsStatus,
+                ),
               ),
             ),
           );
@@ -868,48 +889,64 @@ class _CollapsedPlayerBody extends StatelessWidget {
                         ),
                       ),
                     SizedBox(
-                      height: sliderH,
-                      child: Center(
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(
-                              enabledThumbRadius: 6,
-                            ),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 10,
-                            ),
-                            trackShape: const RoundedRectSliderTrackShape(),
-                          ),
-                          child: Slider(
-                            value: progress,
-                            onChanged: (v) =>
-                                controller.seekTo((v * duration).round()),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: timeH,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              format(player.positionMs),
-                              style: kugo.caption.copyWith(
-                                height: 1.2,
+                      height: sliderH + timeH,
+                      child: PlayerPositionBuilder(
+                        builder: (context, positionMs) {
+                          final progress =
+                              (positionMs / duration).clamp(0.0, 1.0);
+                          return Column(
+                            children: [
+                              SizedBox(
+                                height: sliderH,
+                                child: Center(
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 3,
+                                      thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 6,
+                                      ),
+                                      overlayShape: const RoundSliderOverlayShape(
+                                        overlayRadius: 10,
+                                      ),
+                                      trackShape: const RoundedRectSliderTrackShape(),
+                                    ),
+                                    child: Slider(
+                                      value: progress,
+                                      onChanged: (v) => controller
+                                          .seekTo((v * duration).round()),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                            Text(
-                              '-${format(duration - player.positionMs)}',
-                              style: kugo.caption.copyWith(
-                                height: 1.2,
+                              SizedBox(
+                                height: timeH,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        format(positionMs),
+                                        style: kugo.caption.copyWith(
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                      Text(
+                                        '-${format(duration - positionMs)}',
+                                        style: kugo.caption.copyWith(
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                     _ControlBar(
