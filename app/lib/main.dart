@@ -20,6 +20,7 @@ import 'features/debug/network_log_provider.dart';
 import 'features/player/audio_service_handler.dart';
 import 'features/player/player_controller.dart';
 import 'features/settings/settings_controller.dart';
+import 'shared/tray/desktop_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,14 +61,17 @@ Future<void> main() async {
   // Restore login session (and device mid) BEFORE any play-url resolve.
   await container.read(authControllerProvider.notifier).ensureReady();
 
-  // 系统媒体会话（通知栏 / 锁屏 / 蓝牙）只有移动端与 macOS 有插件实现；
-  // Windows 上 audio_session / audio_service 均缺失，直接跳过。
-  // PlayerController 的 bridge 可空，桌面端不挂就等于没有系统媒体 UI。
+  // 系统媒体会话：移动端/macOS 走 audio_service 原生实现，Windows 走
+  // audio_service_win（SMTC / 媒体键 / 系统媒体卡）。Linux 仍无实现。
+  // PlayerController 的 bridge 可空，没挂就没有系统媒体 UI。
   if (hasSystemMediaSession) {
     // Audio attributes + audio focus. Without this the app may not be treated as
     // the active media player, and some car head units then show no progress bar.
-    final session = await AudioSession.instance;
-    await session.configure(const AudioSessionConfiguration.music());
+    // audio_session 无 Windows 实现，只在支持的平台配置。
+    if (hasAudioFocusSession) {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+    }
 
     player.attachBridge(
       await AudioService.init<KugoAudioHandler>(
@@ -91,6 +95,9 @@ Future<void> main() async {
   // 播放页才会继续显示 FM 控件（循环/随机位换成「不喜欢」、上一首带边界禁用）。
   // 必须晚于 restoreOrSeed()，否则队列还没回来无从比对。
   await container.read(fmControllerProvider.notifier).restore();
+
+  // 桌面壳：托盘 + 关闭到托盘。必须在 settings/player 就绪之后。
+  await DesktopShell.boot(container);
 
   runApp(
     UncontrolledProviderScope(
