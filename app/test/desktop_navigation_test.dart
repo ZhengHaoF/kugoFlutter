@@ -122,6 +122,61 @@ void main() {
     );
 
     testWidgets(
+      'Sidebar switch fades/drifts the content pane instead of hard-cutting',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 720);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final engine = FakeAudioPlayer();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              playerControllerProvider
+                  .overrideWith(() => PlayerController(engine: engine)),
+            ],
+            child: const KugoApp(),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final dailyItem = find.descendant(
+          of: find.byType(DesktopSidebar),
+          matching: find.text('每日推荐'),
+        );
+        await tester.tap(dailyItem);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 40));
+
+        // Mid-flight: content pane is under an Opacity/Transform wrapper.
+        expect(find.byType(DailyRecommendPage), findsOneWidget);
+        expect(
+          find.ancestor(
+            of: find.byType(DailyRecommendPage),
+            matching: find.byType(Opacity),
+          ),
+          findsWidgets,
+        );
+
+        // 240ms nav fade — pump past it without pumpAndSettle (page tickers).
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(find.byType(DailyRecommendPage), findsOneWidget);
+        // Settled: transition wrapper unwraps so the pane paints raw.
+        expect(
+          find.ancestor(
+            of: find.byType(DailyRecommendPage),
+            matching: find.byType(Transform),
+          ),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets(
       'Mobile narrow screen hides dock on subpages, keeping full-screen experience',
       (tester) async {
         tester.view.physicalSize = const Size(400, 800);

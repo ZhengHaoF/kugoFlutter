@@ -1,16 +1,23 @@
 import 'package:flutter/gestures.dart' show PointerEnterEvent, PointerExitEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/models/playback_source.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
 
 class DesktopSidebar extends ConsumerWidget {
-  const DesktopSidebar({super.key, required this.location});
+  const DesktopSidebar({
+    super.key,
+    required this.location,
+    required this.onNavigate,
+  });
 
   final String location;
+
+  /// Top-level destination switch. RootShell animates the content pane;
+  /// a bare `go()` would hard-cut the right side.
+  final void Function(String path) onNavigate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -97,19 +104,20 @@ class DesktopSidebar extends ConsumerWidget {
                   icon: Icons.explore_rounded,
                   label: '发现',
                   selected: location.startsWith('/explore') || location == '/',
-                  onTap: () => context.go('/explore'),
+                  onTap: () => onNavigate('/explore'),
                 ),
                 _SidebarItem(
                   icon: Icons.today_rounded,
                   label: '每日推荐',
                   selected: location.startsWith('/daily'),
-                  onTap: () => context.go('/daily'),
+                  onTap: () => onNavigate('/daily'),
                 ),
                 _SidebarItem(
                   icon: Icons.leaderboard_rounded,
                   label: '排行榜',
-                  selected: location.startsWith('/ranks'),
-                  onTap: () => context.go('/ranks'),
+                  selected: location.startsWith('/ranks') ||
+                      location.startsWith('/rank/'),
+                  onTap: () => onNavigate('/ranks'),
                 ),
                 _SidebarItem(
                   icon: Icons.radio_rounded,
@@ -133,7 +141,7 @@ class DesktopSidebar extends ConsumerWidget {
                           ),
                         )
                       : null,
-                  onTap: () => context.go('/fm'),
+                  onTap: () => onNavigate('/fm'),
                 ),
 
                 const SizedBox(height: 16),
@@ -142,19 +150,19 @@ class DesktopSidebar extends ConsumerWidget {
                   icon: Icons.person_rounded,
                   label: '我的',
                   selected: location.startsWith('/profile'),
-                  onTap: () => context.go('/profile'),
+                  onTap: () => onNavigate('/profile'),
                 ),
                 _SidebarItem(
                   icon: Icons.favorite_rounded,
                   label: '我喜欢',
                   selected: location.startsWith('/likes'),
-                  onTap: () => context.go('/likes'),
+                  onTap: () => onNavigate('/likes'),
                 ),
                 _SidebarItem(
                   icon: Icons.history_rounded,
                   label: '播放历史',
                   selected: location.startsWith('/history'),
-                  onTap: () => context.go('/history'),
+                  onTap: () => onNavigate('/history'),
                 ),
 
                 const SizedBox(height: 16),
@@ -163,13 +171,13 @@ class DesktopSidebar extends ConsumerWidget {
                   icon: Icons.search_rounded,
                   label: '快速搜索',
                   selected: location.startsWith('/search'),
-                  onTap: () => context.go('/search'),
+                  onTap: () => onNavigate('/search'),
                 ),
                 _SidebarItem(
                   icon: Icons.settings_rounded,
                   label: '系统设置',
                   selected: location.startsWith('/settings'),
-                  onTap: () => context.go('/settings'),
+                  onTap: () => onNavigate('/settings'),
                 ),
               ],
             ),

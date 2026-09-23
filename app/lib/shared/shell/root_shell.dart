@@ -36,9 +36,12 @@ class RootShell extends ConsumerStatefulWidget {
 }
 
 class _RootShellState extends ConsumerState<RootShell>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _bounce;
+  late final AnimationController _navFade;
   int _prevIndex = 0;
+  int _navOrder = 0;
+  double _navDirection = 1;
 
   static const _tabs = [
     (Icons.explore_outlined, Icons.explore_rounded, '发现'),
@@ -54,13 +57,33 @@ class _RootShellState extends ConsumerState<RootShell>
         _ => 0,
       };
 
+  /// Sidebar reading order — used for content drift direction.
+  static int _sidebarOrder(String location) => switch (true) {
+        _ when location.startsWith('/daily') => 1,
+        _ when location.startsWith('/ranks') || location.startsWith('/rank/') =>
+          2,
+        _ when location.startsWith('/fm') => 3,
+        _ when location.startsWith('/profile') => 4,
+        _ when location.startsWith('/likes') => 5,
+        _ when location.startsWith('/history') => 6,
+        _ when location.startsWith('/search') => 7,
+        _ when location.startsWith('/settings') => 8,
+        _ => 0,
+      };
+
   @override
   void initState() {
     super.initState();
     _prevIndex = _indexOf(widget.location);
+    _navOrder = _sidebarOrder(widget.location);
     _bounce = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 320),
+    );
+    _navFade = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      value: 1,
     );
   }
 
@@ -77,6 +100,7 @@ class _RootShellState extends ConsumerState<RootShell>
   @override
   void dispose() {
     _bounce.dispose();
+    _navFade.dispose();
     super.dispose();
   }
 
@@ -85,6 +109,20 @@ class _RootShellState extends ConsumerState<RootShell>
     _prevIndex = _indexOf(widget.location);
     _bounce.forward(from: 0);
     context.go(path);
+  }
+
+  /// Desktop sidebar switch: swap the pane, then fade/drift it in.
+  ///
+  /// `context.go` replaces the shell branch stack (and flips IndexedStack
+  /// across branches) without a [PageRoute] transition — animating here is
+  /// what the user sees when clicking the rail.
+  void _desktopNavigate(String path) {
+    if (!mounted || path == widget.location) return;
+    final nextOrder = _sidebarOrder(path);
+    _navDirection = nextOrder >= _navOrder ? 1.0 : -1.0;
+    _navOrder = nextOrder;
+    context.go(path);
+    _navFade.forward(from: 0);
   }
 
   @override
@@ -110,17 +148,13 @@ class _RootShellState extends ConsumerState<RootShell>
             ),
             _SeekForwardIntent: CallbackAction<_SeekForwardIntent>(
               onInvoke: (_) {
-                final ctl = ref.read(playerControllerProvider.notifier);
-                final cur = ref.read(playerControllerProvider).positionMs;
-                ctl.seekTo(cur + 5000);
+                ref.read(playerControllerProvider.notifier).seekBy(5000);
                 return null;
               },
             ),
             _SeekBackwardIntent: CallbackAction<_SeekBackwardIntent>(
               onInvoke: (_) {
-                final ctl = ref.read(playerControllerProvider.notifier);
-                final cur = ref.read(playerControllerProvider).positionMs;
-                ctl.seekTo(cur - 5000);
+                ref.read(playerControllerProvider.notifier).seekBy(-5000);
                 return null;
               },
             ),
@@ -134,8 +168,17 @@ class _RootShellState extends ConsumerState<RootShell>
                   Expanded(
                     child: Row(
                       children: [
-                        DesktopSidebar(location: widget.location),
-                        Expanded(child: widget.child),
+                        DesktopSidebar(
+                          location: widget.location,
+                          onNavigate: _desktopNavigate,
+                        ),
+                        Expanded(
+                          child: _DesktopNavTransition(
+                            animation: _navFade,
+                            direction: _navDirection,
+                            child: widget.child,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -196,6 +239,51 @@ class _RootShellState extends ConsumerState<RootShell>
           }
         },
       ),
+    );
+  }
+}
+
+/// Desktop sidebar content pane: fade-in + light horizontal drift.
+///
+/// Same contract as [_TabTransition]: never leave a lasting Transform on
+/// [child] and never change its identity — the shell navigator stays mounted.
+class _DesktopNavTransition extends StatelessWidget {
+  const _DesktopNavTransition({
+    required this.animation,
+    required this.direction,
+    required this.child,
+  });
+
+  /// 0 = entering, 1 = settled.
+  final Animation<double> animation;
+
+  /// +1 when moving down the rail, -1 when moving up.
+  final double direction;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final t = animation.value;
+        // Settled: raw child — zero transform (pixel grid + Hero).
+        if (t >= 1.0) return child!;
+        final eased = Curves.easeOutCubic.transform(t.clamp(0.0, 1.0));
+        // Keep a floor so the pane never flashes pure background mid-switch.
+        final opacity = (0.18 + 0.82 * eased).clamp(0.0, 1.0);
+        final dx = direction * 14.0 * (1.0 - eased);
+        return ClipRect(
+          child: Opacity(
+            opacity: opacity,
+            child: Transform.translate(
+              offset: Offset(dx, 0),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: child,
     );
   }
 }
