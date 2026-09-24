@@ -1,4 +1,5 @@
 import 'package:kugo/core/models/audio_quality.dart';
+import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/music_platform.dart';
@@ -48,12 +49,36 @@ class FakeMusicSource
   String keyOf(Track t) => t.identityKey;
 
   @override
-  Future<List<Track>> searchSongs(
+  Future<SearchPageResult<Track>> searchSongs(
     String keyword, {
     int page = 1,
     int pageSize = 30,
   }) async =>
-      const [];
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<ArtistBrief>> searchArtists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
 
   @override
   Future<PlayUrlResult> resolvePlayUrl(

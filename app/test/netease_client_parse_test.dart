@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/netease/netease_client.dart';
 import 'package:kugo/core/api/netease/netease_failures.dart';
+import 'package:kugo/core/api/netease/netease_mappers.dart';
 import 'package:kugo/core/source/music_source.dart';
 
 void main() {
@@ -18,6 +19,46 @@ void main() {
     expect(songs.first.name, '晴天');
     expect(songs.first.artists, '周杰伦');
     expect(songs.first.album, '叶惠美');
+  });
+
+  test('mapNeteaseSearchSongs 旧口形态：封面从 album.picId 拼出', () {
+    // 实测（2026-09-25）旧搜索口 search/get 的曲目形态：`album` 只有
+    // picId（无 picUrl），歌手在 `artists`、时长在 `duration`。
+    const raw = '''
+    {"code":200,"result":{"songs":[
+      {"id":509781655,"name":"想你就写信 (Live)","duration":238698,
+       "artists":[{"id":6452,"name":"周杰伦"}],
+       "album":{"id":1,"name":"中国新歌声第二季 第13期",
+                "picId":109951163038292176}}
+    ]}}
+    ''';
+    final page = mapNeteaseSearchSongs(raw);
+    expect(page.items, hasLength(1));
+    final t = page.items.single;
+    expect(t.artist, '周杰伦');
+    expect(t.album, '中国新歌声第二季 第13期');
+    expect(t.durationMs, 238698);
+    expect(
+      t.coverUrl,
+      'https://p3.music.126.net/yD9vbpuILH-tqNRIaP640g==/'
+      '109951163038292176.jpg?param=300y300',
+    );
+  });
+
+  test('mapNeteaseSearchSongs 新口形态：优先用 al.picUrl', () {
+    const raw = '''
+    {"code":200,"result":{"songs":[
+      {"id":186016,"name":"晴天","dt":269000,
+       "ar":[{"name":"周杰伦"}],
+       "al":{"name":"叶惠美","picUrl":"http://p1.music.126.net/x.jpg",
+             "picId":109951163038292176}}
+    ]}}
+    ''';
+    // picUrl 存在时不走 picId 回退（且 http → https）。
+    expect(
+      mapNeteaseSearchSongs(raw).items.single.coverUrl,
+      'https://p1.music.126.net/x.jpg',
+    );
   });
 
   test('parseProbePlayUrl success', () {

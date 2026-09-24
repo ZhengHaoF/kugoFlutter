@@ -30,7 +30,7 @@ class MusicSourceRegistry {
   bool anyHas<T>() => _byPlatform.values.any((s) => s is T);
 }
 
-/// 全局注册表；`main` 启动时装配（见 `KugouSource.registerDefaultMusicSources`）。
+/// 全局注册表；`main` 启动时装配（见 `data/sources/sources.dart`）。
 MusicSourceRegistry? musicSourceRegistry;
 
 MusicSourceRegistry get requireMusicSourceRegistry {

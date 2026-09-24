@@ -5,6 +5,12 @@ enum MusicPlatform {
 
   String get wireName => name;
 
+  /// 展示名：来源角标与音源筛选 chips 用（UI 禁止自己 `switch (platform)`）。
+  String get label => switch (this) {
+        MusicPlatform.kugou => '酷狗',
+        MusicPlatform.netease => '网易云',
+      };
+
   static MusicPlatform fromWire(String raw) {
     switch (raw.trim().toLowerCase()) {
       case 'kugou':

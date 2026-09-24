@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/platform.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/netease_login_controller.dart';
 import '../../features/debug/network_log_dialog.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
@@ -21,6 +22,7 @@ class SettingsPage extends ConsumerWidget {
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
     final auth = ref.watch(authControllerProvider);
+    final netease = ref.watch(neteaseLoginControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
@@ -154,6 +156,44 @@ class SettingsPage extends ConsumerWidget {
                     context.push('/login');
                   }
                 },
+              ),
+            ],
+          ),
+          _Section(
+            title: '音源账号',
+            children: [
+              ListTile(
+                leading: Icon(
+                  Icons.hub_outlined,
+                  color: kugo.textSecondary,
+                ),
+                title: Text('默认音源', style: kugo.body),
+                subtitle: Text(
+                  '${settings.defaultSourceLabel} · 搜索与「我喜欢」的初始音源',
+                  style: kugo.caption,
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => showDefaultSourcePicker(context, ref),
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.cloud_outlined,
+                  color: kugo.textSecondary,
+                ),
+                title: Text(
+                  netease.isLogged
+                      ? '网易云：${netease.account!.nickname}'
+                      : '网易云：未登录',
+                  style: kugo.body,
+                ),
+                subtitle: Text(
+                  netease.isLogged
+                      ? '点击管理 / 退出登录'
+                      : '扫码登录后可同步歌单与播放权限',
+                  style: kugo.caption,
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => context.push('/netease-login'),
               ),
             ],
           ),

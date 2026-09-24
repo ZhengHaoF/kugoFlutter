@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/audio_quality.dart';
 import '../../core/models/playback_source.dart';
+import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
@@ -1207,12 +1208,36 @@ class _MissingSource implements MusicSource {
   MusicPlatform get platform => MusicPlatform.kugou;
 
   @override
-  Future<List<Track>> searchSongs(
+  Future<SearchPageResult<Track>> searchSongs(
     String keyword, {
     int page = 1,
     int pageSize = 30,
   }) async =>
-      const [];
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<ArtistBrief>> searchArtists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
 
   @override
   Future<PlayUrlResult> resolvePlayUrl(

@@ -8,6 +8,7 @@
 /// duplicated, since `/playlist/:id` already consumes that exact type.
 library;
 
+import '../source/music_platform.dart';
 import 'track.dart';
 
 export 'track.dart' show PlaylistBrief;
@@ -41,6 +42,7 @@ class AlbumBrief {
     this.artist = '',
     this.trackCount = 0,
     this.publishDate = '',
+    this.platform = MusicPlatform.kugou,
   });
 
   /// Numeric `albumid` — what `/album/:id` expects.
@@ -50,6 +52,9 @@ class AlbumBrief {
   final String artist;
   final int trackCount;
   final String publishDate;
+
+  /// 归属音源；混排结果里据此出「来源角标」。
+  final MusicPlatform platform;
 }
 
 /// An artist as returned by `search/singer` or `user/follow`.
@@ -64,6 +69,7 @@ class ArtistBrief {
     this.songCount = 0,
     this.fansCount = 0,
     this.sourceDesc = '',
+    this.platform = MusicPlatform.kugou,
   });
 
   /// Numeric `singerid` — what `/artist/:id` expects.
@@ -74,11 +80,15 @@ class ArtistBrief {
   final int fansCount;
   final String sourceDesc;
 
+  /// 归属音源；混排结果里据此出「来源角标」。
+  final MusicPlatform platform;
+
   ArtistBrief copyWith({
     String? avatarUrl,
     int? songCount,
     int? fansCount,
     String? sourceDesc,
+    MusicPlatform? platform,
   }) {
     return ArtistBrief(
       id: id,
@@ -87,6 +97,7 @@ class ArtistBrief {
       songCount: songCount ?? this.songCount,
       fansCount: fansCount ?? this.fansCount,
       sourceDesc: sourceDesc ?? this.sourceDesc,
+      platform: platform ?? this.platform,
     );
   }
 }

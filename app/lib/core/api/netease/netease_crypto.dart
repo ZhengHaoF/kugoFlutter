@@ -45,6 +45,27 @@ MldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44oncaTWz7OBGLbCiK45wIDAQAB
   static String md5Hex(String data) =>
       md5.convert(utf8.encode(data)).toString();
 
+  /// 网易图片 ID → CDN 直链。
+  ///
+  /// 旧搜索口 `search/get` 的曲目只给 `album.picId`（数字），**不给 URL**
+  /// （新口 `cloudsearch` 的 `al.picUrl` 才有），故按官方算法自行拼：
+  /// `picId` 与固定盐逐字节异或 → MD5 → base64Url，拼成
+  /// `https://p3.music.126.net/{hash}/{picId}.jpg`（与 [anonymous] 同族算法）。
+  ///
+  /// **实测 2026-09-25**：`picId=109951163038292176` → `200 image/jpg`，
+  /// 内容为对应专辑封面。
+  static String picUrl(int picId, {int size = 300}) {
+    if (picId <= 0) return '';
+    const xorKey = '3go8&\$8*3*3h0k(2)2';
+    final bytes = utf8.encode('$picId');
+    final xored = Uint8List(bytes.length);
+    for (var i = 0; i < bytes.length; i++) {
+      xored[i] = (bytes[i] ^ xorKey.codeUnitAt(i % xorKey.length)) & 0xff;
+    }
+    final hash = base64Url.encode(md5.convert(xored).bytes);
+    return 'https://p3.music.126.net/$hash/$picId.jpg?param=${size}y$size';
+  }
+
   static String _aesEncrypt(
     String text,
     String key,

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/core/source/music_source.dart';
@@ -13,8 +14,24 @@ class _FakeSource implements MusicSource {
   final MusicPlatform platform;
 
   @override
-  Future<List<Track>> searchSongs(String keyword, {int page = 1, int pageSize = 30}) async =>
-      const [];
+  Future<SearchPageResult<Track>> searchSongs(String keyword,
+          {int page = 1, int pageSize = 30}) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(String keyword,
+          {int page = 1, int pageSize = 30}) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(String keyword,
+          {int page = 1, int pageSize = 30}) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<ArtistBrief>> searchArtists(String keyword,
+          {int page = 1, int pageSize = 30}) async =>
+      const SearchPageResult.empty();
 
   @override
   Future<PlayUrlResult> resolvePlayUrl(Track track, {AppQuality? preferred}) async =>

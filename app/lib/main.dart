@@ -6,10 +6,12 @@ import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
 import 'core/api/kugo_client.dart';
+import 'core/api/netease/netease_client.dart';
 import 'core/api/network_log.dart';
 import 'core/platform.dart';
 import 'core/theme/kugo_theme.dart';
-import 'data/sources/kugou/kugou_source.dart';
+import 'data/sources/sources.dart';
+import 'data/storage/netease_auth_store.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/fm/fm_controller.dart';
 import 'features/debug/network_log_provider.dart';
@@ -53,6 +55,9 @@ Future<void> main() async {
 
   // Restore login session (and device mid) BEFORE any play-url resolve.
   await container.read(authControllerProvider.notifier).ensureReady();
+
+  // 网易云登录态：把上次落盘的 cookie 灌回共享客户端，否则重启即掉登录。
+  await NeteaseAuthStore.restoreInto(neteaseClient);
 
   // 系统媒体会话：移动端/macOS 走 audio_service 原生实现，Windows 走
   // audio_service_win（SMTC / 媒体键 / 系统媒体卡）。Linux 仍无实现。

@@ -9,6 +9,7 @@ import 'core/theme/kugo_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
+import 'features/auth/netease_login_page.dart';
 import 'features/discovery/discovery_page.dart';
 import 'features/explore/explore_page.dart';
 import 'features/fm/fm_page.dart';
@@ -82,6 +83,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => const MaterialPage(
           fullscreenDialog: true,
           child: LoginPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/netease-login',
+        pageBuilder: (context, state) => const MaterialPage(
+          fullscreenDialog: true,
+          child: NeteaseLoginPage(),
         ),
       ),
       StatefulShellRoute.indexedStack(

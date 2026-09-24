@@ -7,6 +7,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import 'search_controller.dart';
@@ -36,7 +37,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.initState();
     _loadHot();
     _scroll.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleInitialQuery());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyDefaultSource();
+      _handleInitialQuery();
+    });
+  }
+
+  /// 设置里的「默认源」→ 音源筛选初始值（只影响本次会话的初值）。
+  void _applyDefaultSource() {
+    if (!mounted) return;
+    final notifier = ref.read(searchControllerProvider.notifier);
+    if (notifier.availablePlatforms.length <= 1) return;
+    notifier.applyDefaultSourceFilter(
+      ref.read(settingsControllerProvider).defaultSource,
+    );
   }
 
   /// Deep-link `?q=` runs a search; otherwise put the caret in the field so
@@ -170,6 +184,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             )
           else ...[
+            SourceFilterBar(
+              platforms:
+                  ref.read(searchControllerProvider.notifier).availablePlatforms,
+              selected: state.sourceFilter,
+              onSelect: (p) =>
+                  ref.read(searchControllerProvider.notifier).setSourceFilter(p),
+            ),
             _TabBar(
               active: state.active,
               tabs: state.tabs,
@@ -353,6 +374,11 @@ class _TabResults extends ConsumerWidget {
   ) {
     final tab = state.activeTab;
     final player = ref.watch(playerControllerProvider);
+    // 只在「全部源混排」且确实注册了多个源时打角标——已筛选时每行都一样，
+    // 纯属噪音。
+    final showSource = state.sourceFilter == null &&
+        ref.read(searchControllerProvider.notifier).availablePlatforms.length >
+            1;
     switch (type) {
       case SearchType.song:
         final tracks = songItemsOf(tab);
@@ -364,6 +390,7 @@ class _TabResults extends ConsumerWidget {
                   player.current?.id == tracks[i].id && player.isPlaying,
               onArtistTap: artistTapFor(context, tracks[i]),
               onTap: () => onPlaySong(i),
+              showSource: showSource,
             ),
         ];
       case SearchType.playlist:
@@ -376,6 +403,7 @@ class _TabResults extends ConsumerWidget {
               heroTag: p.id.isNotEmpty ? KugoHeroTags.playlistCover(p.id) : null,
               trailingLabel:
                   p.trackCount > 0 ? '${p.trackCount}首' : p.playCountLabel,
+              platform: showSource ? p.platform : null,
               onTap: p.id.isEmpty
                   ? null
                   : () => context.push('/playlist/${p.id}', extra: p),
@@ -390,6 +418,7 @@ class _TabResults extends ConsumerWidget {
               subtitle: a.artist,
               heroTag: a.id.isNotEmpty ? KugoHeroTags.albumCover(a.id) : null,
               trailingLabel: a.trackCount > 0 ? '${a.trackCount}首' : '',
+              platform: showSource ? a.platform : null,
               onTap:
                   a.id.isEmpty ? null : () => context.push('/album/${a.id}'),
             ),
@@ -402,6 +431,7 @@ class _TabResults extends ConsumerWidget {
               title: a.name,
               round: true,
               heroTag: a.id.isNotEmpty ? KugoHeroTags.artistAvatar(a.id) : null,
+              platform: showSource ? a.platform : null,
               // Avatar is backfilled from `singer/info` (search payload has
               // none). Empty seed still falls back to the person glyph.
               onTap:

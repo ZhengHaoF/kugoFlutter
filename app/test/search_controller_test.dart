@@ -1,18 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/kugo_client.dart';
+import 'package:kugo/core/models/audio_quality.dart';
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/music_platform.dart';
+import 'package:kugo/core/source/music_source.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:kugo/data/sources/kugou/kugou_source.dart';
 import 'package:kugo/features/search/search_controller.dart';
 
 /// Records every call and serves scripted pages so we can assert on
 /// laziness / per-tab pagination without touching the network.
 class _RecordingRepo implements SearchRepository {
-  _RecordingRepo({this.total = 90});
+  _RecordingRepo({this.total = 90, this.tag = '', this.idPrefix = ''});
 
   /// Server-reported total for the endpoints that report one.
   final int total;
+
+  /// Prefixed to every recorded call label, so a two-source test can tell
+  /// which source was hit.
+  final String tag;
+
+  /// Prefixed to generated ids, so interleaving order is assertable.
+  final String idPrefix;
 
   final List<String> calls = [];
 
@@ -37,7 +49,7 @@ class _RecordingRepo implements SearchRepository {
         items: List.generate(
           n,
           (i) => Track(
-            id: 'song-$page-$i',
+            id: '${idPrefix}song-$page-$i',
             name: 'song-$page-$i',
             artist: 'a',
             album: 'al',
@@ -128,7 +140,7 @@ class _RecordingRepo implements SearchRepository {
     int pageSize,
     T Function(int count) build,
   ) async {
-    calls.add(label);
+    calls.add('$tag$label');
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     if (failing.contains(type)) throw Exception('boom');
     // Always return a full page so `hasMore` stays true while total allows.
@@ -163,10 +175,62 @@ class _GatewayBlockedRepo extends _RecordingRepo {
   }
 }
 
-ProviderContainer _container(_RecordingRepo repo) {  final c = ProviderContainer(
+/// 第二个音源的测试替身：只做「平台标识 + 委托录制仓库」，用于混排测试。
+class _RecordingSource implements MusicSource {
+  _RecordingSource(this.platform, this.repo);
+
+  @override
+  final MusicPlatform platform;
+  final _RecordingRepo repo;
+
+  @override
+  Future<SearchPageResult<Track>> searchSongs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) =>
+      repo.searchSongsPage(keyword, page: page, pageSize: pageSize);
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) =>
+      repo.searchPlaylists(keyword, page: page, pageSize: pageSize);
+
+  @override
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) =>
+      repo.searchAlbums(keyword, page: page, pageSize: pageSize);
+
+  @override
+  Future<SearchPageResult<ArtistBrief>> searchArtists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) =>
+      repo.searchArtists(keyword, page: page, pageSize: pageSize);
+
+  @override
+  Future<PlayUrlResult> resolvePlayUrl(Track track, {AppQuality? preferred}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<LyricPayload> fetchLyric(Track track) => throw UnimplementedError();
+}
+
+ProviderContainer _container(_RecordingRepo repo) =>
+    _containerFor([KugouSource(searchRepository: repo)]);
+
+ProviderContainer _containerFor(List<MusicSource> sources) {
+  final c = ProviderContainer(
     overrides: [
       searchControllerProvider.overrideWith(
-        () => SearchController(repository: repo),
+        () => SearchController(registry: MusicSourceRegistry(sources)),
       ),
     ],
   );
@@ -421,14 +485,7 @@ void main() {
 
     test('uses the network wording for gateway-blocked failures', () async {
       final repo = _GatewayBlockedRepo();
-      final c = ProviderContainer(
-        overrides: [
-          searchControllerProvider.overrideWith(
-            () => SearchController(repository: repo),
-          ),
-        ],
-      );
-      addTearDown(c.dispose);
+      final c = _container(repo);
 
       await c.read(searchControllerProvider.notifier).submit('x');
       final tab = c.read(searchControllerProvider).activeTab;
@@ -527,6 +584,193 @@ void main() {
       final active = c.read(searchControllerProvider).activeTab;
       expect(albumItemsOf(active), hasLength(30));
       expect(songItemsOf(active), isEmpty);
+    });
+  });
+
+  group('multi-source mixing', () {
+    ProviderContainer twoSources(_RecordingRepo kg, _RecordingRepo ne) =>
+        _containerFor([
+          KugouSource(searchRepository: kg),
+          _RecordingSource(MusicPlatform.netease, ne),
+        ]);
+
+    test('interleaves both sources round-robin', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+
+      await c.read(searchControllerProvider.notifier).submit('x');
+      final tab = c.read(searchControllerProvider).activeTab;
+      final songs = songItemsOf(tab);
+
+      // 两源各 30 条 → 交错后 60 条：kg0 ne0 kg1 ne1 …
+      expect(songs, hasLength(60));
+      expect(
+        songs.take(4).map((t) => t.id),
+        ['kg-song-1-0', 'ne-song-1-0', 'kg-song-1-1', 'ne-song-1-1'],
+      );
+      // 混排没有「总数」这回事，但「还有下一页」由任一源决定。
+      expect(tab.total, isNull);
+      expect(tab.hasMore, isTrue);
+    });
+
+    test('loadMore appends the next interleaved page', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.submit('x');
+      await n.loadMore(SearchType.song);
+
+      final songs = songItemsOf(c.read(searchControllerProvider).activeTab);
+      expect(songs, hasLength(120));
+      // 第二页也是交错序，不是「一整页酷狗 + 一整页网易」。
+      expect(songs[60].id, 'kg-song-2-0');
+      expect(songs[61].id, 'ne-song-2-0');
+    });
+
+    test('a failing source is ignored while the other still answers', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:')..failing.add(SearchType.song);
+      final c = twoSources(kg, ne);
+
+      await c.read(searchControllerProvider.notifier).submit('x');
+      final tab = c.read(searchControllerProvider).activeTab;
+
+      expect(songItemsOf(tab), hasLength(30));
+      expect(tab.error, isEmpty);
+    });
+
+    test('the tab errors only when every source fails', () async {
+      final kg = _RecordingRepo()..failing.add(SearchType.song);
+      final ne = _RecordingRepo()..failing.add(SearchType.song);
+      final c = twoSources(kg, ne);
+
+      await c.read(searchControllerProvider.notifier).submit('x');
+      final tab = c.read(searchControllerProvider).activeTab;
+
+      expect(tab.error, '搜索失败，请重试');
+      expect(tab.isEmpty, isTrue);
+    });
+  });
+
+  group('source filter', () {
+    ProviderContainer twoSources(_RecordingRepo kg, _RecordingRepo ne) =>
+        _containerFor([
+          KugouSource(searchRepository: kg),
+          _RecordingSource(MusicPlatform.netease, ne),
+        ]);
+
+    test('setSourceFilter re-searches against that source only', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.submit('x');
+      expect(
+        songItemsOf(c.read(searchControllerProvider).activeTab),
+        hasLength(60),
+      );
+
+      await n.setSourceFilter(MusicPlatform.netease);
+      final s = c.read(searchControllerProvider);
+
+      expect(s.sourceFilter, MusicPlatform.netease);
+      expect(songItemsOf(s.activeTab), hasLength(30));
+      expect(songItemsOf(s.activeTab).first.id, 'ne-song-1-0');
+      // 换筛选后只打网易云：首轮 4 次 + 重搜 4 次。
+      expect(kg.calls, hasLength(4));
+      expect(ne.calls, hasLength(8));
+    });
+
+    test('the filter survives a new keyword', () async {
+      final kg = _RecordingRepo(tag: 'kg:');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.setSourceFilter(MusicPlatform.netease);
+      await n.submit('y');
+
+      final s = c.read(searchControllerProvider);
+      expect(s.sourceFilter, MusicPlatform.netease);
+      expect(songItemsOf(s.activeTab).first.id, 'ne-song-1-0');
+      // 筛选后酷狗一次都没被打。
+      expect(kg.calls, isEmpty);
+    });
+
+    test('setSourceFilter(null) goes back to mixing', () async {
+      final kg = _RecordingRepo(tag: 'kg:');
+      final ne = _RecordingRepo(tag: 'ne:');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.submit('x');
+      await n.setSourceFilter(MusicPlatform.kugou);
+      await n.setSourceFilter(null);
+
+      final s = c.read(searchControllerProvider);
+      expect(s.sourceFilter, isNull);
+      expect(songItemsOf(s.activeTab), hasLength(60));
+    });
+
+    test('picking the current filter is a no-op', () async {
+      final kg = _RecordingRepo(tag: 'kg:');
+      final ne = _RecordingRepo(tag: 'ne:');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.submit('x');
+      final before = [...kg.calls];
+      await n.setSourceFilter(null);
+
+      expect(kg.calls, before);
+    });
+
+    test('changing the filter before any search does not hit the network',
+        () async {
+      final kg = _RecordingRepo(tag: 'kg:');
+      final ne = _RecordingRepo(tag: 'ne:');
+      final c = twoSources(kg, ne);
+
+      await c
+          .read(searchControllerProvider.notifier)
+          .setSourceFilter(MusicPlatform.kugou);
+
+      expect(kg.calls, isEmpty);
+      expect(ne.calls, isEmpty);
+      expect(c.read(searchControllerProvider).sourceFilter, MusicPlatform.kugou);
+    });
+
+    test('applyDefaultSourceFilter seeds the filter before the first search',
+        () async {
+      final kg = _RecordingRepo(tag: 'kg:');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      n.applyDefaultSourceFilter(MusicPlatform.netease);
+      expect(kg.calls, isEmpty);
+
+      await n.submit('x');
+      final s = c.read(searchControllerProvider);
+      expect(s.sourceFilter, MusicPlatform.netease);
+      expect(songItemsOf(s.activeTab).first.id, 'ne-song-1-0');
+      expect(kg.calls, isEmpty, reason: '默认源已筛选，不应再打酷狗');
+    });
+
+    test('applyDefaultSourceFilter does not override a manual choice', () async {
+      final kg = _RecordingRepo(tag: 'kg:');
+      final ne = _RecordingRepo(tag: 'ne:');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.setSourceFilter(null);
+      n.applyDefaultSourceFilter(MusicPlatform.netease);
+
+      expect(c.read(searchControllerProvider).sourceFilter, isNull);
     });
   });
 }

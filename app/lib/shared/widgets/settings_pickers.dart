@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/player/player_controller.dart';
@@ -39,6 +41,40 @@ Future<void> showQualityPicker(BuildContext context, WidgetRef ref) async {
   );
   if (selected != null) {
     await controller.setQuality(selected);
+  }
+}
+
+/// Pick the default music source. It seeds the search page's source filter and
+/// the 「我喜欢」page's source filter — both stay switchable per session.
+Future<void> showDefaultSourcePicker(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final kugo = KugoTheme.of(context);
+  final controller = ref.read(settingsControllerProvider.notifier);
+  final current = ref.read(settingsControllerProvider).defaultSource;
+  final platforms = musicSourceRegistry?.platforms.toList() ??
+      const [MusicPlatform.kugou];
+  final selected = await showKugoBottomSheet<MusicPlatform>(
+    context: context,
+    builder: (sheetContext) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+        for (final p in platforms)
+          ListTile(
+            title: Text(p.label, style: kugo.body),
+            trailing: p == current
+                ? Icon(Icons.check_rounded, color: kugo.primary)
+                : null,
+            onTap: () => Navigator.pop(sheetContext, p),
+          ),
+        const SizedBox(height: 8),
+      ],
+    ),
+  );
+  if (selected != null) {
+    await controller.setDefaultSource(selected);
   }
 }
 

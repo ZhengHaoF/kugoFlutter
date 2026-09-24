@@ -1,11 +1,11 @@
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/fm_mode.dart';
+import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
 import '../../../core/source/capabilities.dart';
 import '../../../core/source/music_platform.dart';
 import '../../../core/source/music_source.dart';
 import '../../../core/source/quality_map.dart';
-import '../../../core/source/registry.dart';
 import '../../../data/repositories/fm_repository.dart' as fm;
 import '../../../data/repositories/lyric_repository.dart' as lyric;
 import '../../../data/repositories/play_repository.dart' as play;
@@ -65,12 +65,39 @@ class KugouSource
   };
 
   @override
-  Future<List<Track>> searchSongs(
+  Future<SearchPageResult<Track>> searchSongs(
     String keyword, {
     int page = 1,
     int pageSize = 30,
   }) {
-    return _search.searchSongs(keyword, page: page, pageSize: pageSize);
+    return _search.searchSongsPage(keyword, page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) {
+    return _search.searchPlaylists(keyword, page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) {
+    return _search.searchAlbums(keyword, page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<SearchPageResult<ArtistBrief>> searchArtists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) {
+    return _search.searchArtists(keyword, page: page, pageSize: pageSize);
   }
 
   @override
@@ -249,8 +276,3 @@ SourceFailure mapKugouFailure(String message) {
 
 /// 默认酷狗音源实例。
 final kugouSource = KugouSource();
-
-/// 阶段 A 启动装配：仅酷狗。多源后再加 NeteaseSource。
-void registerDefaultMusicSources() {
-  musicSourceRegistry = MusicSourceRegistry([kugouSource]);
-}

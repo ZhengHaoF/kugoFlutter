@@ -1,4 +1,5 @@
 import '../models/audio_quality.dart';
+import '../models/search_result.dart';
 import '../models/track.dart';
 import 'music_platform.dart';
 
@@ -80,7 +81,29 @@ class LyricPayload {
 abstract class MusicSource {
   MusicPlatform get platform;
 
-  Future<List<Track>> searchSongs(
+  /// 四个搜索入口同构（见 多音源接入方案 §3.2）：分页返回统一 Brief。
+  ///
+  /// `total` 缺失时返回 `null`（网易歌手搜索、酷狗 `search/singer` 都不报），
+  /// 由调用方按「整页」启发式判断是否还有下一页 —— **不要瞎猜一个数**。
+  Future<SearchPageResult<Track>> searchSongs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  });
+
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  });
+
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  });
+
+  Future<SearchPageResult<ArtistBrief>> searchArtists(
     String keyword, {
     int page = 1,
     int pageSize = 30,

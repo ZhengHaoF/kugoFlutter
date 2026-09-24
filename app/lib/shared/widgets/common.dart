@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -122,6 +123,119 @@ class QualityBadge extends StatelessWidget {
   }
 }
 
+/// 来源角标：混排结果里标明这一行来自哪个音源。
+///
+/// 单源或已按音源筛选时不显示（见 `search_page.dart` 的 `showSource`）。
+class SourceBadge extends StatelessWidget {
+  const SourceBadge({super.key, required this.platform});
+
+  final MusicPlatform platform;
+
+  @override
+  Widget build(BuildContext context) =>
+      QualityBadge(label: platform.label);
+}
+
+/// 音源筛选条：全部 / 酷狗 / 网易云 …（只有一个源时不显示）。
+///
+/// 「切换音源」的轻量机制之一（见方案 §11 决策记录），不做全局音源切换。
+/// 搜索页与「我喜欢」页共用。
+class SourceFilterBar extends StatelessWidget {
+  const SourceFilterBar({
+    super.key,
+    required this.platforms,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<MusicPlatform> platforms;
+
+  /// `null` = 全部源（混排）。
+  final MusicPlatform? selected;
+  final ValueChanged<MusicPlatform?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (platforms.length <= 1) return const SizedBox.shrink();
+    final kugo = KugoTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: KugoSpacing.sm),
+      child: SizedBox(
+        height: 32,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          children: [
+            _SourceChip(
+              label: '全部',
+              selected: selected == null,
+              onTap: () => onSelect(null),
+              kugo: kugo,
+            ),
+            for (final p in platforms) ...[
+              const SizedBox(width: KugoSpacing.sm),
+              _SourceChip(
+                label: p.label,
+                selected: selected == p,
+                onTap: () => onSelect(p),
+                kugo: kugo,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SourceChip extends StatelessWidget {
+  const _SourceChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.kugo,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final KugoTheme kugo;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: kugo.surface,
+          borderRadius: BorderRadius.circular(KugoRadius.chip),
+          border: Border.all(color: selected ? kugo.primary : kugo.divider),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              Icon(Icons.check_rounded, size: 13, color: kugo.primary),
+              const SizedBox(width: 3),
+            ],
+            Text(
+              label,
+              style: kugo.caption.copyWith(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? kugo.primary : kugo.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class TrackTile extends StatelessWidget {
   const TrackTile({
     super.key,
@@ -132,6 +246,7 @@ class TrackTile extends StatelessWidget {
     this.isPlaying = false,
     this.index,
     this.showAlbum = false,
+    this.showSource = false,
   });
 
   final Track track;
@@ -143,6 +258,9 @@ class TrackTile extends StatelessWidget {
 
   /// 在时长前展示专辑名（歌手页等宽列表）。默认关闭，不影响其他页面。
   final bool showAlbum;
+
+  /// 展示音源来源角标（多源混排搜索结果用）。
+  final bool showSource;
 
   /// Catalog quality chip for lists: highest known tag, hide plain SD/SQ-default.
   static String? _listQualityBadge(Track track) {
@@ -251,6 +369,10 @@ class TrackTile extends StatelessWidget {
                       if (_listQualityBadge(track) != null) ...[
                         const SizedBox(width: 6),
                         QualityBadge(label: _listQualityBadge(track)!),
+                      ],
+                      if (showSource) ...[
+                        const SizedBox(width: 6),
+                        SourceBadge(platform: track.platform),
                       ],
                     ],
                   ),
@@ -413,6 +535,7 @@ class SearchResultRow extends StatelessWidget {
     this.round = false,
     this.heroTag,
     this.onTap,
+    this.platform,
   });
 
   /// Cover URL (or color seed). Empty renders the gradient placeholder.
@@ -430,6 +553,9 @@ class SearchResultRow extends StatelessWidget {
   final String? heroTag;
 
   final VoidCallback? onTap;
+
+  /// 非空时在右侧展示来源角标（多源混排搜索结果用）。
+  final MusicPlatform? platform;
 
   @override
   Widget build(BuildContext context) {
@@ -495,6 +621,10 @@ class SearchResultRow extends StatelessWidget {
                 trailingLabel,
                 style: kugo.caption.copyWith(color: kugo.textTertiary),
               ),
+            ],
+            if (platform != null) ...[
+              const SizedBox(width: 6),
+              SourceBadge(platform: platform!),
             ],
           ],
         ),

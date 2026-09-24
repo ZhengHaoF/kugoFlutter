@@ -18,6 +18,21 @@ void main() {
     );
   });
 
+  test('picUrl derives CDN link from picId（实测向量）', () {
+    // 2026-09-25 实测：该 URL 在 p3.music.126.net 返回 200 image/jpg，
+    // 内容为对应专辑封面（旧搜索口 search/get 只给 album.picId）。
+    expect(
+      NeteaseCrypto.picUrl(109951163038292176),
+      'https://p3.music.126.net/yD9vbpuILH-tqNRIaP640g==/'
+      '109951163038292176.jpg?param=300y300',
+    );
+  });
+
+  test('picUrl returns empty for invalid picId', () {
+    expect(NeteaseCrypto.picUrl(0), isEmpty);
+    expect(NeteaseCrypto.picUrl(-1), isEmpty);
+  });
+
   test('weApiEncrypt returns params + 256-hex encSecKey', () {
     NeteaseCrypto.debugRandom = Random(42);
     final out = NeteaseCrypto.weApiEncrypt({

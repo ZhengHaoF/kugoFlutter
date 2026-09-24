@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/cache/cover_cache.dart';
 import '../../core/models/audio_quality.dart';
+import '../../core/source/music_platform.dart';
 import '../../data/storage/queue_store.dart';
 
 export '../../core/models/audio_quality.dart' show AppQuality, AppQualityX;
@@ -47,6 +48,7 @@ class AppSettings {
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
+    this.defaultSource = MusicPlatform.kugou,
   });
 
   final AppQuality quality;
@@ -69,6 +71,11 @@ class AppSettings {
 
   /// Windows only: taskbar button progress bar (Echo「任务栏播放进度条」).
   final bool taskbarProgress;
+
+  /// 默认音源：搜索页音源筛选与「我喜欢」页源筛选的初始值（用户当次仍可切换）。
+  final MusicPlatform defaultSource;
+
+  String get defaultSourceLabel => defaultSource.label;
 
   ThemeMode get materialThemeMode => switch (themeMode) {
         AppThemeMode.dark => ThemeMode.dark,
@@ -106,6 +113,7 @@ class AppSettings {
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
+    MusicPlatform? defaultSource,
   }) {
     return AppSettings(
       quality: quality ?? this.quality,
@@ -118,6 +126,7 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
+      defaultSource: defaultSource ?? this.defaultSource,
     );
   }
 }
@@ -136,6 +145,7 @@ class SettingsController extends Notifier<AppSettings> {
   /// Legacy boolean key (`closeToTray`); read once for migration, then removed.
   static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
+  static const _kDefaultSource = 'settings.defaultSource';
 
   @override
   AppSettings build() {
@@ -177,6 +187,9 @@ class SettingsController extends Notifier<AppSettings> {
         ),
         closeBehavior: _readCloseBehavior(prefs),
         taskbarProgress: prefs.getBool(_kTaskbarProgress) ?? true,
+        defaultSource: MusicPlatform.fromWire(
+          prefs.getString(_kDefaultSource) ?? '',
+        ),
       );
     } catch (_) {}
   }
@@ -251,6 +264,11 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setTaskbarProgress(bool v) async {
     state = state.copyWith(taskbarProgress: v);
     await _save(_kTaskbarProgress, v);
+  }
+
+  Future<void> setDefaultSource(MusicPlatform v) async {
+    state = state.copyWith(defaultSource: v);
+    await _save(_kDefaultSource, v.wireName);
   }
 
   /// Clear cover disk/memory cache + play history. Returns a status label.

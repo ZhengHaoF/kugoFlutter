@@ -143,8 +143,14 @@ class NeteaseClient {
   }
 
   /// GET 首页拿 `__csrf`（WEAPI 前预热）。
-  Future<void> ensureWeapiSession() async {
-    if (_preheated && csrf.isNotEmpty) return;
+  ///
+  /// [force] 为 true 时忽略「已预热」标记重新拉一次（B3 重试用）。
+  ///
+  /// 注意：本环境首页**常无 Set-Cookie**，`__csrf` 一直是空。所以这里只按
+  /// 「是否预热过」判断——若再要求 `csrf.isNotEmpty`，每次 weapi 都会白跑一次
+  /// 首页 GET（实测一轮探针会多出 14 次），既慢又容易撞风控。
+  Future<void> ensureWeapiSession({bool force = false}) async {
+    if (!force && _preheated) return;
     try {
       final res = await _dio.get<String>(
         '${NeteaseEndpoints.mainHost}/',
@@ -166,6 +172,7 @@ class NeteaseClient {
     Map<String, dynamic> params, {
     bool usePersistedCookies = true,
     String host = NeteaseEndpoints.mainHost,
+    Map<String, String>? extraHeaders,
   }) {
     final p = path.startsWith('/') ? path : '/$path';
     final full = p.startsWith('/weapi') ? p : '/weapi$p';
@@ -174,6 +181,7 @@ class NeteaseClient {
       params: params,
       weapi: true,
       usePersistedCookies: usePersistedCookies,
+      extraHeaders: extraHeaders,
     );
   }
 
@@ -232,6 +240,26 @@ class NeteaseClient {
     bool usePersistedCookies = true,
     Map<String, String>? extraHeaders,
   }) async {
+    final res = await _requestDetailed(
+      url: url,
+      params: params,
+      weapi: weapi,
+      plain: plain,
+      usePersistedCookies: usePersistedCookies,
+      extraHeaders: extraHeaders,
+    );
+    return res.body;
+  }
+
+  /// 同 [_request]，但额外回传响应头（扫码登录需要 `x-refresh-token`）。
+  Future<({String body, String refreshToken})> _requestDetailed({
+    required String url,
+    required Map<String, dynamic> params,
+    required bool weapi,
+    bool plain = false,
+    bool usePersistedCookies = true,
+    Map<String, String>? extraHeaders,
+  }) async {
     if (weapi && usePersistedCookies) {
       await ensureWeapiSession();
     }
@@ -269,18 +297,47 @@ class NeteaseClient {
         },
       ),
     );
-    return res.data ?? '';
+    return (
+      body: res.data ?? '',
+      refreshToken: res.headers.value('x-refresh-token') ?? '',
+    );
+  }
+
+  // ── B3：301 预热重试 ─────────────────────────────────────
+
+  static final RegExp _bodyCodeRe = RegExp(r'"code"\s*:\s*(-?\d+)');
+
+  /// 从响应体里取业务 `code`（无则 null）。
+  static int? bodyCode(String raw) {
+    final m = _bodyCodeRe.firstMatch(raw);
+    return m == null ? null : int.tryParse(m.group(1)!);
+  }
+
+  /// 播放 URL / 歌词遇 body `code==301`（会话失效或需登录）时，
+  /// 强制预热一次再重试一遍；其余失败（404 / fee / 无 url）不重试。
+  ///
+  /// 对齐 Neri：301 → `ensureWeapiSession` → 重试。
+  Future<String> _retryOnceOnLoginRequired(
+    Future<String> Function() call,
+  ) async {
+    var raw = await call();
+    if (bodyCode(raw) != 301) return raw;
+    await ensureWeapiSession(force: true);
+    raw = await call();
+    return raw;
   }
 
   // ── A1 搜索 ──────────────────────────────────────────────
 
-  Future<String> searchSongsRaw({
+  /// A1c 分类搜索：`type` **1 单曲 / 10 专辑 / 100 歌手 / 1000 歌单**（实测）。
+  ///
+  /// 走旧口 `search/get`（`cloudsearch/get/web` 实测 50000005）。
+  Future<String> searchRaw({
     required String keyword,
     int limit = 10,
     int offset = 0,
     int type = 1,
   }) {
-    // 默认旧口 search/get（cloudsearch 实测 50000005）。
     return callWeApi(NeteaseEndpoints.search, {
       's': keyword,
       'type': type.toString(),
@@ -385,33 +442,39 @@ class NeteaseClient {
     int songId, {
     String level = 'exhigh',
   }) {
-    return callEApi(NeteaseEndpoints.songPlayUrlV1, {
-      'ids': '[$songId]',
-      'level': level,
-      'encodeType': 'flac',
-    });
+    return _retryOnceOnLoginRequired(
+      () => callEApi(NeteaseEndpoints.songPlayUrlV1, {
+        'ids': '[$songId]',
+        'level': level,
+        'encodeType': 'flac',
+      }),
+    );
   }
 
   Future<String> songPlayUrlWeapiRaw(int songId, {int br = 320000}) {
-    return callWeApi(NeteaseEndpoints.songPlayUrlWeapi, {
-      'ids': '[$songId]',
-      'br': br.toString(),
-    });
+    return _retryOnceOnLoginRequired(
+      () => callWeApi(NeteaseEndpoints.songPlayUrlWeapi, {
+        'ids': '[$songId]',
+        'br': br.toString(),
+      }),
+    );
   }
 
   // ── A3 歌词 ──────────────────────────────────────────────
 
   Future<String> songLyricRaw(int songId) {
-    return callEApi(NeteaseEndpoints.songLyricV1, {
-      'id': songId.toString(),
-      'cp': 'false',
-      'lv': 0,
-      'tv': 1,
-      'rv': 0,
-      'yv': 1,
-      'ytv': 1,
-      'yrv': 0,
-    });
+    return _retryOnceOnLoginRequired(
+      () => callEApi(NeteaseEndpoints.songLyricV1, {
+        'id': songId.toString(),
+        'cp': 'false',
+        'lv': 0,
+        'tv': 1,
+        'rv': 0,
+        'yv': 1,
+        'ytv': 1,
+        'yrv': 0,
+      }),
+    );
   }
 
   Future<String> songLyricPlainRaw(int songId) async {
@@ -435,25 +498,162 @@ class NeteaseClient {
   /// `POST /weapi/w/nuser/account/get`（游客 code 可能非 200）。
   Future<String> accountRaw() => callWeApi(NeteaseEndpoints.account, const {});
 
-  /// 扫码 unikey（完整扫码还需 yd_token）。
-  Future<String> qrUnikeyRaw() {
-    return callWeApi(
-      NeteaseEndpoints.qrUnikey,
-      {'type': 1, 'noCheckToken': true},
+  // ── 扫码登录（E2/E3，对齐 Neri `NeteaseQrLoginClient`） ─────
+
+  /// Neri 扫码链路专用桌面 UA（与常规探测 UA 不同）。
+  static const _qrUa = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 '
+      'Edg/149.0.0.0';
+
+  /// 扫码链路附加头（Neri `executeWeApiPost` 固定带的 web 端标记）。
+  static const Map<String, String> _qrHeaders = {
+    'User-Agent': _qrUa,
+    'x-os': 'web',
+    'x-channelsource': 'undefined',
+    'nm-gcore-status': '1',
+  };
+
+  static final RegExp _unikeyRe = RegExp(r'"unikey"\s*:\s*"([^"]*)"');
+  static final RegExp _msgRe = RegExp(r'"(?:message|msg)"\s*:\s*"([^"]*)"');
+
+  /// 从响应体取 `message`/`msg`（无则空串）。
+  static String messageOf(String raw) =>
+      _msgRe.firstMatch(raw)?.group(1) ?? '';
+
+  /// chainId 格式：`v1_{sDeviceId|unknown-N}_web_login_{ms}`（Neri L404-408）。
+  static String buildLoginChainId({String sDeviceId = ''}) {
+    final deviceId =
+        sDeviceId.isEmpty ? 'unknown-${_rnd.nextInt(1000000)}' : sDeviceId;
+    return 'v1_${deviceId}_web_login_${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  /// 二维码内容不是裸 unikey，而是 scanlogin URL（Neri L410-426）。
+  static String buildScanLoginUrl(String key, String chainId) {
+    return Uri.parse('${NeteaseEndpoints.mainHost}/st/platform/scanlogin')
+        .replace(
+      queryParameters: {
+        'codekey': key,
+        'chainId': chainId,
+        'hdw_device': 'web',
+        'hdw_appid': 'web',
+        'hitExp': '1',
+      },
+    ).toString();
+  }
+
+  /// 合并 cookies + refresh token（`MUSIC_U` 缺失时用 refresh token 顶替）。
+  static Map<String, String> mergeQrCredentialCookies(
+    Map<String, String> cookies,
+    String refreshToken,
+  ) {
+    final merged = <String, String>{
+      for (final e in cookies.entries)
+        if (e.key.isNotEmpty && e.value.isNotEmpty) e.key: e.value,
+    };
+    if ((merged['MUSIC_U'] ?? '').isEmpty && refreshToken.isNotEmpty) {
+      merged['MUSIC_U'] = refreshToken;
+    }
+    return merged;
+  }
+
+  /// E2：创建扫码会话，拿到 unikey + chainId + 二维码内容。
+  ///
+  /// 不发 csrf / 不预热（对齐 Neri：QR 走独立客户端，不做 weapi 预热）。
+  Future<NeteaseQrSession> createQrSession() async {
+    final raw = await _request(
+      url: '${NeteaseEndpoints.mainHost}${NeteaseEndpoints.qrUnikey}',
+      params: {'type': 1, 'noCheckToken': true},
+      weapi: true,
+      usePersistedCookies: false,
+      extraHeaders: _qrHeaders,
+    );
+    final code = bodyCode(raw);
+    final key = _unikeyRe.firstMatch(raw)?.group(1)?.trim() ?? '';
+    if (code != 200 || key.isEmpty) {
+      throw UpstreamChanged(
+        '扫码会话创建失败 code=$code ${messageOf(raw)}'.trim(),
+      );
+    }
+    final chainId = buildLoginChainId();
+    return NeteaseQrSession(
+      key: key,
+      chainId: chainId,
+      qrContent: buildScanLoginUrl(key, chainId),
     );
   }
 
-  /// 扫码轮询。
-  Future<String> qrCheckRaw(String key, {String ydDeviceToken = ''}) {
-    return callWeApi(
-      NeteaseEndpoints.qrCheck,
-      {
+  /// E3：轮询扫码状态。
+  ///
+  /// `ydDeviceToken` 缺省发空串——Neri 用 runCatching 包住指纹获取、失败即回退
+  /// 空 snapshot，说明它并非必需（本方法首要验证的就是这一点）。
+  /// 800 生成/过期 · 801 待扫 · 802 待确认 · 803 成功。
+  Future<NeteaseQrCheckResult> pollQrLogin(
+    NeteaseQrSession session, {
+    String ydDeviceToken = '',
+  }) async {
+    final res = await _requestDetailed(
+      url: '${NeteaseEndpoints.mainHost}${NeteaseEndpoints.qrCheck}',
+      params: {
         'type': 1,
         'noCheckToken': true,
-        'key': key,
+        'key': session.key,
         'ydDeviceToken': ydDeviceToken,
       },
+      weapi: true,
+      usePersistedCookies: false,
+      extraHeaders: {
+        ..._qrHeaders,
+        'x-loginmethod': 'QrCode',
+        'x-login-chain-id': session.chainId,
+      },
     );
+    return NeteaseQrCheckResult(
+      code: bodyCode(res.body) ?? -1,
+      message: messageOf(res.body),
+      refreshToken: res.refreshToken,
+    );
+  }
+
+  /// 803 后的登录态确认（Neri `verifyConfirmedLogin` L307-339）：
+  /// 先直接验账号；失败则把 `x-refresh-token` 当 `MUSIC_U` 合并后再验一次；
+  /// 仍失败则保留该凭据（尽力而为）。
+  Future<bool> confirmQrLogin({required String refreshToken}) async {
+    if (await _verifyAccount()) return true;
+    final credential = mergeQrCredentialCookies(cookies, refreshToken);
+    if ((credential['MUSIC_U'] ?? '').isEmpty) return false;
+    seedCookies(credential);
+    if (await _verifyAccount()) return true;
+    return hasLogin;
+  }
+
+  /// 把外部 cookies（持久化恢复 / refresh token 兜底）灌回内存会话。
+  void seedCookies(Map<String, String> cookies) {
+    for (final e in cookies.entries) {
+      if (e.key.isEmpty || e.value.isEmpty) continue;
+      _cookies[e.key] = e.value;
+    }
+  }
+
+  /// 退出登录：清掉登录凭据（本地登出，不调远端 logout 口）。
+  void clearLogin() {
+    _cookies.remove('MUSIC_U');
+    _cookies.remove('__csrf');
+    _preheated = false;
+  }
+
+  Future<bool> _verifyAccount() async {
+    try {
+      final raw = await callWeApi(NeteaseEndpoints.account, {
+        'noCheckToken': true,
+        if (csrf.isNotEmpty) 'csrf_token': csrf,
+      });
+      final root = jsonDecode(raw);
+      if (root is! Map) return false;
+      if (root['code'] != 200) return false;
+      return root['account'] != null || root['profile'] != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// 手机号 + 密码（密码 MD5）。
@@ -552,6 +752,19 @@ class NeteaseClient {
     final ids = songIds.where((id) => id > 0).toSet().toList();
     return callWeApi(NeteaseEndpoints.playlistManipulateTracks, {
       'op': 'add',
+      'pid': playlistId.toString(),
+      'id': playlistId.toString(),
+      'tracks': ids.join(','),
+      'trackIds': '[${ids.join(',')}]',
+      'imme': 'true',
+    });
+  }
+
+  /// 从歌单删曲（同 F5 端点，`op=del`；**探针未实测**，见 接口文档 §五 F5）。
+  Future<String> removeSongsFromPlaylistRaw(int playlistId, List<int> songIds) {
+    final ids = songIds.where((id) => id > 0).toSet().toList();
+    return callWeApi(NeteaseEndpoints.playlistManipulateTracks, {
+      'op': 'del',
       'pid': playlistId.toString(),
       'id': playlistId.toString(),
       'tracks': ids.join(','),
@@ -725,6 +938,41 @@ class NeteaseClient {
       'ids': '[$idsCsv]',
     });
   }
+}
+
+/// 默认网易云客户端（全局共享 Cookie 会话）。
+///
+/// `NeteaseSource` / 登录页 / 探针都走这一份，登录态才不会两处打架。
+final neteaseClient = NeteaseClient();
+
+// ── 扫码登录 DTO ───────────────────────────────────────────
+
+/// 扫码会话：`key` 是 unikey，`qrContent` 是二维码真正要编码的内容。
+class NeteaseQrSession {
+  const NeteaseQrSession({
+    required this.key,
+    required this.chainId,
+    required this.qrContent,
+  });
+
+  final String key;
+  final String chainId;
+  final String qrContent;
+}
+
+/// 扫码轮询结果（800 过期 / 801 待扫 / 802 待确认 / 803 成功）。
+class NeteaseQrCheckResult {
+  const NeteaseQrCheckResult({
+    required this.code,
+    this.message = '',
+    this.refreshToken = '',
+  });
+
+  final int code;
+  final String message;
+  final String refreshToken;
+
+  bool get isConfirmed => code == 803;
 }
 
 // ── 轻量解析 DTO（探针/一期用） ────────────────────────────
