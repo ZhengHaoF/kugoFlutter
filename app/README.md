@@ -34,10 +34,10 @@ flutter build apk --release
 
 ```text
 lib/
-├─ core/           # tokens · models · api · mock
-├─ data/           # repositories · queue store
-├─ features/       # explore · profile · player · fm · likes · auth · settings · debug
-└─ shared/         # widgets · shell
+├─ core/           # tokens · models · api · mock · source（MusicSource 契约）· cache · platform
+├─ data/           # repositories · sources/kugou（KugouSource + KugouSession）· storage（Drift）
+├─ features/       # explore · discovery · profile · player · fm · likes · auth · settings · debug …
+└─ shared/         # widgets · shell · tray（托盘/关闭行为）· taskbar（Thumbar/进度）
 ```
 
 ## 当前进度
@@ -53,8 +53,10 @@ lib/
 - [x] 歌曲详情 + 评论只读
 - [x] M2 真机验收：搜索 → 出声 → 锁屏 → 杀进程恢复队列
 - [x] M4：正式签名 Release APK；MuMu 性能主观验收
-- [x] 本地库：队列/历史 **Drift (SQLite)**（自动迁移旧 SharedPreferences）
-- [ ] 未做：自建歌单 CRUD、倍速 UI、逐字歌词、分享（见 `docs/gap-vs-echomusic.md`）
+- [x] M5 酷狗音源抽象：`core/source` 契约 + `KugouSource` + `Track.platform` 身份；Player 走 Source
+- [x] 歌词：LRC + **KRC 逐字**（卡拉 OK）+ 译文/音译副行（播放页入口开关）
+- [x] 本地库：队列/历史 **Drift (SQLite)**（自动迁移旧 SharedPreferences；含 `platform` 列）
+- [ ] 未做：自建歌单 CRUD、倍速 UI、分享（见 `docs/gap-vs-echomusic.md`）
 - [x] 已砍：本地音乐 / 下载管理占位入口（从「我的」页移除；参考项目无对应实现）
 
 ### 网络说明

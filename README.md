@@ -6,10 +6,14 @@
 | --- | --- |
 | [设计方案.md](设计方案.md) | 产品定位、架构、功能范围（含实现对照） |
 | [工期规划.md](工期规划.md) | 里程碑与任务拆解 |
+| [多音源接入方案.md](多音源接入方案.md) | 多音源契约与阶段 A（已完成） |
+| [网易云接入对比酷狗.md](网易云接入对比酷狗.md) | 网易云能力对照 |
+| [网易云接入排期.md](网易云接入排期.md) | 网易云一期接口调试排期 |
 | [app/README.md](app/README.md) | 工程运行说明 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明 |
 | [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 / 二期 backlog |
 | [docs/windows-gap-vs-echomusic.md](docs/windows-gap-vs-echomusic.md) | Windows 系统集成差距 |
+| [docs/personal-fm-vs-echomusic.md](docs/personal-fm-vs-echomusic.md) | 私人 FM 现状与差距 |
 | [docs/design/](docs/design/) | 视觉稿 |
 
 ## 快速开始
@@ -25,7 +29,9 @@ flutter run
 - M0–M3：已完成（UI、真源播放、登录、FM 真推荐、设置、评论、云端收藏等）
 - M2 真机验收：搜索 → 出声 → 锁屏 → 杀进程恢复队列 已通过
 - M4：正式签名 Release APK 可侧载；性能在模拟器主观验收；analyze 零问题
-- Windows：桌面壳可运行（media_kit）；系统集成能力见 `docs/windows-gap-vs-echomusic.md`
+- M5 酷狗音源抽象：已完成（`MusicSource` / `KugouSource` / `platform:id` 身份；Player 全走 Source）
+- 歌词：LRC 逐行 + **KRC 逐字**（卡拉 OK 着色）+ 译文/音译副行
+- Windows：桌面壳 + SMTC/托盘/Thumbar（含收藏）/任务栏进度；缺口见 `docs/windows-gap-vs-echomusic.md`
 
 详见 [工期规划.md](工期规划.md) 与 [app/docs/release-signing.md](app/docs/release-signing.md)。
 

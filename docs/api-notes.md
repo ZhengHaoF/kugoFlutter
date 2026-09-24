@@ -62,7 +62,7 @@ App 行为：
 | `wwwapi` `play/getdata` | `err_code=30020` 无 url |
 | tracker `cmd=23` + kgcloudv2 key | VIP `status=2` 无 url |
 
-**歌词**：download 返回 JSON，`content` 为 **base64 LRC**；只取前 2 个候选，避免刷日志。
+**歌词**：download 返回 JSON，`content` 为 **base64**；`fmt=lrc` 得 LRC 文本，**`fmt=krc` 得 KRC 容器**（`krc1` + 16 字节循环 XOR + zlib，解密见 `lib/core/utils/krc_parser.dart`）。KRC 可含逐字时间轴与 `[language:]` 译文/音译块。只取前 2 个候选，避免刷日志。
 
 ## 设备身份（dfid）与风控 20028
 
@@ -167,3 +167,4 @@ dart run tool/probe_api.dart
 1. 校准多版本接口字段差异（mapper 已做多候选宽容解析）
 2. 真机网络异常场景复测（URL 过滤 / 风控 20028）
 3. 自建歌单写入接口调研（若做 CRUD）
+4. 歌词优先拉 `fmt=krc`（逐字），失败回落 `fmt=lrc`
