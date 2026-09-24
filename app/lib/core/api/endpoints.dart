@@ -97,4 +97,15 @@ abstract final class KugoEndpoints {
   /// Lyric search/download.
   static const lyricSearch = '/search';
   static const lyricDownload = '/download';
+
+  /// Account profile (KuGouMusicApi user_info / user_detail / user_vip_detail /
+  /// user_grade_info → EchoMusic `/user/detail` `/user/vip/detail` `/user/grade/info`).
+  static const userInfoRelation = 'http://relation.user.kugou.com';
+  static const getMyUserInfo = '/v1/get_my_userinfo';
+  static const getMyInfo = '/v3/get_my_info';
+  static const usercenterRouter = 'usercenter.kugou.com';
+  static const kugouVip = 'https://kugouvip.kugou.com';
+  static const getUnionVip = '/v1/get_union_vip';
+  static const userInfoService = 'http://userinfo.user.kugou.com';
+  static const getGradeInfo = '/v2/get_grade_info';
 }

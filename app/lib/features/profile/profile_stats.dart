@@ -133,21 +133,27 @@ String formatGender(Object? value) {
   return '保密';
 }
 
+/// KuGou VIP timestamps are `yyyy-MM-dd HH:mm:ss` (space, not `T`).
+DateTime? parseKugoDateTime(Object? value) {
+  if (value == null) return null;
+  final raw = value.toString().trim();
+  if (raw.isEmpty || raw == '0') return null;
+  final asInt = int.tryParse(raw);
+  if (asInt != null) {
+    return DateTime.fromMillisecondsSinceEpoch(
+      raw.length <= 10 ? asInt * 1000 : asInt,
+    );
+  }
+  return DateTime.tryParse(raw) ?? DateTime.tryParse(raw.replaceFirst(' ', 'T'));
+}
+
 /// VIP 到期提示（Echo `getVipExpireText`）。
 String? formatVipExpireText(Object? vipEndTime, {DateTime? now}) {
   if (vipEndTime == null) return null;
   final raw = vipEndTime.toString().trim();
   if (raw.isEmpty || raw == '0') return null;
   final clock = now ?? DateTime.now();
-  DateTime? expire;
-  final asInt = int.tryParse(raw);
-  if (asInt != null) {
-    expire = DateTime.fromMillisecondsSinceEpoch(
-      raw.length <= 10 ? asInt * 1000 : asInt,
-    );
-  } else {
-    expire = DateTime.tryParse(raw);
-  }
+  final expire = parseKugoDateTime(raw);
   if (expire == null) return null;
   final diff = expire.difference(clock);
   if (diff.isNegative) return '已过期';
@@ -166,15 +172,7 @@ String formatVipDate(Object? value) {
   if (value == null) return '--';
   final raw = value.toString().trim();
   if (raw.isEmpty || raw == '0') return '--';
-  DateTime? d;
-  final asInt = int.tryParse(raw);
-  if (asInt != null) {
-    d = DateTime.fromMillisecondsSinceEpoch(
-      raw.length <= 10 ? asInt * 1000 : asInt,
-    );
-  } else {
-    d = DateTime.tryParse(raw);
-  }
+  final d = parseKugoDateTime(raw);
   if (d == null) return raw;
   String pad(int n) => n.toString().padLeft(2, '0');
   return '${d.year}-${pad(d.month)}-${pad(d.day)} ${pad(d.hour)}:${pad(d.minute)}';

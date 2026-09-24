@@ -446,16 +446,65 @@ class LoginRepository {
     );
   }
 
-  /// Fetch profile (nickname / avatar / archive) after login.
-  /// Matches KuGouMusicApi `user_info` (relation.user) + `user_detail` (usercenter).
+  /// Fetch profile (nickname / avatar / archive / social / vip / grade).
+  ///
+  /// EchoMusic `/user/detail` = usercenter `get_my_info` (full archive + social),
+  /// `/user/vip/detail` = `get_union_vip` (busi_vip), `/user/grade/info` =
+  /// `get_grade_info` (listen seconds + grade progress). Relation
+  /// `get_my_userinfo` only carries basic identity — never short-circuit on it.
   Future<MyProfile?> fetchMyInfo({
     required String token,
     required String userId,
   }) async {
     lastError = '';
     final fromRelation = await _fetchMyUserInfoRelation(token: token, userId: userId);
-    if (fromRelation != null) return fromRelation;
-    return _fetchMyInfoUsercenter(token: token, userId: userId);
+    final fromUsercenter = await _fetchMyInfoUsercenter(token: token, userId: userId);
+    final fromVip = await _fetchVipDetail(token: token, userId: userId);
+    final fromGrade = await _fetchGradeInfo(token: token, userId: userId);
+
+    final sources = [
+      ?fromRelation,
+      ?fromUsercenter,
+    ];
+    if (sources.isEmpty && fromVip == null && fromGrade == null) {
+      return null;
+    }
+
+    var detail = UserProfileDetail.empty;
+    MyProfile? base;
+    for (final profile in sources) {
+      base = base == null
+          ? profile
+          : MyProfile(
+              nickname: profile.nickname.isNotEmpty && profile.nickname != '用户'
+                  ? profile.nickname
+                  : base.nickname,
+              avatarUrl: profile.avatarUrl.isNotEmpty
+                  ? profile.avatarUrl
+                  : base.avatarUrl,
+              isVip: profile.isVip || base.isVip,
+              userId: profile.userId.isNotEmpty ? profile.userId : base.userId,
+              detail: base.detail.merge(profile.detail),
+            );
+      detail = detail.merge(profile.detail);
+    }
+    detail = detail.merge(fromVip ?? UserProfileDetail.empty);
+    detail = detail.merge(fromGrade ?? UserProfileDetail.empty);
+
+    final resolved = base ??
+        MyProfile(
+          nickname: '用户',
+          userId: userId,
+          isVip: detail.tvipActive || detail.svipActive,
+          detail: detail,
+        );
+    return MyProfile(
+      nickname: resolved.nickname,
+      avatarUrl: resolved.avatarUrl,
+      isVip: resolved.isVip || detail.tvipActive || detail.svipActive,
+      userId: resolved.userId.isEmpty ? userId : resolved.userId,
+      detail: detail,
+    );
   }
 
   Map<String, String> _authHeaders(DeviceIdentity device, String token, String userId) {
@@ -488,8 +537,12 @@ class LoginRepository {
       jsonEncode({'clienttime': clienttime, 'token': token}),
     ).toUpperCase();
 
+    // KuGouMusicApi always injects token/userid into query — missing them
+    // yields error_code=20018 (登录态无效) even with a valid Cookie.
     final query = <String, dynamic>{
       ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+      'token': token,
+      'userid': int.tryParse(userId) ?? 0,
     };
     final data = {
       'p': p,
@@ -546,6 +599,8 @@ class LoginRepository {
     final query = <String, dynamic>{
       ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
       'plat': 1,
+      'token': token,
+      'userid': int.tryParse(userId) ?? 0,
     };
     final data = {
       'visit_time': clienttime,
@@ -579,6 +634,112 @@ class LoginRepository {
       return _mapProfile(body!, fallbackUserId: userId);
     } on DioException catch (e) {
       lastError = e.message ?? '网络错误';
+      return null;
+    }
+  }
+
+  /// GET kugouvip /v1/get_union_vip (EchoMusic `/user/vip/detail`).
+  ///
+  /// Returns tvip/svip from `data.busi_vip[]`; missing busi_vip stays inactive.
+  Future<UserProfileDetail?> _fetchVipDetail({
+    required String token,
+    required String userId,
+  }) async {
+    final device = await DeviceIdentity.ensure();
+    final query = <String, dynamic>{
+      ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+      'busi_type': 'concept',
+      'token': token,
+      'userid': int.tryParse(userId) ?? 0,
+    };
+    query['signature'] = KugoSign.signatureAndroidParams(query);
+
+    try {
+      final res = await _dio.get<dynamic>(
+        'https://kugouvip.kugou.com/v1/get_union_vip',
+        queryParameters: query,
+        options: Options(
+          headers: {
+            'User-Agent': KugoSign.userAgent,
+            ..._authHeaders(device, token, userId),
+          },
+        ),
+      );
+      final body = _decode(res.data);
+      if (!_ok(body)) return null;
+      final root = body!;
+      final data = root['data'];
+      final vipNode = data is Map ? Map<String, dynamic>.from(data) : root;
+      return _mapVipDetail(vipNode, [vipNode, root]);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// POST userinfo.user /v2/get_grade_info (EchoMusic `/user/grade/info` query mode).
+  ///
+  /// Fills listen seconds + grade progress that usercenter does not return.
+  Future<UserProfileDetail?> _fetchGradeInfo({
+    required String token,
+    required String userId,
+  }) async {
+    final device = await DeviceIdentity.ensure();
+    final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // lite v2 protocol: key = md5(appid + appkey + clientver + clienttime).
+    const gradeClientVer = '10597';
+    const gradeAppKey = 'LnT6xpN3khm36zse0QzvmgTZ3waWdRSA';
+    final key = KugoSign.md5Hex(
+      '${KugoSign.appId}$gradeAppKey$gradeClientVer$clienttime',
+    );
+    // Query mode p plaintext is {clienttime, userid} — no token field.
+    final p = KugoCrypto.rsaEncryptRaw(
+      jsonEncode({'clienttime': clienttime, 'userid': int.tryParse(userId) ?? 0}),
+    ).toUpperCase();
+    final data = {
+      'mid': device.mid,
+      'type': 1,
+      'uuid': device.guid,
+      'userid': int.tryParse(userId) ?? 0,
+      'p': p,
+      'appid': int.parse(KugoSign.appId),
+      'clientver': int.parse(gradeClientVer),
+      'clienttime': clienttime,
+      'key': key,
+    };
+
+    try {
+      final res = await _dio.post<dynamic>(
+        'http://userinfo.user.kugou.com/v2/get_grade_info',
+        data: jsonEncode(data),
+        queryParameters: {'dfid': device.dfid},
+        options: Options(
+          headers: {
+            'Content-Type': 'text/plain; charset=ISO-8859-1',
+            'User-Agent':
+                'Android15-1070-$gradeClientVer-201-0-get_user_grade_info-wifi',
+            'KG-THash': KugoCrypto.randomAlnum(7, lower: true),
+            'KG-Rec': '1',
+            'KG-RC': '1',
+            ..._authHeaders(device, token, userId),
+          },
+        ),
+      );
+      final body = _decode(res.data);
+      if (!_ok(body)) return null;
+      final root = body!;
+      final dataNode = root['data'];
+      if (dataNode is! Map) return null;
+      final m = Map<String, dynamic>.from(dataNode);
+      int? asInt(Object? v) =>
+          v is num ? v.toInt() : int.tryParse('${v ?? ''}');
+      return UserProfileDetail(
+        listenSeconds: asInt(m['d_sec']),
+        grade: asInt(m['p_grade']),
+        currentPoint: asInt(m['p_current_point']),
+        nextGrade: asInt(m['p_next_grade']),
+        nextGradePoint: asInt(m['p_next_grade_point']),
+      );
+    } catch (_) {
       return null;
     }
   }
