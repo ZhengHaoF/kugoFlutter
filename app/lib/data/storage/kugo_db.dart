@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 
 part 'kugo_db.g.dart';
 
@@ -25,6 +26,9 @@ class QueueTracks extends Table {
   TextColumn get mixSongId => text()();
   TextColumn get quality => text()();
   BoolColumn get isVip => boolean()();
+
+  /// MusicPlatform.wireName；旧库迁移默认 kugou。
+  TextColumn get platformName => text().withDefault(const Constant('kugou'))();
 
   @override
   Set<Column> get primaryKey => {position};
@@ -55,6 +59,9 @@ class HistoryTracks extends Table {
   TextColumn get quality => text()();
   BoolColumn get isVip => boolean()();
 
+  /// MusicPlatform.wireName；旧库迁移默认 kugou。
+  TextColumn get platformName => text().withDefault(const Constant('kugou'))();
+
   @override
   Set<Column> get primaryKey => {playedAt, trackId};
 }
@@ -81,6 +88,7 @@ Track _trackFrom({
   required String mixSongId,
   required String quality,
   required bool isVip,
+  String platformName = 'kugou',
 }) {
   return Track(
     id: id,
@@ -89,6 +97,7 @@ Track _trackFrom({
     album: album,
     coverUrl: coverUrl,
     durationMs: durationMs,
+    platform: MusicPlatform.fromWire(platformName),
     hash: hash,
     albumId: albumId,
     mixSongId: mixSongId,
@@ -109,6 +118,7 @@ Track _prefsTrack(Map<String, dynamic> j) => _trackFrom(
       mixSongId: j['mixSongId']?.toString() ?? '',
       quality: j['quality']?.toString() ?? 'SQ',
       isVip: j['isVip'] == true,
+      platformName: j['platform']?.toString() ?? 'kugou',
     );
 
 List<Track> _decodePrefsList(String? raw) {
@@ -130,7 +140,18 @@ class KugoDb extends _$KugoDb {
   KugoDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(queueTracks, queueTracks.platformName);
+            await m.addColumn(historyTracks, historyTracks.platformName);
+          }
+        },
+      );
 
   static QueryExecutor _open() {
     return LazyDatabase(() async {
@@ -160,6 +181,7 @@ class KugoDb extends _$KugoDb {
               mixSongId: queue[i].mixSongId,
               quality: queue[i].quality,
               isVip: queue[i].isVip,
+              platformName: Value(queue[i].platform.wireName),
             ),
         ]);
       });
@@ -196,6 +218,7 @@ class KugoDb extends _$KugoDb {
             mixSongId: row.mixSongId,
             quality: row.quality,
             isVip: row.isVip,
+            platformName: row.platformName,
           ),
       ],
       index: meta.currentIndex,
@@ -222,6 +245,7 @@ class KugoDb extends _$KugoDb {
           mixSongId: track.mixSongId,
           quality: track.quality,
           isVip: track.isVip,
+          platformName: Value(track.platform.wireName),
         ),
         mode: InsertMode.insertOrReplace,
       );
@@ -262,6 +286,7 @@ class KugoDb extends _$KugoDb {
           mixSongId: row.mixSongId,
           quality: row.quality,
           isVip: row.isVip,
+          platformName: row.platformName,
         ),
     ];
   }
@@ -285,6 +310,7 @@ class KugoDb extends _$KugoDb {
             mixSongId: row.mixSongId,
             quality: row.quality,
             isVip: row.isVip,
+            platformName: row.platformName,
           ),
           playedAt: row.playedAt,
         ),

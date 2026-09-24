@@ -172,7 +172,7 @@ class KugoAudioHandler extends BaseAudioHandler
     final secondary =
         (subtitle == null || subtitle.isEmpty) ? track.artist : subtitle;
     return MediaItem(
-      id: track.hash.isEmpty ? track.id : track.hash,
+      id: track.identityKey,
       title: track.name,
       artist: secondary,
       displaySubtitle: secondary,

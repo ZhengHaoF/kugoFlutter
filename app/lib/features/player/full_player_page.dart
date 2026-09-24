@@ -298,12 +298,11 @@ class FullPlayerPage extends ConsumerWidget {
   void _openSongDetail(BuildContext context, Track track) {
     final q = <String, String>{
       'id': track.id,
+      'platform': track.platform.wireName,
       'name': track.name,
       'artist': track.artist,
       'album': track.album,
       'cover': track.coverUrl,
-      'hash': track.hash,
-      'mixSongId': track.mixSongId,
       'duration': '${track.durationMs}',
     };
     final qs = q.entries

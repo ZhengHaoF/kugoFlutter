@@ -185,8 +185,8 @@ class UserRepository {
       for (final item in rawList) {
         if (item is! Map) continue;
         final m = Map<String, dynamic>.from(item);
-        final source = int.tryParse('${m['source'] ?? 1}') ?? 1;
-        if (source == 2) {
+        final listKind = int.tryParse('${m['source'] ?? 1}') ?? 1;
+        if (listKind == 2) {
           // Album
           final albumId = '${m['list_create_listid'] ?? m['listid'] ?? m['id'] ?? ''}';
           final name = '${m['name'] ?? m['specialname'] ?? ''}';
@@ -222,7 +222,7 @@ class UserRepository {
             coverUrl: cover,
             creator: creator,
             trackCount: trackCount,
-            source: source,
+            listKind: listKind,
             userId: createUserId,
             isDefault: isDef,
             type: typeVal,

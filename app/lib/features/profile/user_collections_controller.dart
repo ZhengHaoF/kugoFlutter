@@ -238,7 +238,7 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
             trackCount: p.trackCount,
             playCountLabel: p.playCountLabel,
             isRank: p.isRank,
-            source: p.source,
+            listKind: p.listKind,
             userId: p.userId,
             isDefault: p.isDefault,
             type: p.type,

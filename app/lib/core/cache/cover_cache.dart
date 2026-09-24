@@ -17,11 +17,21 @@ class CoverCache {
 
   static final CoverCache instance = CoverCache._();
 
-  static const Map<String, String> _headers = {
-    'Referer': 'http://www.kugou.com/',
-    'User-Agent':
-        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-  };
+  static const _ua =
+      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+
+  /// 防盗链按 CDN 域名下发：网易系画布要 music.163.com，酷狗系要 kugou。
+  static Map<String, String> headersFor(String url) {
+    final u = url.toLowerCase();
+    final isNetease = u.contains('126.net') ||
+        u.contains('163.com') ||
+        u.contains('music.126') ||
+        u.contains('p1.music.126');
+    return {
+      'User-Agent': _ua,
+      'Referer': isNetease ? 'https://music.163.com' : 'http://www.kugou.com/',
+    };
+  }
 
   final Map<String, Uint8List> _mem = {};
   final Map<String, Future<Uint8List?>> _inflight = {};
@@ -32,7 +42,7 @@ class CoverCache {
       connectTimeout: const Duration(seconds: 12),
       receiveTimeout: const Duration(seconds: 25),
       responseType: ResponseType.bytes,
-      headers: _headers,
+      headers: headersFor(''),
       validateStatus: (s) => s != null && s >= 200 && s < 300,
     ),
   );
@@ -87,7 +97,10 @@ class CoverCache {
         }
       }
 
-      final resp = await _dio.get<List<int>>(url);
+      final resp = await _dio.get<List<int>>(
+        url,
+        options: Options(headers: headersFor(url)),
+      );
       final data = resp.data;
       if (data == null || data.isEmpty) return null;
       final bytes = Uint8List.fromList(data);

@@ -1,3 +1,4 @@
+import '../source/music_platform.dart';
 import 'audio_quality.dart';
 
 class Track {
@@ -8,6 +9,7 @@ class Track {
     required this.album,
     required this.coverUrl,
     required this.durationMs,
+    this.platform = MusicPlatform.kugou,
     this.hash = '',
     this.albumId = '',
     this.mixSongId = '',
@@ -22,6 +24,10 @@ class Track {
     this.language = '',
   });
 
+  /// 音源平台。身份键 = [identityKey]（`platform:id`）。
+  final MusicPlatform platform;
+
+  /// 平台侧歌曲稳定 id：酷狗 = mixSongId 优先（见 mappers），网易 = songId。
   final String id;
   final String name;
   final String artist;
@@ -65,6 +71,9 @@ class Track {
 
   bool get hasHash => hash.trim().isNotEmpty;
 
+  /// 跨源稳定键，队列/历史/歌词缓存/MediaItem 一律用这个。
+  String get identityKey => musicIdentity(platform, id);
+
   /// 能否安全跳转歌手详情页（必须有 numeric id）。
   bool get hasArtistId => artistId.trim().isNotEmpty;
 
@@ -75,6 +84,7 @@ class Track {
     String? album,
     String? coverUrl,
     int? durationMs,
+    MusicPlatform? platform,
     String? hash,
     String? albumId,
     String? mixSongId,
@@ -95,6 +105,7 @@ class Track {
       album: album ?? this.album,
       coverUrl: coverUrl ?? this.coverUrl,
       durationMs: durationMs ?? this.durationMs,
+      platform: platform ?? this.platform,
       hash: hash ?? this.hash,
       albumId: albumId ?? this.albumId,
       mixSongId: mixSongId ?? this.mixSongId,
@@ -121,7 +132,8 @@ class PlaylistBrief {
     this.trackCount = 0,
     this.playCountLabel = '',
     this.isRank = false,
-    this.source = 1,
+    this.platform = MusicPlatform.kugou,
+    this.listKind = 1,
     this.userId = '',
     this.isDefault = false,
     this.type = 0,
@@ -141,8 +153,11 @@ class PlaylistBrief {
   final String playCountLabel;
   final bool isRank;
 
-  /// EchoMusic/Kugou source: 1 for playlist, 2 for album.
-  final int source;
+  final MusicPlatform platform;
+
+  /// 酷狗列表种类：1 歌单 / 2 专辑（原字段名 `source`，与音源撞名故改）。
+  /// 与 [type]（0 自建 / 1 收藏）语义不同，勿混用。
+  final int listKind;
 
   /// Owner userid when reported by user playlist endpoints.
   final String userId;
@@ -172,7 +187,8 @@ class PlaylistBrief {
     int? trackCount,
     String? playCountLabel,
     bool? isRank,
-    int? source,
+    MusicPlatform? platform,
+    int? listKind,
     String? userId,
     bool? isDefault,
     int? type,
@@ -189,7 +205,8 @@ class PlaylistBrief {
       trackCount: trackCount ?? this.trackCount,
       playCountLabel: playCountLabel ?? this.playCountLabel,
       isRank: isRank ?? this.isRank,
-      source: source ?? this.source,
+      platform: platform ?? this.platform,
+      listKind: listKind ?? this.listKind,
       userId: userId ?? this.userId,
       isDefault: isDefault ?? this.isDefault,
       type: type ?? this.type,

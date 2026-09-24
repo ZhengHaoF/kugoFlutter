@@ -134,6 +134,18 @@ class $QueueTracksTable extends QueueTracks
       'CHECK ("is_vip" IN (0, 1))',
     ),
   );
+  static const VerificationMeta _platformNameMeta = const VerificationMeta(
+    'platformName',
+  );
+  @override
+  late final GeneratedColumn<String> platformName = GeneratedColumn<String>(
+    'platform_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('kugou'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     position,
@@ -148,6 +160,7 @@ class $QueueTracksTable extends QueueTracks
     mixSongId,
     quality,
     isVip,
+    platformName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -255,6 +268,15 @@ class $QueueTracksTable extends QueueTracks
     } else if (isInserting) {
       context.missing(_isVipMeta);
     }
+    if (data.containsKey('platform_name')) {
+      context.handle(
+        _platformNameMeta,
+        platformName.isAcceptableOrUnknown(
+          data['platform_name']!,
+          _platformNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -312,6 +334,10 @@ class $QueueTracksTable extends QueueTracks
         DriftSqlType.bool,
         data['${effectivePrefix}is_vip'],
       )!,
+      platformName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}platform_name'],
+      )!,
     );
   }
 
@@ -334,6 +360,9 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   final String mixSongId;
   final String quality;
   final bool isVip;
+
+  /// MusicPlatform.wireName；旧库迁移默认 kugou。
+  final String platformName;
   const QueueTrack({
     required this.position,
     required this.trackId,
@@ -347,6 +376,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
     required this.mixSongId,
     required this.quality,
     required this.isVip,
+    required this.platformName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -363,6 +393,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
     map['mix_song_id'] = Variable<String>(mixSongId);
     map['quality'] = Variable<String>(quality);
     map['is_vip'] = Variable<bool>(isVip);
+    map['platform_name'] = Variable<String>(platformName);
     return map;
   }
 
@@ -380,6 +411,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
       mixSongId: Value(mixSongId),
       quality: Value(quality),
       isVip: Value(isVip),
+      platformName: Value(platformName),
     );
   }
 
@@ -401,6 +433,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
       mixSongId: serializer.fromJson<String>(json['mixSongId']),
       quality: serializer.fromJson<String>(json['quality']),
       isVip: serializer.fromJson<bool>(json['isVip']),
+      platformName: serializer.fromJson<String>(json['platformName']),
     );
   }
   @override
@@ -419,6 +452,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
       'mixSongId': serializer.toJson<String>(mixSongId),
       'quality': serializer.toJson<String>(quality),
       'isVip': serializer.toJson<bool>(isVip),
+      'platformName': serializer.toJson<String>(platformName),
     };
   }
 
@@ -435,6 +469,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
     String? mixSongId,
     String? quality,
     bool? isVip,
+    String? platformName,
   }) => QueueTrack(
     position: position ?? this.position,
     trackId: trackId ?? this.trackId,
@@ -448,6 +483,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
     mixSongId: mixSongId ?? this.mixSongId,
     quality: quality ?? this.quality,
     isVip: isVip ?? this.isVip,
+    platformName: platformName ?? this.platformName,
   );
   QueueTrack copyWithCompanion(QueueTracksCompanion data) {
     return QueueTrack(
@@ -465,6 +501,9 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
       mixSongId: data.mixSongId.present ? data.mixSongId.value : this.mixSongId,
       quality: data.quality.present ? data.quality.value : this.quality,
       isVip: data.isVip.present ? data.isVip.value : this.isVip,
+      platformName: data.platformName.present
+          ? data.platformName.value
+          : this.platformName,
     );
   }
 
@@ -482,7 +521,8 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
           ..write('albumId: $albumId, ')
           ..write('mixSongId: $mixSongId, ')
           ..write('quality: $quality, ')
-          ..write('isVip: $isVip')
+          ..write('isVip: $isVip, ')
+          ..write('platformName: $platformName')
           ..write(')'))
         .toString();
   }
@@ -501,6 +541,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
     mixSongId,
     quality,
     isVip,
+    platformName,
   );
   @override
   bool operator ==(Object other) =>
@@ -517,7 +558,8 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
           other.albumId == this.albumId &&
           other.mixSongId == this.mixSongId &&
           other.quality == this.quality &&
-          other.isVip == this.isVip);
+          other.isVip == this.isVip &&
+          other.platformName == this.platformName);
 }
 
 class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
@@ -533,6 +575,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
   final Value<String> mixSongId;
   final Value<String> quality;
   final Value<bool> isVip;
+  final Value<String> platformName;
   const QueueTracksCompanion({
     this.position = const Value.absent(),
     this.trackId = const Value.absent(),
@@ -546,6 +589,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     this.mixSongId = const Value.absent(),
     this.quality = const Value.absent(),
     this.isVip = const Value.absent(),
+    this.platformName = const Value.absent(),
   });
   QueueTracksCompanion.insert({
     this.position = const Value.absent(),
@@ -560,6 +604,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     required String mixSongId,
     required String quality,
     required bool isVip,
+    this.platformName = const Value.absent(),
   }) : trackId = Value(trackId),
        name = Value(name),
        artist = Value(artist),
@@ -584,6 +629,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     Expression<String>? mixSongId,
     Expression<String>? quality,
     Expression<bool>? isVip,
+    Expression<String>? platformName,
   }) {
     return RawValuesInsertable({
       if (position != null) 'position': position,
@@ -598,6 +644,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
       if (mixSongId != null) 'mix_song_id': mixSongId,
       if (quality != null) 'quality': quality,
       if (isVip != null) 'is_vip': isVip,
+      if (platformName != null) 'platform_name': platformName,
     });
   }
 
@@ -614,6 +661,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     Value<String>? mixSongId,
     Value<String>? quality,
     Value<bool>? isVip,
+    Value<String>? platformName,
   }) {
     return QueueTracksCompanion(
       position: position ?? this.position,
@@ -628,6 +676,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
       mixSongId: mixSongId ?? this.mixSongId,
       quality: quality ?? this.quality,
       isVip: isVip ?? this.isVip,
+      platformName: platformName ?? this.platformName,
     );
   }
 
@@ -670,6 +719,9 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     if (isVip.present) {
       map['is_vip'] = Variable<bool>(isVip.value);
     }
+    if (platformName.present) {
+      map['platform_name'] = Variable<String>(platformName.value);
+    }
     return map;
   }
 
@@ -687,7 +739,8 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
           ..write('albumId: $albumId, ')
           ..write('mixSongId: $mixSongId, ')
           ..write('quality: $quality, ')
-          ..write('isVip: $isVip')
+          ..write('isVip: $isVip, ')
+          ..write('platformName: $platformName')
           ..write(')'))
         .toString();
   }
@@ -1074,6 +1127,18 @@ class $HistoryTracksTable extends HistoryTracks
       'CHECK ("is_vip" IN (0, 1))',
     ),
   );
+  static const VerificationMeta _platformNameMeta = const VerificationMeta(
+    'platformName',
+  );
+  @override
+  late final GeneratedColumn<String> platformName = GeneratedColumn<String>(
+    'platform_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('kugou'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     playedAt,
@@ -1088,6 +1153,7 @@ class $HistoryTracksTable extends HistoryTracks
     mixSongId,
     quality,
     isVip,
+    platformName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1197,6 +1263,15 @@ class $HistoryTracksTable extends HistoryTracks
     } else if (isInserting) {
       context.missing(_isVipMeta);
     }
+    if (data.containsKey('platform_name')) {
+      context.handle(
+        _platformNameMeta,
+        platformName.isAcceptableOrUnknown(
+          data['platform_name']!,
+          _platformNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1254,6 +1329,10 @@ class $HistoryTracksTable extends HistoryTracks
         DriftSqlType.bool,
         data['${effectivePrefix}is_vip'],
       )!,
+      platformName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}platform_name'],
+      )!,
     );
   }
 
@@ -1276,6 +1355,9 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   final String mixSongId;
   final String quality;
   final bool isVip;
+
+  /// MusicPlatform.wireName；旧库迁移默认 kugou。
+  final String platformName;
   const HistoryTrack({
     required this.playedAt,
     required this.trackId,
@@ -1289,6 +1371,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
     required this.mixSongId,
     required this.quality,
     required this.isVip,
+    required this.platformName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1305,6 +1388,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
     map['mix_song_id'] = Variable<String>(mixSongId);
     map['quality'] = Variable<String>(quality);
     map['is_vip'] = Variable<bool>(isVip);
+    map['platform_name'] = Variable<String>(platformName);
     return map;
   }
 
@@ -1322,6 +1406,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
       mixSongId: Value(mixSongId),
       quality: Value(quality),
       isVip: Value(isVip),
+      platformName: Value(platformName),
     );
   }
 
@@ -1343,6 +1428,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
       mixSongId: serializer.fromJson<String>(json['mixSongId']),
       quality: serializer.fromJson<String>(json['quality']),
       isVip: serializer.fromJson<bool>(json['isVip']),
+      platformName: serializer.fromJson<String>(json['platformName']),
     );
   }
   @override
@@ -1361,6 +1447,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
       'mixSongId': serializer.toJson<String>(mixSongId),
       'quality': serializer.toJson<String>(quality),
       'isVip': serializer.toJson<bool>(isVip),
+      'platformName': serializer.toJson<String>(platformName),
     };
   }
 
@@ -1377,6 +1464,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
     String? mixSongId,
     String? quality,
     bool? isVip,
+    String? platformName,
   }) => HistoryTrack(
     playedAt: playedAt ?? this.playedAt,
     trackId: trackId ?? this.trackId,
@@ -1390,6 +1478,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
     mixSongId: mixSongId ?? this.mixSongId,
     quality: quality ?? this.quality,
     isVip: isVip ?? this.isVip,
+    platformName: platformName ?? this.platformName,
   );
   HistoryTrack copyWithCompanion(HistoryTracksCompanion data) {
     return HistoryTrack(
@@ -1407,6 +1496,9 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
       mixSongId: data.mixSongId.present ? data.mixSongId.value : this.mixSongId,
       quality: data.quality.present ? data.quality.value : this.quality,
       isVip: data.isVip.present ? data.isVip.value : this.isVip,
+      platformName: data.platformName.present
+          ? data.platformName.value
+          : this.platformName,
     );
   }
 
@@ -1424,7 +1516,8 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
           ..write('albumId: $albumId, ')
           ..write('mixSongId: $mixSongId, ')
           ..write('quality: $quality, ')
-          ..write('isVip: $isVip')
+          ..write('isVip: $isVip, ')
+          ..write('platformName: $platformName')
           ..write(')'))
         .toString();
   }
@@ -1443,6 +1536,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
     mixSongId,
     quality,
     isVip,
+    platformName,
   );
   @override
   bool operator ==(Object other) =>
@@ -1459,7 +1553,8 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
           other.albumId == this.albumId &&
           other.mixSongId == this.mixSongId &&
           other.quality == this.quality &&
-          other.isVip == this.isVip);
+          other.isVip == this.isVip &&
+          other.platformName == this.platformName);
 }
 
 class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
@@ -1475,6 +1570,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
   final Value<String> mixSongId;
   final Value<String> quality;
   final Value<bool> isVip;
+  final Value<String> platformName;
   final Value<int> rowid;
   const HistoryTracksCompanion({
     this.playedAt = const Value.absent(),
@@ -1489,6 +1585,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     this.mixSongId = const Value.absent(),
     this.quality = const Value.absent(),
     this.isVip = const Value.absent(),
+    this.platformName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HistoryTracksCompanion.insert({
@@ -1504,6 +1601,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     required String mixSongId,
     required String quality,
     required bool isVip,
+    this.platformName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : playedAt = Value(playedAt),
        trackId = Value(trackId),
@@ -1530,6 +1628,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     Expression<String>? mixSongId,
     Expression<String>? quality,
     Expression<bool>? isVip,
+    Expression<String>? platformName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1545,6 +1644,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
       if (mixSongId != null) 'mix_song_id': mixSongId,
       if (quality != null) 'quality': quality,
       if (isVip != null) 'is_vip': isVip,
+      if (platformName != null) 'platform_name': platformName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1562,6 +1662,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     Value<String>? mixSongId,
     Value<String>? quality,
     Value<bool>? isVip,
+    Value<String>? platformName,
     Value<int>? rowid,
   }) {
     return HistoryTracksCompanion(
@@ -1577,6 +1678,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
       mixSongId: mixSongId ?? this.mixSongId,
       quality: quality ?? this.quality,
       isVip: isVip ?? this.isVip,
+      platformName: platformName ?? this.platformName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1620,6 +1722,9 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     if (isVip.present) {
       map['is_vip'] = Variable<bool>(isVip.value);
     }
+    if (platformName.present) {
+      map['platform_name'] = Variable<String>(platformName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1641,6 +1746,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
           ..write('mixSongId: $mixSongId, ')
           ..write('quality: $quality, ')
           ..write('isVip: $isVip, ')
+          ..write('platformName: $platformName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1678,6 +1784,7 @@ typedef $$QueueTracksTableCreateCompanionBuilder =
       required String mixSongId,
       required String quality,
       required bool isVip,
+      Value<String> platformName,
     });
 typedef $$QueueTracksTableUpdateCompanionBuilder =
     QueueTracksCompanion Function({
@@ -1693,6 +1800,7 @@ typedef $$QueueTracksTableUpdateCompanionBuilder =
       Value<String> mixSongId,
       Value<String> quality,
       Value<bool> isVip,
+      Value<String> platformName,
     });
 
 class $$QueueTracksTableFilterComposer
@@ -1761,6 +1869,11 @@ class $$QueueTracksTableFilterComposer
 
   ColumnFilters<bool> get isVip => $composableBuilder(
     column: $table.isVip,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get platformName => $composableBuilder(
+    column: $table.platformName,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1833,6 +1946,11 @@ class $$QueueTracksTableOrderingComposer
     column: $table.isVip,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get platformName => $composableBuilder(
+    column: $table.platformName,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$QueueTracksTableAnnotationComposer
@@ -1881,6 +1999,11 @@ class $$QueueTracksTableAnnotationComposer
 
   GeneratedColumn<bool> get isVip =>
       $composableBuilder(column: $table.isVip, builder: (column) => column);
+
+  GeneratedColumn<String> get platformName => $composableBuilder(
+    column: $table.platformName,
+    builder: (column) => column,
+  );
 }
 
 class $$QueueTracksTableTableManager
@@ -1923,6 +2046,7 @@ class $$QueueTracksTableTableManager
                 Value<String> mixSongId = const Value.absent(),
                 Value<String> quality = const Value.absent(),
                 Value<bool> isVip = const Value.absent(),
+                Value<String> platformName = const Value.absent(),
               }) => QueueTracksCompanion(
                 position: position,
                 trackId: trackId,
@@ -1936,6 +2060,7 @@ class $$QueueTracksTableTableManager
                 mixSongId: mixSongId,
                 quality: quality,
                 isVip: isVip,
+                platformName: platformName,
               ),
           createCompanionCallback:
               ({
@@ -1951,6 +2076,7 @@ class $$QueueTracksTableTableManager
                 required String mixSongId,
                 required String quality,
                 required bool isVip,
+                Value<String> platformName = const Value.absent(),
               }) => QueueTracksCompanion.insert(
                 position: position,
                 trackId: trackId,
@@ -1964,6 +2090,7 @@ class $$QueueTracksTableTableManager
                 mixSongId: mixSongId,
                 quality: quality,
                 isVip: isVip,
+                platformName: platformName,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -2174,6 +2301,7 @@ typedef $$HistoryTracksTableCreateCompanionBuilder =
       required String mixSongId,
       required String quality,
       required bool isVip,
+      Value<String> platformName,
       Value<int> rowid,
     });
 typedef $$HistoryTracksTableUpdateCompanionBuilder =
@@ -2190,6 +2318,7 @@ typedef $$HistoryTracksTableUpdateCompanionBuilder =
       Value<String> mixSongId,
       Value<String> quality,
       Value<bool> isVip,
+      Value<String> platformName,
       Value<int> rowid,
     });
 
@@ -2259,6 +2388,11 @@ class $$HistoryTracksTableFilterComposer
 
   ColumnFilters<bool> get isVip => $composableBuilder(
     column: $table.isVip,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get platformName => $composableBuilder(
+    column: $table.platformName,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2331,6 +2465,11 @@ class $$HistoryTracksTableOrderingComposer
     column: $table.isVip,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get platformName => $composableBuilder(
+    column: $table.platformName,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HistoryTracksTableAnnotationComposer
@@ -2379,6 +2518,11 @@ class $$HistoryTracksTableAnnotationComposer
 
   GeneratedColumn<bool> get isVip =>
       $composableBuilder(column: $table.isVip, builder: (column) => column);
+
+  GeneratedColumn<String> get platformName => $composableBuilder(
+    column: $table.platformName,
+    builder: (column) => column,
+  );
 }
 
 class $$HistoryTracksTableTableManager
@@ -2424,6 +2568,7 @@ class $$HistoryTracksTableTableManager
                 Value<String> mixSongId = const Value.absent(),
                 Value<String> quality = const Value.absent(),
                 Value<bool> isVip = const Value.absent(),
+                Value<String> platformName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HistoryTracksCompanion(
                 playedAt: playedAt,
@@ -2438,6 +2583,7 @@ class $$HistoryTracksTableTableManager
                 mixSongId: mixSongId,
                 quality: quality,
                 isVip: isVip,
+                platformName: platformName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2454,6 +2600,7 @@ class $$HistoryTracksTableTableManager
                 required String mixSongId,
                 required String quality,
                 required bool isVip,
+                Value<String> platformName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HistoryTracksCompanion.insert(
                 playedAt: playedAt,
@@ -2468,6 +2615,7 @@ class $$HistoryTracksTableTableManager
                 mixSongId: mixSongId,
                 quality: quality,
                 isVip: isVip,
+                platformName: platformName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

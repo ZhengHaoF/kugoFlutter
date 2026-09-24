@@ -249,7 +249,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
             ? loadedBrief.playCountLabel
             : (_brief?.playCountLabel ?? ''),
         isRank: isRank,
-        source: loadedBrief.source,
+        listKind: loadedBrief.listKind,
         userId: loadedBrief.userId,
         isDefault: loadedBrief.isDefault,
         rankTypeName: loadedBrief.rankTypeName.isNotEmpty

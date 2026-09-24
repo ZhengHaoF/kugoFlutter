@@ -8,6 +8,7 @@ import 'app.dart';
 import 'core/api/kugo_client.dart';
 import 'core/api/network_log.dart';
 import 'core/platform.dart';
+import 'data/sources/kugou/kugou_source.dart';
 import 'core/theme/kugo_theme.dart';
 import 'data/repositories/discovery_repository.dart';
 import 'data/repositories/fm_repository.dart';
@@ -25,6 +26,7 @@ import 'shared/tray/desktop_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerDefaultMusicSources();
   // 桌面端音频后端是 media_kit（libmpv），必须先初始化。
   // 移动端不加载 libmpv，不能调 —— 见 features/player/audio_engine.dart。
   if (isDesktopPlatform) MediaKit.ensureInitialized();

@@ -8,8 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/audio_quality.dart';
 import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
+import '../../core/source/music_source.dart';
+import '../../core/source/registry.dart';
 import '../../data/repositories/lyric_repository.dart';
 import '../../data/repositories/play_repository.dart';
+import '../../data/sources/kugou/kugou_source.dart';
 import '../../data/storage/queue_store.dart';
 import '../settings/settings_controller.dart';
 import 'audio_engine.dart';
@@ -549,32 +552,55 @@ class PlayerController extends Notifier<PlayerState> {
       compatibilityMode: true,
       catalogComplete: liveTrack.qualityCatalogComplete,
     );
-    final resolved = await _playRepo.resolveUrlWithFallback(
-      liveTrack,
-      qualityCandidates: [for (final q in candidates) q.param],
-    );
-    if (seq != state.seq) return;
 
-    if (resolved == null) {
-      final msg = _playRepo.lastError.isNotEmpty
-          ? _playRepo.lastError
-          : '无法获取播放地址';
-      _onPlayError(message: msg);
+    List<String> allUrls;
+    Map<String, String> playHeaders;
+    AppQuality? granted;
+    try {
+      if (_playRepoOverride != null) {
+        // 测试注入路径：仍走 PlayRepository，headers 用酷狗默认。
+        final resolved = await _playRepo.resolveUrlWithFallback(
+          liveTrack,
+          qualityCandidates: [for (final q in candidates) q.param],
+        );
+        if (seq != state.seq) return;
+        if (resolved == null) {
+          _onPlayError(
+            message: _playRepo.lastError.isNotEmpty
+                ? _playRepo.lastError
+                : '无法获取播放地址',
+          );
+          return;
+        }
+        allUrls = resolved.allUrls;
+        playHeaders = KugouSource.playbackHeaders;
+        granted = resolved.qualityEnum;
+      } else {
+        final source = requireMusicSourceRegistry.ofTrack(liveTrack);
+        final result = await source.resolvePlayUrl(
+          liveTrack,
+          preferred: preferred,
+        );
+        if (seq != state.seq) return;
+        allUrls = result.allUrls;
+        playHeaders = result.headers;
+        granted = result.grantedQuality;
+      }
+    } on SourceFailure catch (e) {
+      if (seq != state.seq) return;
+      _onPlayError(message: e.message);
+      return;
+    } catch (e) {
+      if (seq != state.seq) return;
+      _onPlayError(message: e.toString());
       return;
     }
 
     var ok = false;
     Object? lastError;
-    for (final url in resolved.allUrls) {
+    for (final url in allUrls) {
       try {
-        await _engine.playUrl(
-          url,
-          headers: {
-            'User-Agent':
-                'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-            'Referer': 'http://www.kugou.com/',
-          },
-        );
+        await _engine.playUrl(url, headers: playHeaders);
         ok = true;
         break;
       } catch (e) {
@@ -598,7 +624,7 @@ class PlayerController extends Notifier<PlayerState> {
       _armEnginePositionAfterLoad();
       state = state.copyWith(
         display: PlayerDisplayState.paused,
-        resolvedQuality: () => resolved.qualityEnum,
+        resolvedQuality: () => granted,
       );
       _syncBridge(track: liveTrack);
       return;
@@ -608,7 +634,7 @@ class PlayerController extends Notifier<PlayerState> {
     _armEnginePositionAfterLoad();
     state = state.copyWith(
       display: PlayerDisplayState.playing,
-      resolvedQuality: () => resolved.qualityEnum,
+      resolvedQuality: () => granted,
     );
     _syncBridge(track: liveTrack);
   }
@@ -679,8 +705,7 @@ class PlayerController extends Notifier<PlayerState> {
     return updated.availableQualities;
   }
 
-  static String _lyricsTrackKey(Track t) =>
-      '${t.id}|${t.hash.trim().toLowerCase()}';
+  static String _lyricsTrackKey(Track t) => t.identityKey;
 
   /// 保证「当前曲」的歌词已发起加载；与播放/起播成败无关。
   ///
