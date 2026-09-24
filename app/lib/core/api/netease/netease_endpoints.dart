@@ -39,6 +39,17 @@ abstract final class NeteaseEndpoints {
   static const artistSongs = '/api/v1/artist/songs';
   static const artistAlbums = '/api/artist/albums/';
 
+  /// 推荐 / 发现（G 组）
+  static const personalizedPlaylist = '/weapi/personalized/playlist';
+  static const dailyRecommendResource = '/v1/discovery/recommend/resource';
+  static const dailyRecommendSongs = '/v3/discovery/recommend/songs';
+  static const personalFm = '/v1/radio/get';
+  static const personalizedNewSong = '/personalized/newsong';
+  static const topPlaylists = '/playlist/list';
+  static const highQualityList = '/playlist/highquality/list';
+  static const highQualityTags = '/api/playlist/highquality/tags';
+  static const radarPlaylistMeta = '/api/playlist/detail';
+
   static String weapiUrl(String path, {String host = mainHost}) {
     final p = path.startsWith('/') ? path : '/$path';
     return '$host/weapi$p'.replaceFirst('/weapi/weapi', '/weapi');

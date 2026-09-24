@@ -40,6 +40,10 @@ Future<void> main(List<String> args) async {
         ..addAll(next().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
     }
   }
+  if (suites.contains('discover') || suites.contains('recommend')) {
+    suites.add('discover');
+  }
+  // … main body below calls _probeDiscover when needed
 
   final client = NeteaseClient();
   print('== Netease probe · suites=${suites.join(',')} keyword=$keyword ==');
@@ -135,8 +139,32 @@ Future<void> main(List<String> args) async {
       artistId: artistId,
     );
   }
+  if (suites.contains('discover')) {
+    await _probeDiscover(client);
+  }
 
   print('== done · cookies=${client.cookies.keys.join(',')} ==');
+}
+
+Future<void> _probeDiscover(NeteaseClient client) async {
+  Future<void> hit(String id, Future<String> Function() call) async {
+    try {
+      final raw = await call();
+      print('[$id] ${parseProbeRecommend(raw, label: id)}');
+    } catch (e) {
+      print('[$id] FAIL ${_err(e)}');
+    }
+  }
+
+  await hit('G1-personalized', () => client.personalizedPlaylistsRaw(limit: 5));
+  await hit('G2-daily-resource', client.dailyRecommendResourceRaw);
+  await hit('G3-daily-songs', client.dailyRecommendSongsRaw);
+  await hit('G4-personal-fm', client.personalFmRaw);
+  await hit('G5-new-songs', () => client.personalizedNewSongsRaw(limit: 5));
+  await hit('G6-top-playlists', () => client.topPlaylistsRaw(limit: 5));
+  await hit('G7a-highquality', () => client.highQualityPlaylistsRaw(limit: 5));
+  await hit('G7b-hq-tags', client.highQualityTagsRaw);
+  await hit('G9-radar-meta', () => client.radarPlaylistMetaRaw(3136952023));
 }
 
 Future<void> _probeLogin(NeteaseClient client) async {

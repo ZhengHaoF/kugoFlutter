@@ -193,6 +193,20 @@ class NeteaseClient {
     );
   }
 
+  /// weapi 加密但 **完整 URL 自定**（如 `/api/playlist/highquality/tags` 不带 weapi 前缀）。
+  Future<String> callWeApiAt(
+    String url, {
+    Map<String, dynamic> params = const {},
+    bool usePersistedCookies = true,
+  }) {
+    return _request(
+      url: url,
+      params: params,
+      weapi: true,
+      usePersistedCookies: usePersistedCookies,
+    );
+  }
+
   /// 明文 form（Neri `CryptoMode.API`：歌单/艺人等）。
   Future<String> callPlainApi(
     String path,
@@ -619,6 +633,88 @@ class NeteaseClient {
     });
   }
 
+  // ── G. 推荐 / 发现（对齐 Neri） ─────────────────────────────
+
+  /// 个性推荐歌单 `POST /weapi/personalized/playlist`。
+  Future<String> personalizedPlaylistsRaw({int limit = 30}) {
+    return callWeApi(NeteaseEndpoints.personalizedPlaylist, {
+      'limit': limit.toString(),
+    });
+  }
+
+  /// 每日推荐歌单 `POST /weapi/v1/discovery/recommend/resource`（需登录）。
+  Future<String> dailyRecommendResourceRaw() {
+    return callWeApi(NeteaseEndpoints.dailyRecommendResource, const {});
+  }
+
+  /// 每日推荐歌曲 `POST /weapi/v3/discovery/recommend/songs`（需登录）。
+  Future<String> dailyRecommendSongsRaw({bool afresh = false}) {
+    return callWeApi(NeteaseEndpoints.dailyRecommendSongs, {
+      'afresh': afresh.toString(),
+    });
+  }
+
+  /// 私人 FM `POST /weapi/v1/radio/get`（需登录）。
+  Future<String> personalFmRaw() {
+    return callWeApi(NeteaseEndpoints.personalFm, const {});
+  }
+
+  /// 新歌推荐 `POST /weapi/personalized/newsong`。
+  Future<String> personalizedNewSongsRaw({int limit = 30}) {
+    return callWeApi(NeteaseEndpoints.personalizedNewSong, {
+      'type': 'recommend',
+      'limit': limit.toString(),
+      'areaId': '0',
+    });
+  }
+
+  /// 热门/分类歌单 `POST /weapi/playlist/list`。
+  Future<String> topPlaylistsRaw({
+    String cat = '全部',
+    String order = 'hot',
+    int limit = 30,
+    int offset = 0,
+  }) {
+    return callWeApi(NeteaseEndpoints.topPlaylists, {
+      'cat': cat,
+      'order': order,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      'total': 'true',
+    });
+  }
+
+  /// 精品歌单 `POST /weapi/playlist/highquality/list`。
+  Future<String> highQualityPlaylistsRaw({
+    String cat = '全部',
+    int limit = 50,
+    int before = 0,
+  }) {
+    return callWeApi(NeteaseEndpoints.highQualityList, {
+      'cat': cat,
+      'limit': limit.toString(),
+      'lasttime': before.toString(),
+      'total': 'true',
+    });
+  }
+
+  /// 精品标签：weapi 加密，URL 为 `/api/playlist/highquality/tags`（Neri 形态）。
+  Future<String> highQualityTagsRaw() {
+    return callWeApiAt(
+      '${NeteaseEndpoints.mainHost}${NeteaseEndpoints.highQualityTags}',
+    );
+  }
+
+  /// 雷达/官方歌单元数据 `POST /api/playlist/detail`（plain，Neri radar）。
+  Future<String> radarPlaylistMetaRaw(int playlistId) {
+    return callPlainApi(NeteaseEndpoints.radarPlaylistMeta, {
+      'id': playlistId.toString(),
+      'n': '1',
+      's': '0',
+      'uiPlaylistType': 'MGC',
+    });
+  }
+
   // ── A4 详情 ──────────────────────────────────────────────
 
   Future<String> songDetailRaw(List<int> ids) {
@@ -878,4 +974,39 @@ Map<String, Object?> parseProbeArtistDetail(String raw) {
     'musicSize': artist?['musicSize'] ?? artist?['songNum'],
     'albumSize': artist?['albumSize'] ?? artist?['albumNum'],
   };
+}
+
+/// G 组推荐/发现摘要。
+Map<String, Object?> parseProbeRecommend(String raw, {String label = ''}) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final code = root['code'];
+  Object? count;
+  Object? first;
+  // personalized/playlist → result[]
+  // highquality → playlists[]
+  // playlist/list → playlists[]
+  // recommend/songs → data.dailySongs[] / recommend[]
+  // recommend/resource → recommend[]
+  // newsong → result[]
+  // radio/get → data[]
+  final result = root['result'];
+  final data = root['data'];
+  List? list;
+  if (result is List) {
+    list = result;
+  } else if (result is Map) {
+    list = (result['songs'] ?? result['tracks'] ?? result['dailySongs']) as List?;
+  }
+  list ??= (root['playlists'] as List?) ??
+      (root['recommend'] as List?) ??
+      (data is List ? data : null) ??
+      (data is Map ? (data['dailySongs'] as List?) : null);
+  count = list?.length;
+  if (list != null && list.isNotEmpty) {
+    final e0 = list.first;
+    if (e0 is Map) {
+      first = e0['name'] ?? e0['songName'] ?? e0['title'] ?? e0['id'];
+    }
+  }
+  return {'code': code, 'label': label, 'count': count, 'first': first};
 }
