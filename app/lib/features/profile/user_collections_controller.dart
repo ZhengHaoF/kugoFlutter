@@ -207,13 +207,42 @@ class UserCollectionsNotifier extends Notifier<UserCollectionsState> {
     final cloudListId = likedPlaylist.listId.isNotEmpty
         ? likedPlaylist.listId
         : likedPlaylist.id;
-    final res = await _repo.fetchUserPlaylistTracks(
-      listId: cloudListId,
-      userId: user.userId,
-      token: user.token,
-      type: 0,
-      page: 1,
-      pageSize: 300,
+
+    // 分页拉全量：接口单页上限约 300，`trackCount` 可能上千，只拉 page=1 会截断。
+    final allTracks = <Track>[];
+    var page = 1;
+    const pageSize = 300;
+    var total = 0;
+    String lastError = '';
+    while (page <= 30) {
+      final res = await _repo.fetchUserPlaylistTracks(
+        listId: cloudListId,
+        userId: user.userId,
+        token: user.token,
+        type: 0,
+        page: page,
+        pageSize: pageSize,
+      );
+      if (res.error.isNotEmpty) {
+        lastError = res.error;
+        if (allTracks.isEmpty) break;
+        // 已有部分数据：保留已拉到的，不再继续翻页。
+        break;
+      }
+      allTracks.addAll(res.tracks);
+      total = res.total > 0 ? res.total : allTracks.length;
+      // 短页 / 空页 / 达到 total 即结束，防止接口 total 不准时空转。
+      if (res.tracks.isEmpty ||
+          res.tracks.length < pageSize ||
+          allTracks.length >= total) {
+        break;
+      }
+      page++;
+    }
+    final res = (
+      tracks: allTracks,
+      total: total > 0 ? total : allTracks.length,
+      error: lastError,
     );
 
     var created = state.createdPlaylists;

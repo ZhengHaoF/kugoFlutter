@@ -25,6 +25,34 @@ enum LikesSortType {
   final String label;
 }
 
+/// 排序选择：底部 sheet，标题行「N 首 · 排序」和 AppBar 图标共用。
+Future<void> showLikesSortPicker(
+  BuildContext context,
+  LikesSortType current,
+  ValueChanged<LikesSortType> onSelected,
+) async {
+  final kugo = KugoTheme.of(context);
+  final selected = await showKugoBottomSheet<LikesSortType>(
+    context: context,
+    builder: (sheetContext) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+        for (final type in LikesSortType.values)
+          ListTile(
+            title: Text(type.label, style: kugo.body),
+            trailing: type == current
+                ? Icon(Icons.check_rounded, color: kugo.primary)
+                : null,
+            onTap: () => Navigator.pop(sheetContext, type),
+          ),
+        const SizedBox(height: 8),
+      ],
+    ),
+  );
+  if (selected != null) onSelected(selected);
+}
+
 class LikesPage extends ConsumerStatefulWidget {
   const LikesPage({super.key});
 
@@ -205,25 +233,12 @@ class _LikesPageState extends ConsumerState<LikesPage>
                         .read(userCollectionsProvider.notifier)
                         .loadFavoriteTracks(force: true),
               ),
-            PopupMenuButton<LikesSortType>(
+            IconButton(
               icon: const Icon(Icons.sort_rounded),
               tooltip: '排序方式',
-              initialValue: _sortType,
-              onSelected: (type) => setState(() => _sortType = type),
-              itemBuilder: (context) => [
-                for (final type in LikesSortType.values)
-                  PopupMenuItem(
-                    value: type,
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(type.label)),
-                        if (_sortType == type)
-                          Icon(Icons.check_rounded,
-                              color: kugo.primary, size: 18),
-                      ],
-                    ),
-                  ),
-              ],
+              onPressed: () => showLikesSortPicker(context, _sortType, (t) {
+                setState(() => _sortType = t);
+              }),
             ),
           ]
           else if (_tabController.index == 1 && auth.isLogged)
@@ -268,7 +283,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
             indicatorColor: kugo.primary,
             indicatorSize: TabBarIndicatorSize.label,
             tabs: [
-              Tab(text: '歌曲 (${songsSource.length})'),
+              // 云端 trackCount 可能先于列表到达；取两者较大值，避免「900 进、300 显示」。
+              Tab(
+                text: '歌曲 (${[
+                  songsSource.length,
+                  if (auth.isLogged)
+                    collections.defaultLikedPlaylist?.trackCount ?? 0,
+                ].reduce((a, b) => a > b ? a : b)})',
+              ),
               Tab(text: '歌手 (${collections.followedSingers.length})'),
               Tab(text: '专辑 (${collections.favoritedAlbums.length})'),
             ],
@@ -361,11 +383,32 @@ class _LikesPageState extends ConsumerState<LikesPage>
           ),
           child: Row(
             children: [
-              Text(
-                _searchQuery.isNotEmpty
-                    ? '找到 ${displayed.length} 首 / 共 $totalCount 首'
-                    : '${displayed.length} 首 · ${_sortType.label}',
-                style: kugo.caption,
+              Expanded(
+                child: _searchQuery.isNotEmpty
+                    ? Text(
+                        '找到 ${displayed.length} 首 / 共 $totalCount 首',
+                        style: kugo.caption,
+                      )
+                    : TextButton.icon(
+                        onPressed: () => showLikesSortPicker(
+                          context,
+                          _sortType,
+                          (t) => setState(() => _sortType = t),
+                        ),
+                        icon: Icon(
+                          Icons.sort_rounded,
+                          size: 16,
+                          color: kugo.textSecondary,
+                        ),
+                        label: Text(
+                          '${displayed.length} 首 · ${_sortType.label}',
+                          style: kugo.caption,
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
               ),
               const Spacer(),
               FilledButton.icon(
