@@ -31,7 +31,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
-  // 4:3 window in logical pixels (Create scales by monitor DPI).
+  // Default window size in logical pixels. Create scales by monitor DPI and
+  // clamps to the work area, so a high-DPI / small screen opens smaller.
   Win32Window::Size size(1280, 960);
   Win32Window::Point origin(0, 0);
   if (!window.Create(L"kugo", origin, size)) {

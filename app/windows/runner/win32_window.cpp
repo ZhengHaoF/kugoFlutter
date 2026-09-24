@@ -53,59 +53,12 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
   FreeLibrary(user32_module);
 }
 
-// Keeps a 4:3 outer window while the user drags a resize edge.
-void ConstrainToFourByThree(WPARAM edge, RECT* rect) {
-  constexpr LONG kAspectW = 4;
-  constexpr LONG kAspectH = 3;
-  LONG width = rect->right - rect->left;
-  LONG height = rect->bottom - rect->top;
-  if (width <= 0 || height <= 0) {
-    return;
-  }
-
-  switch (edge) {
-    case WMSZ_LEFT:
-    case WMSZ_RIGHT:
-      height = MulDiv(width, kAspectH, kAspectW);
-      break;
-    case WMSZ_TOP:
-    case WMSZ_BOTTOM:
-      width = MulDiv(height, kAspectW, kAspectH);
-      break;
-    default: {
-      // Corners: follow whichever axis the user is stretching more.
-      const bool width_dominant =
-          width * kAspectH >= height * kAspectW;
-      if (width_dominant) {
-        height = MulDiv(width, kAspectH, kAspectW);
-      } else {
-        width = MulDiv(height, kAspectW, kAspectH);
-      }
-      break;
-    }
-  }
-
-  switch (edge) {
-    case WMSZ_LEFT:
-    case WMSZ_TOPLEFT:
-    case WMSZ_BOTTOMLEFT:
-      rect->left = rect->right - width;
-      break;
-    default:
-      rect->right = rect->left + width;
-      break;
-  }
-  switch (edge) {
-    case WMSZ_TOP:
-    case WMSZ_TOPLEFT:
-    case WMSZ_TOPRIGHT:
-      rect->top = rect->bottom - height;
-      break;
-    default:
-      rect->bottom = rect->top + height;
-      break;
-  }
-}
+// Minimum window size in logical pixels of the *outer* window. Kept above the
+// app's 800px desktop breakpoint with margin for the resize frame, so the
+// client area can never drop to the mobile layout. The aspect ratio is
+// intentionally left free — the layout adapts to whatever it gets.
+constexpr int kMinOuterWidth = 840;
+constexpr int kMinOuterHeight = 600;
 
 }  // namespace
 
@@ -188,10 +141,29 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
+  // Clamp the requested logical size to the work area so the window never
+  // opens larger than the screen (e.g. 1280x960 on a 1366x768 or high-DPI
+  // laptop). WM_GETMINMAXINFO still enforces the floor.
+  int window_width = static_cast<int>(size.width);
+  int window_height = static_cast<int>(size.height);
+  MONITORINFO monitor_info{sizeof(monitor_info)};
+  if (GetMonitorInfo(monitor, &monitor_info)) {
+    const int work_width = static_cast<int>(
+        (monitor_info.rcWork.right - monitor_info.rcWork.left) / scale_factor);
+    const int work_height = static_cast<int>(
+        (monitor_info.rcWork.bottom - monitor_info.rcWork.top) / scale_factor);
+    if (window_width > work_width) {
+      window_width = work_width;
+    }
+    if (window_height > work_height) {
+      window_height = work_height;
+    }
+  }
+
   HWND window = CreateWindow(
       window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
-      Scale(size.width, scale_factor), Scale(size.height, scale_factor),
+      Scale(window_width, scale_factor), Scale(window_height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
 
   if (!window) {
@@ -241,9 +213,14 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
-    case WM_SIZING: {
-      ConstrainToFourByThree(wparam, reinterpret_cast<RECT*>(lparam));
-      return TRUE;
+    case WM_GETMINMAXINFO: {
+      auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+      HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      const double scale_factor =
+          FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
+      info->ptMinTrackSize.x = Scale(kMinOuterWidth, scale_factor);
+      info->ptMinTrackSize.y = Scale(kMinOuterHeight, scale_factor);
+      return 0;
     }
 
     case WM_DPICHANGED: {

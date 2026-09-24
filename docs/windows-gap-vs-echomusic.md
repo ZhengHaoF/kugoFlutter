@@ -38,7 +38,7 @@
 | 独立迷你播放器窗口 | 仅应用内 `DesktopPlayerBar` / `MiniPlayerBar` |
 | 窗口材质（Mica / Acrylic） | 标准 Flutter 窗 + 深色标题栏 |
 | 自定义标题栏 / 全屏钮 / 界面缩放 | 系统标题栏；无 Ctrl± |
-| 记住窗口大小位置 | 每次启动固定 4:3 1280×960 居中 |
+| 记住窗口大小位置 | 每次启动固定 1280×960 居中（已夹到工作区，可自由缩放） |
 | 开机自启 + 启动最小化 | 无 |
 | 电源管理（防休眠 / 挂起恢复） | 无 |
 | 音频输出设备 / 独占模式 | media_kit 默认输出 |
@@ -53,7 +53,7 @@
 全局快捷键                    ░░░░░░░░░░░░  全缺
 独立窗口形态（Mini/桌面歌词） ░░░░░░░░░░░░  全缺
 任务栏封面预览 / 播控横条     ░░░░░░░░░░░░  全缺
-窗口材质 / 状态 / 缩放        ██░░░░░░░░░░  仅深色标题栏 + 4:3 约束
+窗口材质 / 状态 / 缩放        ██░░░░░░░░░░  仅深色标题栏 + 最小尺寸约束
 自启 / 电源 / 设备 / 倍速 UI  ░░░░░░░░░░░░  全缺
 ```
 
@@ -82,7 +82,7 @@
 | 8 | **任务栏快捷播控横条** | `main/taskbarMediaBar.ts` + `taskbarDock.ts` + `taskbarShell.ts`：贴任务栏空闲区，可拖出小窗；详见 Echo `docs/windows-taskbar-player.md` | ⬜ 无 |
 | 9 | **独立迷你播放器窗口** | `main/miniPlayer.ts`：无边框透明、置顶、跳过任务栏、收起/展开、位置记忆 | ⬜ 仅应用内 `DesktopPlayerBar` / `MiniPlayerBar`，无独立窗 |
 | 10 | **窗口材质** | `window/windowsComposition.ts` + `backgroundMaterial.ts`：Win11 Mica/clear、Acrylic、Accent；拖动时暂停 Acrylic；legacy 帧修复 | ⬜ 标准 Flutter 窗 + 深色标题栏，无透明 / 毛玻璃 |
-| 11 | **自定义标题栏 / 全屏按钮 / 界面缩放** | `window/titleBar.ts` overlay、全屏钮开关、Ctrl± 缩放并持久化（`window/zoom.ts`） | ⬜ 系统标题栏；无缩放。另有固定 **4:3 窗口约束**（`win32_window.cpp` `WM_SIZING`），Echo 无此限制 |
+| 11 | **自定义标题栏 / 全屏按钮 / 界面缩放** | `window/titleBar.ts` overlay、全屏钮开关、Ctrl± 缩放并持久化（`window/zoom.ts`） | ⬜ 系统标题栏；无缩放。窗口已改为**自由缩放 + 最小尺寸约束**（`win32_window.cpp` `WM_GETMINMAXINFO`），启动尺寸夹到工作区 |
 | 12 | **记住窗口大小位置** | `windowBoundsPersistence.ts`，会话结束前落盘 | ⬜ 每次启动 `main.cpp` 固定 1280×960 逻辑像素、工作区居中 |
 
 ### P2 · 系统行为 / 播放引擎增强
@@ -149,7 +149,7 @@ kugo 当前「设置 → 窗口」有 **关闭主窗口时**（每次询问 / �
 ⬜ ③ 全局快捷键（可先 5 项：播停 / 上下曲 / 音量）  ← 当前 P0 首位
 🟡 ④ Thumbar + 任务栏进度条（可补收藏钮 / 曲名 tooltip）
 ⬜ ⑤ 独立 Mini 窗口
-⬜ ⑥ 窗口材质 / 记住窗口 / 界面缩放（可顺带去掉 4:3 约束）
+⬜ ⑥ 窗口材质 / 记住窗口 / 界面缩放（4:3 约束已去掉，窗口可自由缩放）
 ⬜ ⑦ 任务栏封面预览 / 播控横条    ← 最重，可最后
 ⬜ ⑧ 开机自启 / 电源 / 输出设备 / 倍速 UI
 ```
@@ -182,7 +182,7 @@ kugo 当前「设置 → 窗口」有 **关闭主窗口时**（每次询问 / �
 - **退桌路径别用 `windowManager.destroy()`**：Windows 上它只 `PostQuitMessage(0)`，跳过窗口销毁与引擎收尾，进程会「卡住不退出」（leanflutter/window_manager#478 / #502 / #590）。`DesktopShell.quit()` 在 Windows 改为 `setPreventClose(false)` + `windowManager.close()`，走 `WM_CLOSE → DestroyWindow → WM_DESTROY → FlutterWindow::OnDestroy → PostQuitMessage` 的标准路径；非 Windows 仍用 `destroy()`。
 - **`audio_session` 仍无 Windows 实现**（`hasAudioFocusSession=false`），不要在 Windows 路径调 `AudioSession.instance`。
 - media_kit（libmpv）只负责解码输出；媒体键 / 系统媒体卡 / 任务栏状态都不在它职责内。
-- 窗口默认 **4:3 约束**（`ConstrainToFourByThree`）与 1280×960 启动尺寸写在 runner 里；若做「记住窗口」或自由缩放，需先决定是否保留该约束。
+- 窗口**不再有 4:3 约束**（原 `ConstrainToFourByThree` / `WM_SIZING` 已移除）。现为自由缩放 + `WM_GETMINMAXINFO` 最小外框 **840×600** 逻辑像素（外框留出边框余量，客户区不低于 800px 桌面壳断点）；启动尺寸仍为 1280×960 逻辑像素，但在 `Win32Window::Create` 里按 monitor DPI 夹到工作区，高 DPI / 小屏不会超出屏幕。做「记住窗口」时直接持久化用户尺寸即可，无需再考虑比例。
 
 ---
 
