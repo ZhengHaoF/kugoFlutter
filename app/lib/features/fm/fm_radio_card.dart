@@ -383,12 +383,126 @@ class FmRadioCard extends StatelessWidget {
   }
 }
 
+/// 手势起点格位：drag 开始时由 widget 写入（最近的一档），物理层消费后清空。
+///
+/// 单独做成可变盒子，是因为 [ScrollPhysics] 实例在 `applyTo` 里会被重建，
+/// 不能用 physics 自己的字段存手势状态。
+class _SnapAnchor {
+  double? pixels;
+}
+
+/// 甩动判定阈值：释放速度高于它 → 按甩的方向走一档；
+/// 低于它 → 按「是否拖过半档」判；都不到 → 弹回原地。
+const double _kFlickVelocity = 350;
+
+/// 「一次手势只走一档 + 松手吸附」的横滑物理。
+///
+/// 修的是原 [ClampingScrollPhysics] 的老问题：惯性行程只由甩动速度决定
+/// （friction 0.015，`d(v) = 0.35·v·(v/2224)^0.7069`），手机上一甩 1.3–4 档，
+/// MuMu 里用鼠标拖能顶到 `maxFlingVelocity`（8000）直接甩到队尾——「滑一次滑好多」。
+///
+/// 这里只做两件事，判档与起播仍归 `_handleSettle`：
+/// - [applyPhysicsToUserOffset] 把**手势位移**夹在起点格 ±1 档内：一次手势最多走一档；
+/// - [createBallisticSimulation] 松手后不再长距离惯性，只朝「起点格 / 相邻格」
+///   弹一档（父类弹簧），既完成吸附也压掉多余行程。
+class _OneStepSnapPhysics extends ClampingScrollPhysics {
+  const _OneStepSnapPhysics({
+    required this.pitch,
+    required this.pageCount,
+    required this.anchor,
+    super.parent,
+  });
+
+  /// 盘距：一档的像素宽度。
+  final double pitch;
+
+  /// 盘数（可吸附档位 0..pageCount-1）。
+  final int pageCount;
+
+  /// 手势起点格位，见 [_SnapAnchor]。
+  final _SnapAnchor anchor;
+
+  @override
+  _OneStepSnapPhysics applyTo(ScrollPhysics? ancestor) => _OneStepSnapPhysics(
+        pitch: pitch,
+        pageCount: pageCount,
+        anchor: anchor,
+        parent: buildParent(ancestor),
+      );
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    final start = anchor.pixels;
+    if (start == null || pitch <= 0) {
+      return super.applyPhysicsToUserOffset(position, offset);
+    }
+    // `position.pixels - offset` = 本帧想去的像素（applyUserOffset 会减掉返回值），
+    // 夹在起点 ±1 档：手指再拖，内容也停在这一档，不再跟着走。
+    final next = math.min(
+      math.max(position.pixels - offset, start - pitch),
+      start + pitch,
+    );
+    return position.pixels - next;
+  }
+
+  @override
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+    final tolerance = toleranceFor(position);
+    // 出界（夹紧物理下到不了，兜底）交回父类弹回边界。
+    if (position.outOfRange) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+    final start = anchor.pixels;
+    anchor.pixels = null;
+    if (start == null || pitch <= 0 || pageCount <= 1) return null;
+
+    // 方向判定：快甩看速度，慢放看拖过半档，都没到就回原地。
+    final pulled = (position.pixels - start) / pitch;
+    final double steps;
+    if (velocity.abs() >= _kFlickVelocity) {
+      steps = velocity.isNegative ? -1 : 1;
+    } else if (pulled >= 0.5) {
+      steps = 1;
+    } else if (pulled <= -0.5) {
+      steps = -1;
+    } else {
+      steps = 0;
+    }
+
+    final target =
+        math.min(
+          math.max(
+            (start / pitch).roundToDouble() + steps,
+            0,
+          ),
+          (pageCount - 1).toDouble(),
+        ) *
+        pitch;
+    if ((target - position.pixels).abs() < tolerance.distance) return null;
+
+    // 吸附要「干脆利落」：吃掉大部分释放速度，否则大甩会过冲再回弹，
+    // 又变成原来那种「滑好多」的观感。
+    final settled = math.min(
+      math.max(velocity, -pitch * 3),
+      pitch * 3,
+    );
+    return ScrollSpringSimulation(
+      spring,
+      position.pixels,
+      target,
+      settled,
+      tolerance: tolerance,
+    );
+  }
+}
+
 /// 横向可滑盘阵（方案 A）：整队列一盘一页，滑到左侧吸附位后由外部起播。
 ///
 /// 吸附位 = viewport 左缘（桌面舞台上即电台卡右缘探出处）。交互约定：
 /// - **用户滚动 settle** 到与 [currentIndex] 不同的下标 → [onPlayIndex]；
 /// - **程序滚动**（外部改了 [currentIndex]，如自动下一首）→ 只对齐，不回调；
-/// - 同下标 settle / 重复回调一律吞掉，避免「滑一下连播两次」。
+/// - 同下标 settle / 重复回调一律吞掉，避免「滑一下连播两次」；
+/// - 一次手势最多走一档（[_OneStepSnapPhysics]），松手由弹簧吸到整档。
 ///
 /// 队列为空时画一张 ghost 当前盘，不参与滚动。
 class FmVinylCarousel extends StatefulWidget {
@@ -432,6 +546,9 @@ class FmVinylCarousel extends StatefulWidget {
 
 class _FmVinylCarouselState extends State<FmVinylCarousel> {
   late final ScrollController _scrollController;
+
+  /// 手势起点格位：drag 开始时写入，[_OneStepSnapPhysics] 消费。
+  final _SnapAnchor _anchor = _SnapAnchor();
 
   /// 最近一次已处理的 settle 下标：吞掉重复 ScrollEnd / 程序回滚。
   int? _lastSettledIndex;
@@ -502,6 +619,13 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollStartNotification) {
+      // 只有真手势（非程序滚动）才记起点：物理层据此把位移夹在一档内。
+      if (notification.dragDetails != null) {
+        _anchor.pixels = _snapToPitch(notification.metrics.pixels);
+      }
+      return false;
+    }
     if (notification is! ScrollEndNotification) return false;
     if (notification.metrics.axis != Axis.horizontal) return false;
     if (widget.tracks.length <= 1) return false;
@@ -510,6 +634,15 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
       if (mounted) _handleSettle();
     });
     return false;
+  }
+
+  /// 把像素位置归到最近的整档（并夹在合法档位区间内）。
+  double _snapToPitch(double pixels) {
+    final pitch = _pitch;
+    if (pitch <= 0) return pixels;
+    final last = widget.tracks.isEmpty ? 0 : widget.tracks.length - 1;
+    final idx = (pixels / pitch).round().clamp(0, last);
+    return idx * pitch;
   }
 
   void _handleSettle() {
@@ -525,6 +658,8 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
     final target = idx * pitch;
 
     // 未对齐先吸到最近一页；下一次 settle 再判定是否起播。
+    // 手势这条路已由 [_OneStepSnapPhysics] 吸附，这里主要是兜底：
+    // 滚轮（pointerScroll 不走物理层）与外力改 offset。
     if ((pixels - target).abs() > 1.0) {
       _scrollController.animateTo(
         target,
@@ -606,7 +741,11 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
             child: ListView.builder(
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
-              physics: const ClampingScrollPhysics(),
+              physics: _OneStepSnapPhysics(
+                pitch: pitch,
+                pageCount: widget.tracks.length,
+                anchor: _anchor,
+              ),
               // 盘外还有一圈圆形阴影（blur≈30–42）。ListView 默认按 viewport
               // 硬裁，会把圆影裁成矩形色块。Clip.none 放行溢出绘制；
               // scrollCacheExtent:0 避免屏外 item 的阴影提前漏进视口。
@@ -778,13 +917,15 @@ class _VinylState extends State<_Vinyl> {
             shape: BoxShape.circle,
             color: kugo.isLight
                 ? kugo.surfaceElevated
-                : Colors.white.withValues(alpha: 0.04),
+                : Colors.white.withValues(alpha: 0.05),
             border: Border.all(
-              color: kugo.textTertiary.withValues(alpha: 0.28),
+              color: kugo.textTertiary.withValues(
+                alpha: kugo.isLight ? 0.28 : 0.34,
+              ),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: kugo.isLight ? 0.05 : 0.22),
+                color: Colors.black.withValues(alpha: kugo.isLight ? 0.05 : 0.28),
                 blurRadius: 28,
                 offset: const Offset(0, 12),
               ),
@@ -801,6 +942,19 @@ class _VinylState extends State<_Vinyl> {
 
     final accent = widget.accent;
     final hasAccent = widget.isCurrent && accent != Colors.transparent;
+    final isLight = kugo.isLight;
+    // 盘身：浅色页是标准黑胶（近黑，跟浅底拉开）；深色页抬到石墨蓝。
+    // 旧值 #1C1C22 → #08080C 在深色页和 bg #0B0E14 同处一个暗区，盘沿、纹路、
+    // 投影全「溶」进背景 —— 只剩封面在飘。深色页必须靠盘身本身立起来。
+    final discGradient = isLight
+        ? const RadialGradient(
+            colors: [Color(0xFF1C1C22), Color(0xFF08080C)],
+          )
+        : const RadialGradient(
+            center: Alignment(-0.35, -0.4),
+            radius: 1.05,
+            colors: [Color(0xFF313A4D), Color(0xFF14171F)],
+          );
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -817,20 +971,18 @@ class _VinylState extends State<_Vinyl> {
           padding: EdgeInsets.all(rim),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const RadialGradient(
-              colors: [Color(0xFF1C1C22), Color(0xFF08080C)],
-            ),
+            gradient: discGradient,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.10),
+              color: Colors.white.withValues(alpha: isLight ? 0.10 : 0.18),
             ),
             boxShadow: [
               BoxShadow(
                 color: hasAccent
                     ? accent.withValues(alpha: _hovered ? 0.48 : 0.40)
                     : Colors.black.withValues(
-                        alpha: kugo.isLight
+                        alpha: isLight
                             ? (_hovered ? 0.20 : 0.14)
-                            : (_hovered ? 0.48 : 0.38),
+                            : (_hovered ? 0.55 : 0.44),
                       ),
                 blurRadius: hasAccent ? 42 : 30,
                 spreadRadius: hasAccent ? 2 : 0,
@@ -844,7 +996,20 @@ class _VinylState extends State<_Vinyl> {
               // 先铺盘面密纹，封面盖在上面 —— 纹路只从窄沿露出来。
               Positioned.fill(
                 child: IgnorePointer(
-                  child: CustomPaint(painter: _RimGroovePainter(rim: rim)),
+                  child: CustomPaint(
+                    painter: _RimGroovePainter(rim: rim, strong: !isLight),
+                  ),
+                ),
+              ),
+              // 左上镜面高光：深色页靠它在盘沿「抓」出一道亮弧，圆才立得起来。
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _VinylSheenPainter(
+                      rim: rim,
+                      opacity: isLight ? 0.10 : 0.34,
+                    ),
+                  ),
                 ),
               ),
               ClipOval(
@@ -868,9 +1033,12 @@ class _VinylState extends State<_Vinyl> {
 
 /// 盘面沿上的细密纹（封面之下的底层绘制）。
 class _RimGroovePainter extends CustomPainter {
-  const _RimGroovePainter({required this.rim});
+  const _RimGroovePainter({required this.rim, this.strong = false});
 
   final double rim;
+
+  /// 深色页加亮：石墨盘身上纹路要亮一档才看得见（浅色页的近黑盘不需要）。
+  final bool strong;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -879,18 +1047,60 @@ class _RimGroovePainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.9;
+    final base = strong ? 0.16 : 0.07;
+    final step = strong ? 0.02 : 0.01;
     // 从盘缘往内画几圈，刚好落在 rim 带内；封面盖住内圈。
     for (var i = 0; i < 4; i++) {
       final r = outer - 1.2 - i * (rim / 4);
       if (r <= outer - rim) break;
-      paint.color = Colors.white.withValues(alpha: 0.07 - i * 0.01);
+      paint.color = Colors.white.withValues(alpha: base - i * step);
       canvas.drawCircle(center, r, paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _RimGroovePainter oldDelegate) =>
-      oldDelegate.rim != rim;
+      oldDelegate.rim != rim || oldDelegate.strong != strong;
+}
+
+/// 盘沿镜面高光：一条左下淡、左上亮的细弧，模拟顶光扫过黑胶边缘。
+///
+/// 深色页用它把圆盘轮廓「抓」出来（盘身已抬亮，这是二次强调）；
+/// 浅色页只留一点微光，保住标准黑胶的哑光感。
+class _VinylSheenPainter extends CustomPainter {
+  const _VinylSheenPainter({required this.rim, required this.opacity});
+
+  final double rim;
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (opacity <= 0) return;
+    final center = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - rim * 0.45;
+    if (radius <= 0) return;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = math.max(1.4, rim * 0.30)
+      // 整圈描边 + 左上→右下渐隐：只让左上那段亮起来。
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withValues(alpha: opacity),
+          Colors.white.withValues(alpha: opacity * 0.12),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.42, 0.78],
+      ).createShader(rect);
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _VinylSheenPainter oldDelegate) =>
+      oldDelegate.rim != rim || oldDelegate.opacity != opacity;
 }
 
 /// 10 根跳动频谱条（EchoMusic `radio-bars`）。

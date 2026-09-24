@@ -256,6 +256,142 @@ void main() {
     expect(played, [1]);
   });
 
+  testWidgets('one hard fling advances exactly one disc', (tester) async {
+    final played = <int>[];
+    await _pumpCarousel(
+      tester,
+      tracks: _tracks(6),
+      onPlayIndex: played.add,
+      currentIndex: 0,
+    );
+
+    // 以前的 ClampingScrollPhysics 在这种力度下会连滑 4 档以上。
+    await tester.fling(
+      find.byKey(FmVinylCarousel.carouselKey),
+      const Offset(-600, 0),
+      8000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(_position(tester).pixels, closeTo(_pitch, 1.0));
+    expect(played, [1]);
+  });
+
+  testWidgets('a long drag cannot pull more than one disc away', (tester) async {
+    final played = <int>[];
+    await _pumpCarousel(
+      tester,
+      tracks: _tracks(6),
+      onPlayIndex: played.add,
+      currentIndex: 0,
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(FmVinylCarousel.carouselKey)),
+    );
+    // 分步拖 3 档（真实手指轨迹）：拖动途中就被夹在起点 ±1 档。
+    for (var i = 1; i <= 6; i++) {
+      await gesture.moveBy(
+        Offset(-_pitch / 2, 0),
+        timeStamp: Duration(milliseconds: 40 * i),
+      );
+    }
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(_position(tester).pixels, closeTo(_pitch, 1.0));
+
+    await gesture.up(timeStamp: const Duration(milliseconds: 340));
+    await tester.pumpAndSettle();
+
+    expect(_position(tester).pixels, closeTo(_pitch, 1.0));
+    expect(played, [1]);
+  });
+
+  testWidgets('a slow drag under half a disc snaps back without playing',
+      (tester) async {
+    final played = <int>[];
+    await _pumpCarousel(
+      tester,
+      tracks: _tracks(6),
+      onPlayIndex: played.add,
+      currentIndex: 0,
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(FmVinylCarousel.carouselKey)),
+    );
+    // 慢拖 0.3 档（~150px/s，低于甩动阈值）→ 回弹原位、不起播。
+    await gesture.moveBy(
+      Offset(-_pitch * 0.3, 0),
+      timeStamp: const Duration(milliseconds: 300),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await gesture.up(timeStamp: const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    expect(_position(tester).pixels, closeTo(0, 1.0));
+    expect(played, isEmpty);
+  });
+
+  testWidgets('a quick flick under half a disc still advances one disc',
+      (tester) async {
+    final played = <int>[];
+    await _pumpCarousel(
+      tester,
+      tracks: _tracks(6),
+      onPlayIndex: played.add,
+      currentIndex: 0,
+    );
+
+    // 位移不足半档、但释放速度够快（≈1000px/s）→ 按甩的方向走一档。
+    await tester.timedDrag(
+      find.byKey(FmVinylCarousel.carouselKey),
+      const Offset(-60, 0),
+      const Duration(milliseconds: 60),
+    );
+    await tester.pump();
+    final mid = _position(tester).pixels;
+    expect(mid, greaterThan(0), reason: '应该已在弹簧吸附途中');
+    expect(mid, lessThan(_pitch));
+
+    await tester.pumpAndSettle();
+    expect(_position(tester).pixels, closeTo(_pitch, 1.0));
+    expect(played, [1]);
+  });
+
+  testWidgets('grabbing mid-snap still lands on a grid line', (tester) async {
+    final played = <int>[];
+    await _pumpCarousel(
+      tester,
+      tracks: _tracks(6),
+      onPlayIndex: played.add,
+      currentIndex: 0,
+    );
+
+    await tester.timedDrag(
+      find.byKey(FmVinylCarousel.carouselKey),
+      const Offset(-60, 0),
+      const Duration(milliseconds: 60),
+    );
+    await tester.pump();
+    expect(_position(tester).pixels, greaterThan(0));
+
+    // 弹簧吸附途中再抓一次：起点取「最近的整档」，落点必须仍是整档。
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(FmVinylCarousel.carouselKey)),
+    );
+    await gesture.moveBy(
+      const Offset(-30, 0),
+      timeStamp: const Duration(milliseconds: 16),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.up(timeStamp: const Duration(milliseconds: 32));
+    await tester.pumpAndSettle();
+
+    final px = _position(tester).pixels;
+    expect(px % _pitch, closeTo(0, 1.0));
+    expect(played.length, lessThanOrEqualTo(1));
+  });
+
   testWidgets('playAtIndex from settle updates player currentIndex',
       (tester) async {
     SharedPreferences.setMockInitialValues({
