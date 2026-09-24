@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/features/player/player_controller.dart';
 
 import 'fakes/fake_audio_player.dart';
+import 'fakes/fake_music_source.dart';
 
 Track _t(String id) => Track(
       id: id,
@@ -33,8 +35,13 @@ void main() {
     await controller.playQueue([_t('a'), _t('b')], startIndex: 0);
     expect(container.read(playerControllerProvider).current?.id, 'a');
 
+    controller.seekTo(3000);
+    expect(container.read(playerControllerProvider).positionMs, 3000);
+
     await controller.next();
-    expect(container.read(playerControllerProvider).current?.id, 'b');
+    final afterNext = container.read(playerControllerProvider);
+    expect(afterNext.current?.id, 'b');
+    expect(afterNext.positionMs, 0);
 
     await controller.next();
     expect(container.read(playerControllerProvider).current?.id, 'a');
@@ -101,5 +108,41 @@ void main() {
     expect(container.read(playerControllerProvider).isPlaying, isFalse);
     controller.togglePlay();
     expect(container.read(playerControllerProvider).isPlaying, isTrue);
+  });
+
+  test('hash track fails resolve cleanly without inventing play', () async {
+    final engine = FakeAudioPlayer();
+    final source = FakeMusicSource()
+      ..nextPlayUrl = null
+      ..playError = const NotFound('offline');
+    final container = ProviderContainer(
+      overrides: [
+        playerControllerProvider.overrideWith(
+          () => PlayerController(engine: engine, source: source),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final controller = container.read(playerControllerProvider.notifier);
+
+    final hashed = Track(
+      id: 'h1',
+      name: 'h1',
+      artist: 'a',
+      album: 'b',
+      coverUrl: 'https://example.com/h1.jpg',
+      durationMs: 10000,
+      hash: 'hash_h1',
+    );
+    await controller.playQueue([hashed]);
+    final state = container.read(playerControllerProvider);
+    // Offline / blocked network → error, must not fake-playing forever.
+    expect(state.isPlaying, isFalse);
+    expect(engine.lastUrl, isNull);
+    expect(
+      state.display == PlayerDisplayState.error ||
+          state.display == PlayerDisplayState.loading,
+      isTrue,
+    );
   });
 }

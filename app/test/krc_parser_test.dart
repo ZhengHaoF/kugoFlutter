@@ -53,6 +53,18 @@ void main() {
       expect(findLyricIndex(lines, 1000), 0);
       expect(findLyricIndex(lines, 2500), 1);
     });
+
+    test('findLyricIndex boundary: exact hit, just-before, past end', () {
+      final lines = parseLrc('''
+[00:00.00]a
+[00:04.00]b
+[00:08.00]c
+''');
+      expect(findLyricIndex(lines, 0), 0);
+      expect(findLyricIndex(lines, 3999), 0);
+      expect(findLyricIndex(lines, 4000), 1);
+      expect(findLyricIndex(lines, 99999), 2);
+    });
   });
 
   group('decryptKrc + parseKrc', () {

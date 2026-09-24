@@ -59,7 +59,7 @@ void main() {
       expect(client.requestedPaths.single, contains('/search/song'));
     });
 
-    test('searchSongs (list form) still works for existing callers', () async {
+    test('searchSongs returns the item list without pagination metadata', () async {
       final client = _FakeClient({
         '/search/song': {
           'data': {
@@ -259,8 +259,8 @@ void main() {
     });
   });
 
-  group('hotKeywords regression', () {
-    test('still parses after the _extractList change', () async {
+  group('hotKeywords', () {
+    test('parses the data.info keyword list', () async {
       final client = _FakeClient({
         '/search/hot': {
           'data': {

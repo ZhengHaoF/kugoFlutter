@@ -118,15 +118,6 @@ void main() {
         duration: const Duration(milliseconds: 300),
       );
 
-      final dummyFromHero = Hero(
-        tag: KugoHeroTags.dailyRecommendBadge,
-        child: const SizedBox(width: 44, height: 44),
-      );
-      final dummyToHero = Hero(
-        tag: KugoHeroTags.dailyRecommendBadge,
-        child: const SizedBox(width: 64, height: 64),
-      );
-
       await tester.pumpWidget(
         MaterialApp(
           home: Builder(
