@@ -9,6 +9,8 @@ import '../../../core/source/registry.dart';
 import '../../../data/repositories/fm_repository.dart' as fm;
 import '../../../data/repositories/lyric_repository.dart' as lyric;
 import '../../../data/repositories/play_repository.dart' as play;
+import '../../../data/repositories/playlist_repository.dart' as playlist;
+import '../../../data/repositories/recommend_repository.dart' as rec;
 import '../../../data/repositories/search_repository.dart' as search;
 import '../../../data/repositories/user_repository.dart' as user;
 import 'kugou_session.dart';
@@ -20,24 +22,34 @@ class KugouSource
         MusicSource,
         PersonalFmSource,
         HeartRadioSource,
-        UserPlaylistWriteSource {
+        UserPlaylistWriteSource,
+        QualityCatalogSource,
+        DailyRecommendSource,
+        RankSource,
+        SearchHotSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
     search.SearchRepository? searchRepository,
     fm.FmRepository? fmRepository,
     user.UserRepository? userRepository,
+    rec.RecommendRepository? recommendRepository,
+    playlist.PlaylistRepository? playlistRepository,
   })  : _play = playRepository ?? play.playRepository,
         _lyric = lyricRepository ?? lyric.lyricRepository,
         _search = searchRepository ?? search.searchRepository,
         _fm = fmRepository ?? fm.fmRepository,
-        _users = userRepository ?? user.userRepository;
+        _users = userRepository ?? user.userRepository,
+        _rec = recommendRepository ?? rec.recommendRepository,
+        _playlists = playlistRepository ?? playlist.playlistRepository;
 
   final play.PlayRepository _play;
   final lyric.LyricRepository _lyric;
   final search.SearchRepository _search;
   final fm.FmRepository _fm;
   final user.UserRepository _users;
+  final rec.RecommendRepository _rec;
+  final playlist.PlaylistRepository _playlists;
 
   FmMode _fmMode = FmMode.heart;
   FmSongPool _fmPool = FmSongPool.taste;
@@ -88,6 +100,39 @@ class KugouSource
   Future<LyricPayload> fetchLyric(Track track) async {
     final lines = await _lyric.fetchLyrics(track);
     return LyricPayload(lines: lines, sourceTag: 'kugou-krc');
+  }
+
+  @override
+  Future<({List<RelateGood> goods, bool catalogComplete})?> fetchQualityCatalog(
+    Track track,
+  ) {
+    return _play.fetchRelateGoods(track);
+  }
+
+  @override
+  Future<List<Track>> dailyRecommendedSongs() async {
+    final result = await _rec.fetchDaily();
+    return result.tracks;
+  }
+
+  @override
+  Future<List<({String id, String name, String coverUrl})>> rankBoards() async {
+    final boards = await _playlists.fetchRankList();
+    return [
+      for (final b in boards)
+        (id: b.id, name: b.name, coverUrl: b.coverUrl),
+    ];
+  }
+
+  @override
+  Future<List<Track>> rankTracks(String boardId, {int page = 1}) async {
+    final detail = await _playlists.fetchRankDetail(boardId, page: page);
+    return detail?.tracks ?? const [];
+  }
+
+  @override
+  Future<List<String>> hotKeywords({int count = 20}) {
+    return _search.hotKeywords(count: count);
   }
 
   @override

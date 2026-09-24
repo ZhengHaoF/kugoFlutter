@@ -8,7 +8,7 @@ import 'package:kugo/features/player/audio_service_handler.dart';
 import 'package:kugo/features/player/player_controller.dart';
 
 import 'fakes/fake_audio_player.dart';
-import 'fakes/fake_lyric_play_repos.dart';
+import 'fakes/fake_music_source.dart';
 
 Track _t(String id) => Track(
       id: id,
@@ -20,6 +20,7 @@ Track _t(String id) => Track(
     );
 
 void main() {
+  setUpAll(bootstrapFakeMusicSources);
   test('system media pause/stop actually pause the player', () async {
     final engine = FakeAudioPlayer();
     final container = ProviderContainer(
@@ -102,11 +103,11 @@ void main() {
     // while song B's URL is still resolving, song B's progress bar starts at
     // 10s. This is the regression that made FM/list skips look "mixed".
     final engine = FakeAudioPlayer();
-    final play = FakePlayRepository();
+    final source = FakeMusicSource();
     final container = ProviderContainer(
       overrides: [
         playerControllerProvider.overrideWith(
-          () => PlayerController(engine: engine, playRepo: play),
+          () => PlayerController(engine: engine, source: source),
         ),
       ],
     );
@@ -138,7 +139,7 @@ void main() {
 
     // Hold URL resolve open so we can inject the previous source's leftovers.
     final gate = Completer<void>();
-    play.gate = gate.future;
+    source.playGate = gate.future;
     final nextFuture = controller.next();
     await Future<void>.delayed(Duration.zero);
 

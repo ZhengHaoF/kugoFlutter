@@ -92,5 +92,6 @@ abstract class MusicSource {
     AppQuality? preferred,
   });
 
+  /// 歌词；无歌词返回 [LyricPayload.empty]。
   Future<LyricPayload> fetchLyric(Track track);
 }

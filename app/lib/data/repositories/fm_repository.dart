@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugo_client.dart'
-    show NetworkLogSink, looksLikeUrlFilter, decodeKugoBody;
+    show looksLikeUrlFilter, decodeKugoBody;
 import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
@@ -130,9 +130,8 @@ class FmRepository {
   }
 
   /// Wired from main() so personal FM gateway calls appear in network log.
-  static NetworkLogSink? logSink;
-
-  static void _emit(NetworkLog log) => logSink?.call(log);
+  
+  static void _emit(NetworkLog log) => NetworkLogHub.emit(log);
 
   final Dio _dio;
   String lastError = '';

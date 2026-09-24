@@ -1,18 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
+import 'fakes/fake_music_source.dart';
 
 /// Mock smoke: play queue → advance → toggle → seek clamp.
-/// Uses hash tracks (real play path) with SharedPreferences mock so
-/// DeviceIdentity can load; network resolve fails → engine never needed
-/// for URL, but demo/hash branch still exercises queue UI state.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
+  setUpAll(bootstrapFakeMusicSources);
 
   Track t(String id, {bool withHash = false}) => Track(
         id: id,
@@ -61,10 +61,13 @@ void main() {
 
   test('smoke: hash track fails resolve cleanly without inventing play', () async {
     final engine = FakeAudioPlayer();
+    final source = bootstrapFakeMusicSources()
+      ..nextPlayUrl = null
+      ..playError = const NotFound('offline');
     final container = ProviderContainer(
       overrides: [
         playerControllerProvider
-            .overrideWith(() => PlayerController(engine: engine)),
+            .overrideWith(() => PlayerController(engine: engine, source: source)),
       ],
     );
     addTearDown(container.dispose);

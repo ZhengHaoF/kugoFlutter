@@ -8,14 +8,8 @@ import 'app.dart';
 import 'core/api/kugo_client.dart';
 import 'core/api/network_log.dart';
 import 'core/platform.dart';
-import 'data/sources/kugou/kugou_source.dart';
 import 'core/theme/kugo_theme.dart';
-import 'data/repositories/discovery_repository.dart';
-import 'data/repositories/fm_repository.dart';
-import 'data/repositories/play_repository.dart';
-import 'data/repositories/playlist_repository.dart';
-import 'data/repositories/recommend_repository.dart';
-import 'data/repositories/song_detail_repository.dart';
+import 'data/sources/kugou/kugou_source.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/fm/fm_controller.dart';
 import 'features/debug/network_log_provider.dart';
@@ -54,13 +48,8 @@ Future<void> main() async {
     container.read(networkLogProvider.notifier).addLog(log);
   }
 
+  NetworkLogHub.bind(sink);
   kugoClient.setLogSink(sink);
-  PlayRepository.logSink = sink;
-  SongDetailRepository.logSink = sink;
-  RecommendRepository.logSink = sink;
-  FmRepository.logSink = sink;
-  PlaylistRepository.logSink = sink;
-  DiscoveryRepository.logSink = sink;
 
   // Restore login session (and device mid) BEFORE any play-url resolve.
   await container.read(authControllerProvider.notifier).ensureReady();

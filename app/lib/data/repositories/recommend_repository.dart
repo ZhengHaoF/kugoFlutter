@@ -166,9 +166,8 @@ class RecommendRepository {
   }
 
   /// Wired from main() so recommend gateway calls appear in network log.
-  static NetworkLogSink? logSink;
-
-  static void _emit(NetworkLog log) => logSink?.call(log);
+  
+  static void _emit(NetworkLog log) => NetworkLogHub.emit(log);
 
   final PlaylistRepository _playlists;
   final SearchRepository _search;

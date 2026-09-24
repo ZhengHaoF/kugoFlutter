@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'fakes/fake_music_source.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
 import 'package:kugo/core/models/track.dart';
@@ -85,6 +86,8 @@ Future<void> _pumpPage(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
+  setUpAll(bootstrapFakeMusicSources);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('idle FM page shows start CTA and starts the session', (tester) async {

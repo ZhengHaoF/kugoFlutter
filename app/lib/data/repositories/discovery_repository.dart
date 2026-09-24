@@ -129,8 +129,7 @@ class DiscoveryRepository {
     }
   }
 
-  static NetworkLogSink? logSink;
-  static void _emit(NetworkLog log) => logSink?.call(log);
+    static void _emit(NetworkLog log) => NetworkLogHub.emit(log);
 
   final Dio _dio;
   String lastError = '';

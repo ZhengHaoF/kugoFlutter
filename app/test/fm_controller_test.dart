@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'fakes/fake_music_source.dart';
 import 'package:kugo/core/api/kugo_client.dart';
 import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/playback_source.dart';
@@ -154,6 +155,8 @@ PlayerState _player(ProviderContainer c) => c.read(playerControllerProvider);
 FmSession _fm(ProviderContainer c) => c.read(fmControllerProvider);
 
 void main() {
+  setUpAll(bootstrapFakeMusicSources);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('FM session start', () {

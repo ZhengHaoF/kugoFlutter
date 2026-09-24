@@ -8,11 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/audio_quality.dart';
 import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../data/repositories/lyric_repository.dart';
-import '../../data/repositories/play_repository.dart';
-import '../../data/sources/kugou/kugou_source.dart';
 import '../../data/storage/queue_store.dart';
 import '../settings/settings_controller.dart';
 import 'audio_engine.dart';
@@ -141,18 +140,23 @@ class PlayerState {
 class PlayerController extends Notifier<PlayerState> {
   PlayerController({
     AudioPlayerPort? engine,
-    LyricRepository? lyricRepo,
-    PlayRepository? playRepo,
+    MusicSource? source,
   })  : _engineOverride = engine,
-        _lyricRepoOverride = lyricRepo,
-        _playRepoOverride = playRepo;
+        _sourceOverride = source;
 
   final AudioPlayerPort? _engineOverride;
-  final LyricRepository? _lyricRepoOverride;
-  final PlayRepository? _playRepoOverride;
+  final MusicSource? _sourceOverride;
   late final AudioPlayerPort _engine;
-  late final PlayRepository _playRepo;
-  late final LyricRepository _lyricRepo;
+
+  /// 测试注入离线 [MusicSource]；生产按曲目平台取 Source。
+  /// registry 未装配时退回 [_MissingSource]（快速失败，不打网络）。
+  MusicSource _sourceFor(Track track) {
+    final override = _sourceOverride;
+    if (override != null) return override;
+    final registry = musicSourceRegistry;
+    if (registry != null) return registry.ofTrack(track);
+    return _MissingSource();
+  }
 
   /// High-frequency playback cursor (ms). Engine `positionStream` only writes
   /// here — never into Riverpod [PlayerState] — so listening widgets rebuild
@@ -203,8 +207,6 @@ class PlayerController extends Notifier<PlayerState> {
   @override
   PlayerState build() {
     _engine = _engineOverride ?? createAudioEngine();
-    _playRepo = _playRepoOverride ?? playRepository;
-    _lyricRepo = _lyricRepoOverride ?? lyricRepository;
     ref.listen(settingsControllerProvider, (prev, next) {
       if (prev?.mediaLyricSubtitle != next.mediaLyricSubtitle) {
         _lastMediaSubtitle = null;
@@ -515,7 +517,7 @@ class PlayerController extends Notifier<PlayerState> {
     // 歌词与起播解耦：URL resolve 失败也不该挡住歌词。
     unawaited(_ensureLyrics());
 
-    if (!track.hasHash) {
+    if (!track.canResolveStream) {
       _wantPlaying = true;
       state = state.copyWith(display: PlayerDisplayState.playing);
       _startDemoTick();
@@ -527,8 +529,11 @@ class PlayerController extends Notifier<PlayerState> {
     _sourceReady = false;
 
     var liveTrack = track;
-    if (liveTrack.hasHash && liveTrack.availableQualities.isEmpty) {
-      final fetched = await _playRepo.fetchRelateGoods(liveTrack);
+    final source0 = _sourceFor(liveTrack);
+    final qualitySource =
+        source0 is QualityCatalogSource ? source0 as QualityCatalogSource : null;
+    if (liveTrack.availableQualities.isEmpty && qualitySource != null) {
+      final fetched = await qualitySource.fetchQualityCatalog(liveTrack);
       if (seq != state.seq) return;
       final goods = fetched?.goods;
       if (goods != null && goods.isNotEmpty) {
@@ -546,46 +551,19 @@ class PlayerController extends Notifier<PlayerState> {
 
     final preferred =
         ref.read(settingsControllerProvider).quality;
-    final candidates = AudioQualityUtil.resolveCandidates(
-      preferred: preferred,
-      available: liveTrack.availableQualities,
-      compatibilityMode: true,
-      catalogComplete: liveTrack.qualityCatalogComplete,
-    );
 
-    List<String> allUrls;
-    Map<String, String> playHeaders;
-    AppQuality? granted;
+    late final List<String> allUrls;
+    late final Map<String, String> playHeaders;
+    late final AppQuality? granted;
     try {
-      if (_playRepoOverride != null) {
-        // 测试注入路径：仍走 PlayRepository，headers 用酷狗默认。
-        final resolved = await _playRepo.resolveUrlWithFallback(
-          liveTrack,
-          qualityCandidates: [for (final q in candidates) q.param],
-        );
-        if (seq != state.seq) return;
-        if (resolved == null) {
-          _onPlayError(
-            message: _playRepo.lastError.isNotEmpty
-                ? _playRepo.lastError
-                : '无法获取播放地址',
-          );
-          return;
-        }
-        allUrls = resolved.allUrls;
-        playHeaders = KugouSource.playbackHeaders;
-        granted = resolved.qualityEnum;
-      } else {
-        final source = requireMusicSourceRegistry.ofTrack(liveTrack);
-        final result = await source.resolvePlayUrl(
-          liveTrack,
-          preferred: preferred,
-        );
-        if (seq != state.seq) return;
-        allUrls = result.allUrls;
-        playHeaders = result.headers;
-        granted = result.grantedQuality;
-      }
+      final result = await source0.resolvePlayUrl(
+        liveTrack,
+        preferred: preferred,
+      );
+      if (seq != state.seq) return;
+      allUrls = result.allUrls;
+      playHeaders = result.headers;
+      granted = result.grantedQuality;
     } on SourceFailure catch (e) {
       if (seq != state.seq) return;
       _onPlayError(message: e.message);
@@ -665,7 +643,7 @@ class PlayerController extends Notifier<PlayerState> {
     final track = state.current;
     if (retryIfEmpty &&
         track != null &&
-        track.hasHash &&
+        track.canResolveStream &&
         state.lyricsStatus == LyricsStatus.empty) {
       final key = _lyricsTrackKey(track);
       if (_lyricsLoadedKey == key) _lyricsLoadedKey = null;
@@ -685,11 +663,15 @@ class PlayerController extends Notifier<PlayerState> {
   /// 打开音质 sheet 前懒加载当前曲可用音质；已知则跳过。
   Future<Set<AppQuality>> ensureCurrentQualities({bool forceRefresh = false}) async {
     final track = state.current;
-    if (track == null || !track.hasHash) return const {};
+    if (track == null || !track.canResolveStream) return const {};
     if (!forceRefresh && track.availableQualities.isNotEmpty) {
       return track.availableQualities;
     }
-    final fetched = await _playRepo.fetchRelateGoods(track);
+    final source = _sourceFor(track);
+    final qualitySource =
+        source is QualityCatalogSource ? source as QualityCatalogSource : null;
+    if (qualitySource == null) return track.availableQualities;
+    final fetched = await qualitySource.fetchQualityCatalog(track);
     if (fetched == null) return track.availableQualities;
     final goods = fetched.goods;
     final available = AudioQualityUtil.availableFromGoods(goods);
@@ -728,7 +710,7 @@ class PlayerController extends Notifier<PlayerState> {
       return;
     }
 
-    if (!track.hasHash) {
+    if (!track.canResolveStream) {
       _lyricsInFlightKey = null;
       _lyricsLoadedKey = _lyricsTrackKey(track);
       state = state.copyWith(
@@ -750,7 +732,8 @@ class PlayerController extends Notifier<PlayerState> {
 
     List<LyricLine> lines = const [];
     try {
-      lines = await _lyricRepo.fetchLyrics(track);
+      final payload = await _sourceFor(track).fetchLyric(track);
+      lines = payload.lines;
     } catch (_) {}
 
     final current = state.current;
@@ -775,7 +758,7 @@ class PlayerController extends Notifier<PlayerState> {
       _wantPlaying = false;
       _ignoreEnginePlayUntil =
           DateTime.now().add(const Duration(milliseconds: 600));
-      if (track.hasHash) {
+      if (track.canResolveStream) {
         unawaited(_engine.pause());
       }
       _stopDemoTick();
@@ -785,12 +768,12 @@ class PlayerController extends Notifier<PlayerState> {
     }
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
-    if (track.hasHash && !_sourceReady) {
+    if (track.canResolveStream && !_sourceReady) {
       // Restored queue after cold start: engine has no URL — resolve first.
       unawaited(_reloadCurrent());
       return;
     }
-    if (track.hasHash) {
+    if (track.canResolveStream) {
       unawaited(_engine.play());
     } else {
       _startDemoTick();
@@ -909,7 +892,7 @@ class PlayerController extends Notifier<PlayerState> {
     if (position.value != clamped) position.value = clamped;
     state = state.copyWith(positionMs: clamped);
     final track = state.current;
-    if (track != null && track.hasHash) {
+    if (track != null && track.canResolveStream) {
       unawaited(_engine.seek(Duration(milliseconds: clamped)));
     }
     // A seek is an intentional jump, so reset the monotonic guard with it.
@@ -1207,18 +1190,37 @@ class PlayerPositionBuilder extends ConsumerWidget {
   }
 }
 
-/// Factory for tests: inject a fake engine (and optional fake repos).
+/// Factory for tests: inject a fake engine (and optional fake source).
 PlayerController createPlayerController(
   AudioPlayerPort engine, {
-  LyricRepository? lyricRepo,
-  PlayRepository? playRepo,
+  MusicSource? source,
 }) =>
-    PlayerController(
-      engine: engine,
-      lyricRepo: lyricRepo,
-      playRepo: playRepo,
-    );
+    PlayerController(engine: engine, source: source);
 
 final currentTrackProvider = Provider<Track?>((ref) {
   return ref.watch(playerControllerProvider.select((s) => s.current));
 });
+
+/// registry 未初始化时的占位 Source：立刻失败，避免测试/冷路径打真实网络。
+class _MissingSource implements MusicSource {
+  @override
+  MusicPlatform get platform => MusicPlatform.kugou;
+
+  @override
+  Future<List<Track>> searchSongs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const [];
+
+  @override
+  Future<PlayUrlResult> resolvePlayUrl(
+    Track track, {
+    AppQuality? preferred,
+  }) async =>
+      throw const NotFound('MusicSourceRegistry not initialized');
+
+  @override
+  Future<LyricPayload> fetchLyric(Track track) async => LyricPayload.empty;
+}

@@ -1,3 +1,4 @@
+import '../models/audio_quality.dart';
 import '../models/fm_mode.dart';
 import '../models/track.dart';
 
@@ -31,6 +32,13 @@ abstract interface class RankSource {
   Future<List<Track>> rankTracks(String boardId, {int page = 1});
 }
 
+/// 可播音质目录（酷狗 relate_goods）。无此能力则跳过懒加载。
+abstract interface class QualityCatalogSource {
+  Future<({List<RelateGood> goods, bool catalogComplete})?> fetchQualityCatalog(
+    Track track,
+  );
+}
+
 /// 用户云端歌单写操作（加/删曲；建单另议）。
 abstract interface class UserPlaylistWriteSource {
   Future<void> addPlaylistTracks({
@@ -46,5 +54,5 @@ abstract interface class UserPlaylistWriteSource {
 
 /// 热搜词。
 abstract interface class SearchHotSource {
-  Future<List<String>> hotKeywords();
+  Future<List<String>> hotKeywords({int count = 20});
 }

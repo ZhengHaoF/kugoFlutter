@@ -17,8 +17,7 @@ class PlaylistRepository {
         _dio = dio ?? _createDio();
 
   /// Wired from main() so signed gateway rank calls show up in network logs.
-  static NetworkLogSink? logSink;
-
+  
   final KugoClient _client;
   final Dio _dio;
 
@@ -33,7 +32,7 @@ class PlaylistRepository {
     );
   }
 
-  static void _emit(NetworkLog log) => logSink?.call(log);
+  static void _emit(NetworkLog log) => NetworkLogHub.emit(log);
 
   /// Public playlist metadata + tracks via mobile CDN.
   ///

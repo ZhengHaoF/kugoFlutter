@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'fakes/fake_music_source.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/theme/kugo_theme.dart';
 import 'package:kugo/features/fm/fm_radio_card.dart';
@@ -108,6 +109,8 @@ Future<void> _settleAt(
 }
 
 void main() {
+  setUpAll(bootstrapFakeMusicSources);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('settling one pitch to the right plays that queue index',

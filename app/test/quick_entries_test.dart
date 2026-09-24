@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'fakes/fake_music_source.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/track.dart';
@@ -62,6 +63,8 @@ class _FakeSearch implements SearchRepository {
 }
 
 void main() {
+  setUpAll(bootstrapFakeMusicSources);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   /// 播放时舞台有常驻动画（盘自旋 / 频谱），`pumpAndSettle` 等不到静止。

@@ -71,6 +71,13 @@ class Track {
 
   bool get hasHash => hash.trim().isNotEmpty;
 
+  /// 假数据 / 演示曲（无 hash 且 `mock://` 封面），不起播、不拉歌词。
+  /// 有 hash 的曲目即使封面是 mock 也走真实 resolve（离线冒烟用）。
+  bool get isDemoTrack => coverUrl.startsWith('mock://') && !hasHash;
+
+  /// 能否走 Source 解析播放地址（排除 demo；网易等无 hash 平台靠 id+真封面）。
+  bool get canResolveStream => id.trim().isNotEmpty && !isDemoTrack;
+
   /// 跨源稳定键，队列/历史/歌词缓存/MediaItem 一律用这个。
   String get identityKey => musicIdentity(platform, id);
 

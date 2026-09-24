@@ -1,3 +1,15 @@
+typedef NetworkLogSink = void Function(NetworkLog log);
+
+/// 全局网络日志汇聚点。各 Repository 只 `NetworkLogHub.emit`，
+/// 由 main 单点挂到 UI（networkLogProvider），避免 N 套 logSink。
+abstract final class NetworkLogHub {
+  static NetworkLogSink? sink;
+
+  static void emit(NetworkLog log) => sink?.call(log);
+
+  static void bind(NetworkLogSink? s) => sink = s;
+}
+
 enum NetworkLogType { request, response, error }
 
 class NetworkLog {

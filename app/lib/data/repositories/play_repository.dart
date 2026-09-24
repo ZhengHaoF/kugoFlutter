@@ -60,9 +60,8 @@ class PlayRepository {
   }
 
   /// Wired from main() so /v5/url appears in the in-app network log.
-  static NetworkLogSink? logSink;
-
-  static void _emit(NetworkLog log) => logSink?.call(log);
+  
+  static void _emit(NetworkLog log) => NetworkLogHub.emit(log);
 
   final Dio _dio;
   String lastError = '';

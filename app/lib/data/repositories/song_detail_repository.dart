@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../../core/api/kugo_client.dart' show NetworkLogSink;
+
 import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../core/api/network_log.dart';
@@ -100,9 +100,8 @@ class SongDetailRepository {
     }
   }
 
-  static NetworkLogSink? logSink;
-
-  static void _emit(NetworkLog log) => logSink?.call(log);
+  
+  static void _emit(NetworkLog log) => NetworkLogHub.emit(log);
 
   final Dio _dio;
   String lastError = '';

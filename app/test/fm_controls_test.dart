@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'fakes/fake_music_source.dart';
 import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
@@ -101,6 +102,8 @@ Future<void> _pumpPill(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
+  setUpAll(bootstrapFakeMusicSources);
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('pill names the station and the pool, without a pending dot',
