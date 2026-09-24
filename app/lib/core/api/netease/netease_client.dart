@@ -165,11 +165,12 @@ class NeteaseClient {
     String path,
     Map<String, dynamic> params, {
     bool usePersistedCookies = true,
+    String host = NeteaseEndpoints.mainHost,
   }) {
     final p = path.startsWith('/') ? path : '/$path';
     final full = p.startsWith('/weapi') ? p : '/weapi$p';
     return _request(
-      url: '${NeteaseEndpoints.mainHost}$full',
+      url: '$host$full',
       params: params,
       weapi: true,
       usePersistedCookies: usePersistedCookies,
@@ -180,13 +181,31 @@ class NeteaseClient {
     String path,
     Map<String, dynamic> params, {
     bool usePersistedCookies = true,
+    String host = NeteaseEndpoints.interfaceHost,
   }) {
     final p = path.startsWith('/') ? path : '/$path';
     final full = p.startsWith('/eapi') ? p : '/eapi$p';
     return _request(
-      url: '${NeteaseEndpoints.interfaceHost}$full',
+      url: '$host$full',
       params: params,
       weapi: false,
+      usePersistedCookies: usePersistedCookies,
+    );
+  }
+
+  /// 明文 form（Neri `CryptoMode.API`：歌单/艺人等）。
+  Future<String> callPlainApi(
+    String path,
+    Map<String, dynamic> params, {
+    bool usePersistedCookies = true,
+    String host = NeteaseEndpoints.mainHost,
+  }) {
+    final p = path.startsWith('/') ? path : '/$path';
+    return _request(
+      url: '$host$p',
+      params: params,
+      weapi: false,
+      plain: true,
       usePersistedCookies: usePersistedCookies,
     );
   }
@@ -195,7 +214,9 @@ class NeteaseClient {
     required String url,
     required Map<String, dynamic> params,
     required bool weapi,
+    bool plain = false,
     bool usePersistedCookies = true,
+    Map<String, String>? extraHeaders,
   }) async {
     if (weapi && usePersistedCookies) {
       await ensureWeapiSession();
@@ -211,6 +232,8 @@ class NeteaseClient {
           'csrf_token': usePersistedCookies ? csrf : '',
         },
       );
+    } else if (plain) {
+      body = {for (final e in params.entries) e.key: '${e.value}'};
     } else {
       body = NeteaseCrypto.eApiEncrypt(uri.path, params);
     }
@@ -226,7 +249,10 @@ class NeteaseClient {
       options: Options(
         contentType: 'application/x-www-form-urlencoded; charset=utf-8',
         responseType: ResponseType.plain,
-        headers: {'Origin': NeteaseEndpoints.mainHost},
+        headers: {
+          'Origin': NeteaseEndpoints.mainHost,
+          ...?extraHeaders,
+        },
       ),
     );
     return res.data ?? '';
@@ -388,6 +414,209 @@ class NeteaseClient {
       },
     );
     return res.data ?? '';
+  }
+
+  // ── 登录 / 账号（对齐 Neri） ────────────────────────────────
+
+  /// `POST /weapi/w/nuser/account/get`（游客 code 可能非 200）。
+  Future<String> accountRaw() => callWeApi(NeteaseEndpoints.account, const {});
+
+  /// 扫码 unikey（完整扫码还需 yd_token）。
+  Future<String> qrUnikeyRaw() {
+    return callWeApi(
+      NeteaseEndpoints.qrUnikey,
+      {'type': 1, 'noCheckToken': true},
+    );
+  }
+
+  /// 扫码轮询。
+  Future<String> qrCheckRaw(String key, {String ydDeviceToken = ''}) {
+    return callWeApi(
+      NeteaseEndpoints.qrCheck,
+      {
+        'type': 1,
+        'noCheckToken': true,
+        'key': key,
+        'ydDeviceToken': ydDeviceToken,
+      },
+    );
+  }
+
+  /// 手机号 + 密码（密码 MD5）。
+  Future<String> loginByPhoneRaw(
+    String phone,
+    String password, {
+    int countryCode = 86,
+  }) {
+    return callEApi(
+      NeteaseEndpoints.loginCellphone,
+      {
+        'phone': phone,
+        'countrycode': countryCode,
+        'remember': 'true',
+        'password': NeteaseCrypto.md5Hex(password),
+        'type': '1',
+      },
+      usePersistedCookies: false,
+    );
+  }
+
+  /// 短信验证码登录。
+  Future<String> loginByCaptchaRaw(
+    String phone,
+    String captcha, {
+    int ctcode = 86,
+  }) {
+    return callEApi(
+      NeteaseEndpoints.loginCellphone,
+      {
+        'phone': phone,
+        'countrycode': ctcode,
+        'remember': 'true',
+        'type': '1',
+        'captcha': captcha,
+      },
+      usePersistedCookies: false,
+    );
+  }
+
+  /// 发送短信验证码（interface host weapi）。
+  Future<String> sendSmsCaptchaRaw(String phone, {int ctcode = 86}) {
+    return callWeApi(
+      NeteaseEndpoints.smsSend,
+      {'cellphone': phone, 'ctcode': ctcode.toString()},
+      host: NeteaseEndpoints.interfaceHost,
+      usePersistedCookies: false,
+    );
+  }
+
+  /// 校验短信验证码。
+  Future<String> verifySmsCaptchaRaw(
+    String phone,
+    String captcha, {
+    int ctcode = 86,
+  }) {
+    return callWeApi(
+      NeteaseEndpoints.smsVerify,
+      {
+        'cellphone': phone,
+        'captcha': captcha,
+        'ctcode': ctcode.toString(),
+      },
+      host: NeteaseEndpoints.interfaceHost,
+      usePersistedCookies: false,
+    );
+  }
+
+  // ── 我喜欢 / 用户歌单 ─────────────────────────────────────
+
+  Future<String> userPlaylistsRaw(int userId, {int offset = 0, int limit = 30}) {
+    return callWeApi(NeteaseEndpoints.userPlaylist, {
+      'uid': userId.toString(),
+      'offset': offset.toString(),
+      'limit': limit.toString(),
+      'includeVideo': 'true',
+    });
+  }
+
+  Future<String> likedSongIdsRaw(int userId) {
+    return callWeApi(NeteaseEndpoints.songLikeGet, {
+      'uid': userId.toString(),
+    });
+  }
+
+  Future<String> likeSongRaw(int songId, {bool like = true, int? time}) {
+    return callWeApi(NeteaseEndpoints.songLike, {
+      'trackId': songId.toString(),
+      'like': like.toString(),
+      if (time != null) 'time': time.toString(),
+    });
+  }
+
+  /// 加曲到歌单（对齐 Neri `buildNeteasePlaylistAddTracksParams`）。
+  Future<String> addSongsToPlaylistRaw(int playlistId, List<int> songIds) {
+    final ids = songIds.where((id) => id > 0).toSet().toList();
+    return callWeApi(NeteaseEndpoints.playlistManipulateTracks, {
+      'op': 'add',
+      'pid': playlistId.toString(),
+      'id': playlistId.toString(),
+      'tracks': ids.join(','),
+      'trackIds': '[${ids.join(',')}]',
+      'imme': 'true',
+    });
+  }
+
+  /// 收藏专辑（interface3 eapi）。
+  Future<String> userAlbumsRaw(int userId, {int offset = 0, int limit = 30}) {
+    return callEApi(
+      NeteaseEndpoints.userAlbums,
+      {
+        'userId': userId.toString(),
+        'offset': offset.toString(),
+        'limit': limit.toString(),
+        'pageType': '3',
+        'needRcmd': '0',
+        'isVistor': 'false',
+        'includeStarPodcast': 'true',
+      },
+      host: NeteaseEndpoints.interface3Host,
+    );
+  }
+
+  // ── 详情：歌单 / 专辑 / 歌人（对齐 Neri） ────────────────────
+
+  /// `POST /api/v6/playlist/detail`（明文 CryptoMode.API）。
+  Future<String> playlistDetailRaw(int playlistId, {int n = 100000, int s = 8}) {
+    return callPlainApi(NeteaseEndpoints.playlistDetail, {
+      'id': playlistId.toString(),
+      'n': n.toString(),
+      's': s.toString(),
+    });
+  }
+
+  /// `POST /weapi/v1/album/{id}`（interface host）。
+  Future<String> albumDetailRaw(int albumId, {int n = 100000, int s = 8}) {
+    return callWeApi(
+      '${NeteaseEndpoints.albumDetail}$albumId',
+      {'n': n.toString(), 's': s.toString()},
+      host: NeteaseEndpoints.interfaceHost,
+    );
+  }
+
+  Future<String> artistDetailRaw(int artistId) {
+    return callPlainApi(NeteaseEndpoints.artistHeadInfo, {
+      'id': artistId.toString(),
+    });
+  }
+
+  Future<String> artistDynamicRaw(int artistId) {
+    return callPlainApi(NeteaseEndpoints.artistDynamic, {
+      'id': artistId.toString(),
+    });
+  }
+
+  Future<String> artistSongsRaw(
+    int artistId, {
+    String order = 'hot',
+    int offset = 0,
+    int limit = 50,
+  }) {
+    return callPlainApi(NeteaseEndpoints.artistSongs, {
+      'id': artistId.toString(),
+      'private_cloud': 'true',
+      'work_type': '1',
+      'order': order,
+      'offset': offset.toString(),
+      'limit': limit.toString(),
+    });
+  }
+
+  Future<String> artistAlbumsRaw(int artistId, {int offset = 0, int limit = 30}) {
+    return callPlainApi('${NeteaseEndpoints.artistAlbums}$artistId', {
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      'total': 'true',
+    });
   }
 
   // ── A4 详情 ──────────────────────────────────────────────
@@ -579,4 +808,74 @@ String? parseProbeDetailTitle(String raw) {
   if (songs == null || songs.isEmpty) return null;
   final s = songs.first;
   return s is Map ? '${s['name']}' : null;
+}
+
+/// 账号 / 我喜欢 / 详情的轻量摘要（探针打印用）。
+Map<String, Object?> parseProbeAccount(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final profile = root['profile'] as Map<String, dynamic>?;
+  final account = root['account'] as Map<String, dynamic>?;
+  return {
+    'code': root['code'],
+    'userId': profile?['userId'] ?? account?['id'],
+    'nickname': profile?['nickname'],
+  };
+}
+
+Map<String, Object?> parseProbeUserPlaylists(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final list = root['playlist'] as List? ?? const [];
+  String? likedId;
+  for (final item in list) {
+    if (item is! Map) continue;
+    final special = (item['specialType'] as num?)?.toInt() ?? 0;
+    final name = '${item['name'] ?? ''}';
+    if (special == 5 || name.contains('我喜欢')) {
+      likedId = '${item['id']}';
+      break;
+    }
+  }
+  return {
+    'code': root['code'],
+    'count': list.length,
+    'likedPlaylistId': likedId,
+    'first': list.isEmpty ? null : '${(list.first as Map)['name']}',
+  };
+}
+
+Map<String, Object?> parseProbePlaylistDetail(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final playlist = root['playlist'] as Map<String, dynamic>?;
+  final tracks = playlist?['tracks'] as List? ?? const [];
+  return {
+    'code': root['code'],
+    'name': playlist?['name'],
+    'trackCount': playlist?['trackCount'] ?? tracks.length,
+    'loaded': tracks.length,
+  };
+}
+
+Map<String, Object?> parseProbeAlbumDetail(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final album = root['album'] as Map<String, dynamic>?;
+  final songs = root['songs'] as List? ?? const [];
+  final artist = album?['artist'];
+  return {
+    'code': root['code'],
+    'name': album?['name'],
+    'artist': artist is Map ? artist['name'] : null,
+    'songs': songs.length,
+  };
+}
+
+Map<String, Object?> parseProbeArtistDetail(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final data = root['data'] as Map<String, dynamic>?;
+  final artist = (data?['artist'] ?? data) as Map<String, dynamic>?;
+  return {
+    'code': root['code'] ?? root['status'],
+    'name': artist?['name'],
+    'musicSize': artist?['musicSize'] ?? artist?['songNum'],
+    'albumSize': artist?['albumSize'] ?? artist?['albumNum'],
+  };
 }
