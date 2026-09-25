@@ -10,6 +10,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/profile/profile_stats.dart';
 import '../../features/profile/source_account.dart';
 import '../../features/profile/user_profile_detail.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -57,6 +58,10 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
           showAll: false,
           horizontalPadding: horizontalPadding,
           onSelect: (p) {
+            // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+            ref
+                .read(settingsControllerProvider.notifier)
+                .syncDefaultSourceFromFilter(p);
             if (p != null) ref.read(accountSourceProvider.notifier).state = p;
           },
         );

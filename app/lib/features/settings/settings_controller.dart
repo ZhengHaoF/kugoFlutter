@@ -416,6 +416,18 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kDefaultSource, v.wireName);
   }
 
+  /// 页面内「切音源」筛选条切换时调用：把**具体源**同步为全局默认源。
+  ///
+  /// 「全部」(`null`) 是混排视图、不代表任何一个源，**不写**——否则「全部」
+  /// 会被曲解成「用默认源」。已等于当前默认源时也不需要落盘。
+  ///
+  /// 放在这里而不是 [SourceFilterBar] 内部：`shared/` 不反向依赖 `features/`，
+  /// 由 9 处调用点的 `onSelect` 各自调用（口径见方案 §11 决策记录）。
+  void syncDefaultSourceFromFilter(MusicPlatform? platform) {
+    if (platform == null || platform == state.defaultSource) return;
+    setDefaultSource(platform);
+  }
+
   /// 整源开关。空集合直接拒绝（至少保留一个源，否则 App 没有可用音源）。
   ///
   /// 停用当前默认源时，默认源联动回退到第一个仍启用的源并落盘，

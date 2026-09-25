@@ -170,8 +170,16 @@ void main() {
     // 歌单不可混排：单源模式，不出现「全部」。
     expect(find.byType(SourceFilterBar), findsOneWidget);
     expect(find.text('全部'), findsNothing);
-    expect(find.text('酷狗'), findsOneWidget);
-    expect(find.text('网易云'), findsOneWidget);
+    // 卡片封面角标也会写源名，故只断言切源栏里的 chip。
+    final bar = find.byType(SourceFilterBar);
+    expect(
+      find.descendant(of: bar, matching: find.text('酷狗')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: bar, matching: find.text('网易云')),
+      findsOneWidget,
+    );
 
     // 默认源是网易云 → 只取网易歌单与网易分类。
     expect(find.text('网易歌单'), findsOneWidget);

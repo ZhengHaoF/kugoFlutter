@@ -394,6 +394,10 @@ class _FmPageState extends ConsumerState<FmPage>
                 selected: activeSource,
                 showAll: false,
                 onSelect: (p) {
+                  // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+                  ref
+                      .read(settingsControllerProvider.notifier)
+                      .syncDefaultSourceFromFilter(p);
                   if (p != null) fmCtl.switchSource(p);
                 },
               ),

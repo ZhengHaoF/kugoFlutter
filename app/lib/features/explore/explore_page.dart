@@ -293,6 +293,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             SliverToBoxAdapter(
               child: _PlaylistStrip(
                 playlists: _recommendPlaylists,
+                // 多源时给封面角标标明推荐歌单来自哪个源（单源靠页头小字）。
+                platform: available.length > 1 ? _source : null,
                 onTap: (playlist) => context.push(
                   _playlistRoute(playlist),
                   extra: playlist,
@@ -506,10 +508,17 @@ class _RankingCard extends StatelessWidget {
 /// 与 [_RankStrip] 同一套铺满逻辑（桌面等分拉伸到整行、一行放不下横向滚动），
 /// 只是卡面换成 [PlaylistCard]（1:1 封面 + 两行标题 + 一行描述）。
 class _PlaylistStrip extends StatelessWidget {
-  const _PlaylistStrip({required this.playlists, required this.onTap});
+  const _PlaylistStrip({
+    required this.playlists,
+    required this.onTap,
+    this.platform,
+  });
 
   final List<PlaylistBrief> playlists;
   final ValueChanged<PlaylistBrief> onTap;
+
+  /// 多源时透传给卡片做封面来源角标；单源传 null。
+  final MusicPlatform? platform;
 
   static const double _baseCardWidth = 148;
   static const double _maxCardWidth = 220;
@@ -557,6 +566,7 @@ class _PlaylistStrip extends StatelessWidget {
               return PlaylistCard(
                 playlist: playlist,
                 width: cardWidth,
+                platform: platform,
                 onTap: () => onTap(playlist),
               );
             },

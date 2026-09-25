@@ -467,6 +467,10 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
               selected: active,
               showAll: false,
               onSelect: (p) {
+                // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+                ref
+                    .read(settingsControllerProvider.notifier)
+                    .syncDefaultSourceFromFilter(p);
                 if (p != null) _switchTo(p);
               },
             ),
@@ -566,6 +570,8 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
             return PlaylistCard(
               playlist: playlist,
               width: double.infinity,
+              // 多源时给封面角标标明这份歌单来自哪个源（单源靠页头/底部小字）。
+              platform: _availableSources().length > 1 ? _source : null,
               onTap: () => context.push(
                 _playlistRoute(playlist),
                 extra: playlist,

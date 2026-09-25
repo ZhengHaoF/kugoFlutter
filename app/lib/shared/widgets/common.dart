@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
 import '../../core/source/features.dart';
@@ -10,7 +10,6 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
-import '../../features/settings/settings_controller.dart';
 import 'cover_box.dart';
 
 /// Builds an `onArtistTap` callback for a track row.
@@ -241,10 +240,10 @@ class SourceDisabledView extends StatelessWidget {
 /// 「切换音源」的轻量机制之一（见方案 §11 决策记录），不做全局音源切换。
 /// 搜索页与「我喜欢」页共用。
 ///
-/// 选中具体音源时会**同步写入全局默认源**（`settings.defaultSource`），这样
-/// 用户在任意页面切过源之后，其它未显式选源的入口（首页 / 搜索初始筛选）会
-/// 跟着走同一个源；「全部」是混排视图，不代表某个源，不写。
-class SourceFilterBar extends ConsumerWidget {
+/// 本组件**只负责展示与回调**，不写任何全局状态；「切源后同步全局默认源
+/// （`settings.defaultSource`）」由各调用点的 `onSelect` 自行处理，保持
+/// `shared/` 不反向依赖 `features/`。
+class SourceFilterBar extends StatelessWidget {
   const SourceFilterBar({
     super.key,
     required this.platforms,
@@ -268,19 +267,9 @@ class SourceFilterBar extends ConsumerWidget {
   final double horizontalPadding;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (platforms.length <= 1) return const SizedBox.shrink();
     final kugo = KugoTheme.of(context);
-
-    void select(MusicPlatform? platform) {
-      if (platform != null) {
-        ref
-            .read(settingsControllerProvider.notifier)
-            .setDefaultSource(platform);
-      }
-      onSelect(platform);
-    }
-
     return Padding(
       padding: const EdgeInsets.only(bottom: KugoSpacing.sm),
       child: SizedBox(
@@ -293,7 +282,7 @@ class SourceFilterBar extends ConsumerWidget {
               _SourceChip(
                 label: '全部',
                 selected: selected == null,
-                onTap: () => select(null),
+                onTap: () => onSelect(null),
                 kugo: kugo,
               ),
             for (var i = 0; i < platforms.length; i++) ...[
@@ -301,7 +290,7 @@ class SourceFilterBar extends ConsumerWidget {
               _SourceChip(
                 label: platforms[i].label,
                 selected: selected == platforms[i],
-                onTap: () => select(platforms[i]),
+                onTap: () => onSelect(platforms[i]),
                 kugo: kugo,
               ),
             ],
@@ -550,11 +539,18 @@ class PlaylistCard extends StatelessWidget {
     required this.playlist,
     this.width = 120,
     this.onTap,
+    this.platform,
   });
 
   final PlaylistBrief playlist;
   final double width;
   final VoidCallback? onTap;
+
+  /// 非 null 时在**封面左上角**浮一个来源角标（不占额外高度）。
+  ///
+  /// 调用点只在**多源**时传值：单源已有页头只读标签 / 底部「当前音源」小字，
+  /// 逐卡再挂同一个源属重复噪音。
+  final MusicPlatform? platform;
 
   @override
   Widget build(BuildContext context) {
@@ -618,6 +614,13 @@ class PlaylistCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                    ),
+                  // 来源角标贴在封面左上角，与右下角播放量小胶囊对角，不抢视线。
+                  if (platform != null)
+                    Positioned(
+                      left: 6,
+                      top: 6,
+                      child: SourceBadge(platform: platform!),
                     ),
                 ],
               ),

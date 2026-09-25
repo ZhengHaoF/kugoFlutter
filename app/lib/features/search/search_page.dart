@@ -189,8 +189,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               platforms:
                   ref.read(searchControllerProvider.notifier).availablePlatforms,
               selected: state.sourceFilter,
-              onSelect: (p) =>
-                  ref.read(searchControllerProvider.notifier).setSourceFilter(p),
+              onSelect: (p) {
+                // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+                ref
+                    .read(settingsControllerProvider.notifier)
+                    .syncDefaultSourceFromFilter(p);
+                ref.read(searchControllerProvider.notifier).setSourceFilter(p);
+              },
             ),
             _TabBar(
               active: state.active,

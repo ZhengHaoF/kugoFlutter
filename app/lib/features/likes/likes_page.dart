@@ -463,7 +463,13 @@ class _LikesPageState extends ConsumerState<LikesPage>
         SourceFilterBar(
           platforms: platforms,
           selected: _sourceFilter,
-          onSelect: (p) => setState(() => _sourceFilter = p),
+          onSelect: (p) {
+            // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+            ref
+                .read(settingsControllerProvider.notifier)
+                .syncDefaultSourceFromFilter(p);
+            setState(() => _sourceFilter = p);
+          },
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
