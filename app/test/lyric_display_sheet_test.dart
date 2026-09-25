@@ -60,6 +60,19 @@ void main() {
     expect(switches.first.value, isTrue);
     expect(switches.last.value, isFalse);
 
+    // 字号 / 行间距滑块（默认 100%）。
+    expect(find.text('歌词字号'), findsOneWidget);
+    expect(find.text('歌词行间距'), findsOneWidget);
+    expect(find.byType(Slider), findsNWidgets(2));
+    expect(find.text('100%'), findsNWidgets(2));
+    // 已是默认 → 「恢复默认」置灰。
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, '恢复默认'))
+          .onPressed,
+      isNull,
+    );
+
     await tester.tap(find.byType(SwitchListTile).last);
     await tester.pumpAndSettle();
 
@@ -70,6 +83,57 @@ void main() {
     final settings = captured.read(settingsControllerProvider);
     expect(settings.lyricTranslation, isTrue);
     expect(settings.lyricRomanization, isTrue);
+  });
+
+  testWidgets('reset button restores default font and spacing scale',
+      (tester) async {
+    late WidgetRef captured;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsControllerProvider.overrideWith(
+            () => _FixedSettings(
+              const AppSettings(lyricFontScale: 1.4, lyricSpacingScale: 1.5),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: Consumer(
+                  builder: (context, ref, _) {
+                    captured = ref;
+                    return TextButton(
+                      onPressed: () => showLyricDisplaySheet(context, ref),
+                      child: const Text('open'),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('140%'), findsOneWidget);
+    expect(find.text('150%'), findsOneWidget);
+
+    final reset = find.widgetWithText(TextButton, '恢复默认');
+    expect(tester.widget<TextButton>(reset).onPressed, isNotNull);
+
+    await tester.tap(reset);
+    await tester.pumpAndSettle();
+
+    final settings = captured.read(settingsControllerProvider);
+    expect(settings.lyricFontScale, 1);
+    expect(settings.lyricSpacingScale, 1);
+    expect(find.text('100%'), findsNWidgets(2));
+    // 已回到默认 → 按钮置灰。
+    expect(tester.widget<TextButton>(reset).onPressed, isNull);
   });
 
   testWidgets('LyricDisplayButton opens the sheet', (tester) async {

@@ -24,10 +24,19 @@ List<LyricLine> _sample() => const [
       ),
     ];
 
+/// 无逐字时间轴的普通歌词：便于直接断言 Text.style（卡拉 OK 行的样式在 span 上）。
+List<LyricLine> _plainLines() => const [
+      LyricLine(timeMs: 0, endMs: 1000, text: '第一行'),
+      LyricLine(timeMs: 1000, endMs: 2000, text: '第二行'),
+    ];
+
 Widget _harness({
   required bool translation,
   required bool romanization,
   required int positionMs,
+  List<LyricLine>? lines,
+  double fontScale = 1,
+  double spacingScale = 1,
 }) {
   return ProviderScope(
     overrides: [
@@ -36,16 +45,33 @@ Widget _harness({
           AppSettings(
             lyricTranslation: translation,
             lyricRomanization: romanization,
+            lyricFontScale: fontScale,
+            lyricSpacingScale: spacingScale,
           ),
         ),
       ),
     ],
     child: MaterialApp(
       home: Scaffold(
-        body: LyricsView(lines: _sample(), positionMs: positionMs),
+        body: LyricsView(
+          lines: lines ?? _sample(),
+          positionMs: positionMs,
+        ),
       ),
     ),
   );
+}
+
+/// 列表行盒高度 = 歌词行间距（副行开关关闭时为基准 56 × 两个倍率）。
+double _rowExtent(WidgetTester tester) =>
+    tester.widget<ListView>(find.byType(ListView)).itemExtent!;
+
+/// 窄屏（宽 < 800 即 `isDesktopView` 为假），主行字号基准为 18/15 而非 22/16。
+/// 测试默认画布 800×600 会被判成桌面，故字号断言前先切到手机尺寸。
+void _usePhoneView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(420, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
 }
 
 class _FixedSettings extends SettingsController {
@@ -101,5 +127,87 @@ void main() {
     final sung = span.toPlainText().substring(0, 2); // 夜空 by 1200ms
     expect(span.toPlainText(), '夜空中最亮的星');
     expect(span.toPlainText().startsWith(sung), isTrue);
+  });
+
+  testWidgets('default scales keep the base font size and row extent',
+      (tester) async {
+    _usePhoneView(tester);
+    await tester.pumpWidget(
+      _harness(
+        translation: false,
+        romanization: false,
+        positionMs: 0,
+        lines: _plainLines(),
+      ),
+    );
+    expect(
+      tester.widget<Text>(find.text('第一行')).style?.fontSize,
+      closeTo(18, 0.001),
+    );
+    expect(_rowExtent(tester), closeTo(56, 0.001));
+  });
+
+  testWidgets('font scale enlarges lyric font size', (tester) async {
+    _usePhoneView(tester);
+    await tester.pumpWidget(
+      _harness(
+        translation: false,
+        romanization: false,
+        positionMs: 0,
+        lines: _plainLines(),
+        fontScale: 1.5,
+      ),
+    );
+    // 活动行 18 → 27；非活动行 15 → 22.5。
+    expect(
+      tester.widget<Text>(find.text('第一行')).style?.fontSize,
+      closeTo(27, 0.001),
+    );
+    expect(
+      tester.widget<Text>(find.text('第二行')).style?.fontSize,
+      closeTo(22.5, 0.001),
+    );
+  });
+
+  testWidgets('font scale grows the row extent so text is not clipped',
+      (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        translation: false,
+        romanization: false,
+        positionMs: 0,
+        lines: _plainLines(),
+        fontScale: 1.5,
+      ),
+    );
+    expect(_rowExtent(tester), closeTo(84, 0.001));
+  });
+
+  testWidgets('line spacing scale grows the row extent', (tester) async {
+    await tester.pumpWidget(
+      _harness(
+        translation: false,
+        romanization: false,
+        positionMs: 0,
+        lines: _plainLines(),
+        spacingScale: 2,
+      ),
+    );
+    expect(_rowExtent(tester), closeTo(112, 0.001));
+  });
+
+  testWidgets('row extent never shrinks below the text height', (tester) async {
+    _usePhoneView(tester);
+    await tester.pumpWidget(
+      _harness(
+        translation: true,
+        romanization: false,
+        positionMs: 0,
+        lines: _plainLines(),
+        spacingScale: kLyricSpacingScaleMin,
+      ),
+    );
+    // 倍率算出的 (56 + 18) × 0.5 = 37 会被文字高度 18×1.35 + 12×1.25 = 39.3 顶住。
+    expect(_rowExtent(tester), closeTo(39.3, 0.001));
   });
 }
