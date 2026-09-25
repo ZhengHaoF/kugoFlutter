@@ -7,10 +7,13 @@ import '../../core/models/fm_mode.dart';
 import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
+import '../../features/settings/settings_controller.dart';
+import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../player/player_controller.dart';
 import 'fm_controller.dart';
@@ -96,6 +99,17 @@ class _FmPageState extends ConsumerState<FmPage>
     final current = player.current;
     final desktop = isDesktopView(context);
     final fmActive = fm.active || player.queueSource == PlaybackQueueSource.fm;
+
+    // 整源开关：FM 链路（含关键词兜底池）全部来自酷狗。停用且无进行中的
+    // FM 会话时整页空态；正在播的会话不拦（已入队曲目不受整源开关影响）。
+    if (!ref.watch(settingsControllerProvider).enabledSources
+            .contains(MusicPlatform.kugou) &&
+        !fmActive) {
+      return Scaffold(
+        body: const SourceDisabledView(platform: MusicPlatform.kugou),
+      );
+    }
+
     final accent = CoverPalette.accentFromSeed(
       current?.coverUrl ?? 'fm',
       kugo.palette,

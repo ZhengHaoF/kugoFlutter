@@ -87,9 +87,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/netease-login',
-        pageBuilder: (context, state) => const MaterialPage(
+        pageBuilder: (context, state) => MaterialPage(
           fullscreenDialog: true,
-          child: NeteaseLoginPage(),
+          // `?relogin=1`：设置页「切换账号」进来，直接出新码顶替旧账号；
+          // 否则已登录只回显账号、未登录才拉码。
+          child: NeteaseLoginPage(
+            forceRelogin: state.uri.queryParameters['relogin'] == '1',
+          ),
         ),
       ),
       StatefulShellRoute.indexedStack(

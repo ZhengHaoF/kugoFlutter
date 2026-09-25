@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/playlist_repository.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../features/rank/rank_list_page.dart'
@@ -38,6 +40,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   Future<void> _load() async {
+    // 整源开关：排行榜/今日热歌块全部来自酷狗，停用即不发请求。
+    // 页面其余部分（问候语/搜索/快捷入口）保留。
+    if (!ref.read(settingsControllerProvider).enabledSources
+        .contains(MusicPlatform.kugou)) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     setState(() {
       _loading = true;
       _error = '';
@@ -105,6 +114,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _ => '晚上好',
     };
     final isEmpty = !_loading && _rankings.isEmpty && _songs.isEmpty;
+    // 整源开关：酷狗停用时排行榜/热歌块不请求、不渲染，占位换成停用空态
+    // （区别于网络失败的「重试」文案）。
+    final kugouDisabled = !ref.watch(settingsControllerProvider).enabledSources
+        .contains(MusicPlatform.kugou);
 
     // 浏览型页面：内容铺满侧栏之外的全部宽度（与「我的」「历史」一致），
     // 不再做居中限宽——最大化窗口时两侧不会再留大片空白。
@@ -198,14 +211,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           if (isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: AsyncBody(
-                loading: false,
-                hasError: true,
-                isEmpty: false,
-                errorMessage: _error,
-                onRetry: _load,
-                child: const SizedBox.shrink(),
-              ),
+              child: kugouDisabled
+                  ? const SourceDisabledView(platform: MusicPlatform.kugou)
+                  : AsyncBody(
+                      loading: false,
+                      hasError: true,
+                      isEmpty: false,
+                      errorMessage: _error,
+                      onRetry: _load,
+                      child: const SizedBox.shrink(),
+                    ),
             ),
         ],
         const SliverToBoxAdapter(child: SizedBox(height: 140)),

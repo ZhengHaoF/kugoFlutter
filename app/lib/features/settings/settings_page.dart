@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/platform.dart';
+import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/netease_login_controller.dart';
@@ -138,29 +140,7 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           _Section(
-            title: '账号',
-            children: [
-              ListTile(
-                title: Text(
-                  auth.isLogged ? '已登录：${auth.user?.nickname}' : '未登录',
-                  style: kugo.body,
-                ),
-                subtitle: Text(
-                  auth.isLogged ? '点击退出' : '游客模式，数据仅存本机',
-                  style: kugo.caption,
-                ),
-                onTap: () async {
-                  if (auth.isLogged) {
-                    await ref.read(authControllerProvider.notifier).logout();
-                  } else if (context.mounted) {
-                    context.push('/login');
-                  }
-                },
-              ),
-            ],
-          ),
-          _Section(
-            title: '音源账号',
+            title: '账号管理',
             children: [
               ListTile(
                 leading: Icon(
@@ -175,25 +155,50 @@ class SettingsPage extends ConsumerWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showDefaultSourcePicker(context, ref),
               ),
-              ListTile(
-                leading: Icon(
-                  Icons.cloud_outlined,
-                  color: kugo.textSecondary,
+              // 整源开关：只列已注册的源；最后一个源不可关（至少保留一个）。
+              // 停用只影响新内容的入口，已在播/已入队的曲目不受影响。
+              for (final p in _enabledPlatformRows(settings))
+                SwitchListTile(
+                  secondary: Icon(Icons.power_settings_new, color: kugo.textSecondary),
+                  title: Text('启用${p.$1.label}音源', style: kugo.body),
+                  subtitle: Text(
+                    p.$2 ? '关闭后搜索与功能页不再使用该源' : '最后一个音源，至少保留一个',
+                    style: kugo.caption,
+                  ),
+                  value: settings.enabledSources.contains(p.$1),
+                  onChanged: p.$2
+                      ? (v) => controller.setEnabledSources(
+                            v
+                                ? {...settings.enabledSources, p.$1}
+                                : {...settings.enabledSources}..remove(p.$1),
+                          )
+                      : null,
                 ),
-                title: Text(
+              // 酷狗 / 网易云各一行。两个源的登录态互不影响（可只登其一），
+              // 但同一源只保留一个当前账号——再登即顶替，故按钮是「切换账号」。
+              _AccountTile(
+                icon: Icons.headset_rounded,
+                platform: MusicPlatform.kugou.label,
+                nickname: auth.isLogged ? (auth.user?.nickname ?? '') : '',
+                guestHint: '游客模式，数据仅存本机',
+                onLogin: () => context.push('/login'),
+                onLogout:
+                    auth.isLogged ? () => _logoutKugou(context, ref) : null,
+              ),
+              _AccountTile(
+                icon: Icons.cloud_outlined,
+                platform: MusicPlatform.netease.label,
+                nickname: netease.isLogged ? netease.account!.nickname : '',
+                guestHint: '扫码登录后可同步歌单与播放权限',
+                // 已登录时带 relogin，进页直接出新码顶替旧账号。
+                onLogin: () => context.push(
                   netease.isLogged
-                      ? '网易云：${netease.account!.nickname}'
-                      : '网易云：未登录',
-                  style: kugo.body,
+                      ? '/netease-login?relogin=1'
+                      : '/netease-login',
                 ),
-                subtitle: Text(
-                  netease.isLogged
-                      ? '点击管理 / 退出登录'
-                      : '扫码登录后可同步歌单与播放权限',
-                  style: kugo.caption,
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push('/netease-login'),
+                onLogout: netease.isLogged
+                    ? () => _logoutNetease(context, ref)
+                    : null,
               ),
             ],
           ),
@@ -256,7 +261,132 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
   }
+
+  /// 整源开关的行数据：`(平台, 是否可关闭)`。
+  ///
+  /// 只列 registry 里已注册的源（没注册的源开关无意义）；enabledSources
+  /// 里只剩它自己时禁止关闭——空集合会让 App 没有任何可用音源。
+  List<(MusicPlatform, bool)> _enabledPlatformRows(AppSettings settings) {
+    final registered = musicSourceRegistry?.platforms.toList() ??
+        const [MusicPlatform.kugou];
+    return [
+      for (final p in registered)
+        (p, settings.enabledSources.length > 1 || !settings.enabledSources.contains(p)),
+    ];
+  }
+
+  /// 退出酷狗账号。会掉云端歌单/「我喜欢」与付费播放权限，先二次确认。
+  Future<void> _logoutKugou(BuildContext context, WidgetRef ref) async {
+    final name = ref.read(authControllerProvider).user?.nickname ?? '';
+    if (!await _confirmLogout(context, MusicPlatform.kugou.label, name)) return;
+    await ref.read(authControllerProvider.notifier).logout();
+  }
+
+  /// 退出网易云账号：清内存会话 + 本地落盘（[NeteaseAuthStore]）。
+  Future<void> _logoutNetease(BuildContext context, WidgetRef ref) async {
+    final name =
+        ref.read(neteaseLoginControllerProvider).account?.nickname ?? '';
+    if (!await _confirmLogout(context, MusicPlatform.netease.label, name)) {
+      return;
+    }
+    await ref.read(neteaseLoginControllerProvider.notifier).logout();
+  }
 }
+
+/// 退出登录前的二次确认：会掉云端歌单/「我喜欢」与付费播放权限，误点代价高。
+Future<bool> _confirmLogout(
+  BuildContext context,
+  String platform,
+  String nickname,
+) async {
+  final who = nickname.isEmpty ? '' : '「$nickname」';
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('退出$platform账号？'),
+      content: Text('退出后$who云端的歌单、「我喜欢」与付费播放权限将不可用，本机数据不受影响。'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('退出'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}
+
+/// 「账号管理」里的一行：平台名 + 当前状态 + 行内显式按钮。
+///
+/// 旧版酷狗是「点整行即退出」的隐式交互，容易误触（退出会掉云端数据），
+/// 故统一改为显式按钮，并与网易云保持同构。
+class _AccountTile extends StatelessWidget {
+  const _AccountTile({
+    required this.icon,
+    required this.platform,
+    required this.nickname,
+    required this.guestHint,
+    required this.onLogin,
+    this.onLogout,
+  });
+
+  final IconData icon;
+  final String platform;
+
+  /// 非空即已登录，直接显示昵称。
+  final String nickname;
+
+  /// 未登录时的状态说明。
+  final String guestHint;
+
+  /// 「去登录」；已登录时同一按钮变成「切换账号」。
+  final VoidCallback onLogin;
+
+  /// 「退出登录」；未登录为 null（不显示该按钮）。
+  final VoidCallback? onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    final logged = nickname.isNotEmpty;
+    final logout = onLogout;
+    return ListTile(
+      leading: Icon(icon, color: kugo.textSecondary),
+      title: Text(platform, style: kugo.body),
+      subtitle: Text(
+        logged ? '已登录：$nickname' : guestHint,
+        style: kugo.caption,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton(
+            onPressed: onLogin,
+            style: _tileActionStyle,
+            child: Text(logged ? '切换账号' : '去登录'),
+          ),
+          if (logout != null)
+            TextButton(
+              onPressed: logout,
+              style: _tileActionStyle,
+              child: const Text('退出登录'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 两个按钮要挤进一个 ListTile，收紧内边距与点击热区免得撑破标题。
+final ButtonStyle _tileActionStyle = TextButton.styleFrom(
+  padding: const EdgeInsets.symmetric(horizontal: 8),
+  minimumSize: const Size(0, 32),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+);
 
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.children});

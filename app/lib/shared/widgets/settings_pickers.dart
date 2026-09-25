@@ -52,8 +52,13 @@ Future<void> showDefaultSourcePicker(
 ) async {
   final kugo = KugoTheme.of(context);
   final controller = ref.read(settingsControllerProvider.notifier);
-  final current = ref.read(settingsControllerProvider).defaultSource;
-  final platforms = musicSourceRegistry?.platforms.toList() ??
+  final settings = ref.read(settingsControllerProvider);
+  final current = settings.defaultSource;
+  // 只列已注册且启用的源（停用的源选了也不会生效）。
+  final enabled = settings.enabledSources;
+  final platforms = musicSourceRegistry?.platforms
+          .where(enabled.contains)
+          .toList() ??
       const [MusicPlatform.kugou];
   final selected = await showKugoBottomSheet<MusicPlatform>(
     context: context,

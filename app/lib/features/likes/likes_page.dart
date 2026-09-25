@@ -85,7 +85,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
       if (mounted) setState(() {});
     });
     _sourceFilter = _registeredPlatforms().length > 1
-        ? ref.read(settingsControllerProvider).defaultSource
+        ? ref.read(settingsControllerProvider).effectiveDefaultSource
         : null;
     // Actively pull cloud collections when the page opens (EchoMusic onMounted).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -102,8 +102,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
     });
   }
 
-  List<MusicPlatform> _registeredPlatforms() =>
-      musicSourceRegistry?.platforms.toList() ?? const [];
+  /// 已注册且**启用**的音源（源筛选条用）。设置里的整源开关在此过滤。
+  List<MusicPlatform> _registeredPlatforms() {
+    final enabled = ref.read(settingsControllerProvider).enabledSources;
+    return musicSourceRegistry?.platforms
+            .where(enabled.contains)
+            .toList() ??
+        const [];
+  }
 
   @override
   void dispose() {
@@ -198,6 +204,12 @@ class _LikesPageState extends ConsumerState<LikesPage>
     final displayedAlbums = _filterAlbums(collections.favoritedAlbums);
 
     final platforms = _registeredPlatforms();
+
+    // 筛选指向已停用的源（用户在设置里关掉了它）→ 回落到「全部」，
+    // 否则列表空白且筛选条上没有可切回的入口。幂等修正，最多改一次。
+    if (_sourceFilter != null && !platforms.contains(_sourceFilter)) {
+      _sourceFilter = null;
+    }
 
     // 云端 trackCount 可能先于列表到达；取两者较大值，避免「900 进、300 显示」。
     var songsCount = 0;

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
@@ -11,6 +12,7 @@ import '../../data/repositories/discovery_repository.dart';
 import '../../data/repositories/playlist_repository.dart';
 import '../../data/repositories/recommend_repository.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -107,7 +109,14 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     }
   }
 
+  /// 整源开关：本页五个 Tab（歌单/榜单/新碟/新歌/歌手）全部来自酷狗，
+  /// 停用即不发请求 + 整页空态。
+  bool get _kugouEnabled =>
+      ref.read(settingsControllerProvider).enabledSources
+          .contains(MusicPlatform.kugou);
+
   Future<void> _loadPlaylists() async {
+    if (!_kugouEnabled) return;
     setState(() {
       _playlistsLoading = true;
       _playlistsError = '';
@@ -150,6 +159,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadRanks() async {
+    if (!_kugouEnabled) return;
     setState(() {
       _ranksLoading = true;
       _ranksError = '';
@@ -172,6 +182,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadRankTracks(PlaylistBrief rank) async {
+    if (!_kugouEnabled) return;
     setState(() {
       _activeRank = rank;
       _rankTracksLoading = true;
@@ -188,6 +199,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadAlbums() async {
+    if (!_kugouEnabled) return;
     setState(() {
       _albumsLoading = true;
       _albumsError = '';
@@ -202,6 +214,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadNewSongs() async {
+    if (!_kugouEnabled) return;
     setState(() {
       _newSongsLoading = true;
       _newSongsError = '';
@@ -216,6 +229,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadArtists() async {
+    if (!_kugouEnabled) return;
     setState(() {
       _artistsLoading = true;
       _artistsError = '';
@@ -257,16 +271,19 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
           tabs: [for (final t in _tabs) Tab(text: t)],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildPlaylistsTab(kugo),
-          _buildRanksTab(kugo),
-          _buildAlbumsTab(kugo),
-          _buildNewSongsTab(kugo),
-          _buildArtistsTab(kugo),
-        ],
-      ),
+      body: !ref.watch(settingsControllerProvider).enabledSources
+              .contains(MusicPlatform.kugou)
+          ? const SourceDisabledView(platform: MusicPlatform.kugou)
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildPlaylistsTab(kugo),
+                _buildRanksTab(kugo),
+                _buildAlbumsTab(kugo),
+                _buildNewSongsTab(kugo),
+                _buildArtistsTab(kugo),
+              ],
+            ),
     );
   }
 

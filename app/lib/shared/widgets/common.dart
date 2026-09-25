@@ -136,6 +136,46 @@ class SourceBadge extends StatelessWidget {
       QualityBadge(label: platform.label);
 }
 
+/// 「音源已停用」空态：整源开关关掉某源后，只依赖该源的页面（FM /
+/// 榜单 / 每日推荐 / 发现）用它代替内容区，避免空白或一串请求报错。
+///
+/// 只拦「新内容入口」：正在播放 / 已入队的曲目不受影响（见方案 §11）。
+class SourceDisabledView extends StatelessWidget {
+  const SourceDisabledView({super.key, required this.platform});
+
+  final MusicPlatform platform;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(KugoSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.power_settings_new, size: 44, color: kugo.textTertiary),
+            const SizedBox(height: KugoSpacing.lg),
+            Text('${platform.label}音源已停用', style: kugo.section),
+            const SizedBox(height: KugoSpacing.sm),
+            Text(
+              '本页内容依赖${platform.label}。已停用期间不再请求该音源；'
+              '已在播放队列中的歌曲不受影响。',
+              textAlign: TextAlign.center,
+              style: kugo.caption.copyWith(color: kugo.textTertiary),
+            ),
+            const SizedBox(height: KugoSpacing.lg),
+            FilledButton.tonal(
+              onPressed: () => context.push('/settings'),
+              child: const Text('去设置开启'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 音源筛选条：全部 / 酷狗 / 网易云 …（只有一个源时不显示）。
 ///
 /// 「切换音源」的轻量机制之一（见方案 §11 决策记录），不做全局音源切换。

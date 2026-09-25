@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -10,6 +11,7 @@ import '../../core/theme/responsive.dart';
 import '../../data/repositories/recommend_repository.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -51,6 +53,8 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
   }
 
   Future<void> _loadStyle({bool useSelectedTags = false}) async {
+    // 酷狗停用时不发请求（页面被整页空态替换，这里是入口防御）。
+    if (!_kugouEnabled) return;
     final requestId = ++_styleRequestId;
     setState(() {
       _style = _Sec(loading: true);
@@ -85,6 +89,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
   }
 
   Future<void> _loadPlaylists() async {
+    if (!_kugouEnabled) return;
     final requestId = ++_playlistRequestId;
     final categoryId = _playlistCategoryId;
     setState(() {
@@ -104,6 +109,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
   }
 
   Future<void> _loadEditorial() async {
+    if (!_kugouEnabled) return;
     setState(() {
       _editorial = _Sec(loading: true);
     });
@@ -136,6 +142,11 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
   }
 
   List<Track> get _styleTracks => _style.data?.tracks ?? const [];
+
+  /// 整源开关：本页四个板块全部来自酷狗，停用即不发请求 + 整页空态。
+  bool get _kugouEnabled =>
+      ref.read(settingsControllerProvider).enabledSources
+          .contains(MusicPlatform.kugou);
 
   String get _styleSummary {
     if (_selectedTagIds.isEmpty) return '默认推荐';
@@ -184,6 +195,15 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
         _playlists.data?.playlists ?? const <PlaylistBrief>[];
     final editorialItems =
         _editorial.data?.playlists ?? const <PlaylistBrief>[];
+
+    // 整源开关：本页四个板块全部来自酷狗，停用即整页空态。
+    if (!ref.watch(settingsControllerProvider).enabledSources
+        .contains(MusicPlatform.kugou)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('为你推荐')),
+        body: const SourceDisabledView(platform: MusicPlatform.kugou),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

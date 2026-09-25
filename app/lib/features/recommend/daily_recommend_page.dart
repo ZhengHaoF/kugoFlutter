@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/recommend_repository.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../core/theme/hero_tags.dart';
@@ -34,6 +36,11 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
   }
 
   Future<void> _load() async {
+    // 酷狗停用时不发请求（页面被整页空态替换，这里是入口防御）。
+    if (!ref.read(settingsControllerProvider).enabledSources
+        .contains(MusicPlatform.kugou)) {
+      return;
+    }
     setState(() {
       _loading = true;
       _error = '';
@@ -74,6 +81,15 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
         _load();
       }
     });
+
+    // 整源开关：本页数据全部来自酷狗，停用即整页空态。
+    if (!ref.watch(settingsControllerProvider).enabledSources
+        .contains(MusicPlatform.kugou)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('每日推荐')),
+        body: const SourceDisabledView(platform: MusicPlatform.kugou),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

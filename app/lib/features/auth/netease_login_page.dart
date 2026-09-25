@@ -10,7 +10,10 @@ import 'netease_login_controller.dart';
 
 /// 网易云扫码登录页（与酷狗 [LoginPage] 分开，两套账号互不影响）。
 class NeteaseLoginPage extends ConsumerStatefulWidget {
-  const NeteaseLoginPage({super.key});
+  const NeteaseLoginPage({super.key, this.forceRelogin = false});
+
+  /// 设置页「切换账号」传入：无视已登录态直接出新码（扫码后顶替旧账号）。
+  final bool forceRelogin;
 
   @override
   ConsumerState<NeteaseLoginPage> createState() => _NeteaseLoginPageState();
@@ -22,7 +25,12 @@ class _NeteaseLoginPageState extends ConsumerState<NeteaseLoginPage> {
     super.initState();
     // 进页即初始化：已登录只回显账号，未登录才拉二维码。
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(neteaseLoginControllerProvider.notifier).bootstrap();
+      final c = ref.read(neteaseLoginControllerProvider.notifier);
+      if (widget.forceRelogin) {
+        c.startQr();
+      } else {
+        c.bootstrap();
+      }
     });
   }
 

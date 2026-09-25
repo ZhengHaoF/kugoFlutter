@@ -49,6 +49,10 @@ class AppSettings {
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
     this.defaultSource = MusicPlatform.kugou,
+    this.enabledSources = const {
+      MusicPlatform.kugou,
+      MusicPlatform.netease,
+    },
   });
 
   final AppQuality quality;
@@ -74,6 +78,22 @@ class AppSettings {
 
   /// 默认音源：搜索页音源筛选与「我喜欢」页源筛选的初始值（用户当次仍可切换）。
   final MusicPlatform defaultSource;
+
+  /// 启用的音源（整源开关）。默认全集；空集合非法，setter 会拒绝。
+  ///
+  /// 只影响「新内容的入口」：搜索混排、源筛选条、默认源选择器与
+  /// 单源功能页（FM/榜单/日推/发现）的空态。已在播放队列中的曲目
+  /// 不受影响（播放器按曲目平台取源，不经此开关）。
+  final Set<MusicPlatform> enabledSources;
+
+  /// 默认源被停用后的回退值：按枚举序取第一个仍启用的源。
+  MusicPlatform get effectiveDefaultSource =>
+      enabledSources.contains(defaultSource)
+          ? defaultSource
+          : MusicPlatform.values.firstWhere(
+              enabledSources.contains,
+              orElse: () => MusicPlatform.kugou,
+            );
 
   String get defaultSourceLabel => defaultSource.label;
 
@@ -114,6 +134,7 @@ class AppSettings {
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
     MusicPlatform? defaultSource,
+    Set<MusicPlatform>? enabledSources,
   }) {
     return AppSettings(
       quality: quality ?? this.quality,
@@ -127,6 +148,7 @@ class AppSettings {
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
       defaultSource: defaultSource ?? this.defaultSource,
+      enabledSources: enabledSources ?? this.enabledSources,
     );
   }
 }
@@ -146,6 +168,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
   static const _kDefaultSource = 'settings.defaultSource';
+  static const _kEnabledSources = 'settings.enabledSources';
 
   @override
   AppSettings build() {
@@ -190,8 +213,22 @@ class SettingsController extends Notifier<AppSettings> {
         defaultSource: MusicPlatform.fromWire(
           prefs.getString(_kDefaultSource) ?? '',
         ),
+        enabledSources: _readEnabledSources(prefs),
       );
     } catch (_) {}
+  }
+
+  /// 读取整源开关。缺失 / 空列表（非法态）/ 全部未知 → 全集兜底。
+  ///
+  /// 不用 [MusicPlatform.fromWire]：它对未知值回退 kugou，会把脏数据
+  /// 误读成「酷狗启用」，这里按 wireName 精确匹配后丢弃未知值。
+  Set<MusicPlatform> _readEnabledSources(SharedPreferences prefs) {
+    final raw = prefs.getStringList(_kEnabledSources);
+    if (raw == null) return AppSettings().enabledSources;
+    final parsed = MusicPlatform.values
+        .where((p) => raw.contains(p.wireName))
+        .toSet();
+    return parsed.isEmpty ? AppSettings().enabledSources : parsed;
   }
 
   /// New key wins; otherwise migrate the old `closeToTray` boolean.
@@ -269,6 +306,31 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setDefaultSource(MusicPlatform v) async {
     state = state.copyWith(defaultSource: v);
     await _save(_kDefaultSource, v.wireName);
+  }
+
+  /// 整源开关。空集合直接拒绝（至少保留一个源，否则 App 没有可用音源）。
+  ///
+  /// 停用当前默认源时，默认源联动回退到第一个仍启用的源并落盘，
+  /// 消费点（搜索页 / 我喜欢页初始筛选）无需各自处理该边界。
+  Future<void> setEnabledSources(Set<MusicPlatform> v) async {
+    if (v.isEmpty || v.length == state.enabledSources.length &&
+            v.containsAll(state.enabledSources)) {
+      return;
+    }
+    var next = state.copyWith(enabledSources: v);
+    if (!v.contains(next.defaultSource)) {
+      next = next.copyWith(defaultSource: next.effectiveDefaultSource);
+    }
+    state = next;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _kEnabledSources,
+        [for (final p in MusicPlatform.values) if (v.contains(p)) p.wireName],
+      );
+      // 默认源可能被联动修正，两个 key 要一起写。
+      await prefs.setString(_kDefaultSource, state.defaultSource.wireName);
+    } catch (_) {}
   }
 
   /// Clear cover disk/memory cache + play history. Returns a status label.

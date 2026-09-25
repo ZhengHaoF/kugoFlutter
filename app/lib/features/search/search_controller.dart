@@ -8,6 +8,7 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
 import '../../data/repositories/search_repository.dart';
+import '../settings/settings_controller.dart';
 
 /// Page size used by every tab; also the unit the sources paginate by.
 const kSearchPageSize = 30;
@@ -139,8 +140,13 @@ class SearchController extends Notifier<SearchState> {
   @override
   SearchState build() => const SearchState();
 
-  /// 已注册音源（音源筛选条用）；≤1 时 UI 不显示筛选条。
-  List<MusicPlatform> get availablePlatforms => _registry.platforms.toList();
+  /// 已注册且**启用**的音源（音源筛选条用）；≤1 时 UI 不显示筛选条。
+  ///
+  /// 设置里的整源开关（见 `SettingsController.setEnabledSources`）在此过滤：
+  /// 停用的源不参与混排；已在页面的旧结果不动，下次搜索生效。
+  List<MusicPlatform> get availablePlatforms => _registry.platforms
+      .where(ref.read(settingsControllerProvider).enabledSources.contains)
+      .toList();
 
   /// Runs a fresh search. Clears every tab — a new keyword invalidates all of
   /// them, even the ones the user has not opened yet.
@@ -273,10 +279,16 @@ class SearchController extends Notifier<SearchState> {
   }
 
   /// 当前筛选命中的音源（按注册顺序，决定混排优先级）。
+  ///
+  /// 停用的源一律剔除；筛选指向已停用的源时回落到「全部启用源」，
+  /// 否则用户在设置里关源后，搜索页会一直报「没有可用音源」。
   List<MusicSource> _sources() {
+    final enabled = ref.read(settingsControllerProvider).enabledSources;
     final filter = state.sourceFilter;
-    if (filter == null) return _registry.all.toList();
-    return _registry.supports(filter) ? [_registry.of(filter)] : const [];
+    if (filter != null && enabled.contains(filter)) {
+      return _registry.supports(filter) ? [_registry.of(filter)] : const [];
+    }
+    return _registry.all.where((s) => enabled.contains(s.platform)).toList();
   }
 
   Future<({List<Object> items, int? total, bool hasMore})> _fetch(

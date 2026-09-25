@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/kugo_client.dart';
-import 'package:kugo/core/models/audio_quality.dart';
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/music_platform.dart';
@@ -10,6 +9,7 @@ import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/data/repositories/search_repository.dart';
 import 'package:kugo/data/sources/kugou/kugou_source.dart';
 import 'package:kugo/features/search/search_controller.dart';
+import 'package:kugo/features/settings/settings_controller.dart';
 
 /// Records every call and serves scripted pages so we can assert on
 /// laziness / per-tab pagination without touching the network.
@@ -771,6 +771,55 @@ void main() {
       n.applyDefaultSourceFilter(MusicPlatform.netease);
 
       expect(c.read(searchControllerProvider).sourceFilter, isNull);
+    });
+  });
+
+  group('enabled sources (整源开关)', () {
+    ProviderContainer twoSources(_RecordingRepo kg, _RecordingRepo ne) =>
+        _containerFor([
+          KugouSource(searchRepository: kg),
+          _RecordingSource(MusicPlatform.netease, ne),
+        ]);
+
+    test('停用的源不参与混排', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+
+      // 关掉酷狗 → 混排只剩网易云。
+      await c
+          .read(settingsControllerProvider.notifier)
+          .setEnabledSources({MusicPlatform.netease});
+
+      expect(
+        c.read(searchControllerProvider.notifier).availablePlatforms,
+        [MusicPlatform.netease],
+      );
+
+      await c.read(searchControllerProvider.notifier).submit('x');
+      final songs = songItemsOf(c.read(searchControllerProvider).activeTab);
+      expect(songs, hasLength(30));
+      expect(songs.first.id, 'ne-song-1-0');
+      expect(kg.calls, isEmpty);
+    });
+
+    test('筛选指向已停用的源时回落到全部启用源', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = twoSources(kg, ne);
+      final n = c.read(searchControllerProvider.notifier);
+
+      // 先选中网易云，再在设置里把网易云关掉 → 搜索自动回落「全部」。
+      await n.setSourceFilter(MusicPlatform.netease);
+      await c
+          .read(settingsControllerProvider.notifier)
+          .setEnabledSources({MusicPlatform.kugou});
+
+      await n.submit('x');
+      final songs = songItemsOf(c.read(searchControllerProvider).activeTab);
+      expect(songs, hasLength(30));
+      expect(songs.first.id, 'kg-song-1-0');
+      expect(ne.calls.where((s) => s.startsWith('ne:song:')), isEmpty);
     });
   });
 }
