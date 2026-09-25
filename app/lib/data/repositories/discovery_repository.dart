@@ -7,26 +7,11 @@ import '../../core/api/kugo_client.dart';
 import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
+import '../../core/models/catalog_models.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
 import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
-
-/// One playlist category tag group (`playlist/tags` → `tag_name` + `son[]`).
-class DiscoveryTagGroup {
-  const DiscoveryTagGroup({required this.name, required this.child});
-
-  final String name;
-  final List<DiscoveryTag> child;
-}
-
-class DiscoveryTag {
-  const DiscoveryTag({required this.id, required this.name, this.group = ''});
-
-  final String id;
-  final String name;
-  final String group;
-}
 
 /// Artist list item with optional avatar / counts (richer than search/singer).
 class DiscoveryArtist {
@@ -174,7 +159,7 @@ class DiscoveryRepository {
   ];
 
   /// KuGouMusicApi `playlist_tags.js` → `POST /pubsongs/v1/get_tags_by_type`.
-  Future<DiscoverySection<DiscoveryTagGroup>> fetchPlaylistTags() async {
+  Future<DiscoverySection<PlaylistTagGroup>> fetchPlaylistTags() async {
     lastError = '';
     final body = <String, dynamic>{
       'tag_type': 'collection',
@@ -441,7 +426,7 @@ class DiscoveryRepository {
 }
 
 /// Flatten `playlist/tags` into display groups.
-List<DiscoveryTagGroup> extractPlaylistTagGroups(dynamic body) {
+List<PlaylistTagGroup> extractPlaylistTagGroups(dynamic body) {
   final map = body is Map ? Map<String, dynamic>.from(body) : const {};
   final data = map['data'] is Map
       ? Map<String, dynamic>.from(map['data'] as Map)
@@ -449,24 +434,24 @@ List<DiscoveryTagGroup> extractPlaylistTagGroups(dynamic body) {
   final list = data['info'] ?? data['list'] ?? data['data'] ?? map['info'];
   if (list is! List) return const [];
 
-  final groups = <DiscoveryTagGroup>[];
+  final groups = <PlaylistTagGroup>[];
   for (final item in list) {
     if (item is! Map) continue;
     final g = Map<String, dynamic>.from(item);
     final groupName = _s(g['tag_name'], _s(g['name'], _s(g['title'])));
     final sons = g['son'] ?? g['child'] ?? g['list'];
     if (sons is! List) continue;
-    final child = <DiscoveryTag>[];
+    final child = <PlaylistTag>[];
     for (final son in sons) {
       if (son is! Map) continue;
       final t = Map<String, dynamic>.from(son);
       final id = _s(t['tag_id'], _s(t['id']));
       final name = _s(t['tag_name'], _s(t['name']));
       if (id.isEmpty || name.isEmpty) continue;
-      child.add(DiscoveryTag(id: id, name: name, group: groupName));
+      child.add(PlaylistTag(id: id, name: name, group: groupName));
     }
     if (child.isEmpty) continue;
-    groups.add(DiscoveryTagGroup(name: groupName, child: child));
+    groups.add(PlaylistTagGroup(name: groupName, child: child));
   }
   return groups;
 }

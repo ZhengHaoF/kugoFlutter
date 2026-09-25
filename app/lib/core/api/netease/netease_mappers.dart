@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../models/audio_quality.dart';
+import '../../models/catalog_models.dart';
 import '../../models/search_result.dart';
 import '../../models/track.dart';
 import '../../source/capabilities.dart';
@@ -186,6 +187,79 @@ List<Track> mapNeteasePlaylistTracks(String raw) {
   return mapNeteaseSongs(playlist['tracks']);
 }
 
+// ── D 详情页（歌单 / 专辑 / 歌手） ────────────────────────────
+
+/// D2 歌单详情（完整）：`playlist` 头 + `tracks`（上限 1000 首，实测）。
+///
+/// 网易榜单也复用歌单详情（G10），故 [PlaylistDetailSource] 的网易实现
+/// 榜单/歌单共用本映射。
+({PlaylistBrief brief, List<Track> tracks})? mapNeteasePlaylistDetail(
+  String raw,
+) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '歌单详情');
+  final playlist = _asMap(root['playlist']);
+  final brief = mapNeteasePlaylistBrief(playlist);
+  if (brief == null) return null;
+  return (brief: brief, tracks: mapNeteaseSongs(playlist['tracks']));
+}
+
+/// D3 专辑详情：`album`（头）+ 顶层 `songs[]`（实测张悬《神的游戏》9 首）。
+AlbumDetail? mapNeteaseAlbumDetail(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '专辑详情');
+  final al = _asMap(root['album']);
+  final id = _int(al['id']);
+  if (id <= 0) return null;
+  final artist = _asMap(al['artist']);
+  return AlbumDetail(
+    id: '$id',
+    name: _str(al['name'] ?? al['albumName']),
+    coverUrl: _pic(_str(
+      al['picUrl'] ?? al['blurPicUrl'] ?? al['coverImgUrl'] ?? al['cover'],
+    )),
+    artist: _str(artist['name'] ?? al['artistName'] ?? artist['name']),
+    publishTime: _dateLabel(_int(al['publishTime'] ?? al['publishTimeMs'])),
+    intro: _str(al['description'] ?? al['intro'] ?? al['briefDesc']),
+    songs: mapNeteaseSongs(root['songs'] ?? al['songs']),
+  );
+}
+
+/// D4 歌手头部信息：`data.artist`（实测周杰伦 568 曲 / 44 专）。
+ArtistDetail? mapNeteaseArtistDetail(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '歌手详情');
+  final data = _asMap(root['data']);
+  final artist = _asMap(data['artist'] ?? root['artist']);
+  final id = _int(artist['id']);
+  if (id <= 0) return null;
+  return ArtistDetail(
+    id: '$id',
+    name: _str(artist['name'] ?? artist['artistName']),
+    avatarUrl: _pic(_str(
+      artist['avatar'] ??
+          artist['img1v1Url'] ??
+          artist['picUrl'] ??
+          artist['cover'],
+    )),
+    intro: _str(artist['briefDesc'] ?? artist['description']),
+    songCount: _int(artist['musicSize'] ?? artist['songSize']),
+    albumCount: _int(artist['albumSize']),
+    mvCount: _int(artist['mvSize'] ?? artist['videoSize']),
+  );
+}
+
+/// D6 歌手歌曲分页：`songs[]` + `more`（hasMore）+ `total`。
+ArtistSongsPage mapNeteaseArtistSongs(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '歌手歌曲');
+  return ArtistSongsPage(
+    songs: mapNeteaseSongs(root['songs']),
+    total: _int(root['total']),
+    hasMore: root['more'] == true,
+  );
+}
+
 /// G3 每日推荐：`data.dailySongs`。
 List<Track> mapNeteaseDailySongs(String raw) {
   final root = _decode(raw);
@@ -201,6 +275,50 @@ List<Track> mapNeteaseFmSongs(String raw) {
   final root = _decode(raw);
   _throwIfBadCode(root, '私人 FM');
   return mapNeteaseSongs(root['data'] ?? root['result']);
+}
+
+/// G5 新歌推荐：`result[]`，曲目嵌在节点 `song` 里（由 [mapNeteaseSong] 解包）。
+List<Track> mapNeteasePersonalizedNewSongs(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '新歌速递');
+  return mapNeteaseSongs(root['result'] ?? root['data']);
+}
+
+/// G6 分类/热门歌单：`playlists[]`（节点同搜索歌单，复用 brief 映射）。
+List<PlaylistBrief> mapNeteaseTopPlaylists(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '分类歌单');
+  final data = _asMap(root['data']);
+  return _mapNodes(
+    root['playlists'] ?? data['playlists'] ?? root['result'],
+    mapNeteasePlaylistBrief,
+  );
+}
+
+/// G7b 精品标签：`tags[]` → **单组扁平**标签（网易无二级分类）。
+///
+/// 网易分类歌单接口 `cat` 收的是**标签名**（实测 `cat=华语`），故 [PlaylistTag.id]
+/// 直接用标签名，UI 原样回传；接口未给「全部」时前置一个，保证默认分类可用。
+List<PlaylistTagGroup> mapNeteasePlaylistTags(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '歌单标签');
+  final data = _asMap(root['data']);
+  final tags = root['tags'] ?? data['tags'];
+  final out = <PlaylistTag>[];
+  final seen = <String>{};
+  if (tags is List) {
+    for (final node in tags) {
+      if (node is! Map) continue;
+      final m = Map<String, dynamic>.from(node);
+      final name = _str(m['name'] ?? m['tagName'] ?? m['id']);
+      if (name.isEmpty || !seen.add(name)) continue;
+      out.add(PlaylistTag(id: name, name: name, group: '推荐'));
+    }
+  }
+  if (!seen.contains('全部')) {
+    out.insert(0, const PlaylistTag(id: '全部', name: '全部', group: '推荐'));
+  }
+  return [PlaylistTagGroup(name: '推荐', child: out)];
 }
 
 /// 歌单元数据（榜单封面用）：`playlist.name / coverImgUrl / trackCount`。
@@ -289,6 +407,39 @@ List<Track> mapNeteaseSongDetails(String raw) {
   final root = _decode(raw);
   _throwIfBadCode(root, '歌曲详情');
   return mapNeteaseSongs(root['songs'] ?? root['data']);
+}
+
+/// F2 用户歌单列表：`playlist[]` + `more`。
+///
+/// 分类口径对齐 NeriPlayer：`subscribed == true` = 收藏（他人歌单）；
+/// 其余（含 `specialType == 5` 的「我喜欢的音乐」）归自建。默认单会打上
+/// `isDefault`，供 UI 出红心封面与「我喜欢」统计。
+UserPlaylistsPage mapNeteaseUserPlaylists(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '用户歌单');
+  final created = <PlaylistBrief>[];
+  final collected = <PlaylistBrief>[];
+  final list = root['playlist'];
+  if (list is List) {
+    for (final node in list) {
+      var brief = mapNeteasePlaylistBrief(node);
+      if (brief == null) continue;
+      final m = _asMap(node);
+      final specialType = _int(m['specialType']);
+      final isLiked = specialType == 5;
+      if (isLiked) brief = brief.copyWith(isDefault: true);
+      if (m['subscribed'] == true && !isLiked) {
+        collected.add(brief);
+      } else {
+        created.add(brief);
+      }
+    }
+  }
+  return UserPlaylistsPage(
+    created: created,
+    collected: collected,
+    more: root['more'] == true,
+  );
 }
 
 // ── A2 播放地址 ──────────────────────────────────────────────

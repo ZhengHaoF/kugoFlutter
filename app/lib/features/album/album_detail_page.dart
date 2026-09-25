@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/catalog_repository.dart';
 import '../../features/player/player_controller.dart';
@@ -14,9 +17,17 @@ import '../../core/theme/kugo_theme.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class AlbumDetailPage extends ConsumerStatefulWidget {
-  const AlbumDetailPage({super.key, required this.id});
+  const AlbumDetailPage({
+    super.key,
+    required this.id,
+    this.platform = MusicPlatform.kugou,
+  });
 
   final String id;
+
+  /// 深链平台（路由 `?src=` 分发）：网易专辑 id 是纯数字，酷狗专辑 id
+  /// 不保证，两侧接口不同，必须按源取数。
+  final MusicPlatform platform;
 
   @override
   ConsumerState<AlbumDetailPage> createState() => _AlbumDetailPageState();
@@ -38,6 +49,38 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
       _loading = true;
       _error = '';
     });
+
+    // 网易：D3 `v1/album/{id}`，album 头 + songs 一次拿全（无分页）。
+    if (widget.platform == MusicPlatform.netease) {
+      final source = musicSourceRegistry
+          ?.capability<AlbumDetailSource>(MusicPlatform.netease);
+      if (source == null) {
+        setState(() {
+          _loading = false;
+          _error = '专辑加载失败：网易云音源不可用';
+        });
+        return;
+      }
+      try {
+        final remote = await source.fetchAlbumDetail(widget.id);
+        if (!mounted) return;
+        setState(() {
+          _album = (remote != null && remote.songs.isNotEmpty) ? remote : null;
+          _loading = false;
+          _error = remote == null || remote.songs.isEmpty
+              ? '专辑加载失败：该 ID 无公开数据'
+              : '';
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _error = '专辑加载失败：${e.toString().split('\n').first}';
+        });
+      }
+      return;
+    }
+
     final remote = await catalogRepository.fetchAlbum(widget.id);
     if (!mounted) return;
     if (remote != null && remote.songs.isNotEmpty) {

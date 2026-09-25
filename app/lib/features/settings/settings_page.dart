@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/platform.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -155,24 +156,16 @@ class SettingsPage extends ConsumerWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showDefaultSourcePicker(context, ref),
               ),
-              // 整源开关：只列已注册的源；最后一个源不可关（至少保留一个）。
-              // 停用只影响新内容的入口，已在播/已入队的曲目不受影响。
+              // 两级开关：整源（父）→ 该源的入口功能（子）。只列已注册的源；
+              // 最后一个源不可关（至少保留一个）。关掉父开关时子项置灰但**保留
+              // 取值**，重新开启即恢复。
               for (final p in _enabledPlatformRows(settings))
-                SwitchListTile(
-                  secondary: Icon(Icons.power_settings_new, color: kugo.textSecondary),
-                  title: Text('启用${p.$1.label}音源', style: kugo.body),
-                  subtitle: Text(
-                    p.$2 ? '关闭后搜索与功能页不再使用该源' : '最后一个音源，至少保留一个',
-                    style: kugo.caption,
-                  ),
-                  value: settings.enabledSources.contains(p.$1),
-                  onChanged: p.$2
-                      ? (v) => controller.setEnabledSources(
-                            v
-                                ? {...settings.enabledSources, p.$1}
-                                : {...settings.enabledSources}..remove(p.$1),
-                          )
-                      : null,
+                ..._sourceSwitchTiles(
+                  settings: settings,
+                  controller: controller,
+                  kugo: kugo,
+                  platform: p.$1,
+                  canToggle: p.$2,
                 ),
               // 酷狗 / 网易云各一行。两个源的登录态互不影响（可只登其一），
               // 但同一源只保留一个当前账号——再登即顶替，故按钮是「切换账号」。
@@ -291,6 +284,62 @@ class SettingsPage extends ConsumerWidget {
     }
     await ref.read(neteaseLoginControllerProvider.notifier).logout();
   }
+}
+
+/// 一个源的两级开关：父（整源）+ 子（该源支持的入口功能）。
+///
+/// 子项只列该源**真的具备能力**的功能——列了也只能点出空态，是假入口。
+/// 父开关关闭时子项传 `onChanged: null`，由 Flutter 自带置灰效果；取值
+/// **不重置**（`disabledFeatures` 保持原样），重新开启父开关即恢复原配置。
+List<Widget> _sourceSwitchTiles({
+  required AppSettings settings,
+  required SettingsController controller,
+  required KugoTheme kugo,
+  required MusicPlatform platform,
+  required bool canToggle,
+}) {
+  final enabled = settings.enabledSources.contains(platform);
+  final registry = musicSourceRegistry;
+  return [
+    SwitchListTile(
+      secondary: Icon(Icons.power_settings_new, color: kugo.textSecondary),
+      title: Text('启用${platform.label}音源', style: kugo.body),
+      subtitle: Text(
+        canToggle ? '关闭后搜索与功能页不再使用该源' : '最后一个音源，至少保留一个',
+        style: kugo.caption,
+      ),
+      value: enabled,
+      onChanged: canToggle
+          ? (v) => controller.setEnabledSources(
+                v
+                    ? {...settings.enabledSources, platform}
+                    // 级联会绑定整个条件表达式
+                    //（`a ? b : c..d` = `(a ? b : c)..d`），
+                    // 必须括起来，否则启用分支加了源又被
+                    // remove 抵消（关闭后无法再启用）。
+                    : ({...settings.enabledSources}..remove(platform)),
+              )
+          : null,
+    ),
+    for (final f in SourceFeature.values)
+      if (f.supportedBy(registry, platform))
+        SwitchListTile(
+          key: ValueKey('feature_switch_${platform.wireName}_${f.id}'),
+          dense: true,
+          contentPadding: const EdgeInsets.only(left: 44, right: 16),
+          title: Text(f.label, style: kugo.body),
+          subtitle: Text(
+            enabled
+                ? '关闭后该源不再出现在「${f.label}」入口'
+                : '${platform.label}音源已关闭，此项暂时不生效',
+            style: kugo.caption,
+          ),
+          value: settings.isFeatureOn(platform, f),
+          onChanged: enabled
+              ? (v) => controller.setFeatureEnabled(platform, f, v)
+              : null,
+        ),
+  ];
 }
 
 /// 退出登录前的二次确认：会掉云端歌单/「我喜欢」与付费播放权限，误点代价高。

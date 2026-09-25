@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/daily_recommend.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
+import '../../core/source/music_source.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../data/repositories/recommend_repository.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -29,24 +33,68 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
   bool _personalized = false;
   bool _needLogin = false;
 
+  /// 当前推荐来源；`null` = 无可用源（均未注册或未启用）。
+  MusicPlatform? _source;
+
   @override
   void initState() {
     super.initState();
+    _source = _resolveSource(_availableSources());
     _load();
   }
 
+  /// 已注册、已启用且**该源日推功能未关**、并具备 [DailyRecommendSource] 的音源。
+  ///
+  /// 日推是「一整个今日歌单」，两源混排无意义，故必须选定单源（不做「全部」）。
+  List<MusicPlatform> _availableSources() {
+    final registry = musicSourceRegistry;
+    if (registry == null) return const [];
+    final settings = ref.read(settingsControllerProvider);
+    return registry.platforms
+        .where((p) =>
+            settings.isFeatureEnabled(p, SourceFeature.dailyRecommend) &&
+            registry.capability<DailyRecommendSource>(p) != null)
+        .toList();
+  }
+
+  /// 首选项是设置里的「默认源」；不可用时退首个可用源。
+  MusicPlatform? _resolveSource(List<MusicPlatform> available) {
+    if (available.isEmpty) return null;
+    final preferred =
+        ref.read(settingsControllerProvider).effectiveDefaultSource;
+    return available.contains(preferred) ? preferred : available.first;
+  }
+
   Future<void> _load() async {
-    // 酷狗停用时不发请求（页面被整页空态替换，这里是入口防御）。
-    if (!ref.read(settingsControllerProvider).enabledSources
-        .contains(MusicPlatform.kugou)) {
+    final source = _source;
+    final dailySource = source == null
+        ? null
+        : musicSourceRegistry?.capability<DailyRecommendSource>(source);
+    if (dailySource == null) {
+      setState(() {
+        _tracks = const [];
+        _loading = false;
+        _error = '';
+      });
       return;
     }
     setState(() {
       _loading = true;
       _error = '';
     });
-    final result = await recommendRepository.fetchDaily();
-    if (!mounted) return;
+    DailyRecommendResult result;
+    try {
+      result = await dailySource.dailyRecommend();
+    } catch (e) {
+      result = DailyRecommendResult(
+        tracks: const [],
+        error: e is SourceFailure && e.message.isNotEmpty
+            ? e.message
+            : '每日推荐加载失败，请检查网络后重试',
+      );
+    }
+    // 切源后到达的旧响应直接丢弃。
+    if (!mounted || source != _source) return;
     setState(() {
       _tracks = result.tracks;
       _personalized = result.personalized;
@@ -54,6 +102,12 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
       _error = result.error;
       _loading = false;
     });
+  }
+
+  void _switchTo(MusicPlatform platform) {
+    if (platform == _source) return;
+    setState(() => _source = platform);
+    _load();
   }
 
   String get _subtitle {
@@ -69,7 +123,7 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
     final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final auth = ref.watch(authControllerProvider);
-    final dateLabel = recommendRepository.dateLabel();
+    final dateLabel = dailyRecommendDateLabel();
     final day = DateTime.now().day.toString().padLeft(2, '0');
     final month = DateTime.now().month.toString().padLeft(2, '0');
     final loggedIn = auth.isLogged;
@@ -82,12 +136,43 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
       }
     });
 
-    // 整源开关：本页数据全部来自酷狗，停用即整页空态。
-    if (!ref.watch(settingsControllerProvider).enabledSources
-        .contains(MusicPlatform.kugou)) {
+    // 设置里改动整源开关或该源日推功能开关后回到本页：重算可用源，必要时切源重取。
+    ref.listen(settingsControllerProvider, (prev, next) {
+      if (prev?.enabledSources == next.enabledSources &&
+          prev?.disabledFeatures == next.disabledFeatures) {
+        return;
+      }
+      final available = _availableSources();
+      if (available.isEmpty) {
+        if (_source != null) {
+          setState(() {
+            _source = null;
+            _tracks = const [];
+            _loading = false;
+            _error = '';
+          });
+        }
+        return;
+      }
+      if (_source == null || !available.contains(_source)) {
+        _switchTo(_resolveSource(available) ?? available.first);
+      }
+    });
+
+    final available = _availableSources();
+    final source = _source;
+    final active = source ?? (available.isEmpty ? null : available.first);
+
+    // 整源开关：无具备日推能力的启用源时整页空态。
+    if (available.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('每日推荐')),
-        body: const SourceDisabledView(platform: MusicPlatform.kugou),
+        body: SourceDisabledView(
+          platform: ref.read(settingsControllerProvider).effectiveDefaultSource,
+          feature: ref
+              .read(settingsControllerProvider)
+              .featureSwitchCause(SourceFeature.dailyRecommend),
+        ),
       );
     }
 
@@ -104,6 +189,15 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
       ),
       body: Column(
         children: [
+          if (available.length > 1)
+            SourceFilterBar(
+              platforms: available,
+              selected: active,
+              showAll: false,
+              onSelect: (p) {
+                if (p != null) _switchTo(p);
+              },
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               KugoSpacing.lg,
@@ -214,7 +308,7 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
             ),
           Expanded(
             child: AsyncBody(
-              loading: _loading,
+              loading: _loading || source == null,
               hasError: !_loading && _tracks.isEmpty && _error.isNotEmpty,
               isEmpty: !_loading && _tracks.isEmpty && _error.isEmpty,
               emptyMessage: _needLogin ? '登录后查看每日推荐' : '今日暂无推荐',

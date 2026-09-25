@@ -7,28 +7,15 @@ import '../../core/api/kugo_client.dart';
 import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
+import '../../core/models/daily_recommend.dart';
 import '../../core/models/track.dart';
 import '../../data/storage/device_identity.dart';
 import '../../features/auth/auth_token_holder.dart';
 import 'playlist_repository.dart';
 import 'search_repository.dart';
 
-/// Daily recommend result: personalized when EchoMusic-aligned API succeeds.
-class DailyRecommendResult {
-  const DailyRecommendResult({
-    required this.tracks,
-    this.personalized = false,
-    this.error = '',
-    this.needLogin = false,
-  });
-
-  final List<Track> tracks;
-  final bool personalized;
-  final String error;
-  final bool needLogin;
-
-  bool get isEmpty => tracks.isEmpty;
-}
+// 兼容旧引用：模型已上移 core/models（capabilities 契约需要引用它）。
+export '../../core/models/daily_recommend.dart';
 
 /// One style tag under a group tab (EchoMusic `tag_info[].child[]`).
 class StyleTag {
@@ -209,11 +196,6 @@ class RecommendRepository {
 
   String moodLabel([DateTime? date]) {
     return moods[dayOfYear(date) % moods.length];
-  }
-
-  String dateLabel([DateTime? date]) {
-    final d = date ?? DateTime.now();
-    return '${d.month}月${d.day}日';
   }
 
   /// Prefer personalized `/everyday_song_recommend` (EchoMusic parity);

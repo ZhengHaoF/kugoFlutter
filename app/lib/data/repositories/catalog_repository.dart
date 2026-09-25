@@ -1,76 +1,11 @@
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugo_client.dart';
 import '../../core/api/mappers.dart';
+import '../../core/models/catalog_models.dart';
 import '../../core/models/track.dart';
 
-class AlbumDetail {
-  const AlbumDetail({
-    required this.id,
-    required this.name,
-    required this.coverUrl,
-    this.artist = '',
-    this.publishTime = '',
-    this.intro = '',
-    this.songs = const [],
-  });
-
-  final String id;
-  final String name;
-  final String coverUrl;
-  final String artist;
-  final String publishTime;
-  final String intro;
-  final List<Track> songs;
-}
-
-/// 歌曲排序：接口侧 `sort=hot|new`。
-enum ArtistSongSort {
-  hot('hot', '热门'),
-  newest('new', '最新');
-
-  const ArtistSongSort(this.apiValue, this.label);
-
-  final String apiValue;
-  final String label;
-}
-
-class ArtistDetail {
-  const ArtistDetail({
-    required this.id,
-    required this.name,
-    required this.avatarUrl,
-    this.intro = '',
-    this.fansLabel = '',
-    this.birthday = '',
-    this.songCount = 0,
-    this.albumCount = 0,
-    this.mvCount = 0,
-    this.songs = const [],
-  });
-
-  final String id;
-  final String name;
-  final String avatarUrl;
-  final String intro;
-  final String fansLabel;
-  final String birthday;
-  final int songCount;
-  final int albumCount;
-  final int mvCount;
-  final List<Track> songs;
-}
-
-class ArtistSongsPage {
-  const ArtistSongsPage({
-    this.songs = const [],
-    this.total = 0,
-    this.hasMore = false,
-  });
-
-  final List<Track> songs;
-  final int total;
-  final bool hasMore;
-}
+// 兼容旧引用：模型已上移 core/models（capabilities 契约需要引用它们）。
+export '../../core/models/catalog_models.dart';
 
 class CatalogRepository {
   CatalogRepository({KugoClient? client}) : _client = client ?? kugoClient;

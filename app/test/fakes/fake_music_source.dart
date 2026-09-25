@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:kugo/core/models/audio_quality.dart';
+import 'package:kugo/core/models/daily_recommend.dart';
+import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
@@ -42,7 +46,7 @@ class FakeMusicSource
   ({List<RelateGood> goods, bool catalogComplete})? qualityCatalog;
 
   List<Track> fmTracks = const [];
-  List<Track> dailyTracks = const [];
+  DailyRecommendResult dailyResult = const DailyRecommendResult(tracks: []);
 
   int resolveCalls = 0;
 
@@ -125,7 +129,7 @@ class FakeMusicSource
   }) async {}
 
   @override
-  Future<List<Track>> dailyRecommendedSongs() async => dailyTracks;
+  Future<DailyRecommendResult> dailyRecommend() async => dailyResult;
 
   @override
   Future<List<String>> hotKeywords({int count = 20}) async => const [];
@@ -138,4 +142,95 @@ FakeMusicSource bootstrapFakeMusicSources({
   final source = FakeMusicSource(platform: platform);
   musicSourceRegistry = MusicSourceRegistry([source]);
   return source;
+}
+
+/// 脚本化私人 FM 源：关键词检索 + 真接口两条路径都可控，并记录调用。
+///
+/// 实现 [HeartRadioSource] 即「带档位轴」的源（酷狗语义）：控制器在未登录时
+/// 会直接走关键词兜底、不请求 FM 接口；不实现它（网易语义）则必须请求才知道
+/// 「需要登录」。两条路径各由一个测试覆盖。
+class ScriptedFmSource extends FakeMusicSource implements HeartRadioSource {
+  ScriptedFmSource({
+    super.platform,
+    this.perKeyword = 4,
+    this.durations = const [],
+    this.serverTracks = const [],
+    this.serverFailure,
+  });
+
+  /// 每个关键词返回的曲目数（关键词池）。
+  final int perKeyword;
+
+  /// 返回曲目的时长轮转表；空 = 统一 10 秒。
+  final List<int> durations;
+
+  /// 真接口返回的曲目（一次一批，模拟酷狗）。
+  final List<Track> serverTracks;
+
+  /// 非空时 `nextFmTracks` 抛出它。
+  final SourceFailure? serverFailure;
+
+  /// 关键词检索闸门：非 null 时一直挂着（验证入口不等取歌）。
+  Completer<void>? gate;
+
+  final List<String> searchCalls = [];
+  final Map<String, int> _round = {};
+
+  int fetchCalls = 0;
+  final List<int> remainSongcnts = [];
+
+  FmMode? lastMode;
+  FmSongPool? lastPool;
+
+  final List<FmFeedback> feedbacks = [];
+
+  @override
+  Future<SearchPageResult<Track>> searchSongs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async {
+    searchCalls.add(keyword);
+    final g = gate;
+    if (g != null) await g.future;
+    final round = (_round[keyword] ?? 0) + 1;
+    _round[keyword] = round;
+    return SearchPageResult(
+      items: List.generate(
+        perKeyword,
+        (i) => Track(
+          id: '$keyword-$round-$i',
+          name: '$keyword-$round-$i',
+          artist: 'artist',
+          album: 'album',
+          coverUrl: 'http://cover/$keyword',
+          durationMs:
+              durations.isEmpty ? 10000 : durations[i % durations.length],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<List<Track>> nextFmTracks({int remain = 5}) async {
+    fetchCalls++;
+    remainSongcnts.add(remain);
+    final f = serverFailure;
+    if (f != null) throw f;
+    return serverTracks;
+  }
+
+  @override
+  Future<void> setHeartMode({FmMode? mode, FmSongPool? pool}) async {
+    lastMode = mode ?? lastMode;
+    lastPool = pool ?? lastPool;
+  }
+
+  @override
+  Future<void> reportFmFeedback(
+    Track track, {
+    required FmFeedback feedback,
+  }) async {
+    feedbacks.add(feedback);
+  }
 }

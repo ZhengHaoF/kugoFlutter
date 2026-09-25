@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/source/music_platform.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -406,7 +407,13 @@ class _TabResults extends ConsumerWidget {
               platform: showSource ? p.platform : null,
               onTap: p.id.isEmpty
                   ? null
-                  : () => context.push('/playlist/${p.id}', extra: p),
+                  // 网易结果必须带 src，否则路由按酷狗详情取数（id 打错接口）。
+                  : () => context.push(
+                        p.platform == MusicPlatform.kugou
+                            ? '/playlist/${p.id}'
+                            : '/playlist/${p.id}?src=netease',
+                        extra: p,
+                      ),
             ),
         ];
       case SearchType.album:
@@ -419,8 +426,13 @@ class _TabResults extends ConsumerWidget {
               heroTag: a.id.isNotEmpty ? KugoHeroTags.albumCover(a.id) : null,
               trailingLabel: a.trackCount > 0 ? '${a.trackCount}首' : '',
               platform: showSource ? a.platform : null,
-              onTap:
-                  a.id.isEmpty ? null : () => context.push('/album/${a.id}'),
+              onTap: a.id.isEmpty
+                  ? null
+                  : () => context.push(
+                        a.platform == MusicPlatform.kugou
+                            ? '/album/${a.id}'
+                            : '/album/${a.id}?src=netease',
+                      ),
             ),
         ];
       case SearchType.artist:
@@ -434,8 +446,13 @@ class _TabResults extends ConsumerWidget {
               platform: showSource ? a.platform : null,
               // Avatar is backfilled from `singer/info` (search payload has
               // none). Empty seed still falls back to the person glyph.
-              onTap:
-                  a.id.isEmpty ? null : () => context.push('/artist/${a.id}'),
+              onTap: a.id.isEmpty
+                  ? null
+                  : () => context.push(
+                        a.platform == MusicPlatform.kugou
+                            ? '/artist/${a.id}'
+                            : '/artist/${a.id}?src=netease',
+                      ),
             ),
         ];
     }

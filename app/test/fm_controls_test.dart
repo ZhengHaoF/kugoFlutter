@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'fakes/fake_music_source.dart';
 import 'package:kugo/core/models/fm_mode.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
 import 'package:kugo/features/fm/fm_radio_card.dart';
 import 'package:kugo/features/player/fm_controls.dart';
@@ -13,43 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
 
-class _FakeSearch implements SearchRepository {
-  final List<String> calls = [];
-
-  @override
-  Future<List<Track>> searchSongs(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async {
-    calls.add(keyword);
-    return List.generate(
-      4,
-      (i) => Track(
-        id: '$keyword-$i',
-        name: '$keyword-$i',
-        artist: 'artist',
-        album: 'album',
-        coverUrl: 'http://cover/$keyword',
-        durationMs: 10000,
-      ),
-    );
-  }
-
-  @override
-  Future<SearchPageResult<Track>> searchSongsPage(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async =>
-      SearchPageResult(items: await searchSongs(keyword, pageSize: pageSize));
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName} is not stubbed');
-}
-
-typedef _Rig = ({ProviderContainer container, _FakeSearch search});
+typedef _Rig = ({ProviderContainer container, ScriptedFmSource source});
 
 /// 只造容器；会话的启动放在 [tester.runAsync] 里跑 ——
 /// `testWidgets` 的 FakeAsync 时钟不会自己推进，直接在测试体里 await
@@ -60,17 +23,17 @@ Future<_Rig> _rig() async {
     'kugo_device_dfid': 'test-dfid',
     'kugo_device_guid': 'test-guid',
   });
-  final search = _FakeSearch();
+  final source = ScriptedFmSource();
+  musicSourceRegistry = MusicSourceRegistry([source]);
   final container = ProviderContainer(
     overrides: [
-      fmControllerProvider.overrideWith(() => FmController(search: search)),
       playerControllerProvider.overrideWith(
         () => PlayerController(engine: FakeAudioPlayer()),
       ),
     ],
   );
   addTearDown(container.dispose);
-  return (container: container, search: search);
+  return (container: container, source: source);
 }
 
 Future<void> _startFm(WidgetTester tester, ProviderContainer container) async {
@@ -102,8 +65,6 @@ Future<void> _pumpPill(WidgetTester tester, ProviderContainer container) async {
 }
 
 void main() {
-  setUpAll(bootstrapFakeMusicSources);
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('pill names the station and the pool, without a pending dot',

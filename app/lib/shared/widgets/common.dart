@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
@@ -20,7 +21,11 @@ import 'cover_box.dart';
 /// as plain, non-tappable text.
 VoidCallback? artistTapFor(BuildContext context, Track track) {
   if (!track.hasArtistId) return null;
-  return () => context.push('/artist/${track.artistId}');
+  // 非酷狗曲目的 artistId 是对应源的歌手 id，必须带 src 让详情页按源取数。
+  final src = track.platform == MusicPlatform.kugou
+      ? ''
+      : '?src=${track.platform.wireName}';
+  return () => context.push('/artist/${track.artistId}$src');
 }
 
 class SectionHeader extends StatelessWidget {
@@ -141,13 +146,18 @@ class SourceBadge extends StatelessWidget {
 ///
 /// 只拦「新内容入口」：正在播放 / 已入队的曲目不受影响（见方案 §11）。
 class SourceDisabledView extends StatelessWidget {
-  const SourceDisabledView({super.key, required this.platform});
+  const SourceDisabledView({super.key, required this.platform, this.feature});
 
   final MusicPlatform platform;
+
+  /// 非 null 表示归因到**功能**（源还启用着，只是这项被单独关了），
+  /// 文案与「整个源被停用」区分开——不然用户会去开整源开关却发现本来就开着。
+  final SourceFeature? feature;
 
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final f = feature;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(KugoSpacing.xl),
@@ -156,11 +166,19 @@ class SourceDisabledView extends StatelessWidget {
           children: [
             Icon(Icons.power_settings_new, size: 44, color: kugo.textTertiary),
             const SizedBox(height: KugoSpacing.lg),
-            Text('${platform.label}音源已停用', style: kugo.section),
+            Text(
+              f == null
+                  ? '${platform.label}音源已停用'
+                  : '${platform.label}的「${f.label}」已关闭',
+              style: kugo.section,
+            ),
             const SizedBox(height: KugoSpacing.sm),
             Text(
-              '本页内容依赖${platform.label}。已停用期间不再请求该音源；'
-              '已在播放队列中的歌曲不受影响。',
+              f == null
+                  ? '本页内容依赖${platform.label}。已停用期间不再请求该音源；'
+                      '已在播放队列中的歌曲不受影响。'
+                  : '${platform.label}音源仍启用，只是这一项功能被单独关掉了；'
+                      '开启后本页即可用。已在播放队列中的歌曲不受影响。',
               textAlign: TextAlign.center,
               style: kugo.caption.copyWith(color: kugo.textTertiary),
             ),
@@ -186,13 +204,22 @@ class SourceFilterBar extends StatelessWidget {
     required this.platforms,
     required this.selected,
     required this.onSelect,
+    this.showAll = true,
+    this.horizontalPadding = KugoSpacing.lg,
   });
 
   final List<MusicPlatform> platforms;
 
-  /// `null` = 全部源（混排）。
+  /// `null` = 全部源（混排）。[showAll] 为 false 时该值不出现。
   final MusicPlatform? selected;
   final ValueChanged<MusicPlatform?> onSelect;
+
+  /// 是否渲染「全部」chip。榜单等**不可混排**的列表传 false（单源模式）。
+  final bool showAll;
+
+  /// chips 的左右内边距。放进已有左右留白的页面（如「我的」）时传 0，
+  /// 避免和页面留白叠加成双份。
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -204,20 +231,21 @@ class SourceFilterBar extends StatelessWidget {
         height: 32,
         child: ListView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           children: [
-            _SourceChip(
-              label: '全部',
-              selected: selected == null,
-              onTap: () => onSelect(null),
-              kugo: kugo,
-            ),
-            for (final p in platforms) ...[
-              const SizedBox(width: KugoSpacing.sm),
+            if (showAll)
               _SourceChip(
-                label: p.label,
-                selected: selected == p,
-                onTap: () => onSelect(p),
+                label: '全部',
+                selected: selected == null,
+                onTap: () => onSelect(null),
+                kugo: kugo,
+              ),
+            for (var i = 0; i < platforms.length; i++) ...[
+              if (showAll || i > 0) const SizedBox(width: KugoSpacing.sm),
+              _SourceChip(
+                label: platforms[i].label,
+                selected: selected == platforms[i],
+                onTap: () => onSelect(platforms[i]),
                 kugo: kugo,
               ),
             ],

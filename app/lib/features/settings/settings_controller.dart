@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/cache/cover_cache.dart';
 import '../../core/models/audio_quality.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../data/storage/queue_store.dart';
 
@@ -14,6 +15,15 @@ export '../../core/models/audio_quality.dart' show AppQuality, AppQualityX;
 enum SleepTimerMode { off, m15, m30, m60, custom }
 
 enum AppThemeMode { dark, light, system }
+
+/// 歌词字号倍率可调范围（1.0 = 现有默认字号）。
+const double kLyricFontScaleMin = 0.8;
+const double kLyricFontScaleMax = 1.6;
+
+/// 歌词行间距倍率可调范围（1.0 = 现有默认行间距）。
+/// 下限贴近「文字刚好不重叠」，再小会被行盒高度下限挡住（见 lyrics_view）。
+const double kLyricSpacingScaleMin = 0.5;
+const double kLyricSpacingScaleMax = 2.0;
 
 /// Desktop: what the window close button does.
 ///
@@ -44,6 +54,8 @@ class AppSettings {
     this.wifiCoverOnly = false,
     this.lyricTranslation = true,
     this.lyricRomanization = false,
+    this.lyricFontScale = 1,
+    this.lyricSpacingScale = 1,
     this.mediaLyricSubtitle = false,
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
@@ -53,6 +65,7 @@ class AppSettings {
       MusicPlatform.kugou,
       MusicPlatform.netease,
     },
+    this.disabledFeatures = const {},
   });
 
   final AppQuality quality;
@@ -65,6 +78,14 @@ class AppSettings {
 
   /// 歌词副行：音译/罗马音（type=0）。默认关，中文歌收益低。
   final bool lyricRomanization;
+
+  /// 歌词字号倍率（[kLyricFontScaleMin]–[kLyricFontScaleMax]，1.0 = 默认）。
+  /// 主行/副行字号与行盒同步缩放，桌面与移动端同一套值。
+  final double lyricFontScale;
+
+  /// 歌词行间距倍率（[kLyricSpacingScaleMin]–[kLyricSpacingScaleMax]）。
+  /// 只影响行与行之间的距离（ListView `itemExtent`），与字号独立。
+  final double lyricSpacingScale;
 
   /// System media (lock screen / Bluetooth) subtitle shows `artist · lyric`.
   final bool mediaLyricSubtitle;
@@ -85,6 +106,29 @@ class AppSettings {
   /// 单源功能页（FM/榜单/日推/发现）的空态。已在播放队列中的曲目
   /// 不受影响（播放器按曲目平台取源，不经此开关）。
   final Set<MusicPlatform> enabledSources;
+
+  /// 被**关闭**的「源 × 功能」子开关（[SourceFeature.tokenFor] 的集合）。
+  ///
+  /// 存「关闭项」而不是「启用项」：缺省（老数据 / 以后新增的功能）= 全开，
+  /// 既不需要迁移，也不会让新加的功能一上线就是关的。允许全关——父开关
+  /// 关闭时子项只是置灰、取值保留，重新启用父开关即恢复。
+  final Set<String> disabledFeatures;
+
+  /// 子开关**自身**的取值（不含父开关），供设置页显示。
+  bool isFeatureOn(MusicPlatform p, SourceFeature f) =>
+      !disabledFeatures.contains(f.tokenFor(p));
+
+  /// 实际是否生效：父（整源）+ 子（功能）两级 AND。消费点一律用这个。
+  bool isFeatureEnabled(MusicPlatform p, SourceFeature f) =>
+      enabledSources.contains(p) && isFeatureOn(p, f);
+
+  /// 空态归因用：有「启用中、但该功能被单独关掉」的源 → 返回该功能（页面
+  /// 提示「这一项已关闭」）；一个都没有 → 返回 null（页面提示「音源已停用」，
+  /// 因为此时锅在整源开关或该源压根没这个能力）。
+  ///
+  /// 不拿 [effectiveDefaultSource] 判断：它按定义必然落在启用集里，永远为真。
+  SourceFeature? featureSwitchCause(SourceFeature f) =>
+      enabledSources.any((p) => !isFeatureOn(p, f)) ? f : null;
 
   /// 默认源被停用后的回退值：按枚举序取第一个仍启用的源。
   MusicPlatform get effectiveDefaultSource =>
@@ -129,12 +173,15 @@ class AppSettings {
     bool? wifiCoverOnly,
     bool? lyricTranslation,
     bool? lyricRomanization,
+    double? lyricFontScale,
+    double? lyricSpacingScale,
     bool? mediaLyricSubtitle,
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
     MusicPlatform? defaultSource,
     Set<MusicPlatform>? enabledSources,
+    Set<String>? disabledFeatures,
   }) {
     return AppSettings(
       quality: quality ?? this.quality,
@@ -143,12 +190,15 @@ class AppSettings {
       wifiCoverOnly: wifiCoverOnly ?? this.wifiCoverOnly,
       lyricTranslation: lyricTranslation ?? this.lyricTranslation,
       lyricRomanization: lyricRomanization ?? this.lyricRomanization,
+      lyricFontScale: lyricFontScale ?? this.lyricFontScale,
+      lyricSpacingScale: lyricSpacingScale ?? this.lyricSpacingScale,
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
       defaultSource: defaultSource ?? this.defaultSource,
       enabledSources: enabledSources ?? this.enabledSources,
+      disabledFeatures: disabledFeatures ?? this.disabledFeatures,
     );
   }
 }
@@ -160,6 +210,8 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kWifiCover = 'settings.wifiCover';
   static const _kLyricTr = 'settings.lyricTranslation';
   static const _kLyricRo = 'settings.lyricRomanization';
+  static const _kLyricFontScale = 'settings.lyricFontScale';
+  static const _kLyricSpacingScale = 'settings.lyricSpacingScale';
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kThemeMode = 'settings.themeMode';
   static const _kCloseBehavior = 'settings.closeBehavior';
@@ -169,6 +221,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kTaskbarProgress = 'settings.taskbarProgress';
   static const _kDefaultSource = 'settings.defaultSource';
   static const _kEnabledSources = 'settings.enabledSources';
+  static const _kDisabledFeatures = 'settings.disabledFeatures';
 
   @override
   AppSettings build() {
@@ -203,6 +256,18 @@ class SettingsController extends Notifier<AppSettings> {
         wifiCoverOnly: prefs.getBool(_kWifiCover) ?? false,
         lyricTranslation: prefs.getBool(_kLyricTr) ?? true,
         lyricRomanization: prefs.getBool(_kLyricRo) ?? false,
+        lyricFontScale: _readScale(
+          prefs,
+          _kLyricFontScale,
+          kLyricFontScaleMin,
+          kLyricFontScaleMax,
+        ),
+        lyricSpacingScale: _readScale(
+          prefs,
+          _kLyricSpacingScale,
+          kLyricSpacingScaleMin,
+          kLyricSpacingScaleMax,
+        ),
         mediaLyricSubtitle: prefs.getBool(_kMediaLyric) ?? false,
         themeMode: AppThemeMode.values.firstWhere(
           (e) => e.name == themeName,
@@ -214,6 +279,7 @@ class SettingsController extends Notifier<AppSettings> {
           prefs.getString(_kDefaultSource) ?? '',
         ),
         enabledSources: _readEnabledSources(prefs),
+        disabledFeatures: _readDisabledFeatures(prefs),
       );
     } catch (_) {}
   }
@@ -229,6 +295,27 @@ class SettingsController extends Notifier<AppSettings> {
         .where((p) => raw.contains(p.wireName))
         .toSet();
     return parsed.isEmpty ? AppSettings().enabledSources : parsed;
+  }
+
+  /// 读取「源 × 功能」子开关的**关闭**项。缺失（老数据）→ 空集 = 全开。
+  ///
+  /// 只认当前存在的 token：源或功能被移除后遗留的脏值会被丢弃，避免它
+  /// 影响同名功能的判断。空列表是合法态（全部功能都关）。
+  Set<String> _readDisabledFeatures(SharedPreferences prefs) {
+    final raw = prefs.getStringList(_kDisabledFeatures);
+    if (raw == null) return const {};
+    final known = {
+      for (final p in MusicPlatform.values)
+        for (final f in SourceFeature.values) f.tokenFor(p),
+    };
+    return {for (final t in raw) if (known.contains(t)) t};
+  }
+
+  /// 读取倍率。缺失 / 非数字 / 越界（旧版本或脏数据）→ 回落 1.0（默认）。
+  double _readScale(SharedPreferences prefs, String key, double min, double max) {
+    final raw = double.tryParse(prefs.getString(key) ?? '');
+    if (raw == null || raw < min || raw > max) return 1;
+    return raw;
   }
 
   /// New key wins; otherwise migrate the old `closeToTray` boolean.
@@ -283,6 +370,27 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kLyricRo, v);
   }
 
+  /// 歌词字号倍率。拖动过程中传 `persist: false` 只改内存态做即时预览，
+  /// 松手（`onChangeEnd`）再落盘，避免一次拖动写几十次 SharedPreferences。
+  Future<void> setLyricFontScale(double v, {bool persist = true}) async {
+    final next = _normalizeScale(v, kLyricFontScaleMin, kLyricFontScaleMax);
+    if (next == state.lyricFontScale) return;
+    state = state.copyWith(lyricFontScale: next);
+    if (persist) await _save(_kLyricFontScale, next);
+  }
+
+  /// 歌词行间距倍率。`persist` 语义同 [setLyricFontScale]。
+  Future<void> setLyricSpacingScale(double v, {bool persist = true}) async {
+    final next = _normalizeScale(v, kLyricSpacingScaleMin, kLyricSpacingScaleMax);
+    if (next == state.lyricSpacingScale) return;
+    state = state.copyWith(lyricSpacingScale: next);
+    if (persist) await _save(_kLyricSpacingScale, next);
+  }
+
+  /// 夹到合法区间并收敛到 0.01 精度（滑块取值连续，落盘前归一）。
+  double _normalizeScale(double v, double min, double max) =>
+      (v.clamp(min, max) * 100).roundToDouble() / 100;
+
   Future<void> setMediaLyricSubtitle(bool v) async {
     state = state.copyWith(mediaLyricSubtitle: v);
     await _save(_kMediaLyric, v);
@@ -330,6 +438,27 @@ class SettingsController extends Notifier<AppSettings> {
       );
       // 默认源可能被联动修正，两个 key 要一起写。
       await prefs.setString(_kDefaultSource, state.defaultSource.wireName);
+    } catch (_) {}
+  }
+
+  /// 「源 × 功能」子开关。与整源开关不同，**允许全关**（父开关关闭时子项
+  /// 只是置灰、取值保留，重新开启父开关即恢复），所以这里不拒绝空集合。
+  Future<void> setFeatureEnabled(
+    MusicPlatform platform,
+    SourceFeature feature,
+    bool v,
+  ) async {
+    final token = feature.tokenFor(platform);
+    final next = {...state.disabledFeatures};
+    if (v) {
+      if (!next.remove(token)) return;
+    } else {
+      if (!next.add(token)) return;
+    }
+    state = state.copyWith(disabledFeatures: next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_kDisabledFeatures, next.toList()..sort());
     } catch (_) {}
   }
 

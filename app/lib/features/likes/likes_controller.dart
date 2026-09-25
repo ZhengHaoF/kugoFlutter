@@ -43,10 +43,18 @@ class LikesNotifier extends Notifier<List<Track>> {
   }
 
   Future<void> like(Track track) async {
+    await likeLocal(track);
+    await _syncAddToCloud(track);
+  }
+
+  /// 只写本地「我喜欢」，不碰云端曲库。
+  ///
+  /// 曲库写口未接的源（网易）走这里：收藏只在本地生效，避免把别源曲目
+  /// 写进酷狗歌单。
+  Future<void> likeLocal(Track track) async {
     if (isLiked(track.id)) return;
     state = [track, ...state];
     await _persist();
-    await _syncAddToCloud(track);
   }
 
   Future<void> remove(String id) async {

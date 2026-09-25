@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/fm_mode.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -28,10 +29,16 @@ class FmEntryPill extends ConsumerWidget {
     final kugo = KugoTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
+    final fmCtl = ref.read(fmControllerProvider.notifier);
     final accent = CoverPalette.accentFromSeed(
       player.current?.coverUrl ?? 'fm',
       kugo.palette,
     );
+    // 档位/曲库是酷狗红心 Radio 独有语义：无档位轴的源改挂电台名。
+    final sourceLabel = fmCtl.displaySource?.label ?? '';
+    final pillLabel = fmCtl.hasModeAxis
+        ? '${fm.pendingMode.stationTitle} · ${fm.pendingPool.label}'
+        : (sourceLabel.isEmpty ? '私人 FM' : '$sourceLabel私人 FM');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -44,7 +51,7 @@ class FmEntryPill extends ConsumerWidget {
         alignment: Alignment.centerLeft,
         child: Semantics(
           button: true,
-          label: '私人 FM 电台：${fm.pendingMode.stationTitle} · ${fm.pendingPool.label}',
+          label: '私人 FM 电台：$pillLabel',
           child: InkWell(
             borderRadius: BorderRadius.circular(KugoRadius.chip),
             onTap: () => showFmSheet(context),
@@ -61,7 +68,7 @@ class FmEntryPill extends ConsumerWidget {
                   Icon(Icons.radio_rounded, size: 14, color: accent),
                   const SizedBox(width: 6),
                   Text(
-                    '${fm.pendingMode.stationTitle} · ${fm.pendingPool.label}',
+                    pillLabel,
                     style: kugo.caption.copyWith(
                       color: kugo.textPrimary,
                       fontWeight: FontWeight.w600,
@@ -205,6 +212,9 @@ class _FmSheetState extends ConsumerState<_FmSheet>
       current?.coverUrl ?? 'fm',
       kugo.palette,
     );
+    // 档位轴 / 角标都随源变化：网易私人 FM 没有模式与曲库。
+    final modeAxis = fmCtl.hasModeAxis;
+    final source = fmCtl.displaySource ?? fm.source ?? MusicPlatform.kugou;
 
     final slivers = [
       if (!widget.isDesktop) SliverToBoxAdapter(child: _grabber(kugo)),
@@ -222,6 +232,9 @@ class _FmSheetState extends ConsumerState<_FmSheet>
             accent: accent,
             mode: fm.pendingMode,
             pool: fm.pendingPool,
+            stationTitle: modeAxis ? null : '私人 FM',
+            stationSubtitle: modeAxis ? null : '${source.label}私人 FM',
+            showModeAxis: modeAxis,
             onMode: fmCtl.setPendingMode,
             onPlay: playerCtl.togglePlay,
             onDislike: fmCtl.dislike,
@@ -300,10 +313,12 @@ class _FmSheetState extends ConsumerState<_FmSheet>
           ),
           child: FmSourceBadge(
             kugo: kugo,
+            platform: source,
             fromServer: fm.fromServer,
             gatewayError: fm.gatewayError,
             pool: fm.pool,
             mode: fm.mode,
+            showPool: modeAxis,
           ),
         ),
       ),
@@ -443,17 +458,21 @@ class _FmSheetState extends ConsumerState<_FmSheet>
               style: kugo.section,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: KugoSpacing.xs),
-            child: FmCapsuleSwitch<FmSongPool>(
-              kugo: kugo,
-              values: FmSongPool.values,
-              labelOf: (p) => p.label,
-              selected: fm.pendingPool,
-              onChanged: fmCtl.setPendingPool,
-              compact: true,
-            ),
-          ),
+          // 歌池轴只在有档位语义的源（酷狗）出现；无轴时留等宽占位让标题居中。
+          if (fmCtl.hasModeAxis)
+            Padding(
+              padding: const EdgeInsets.only(right: KugoSpacing.xs),
+              child: FmCapsuleSwitch<FmSongPool>(
+                kugo: kugo,
+                values: FmSongPool.values,
+                labelOf: (p) => p.label,
+                selected: fm.pendingPool,
+                onChanged: fmCtl.setPendingPool,
+                compact: true,
+              ),
+            )
+          else
+            const SizedBox(width: 48),
         ],
       ),
     );

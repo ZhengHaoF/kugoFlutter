@@ -7,6 +7,7 @@ import '../../core/models/fm_mode.dart';
 import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_theme.dart';
@@ -94,19 +95,28 @@ class _FmPageState extends ConsumerState<FmPage>
     final kugo = KugoTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
+    // 整源开关变化要触发重建：可用源、切源栏与空态都由它派生。
+    final settings = ref.watch(settingsControllerProvider);
     final fmCtl = ref.read(fmControllerProvider.notifier);
     final playerCtl = ref.read(playerControllerProvider.notifier);
     final current = player.current;
     final desktop = isDesktopView(context);
     final fmActive = fm.active || player.queueSource == PlaybackQueueSource.fm;
 
-    // 整源开关：FM 链路（含关键词兜底池）全部来自酷狗。停用且无进行中的
-    // FM 会话时整页空态；正在播的会话不拦（已入队曲目不受整源开关影响）。
-    if (!ref.watch(settingsControllerProvider).enabledSources
-            .contains(MusicPlatform.kugou) &&
-        !fmActive) {
+    final available = fmCtl.availableSources();
+    // 渲染态必有源：会话源优先，否则设置默认源 / 首个可用源。
+    final activeSource =
+        fmCtl.displaySource ?? available.firstOrNull ?? MusicPlatform.kugou;
+    final modeAxis = fmCtl.hasModeAxis;
+
+    // 整源开关：没有任何「启用且支持私人 FM」的源时整页空态。正在播的会话
+    // 不拦（已入队曲目不受整源开关影响，控制器会另选源重开会话待下一首）。
+    if (available.isEmpty && !fmActive) {
       return Scaffold(
-        body: const SourceDisabledView(platform: MusicPlatform.kugou),
+        body: SourceDisabledView(
+          platform: settings.effectiveDefaultSource,
+          feature: settings.featureSwitchCause(SourceFeature.personalFm),
+        ),
       );
     }
 
@@ -121,6 +131,10 @@ class _FmPageState extends ConsumerState<FmPage>
       accent: accent,
       mode: fm.pendingMode,
       pool: fm.pendingPool,
+      // 无档位轴的源（网易）：卡面顶部改挂电台标签，标题让给当前曲名。
+      stationTitle: modeAxis ? null : '私人 FM',
+      stationSubtitle: modeAxis ? null : '${activeSource.label}私人 FM',
+      showModeAxis: modeAxis,
       onMode: fmCtl.setPendingMode,
       onPlay: () => _startOrToggle(fm: fm, player: player),
       onDislike: fmCtl.dislike,
@@ -134,14 +148,17 @@ class _FmPageState extends ConsumerState<FmPage>
     );
 
     // 歌池轴：抬抬头右上角（EchoMusic 的 radio-strategy-switch 位置）。
-    final poolSwitch = FmCapsuleSwitch<FmSongPool>(
-      kugo: kugo,
-      values: FmSongPool.values,
-      labelOf: (p) => p.label,
-      selected: fm.pendingPool,
-      onChanged: fmCtl.setPendingPool,
-      compact: !desktop,
-    );
+    // 档位/曲库是酷狗红心 Radio 独有语义，无档位轴的源（网易）整块不挂。
+    final poolSwitch = !modeAxis
+        ? const SizedBox.shrink()
+        : FmCapsuleSwitch<FmSongPool>(
+            kugo: kugo,
+            values: FmSongPool.values,
+            labelOf: (p) => p.label,
+            selected: fm.pendingPool,
+            onChanged: fmCtl.setPendingPool,
+            compact: !desktop,
+          );
 
     // 盘阵 = 整条播放器队列的横向轮播（方案 A）：滑到左缘吸附位起播。
     // 数据与「接下来」同源；不再按 maxSideDiscs 截成 3 张。
@@ -275,16 +292,23 @@ class _FmPageState extends ConsumerState<FmPage>
                       player.queueSource == PlaybackQueueSource.fm)
                   ? FmSourceBadge(
                       kugo: kugo,
+                      platform: activeSource,
                       fromServer: fm.fromServer,
                       gatewayError: fm.gatewayError,
                       pool: fm.pool,
                       mode: fm.mode,
+                      showPool: modeAxis,
                       textAlign: desktop ? TextAlign.left : TextAlign.center,
                     )
                   : const SizedBox.shrink(),
             )
           else
-            _FmIdleBody(kugo: kugo, mode: fm.pendingMode, pool: fm.pendingPool),
+            _FmIdleBody(
+              kugo: kugo,
+              mode: fm.pendingMode,
+              pool: fm.pendingPool,
+              stationLabel: modeAxis ? null : '${activeSource.label}私人 FM',
+            ),
         ],
       ),
     );
@@ -362,6 +386,17 @@ class _FmPageState extends ConsumerState<FmPage>
                 ),
               ),
             ),
+            // 切源栏：多源启用才出（单源整条隐藏；都不可用时上面已空态）。
+            // 切源 = 结束当前会话并以新源重开，一次电台不混源。
+            if (available.length > 1)
+              SourceFilterBar(
+                platforms: available,
+                selected: activeSource,
+                showAll: false,
+                onSelect: (p) {
+                  if (p != null) fmCtl.switchSource(p);
+                },
+              ),
             Expanded(
               child: SmoothSingleChildScrollView(
                 // 浏览型页面：内容铺满侧栏之外的全部宽度（与发现页 /「我的」「历史」一致），
@@ -533,11 +568,15 @@ class _FmIdleBody extends StatelessWidget {
     required this.kugo,
     required this.mode,
     required this.pool,
+    this.stationLabel,
   });
 
   final KugoTheme kugo;
   final FmMode mode;
   final FmSongPool pool;
+
+  /// 无档位轴的源（网易）传值：文案改用「<源>私人 FM」，不再罗列酷狗档位/曲库。
+  final String? stationLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -568,8 +607,10 @@ class _FmIdleBody extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${mode.stationTitle} · ${mode.subtitle} · ${pool.label}，'
-                '点击「开始电台」即可收流',
+                stationLabel == null
+                    ? '${mode.stationTitle} · ${mode.subtitle} · ${pool.label}，'
+                        '点击「开始电台」即可收流'
+                    : '$stationLabel，点击「开始电台」即可收听',
                 style: kugo.caption.copyWith(color: kugo.textSecondary),
               ),
             ],

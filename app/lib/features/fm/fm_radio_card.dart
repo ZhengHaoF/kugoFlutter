@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../core/models/fm_mode.dart';
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -191,6 +192,9 @@ class FmRadioCard extends StatelessWidget {
     required this.bars,
     required this.trackName,
     required this.artist,
+    this.stationTitle,
+    this.stationSubtitle,
+    this.showModeAxis = true,
     this.loading = false,
     this.actionsEnabled = true,
   });
@@ -209,6 +213,16 @@ class FmRadioCard extends StatelessWidget {
   final AnimationController bars;
   final String trackName;
   final String artist;
+
+  /// 卡面大标题（无当前曲时用）。`null` = 用档位名（酷狗档位轴）。
+  final String? stationTitle;
+
+  /// 无当前曲时的副标题。`null` = 「档位副标题 · 曲库」（酷狗档位轴）。
+  final String? stationSubtitle;
+
+  /// 是否显示档位胶囊轴。档位/曲库是酷狗独有语义，网易源传 false
+  /// （顶部改挂一个静态电台标签，标题改用 [stationTitle]）。
+  final bool showModeAxis;
   final bool loading;
 
   /// 没有当前曲时（未起播）不喜欢/红心点了也是空操作，直接置灰。
@@ -221,6 +235,16 @@ class FmRadioCard extends StatelessWidget {
   Widget build(BuildContext context) {
     Color mix(double t) =>
         Color.alphaBlend(kugo.primary.withValues(alpha: t), kCardBase);
+
+    // 电台名 = 档位名（酷狗）/ 显式传入（网易）。有档位轴时大标题就是档位名，
+    // 无档位轴时大标题让给当前曲名，顶部标签挂电台名。
+    final stationName = stationTitle ?? mode.stationTitle;
+    final hasTrack = trackName.isNotEmpty;
+    final headline =
+        showModeAxis ? mode.stationTitle : (hasTrack ? trackName : stationName);
+    final caption = hasTrack
+        ? (artist.isNotEmpty ? '$trackName · $artist' : trackName)
+        : (stationSubtitle ?? '${mode.subtitle} · ${pool.label}');
 
     return AspectRatio(
       aspectRatio: 1,
@@ -287,21 +311,24 @@ class FmRadioCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          FmCapsuleSwitch<FmMode>(
-                            kugo: kugo,
-                            values: FmMode.values,
-                            labelOf: (m) => m.label,
-                            selected: mode,
-                            onChanged: onMode,
-                            compact: compact,
-                            onDarkSurface: true,
-                          ),
+                          if (showModeAxis)
+                            FmCapsuleSwitch<FmMode>(
+                              kugo: kugo,
+                              values: FmMode.values,
+                              labelOf: (m) => m.label,
+                              selected: mode,
+                              onChanged: onMode,
+                              compact: compact,
+                              onDarkSurface: true,
+                            )
+                          else
+                            _FmStationTag(label: stationName, compact: compact),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                mode.stationTitle,
+                                headline,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: kugo.greeting.copyWith(
@@ -314,11 +341,7 @@ class FmRadioCard extends StatelessWidget {
                               ),
                               SizedBox(height: compact ? 3 : 5),
                               Text(
-                                trackName.isNotEmpty && artist.isNotEmpty
-                                    ? '$trackName · $artist'
-                                    : (trackName.isNotEmpty
-                                          ? trackName
-                                          : '${mode.subtitle} · ${pool.label}'),
+                                caption,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: kugo.caption.copyWith(
@@ -378,6 +401,36 @@ class FmRadioCard extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// 无档位轴的源（网易私人 FM）在电台卡顶部顶替胶囊轴的静态电台标签。
+class _FmStationTag extends StatelessWidget {
+  const _FmStationTag({required this.label, required this.compact});
+
+  final String label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 9 : 11,
+        vertical: compact ? 4 : 5,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(KugoRadius.chip),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white70,
+          fontSize: compact ? 10 : 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1332,27 +1385,37 @@ class FmSourceBadge extends StatelessWidget {
   const FmSourceBadge({
     super.key,
     required this.kugo,
+    required this.platform,
     required this.fromServer,
     required this.gatewayError,
     required this.pool,
     required this.mode,
+    this.showPool = true,
     this.textAlign = TextAlign.center,
   });
 
   final KugoTheme kugo;
+
+  /// 当前会话音源（角标要能看出歌是哪个源给的）。
+  final MusicPlatform platform;
   final bool fromServer;
   final String gatewayError;
   final FmSongPool pool;
   final FmMode mode;
+
+  /// 是否展示曲库/档位语义（酷狗档位轴独有；网易源传 false）。
+  final bool showPool;
   final TextAlign textAlign;
 
   @override
   Widget build(BuildContext context) {
     final semantic = pool.semantic.isEmpty ? '' : ' · ${pool.semantic}';
-    // 真接口成功 → 明确写出「私人 FM」；失败/回落才写关键词，且带上原因。
+    // 真接口成功 → 明确写出「<源>私人 FM」；失败/回落才写关键词，且带上原因。
     final String text;
     if (fromServer) {
-      text = '来源：酷狗私人 FM · ${pool.label}$semantic';
+      text = showPool
+          ? '来源：${platform.label}私人 FM · ${pool.label}$semantic'
+          : '来源：${platform.label}私人 FM';
     } else if (gatewayError.isNotEmpty) {
       text = '来源：关键词检索 · $gatewayError';
     } else {

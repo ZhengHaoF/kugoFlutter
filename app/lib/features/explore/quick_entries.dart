@@ -136,6 +136,12 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
       accent: accent,
       mode: fm.pendingMode,
       pool: fm.pendingPool,
+      // 无档位轴的源（网易）隐藏模式胶囊，卡面改挂电台名。
+      stationTitle: fmCtl.hasModeAxis ? null : '私人 FM',
+      stationSubtitle: fmCtl.hasModeAxis
+          ? null
+          : '${fmCtl.displaySource?.label ?? ''}私人 FM',
+      showModeAxis: fmCtl.hasModeAxis,
       onMode: _handleModeChanged,
       onPlay: _startOrToggle,
       onDislike: fmCtl.dislike,

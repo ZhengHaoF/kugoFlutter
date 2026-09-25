@@ -87,8 +87,9 @@ void main() {
 
     await _probe(
       'daily',
-      () => src.dailyRecommendedSongs(),
-      (r) => 'tracks=${r.length}${r.isEmpty ? '' : ' first=${r.first.name}'}',
+      () => src.dailyRecommend(),
+      (r) => 'tracks=${r.tracks.length}'
+          '${r.isEmpty ? '' : ' first=${r.tracks.first.name}'}',
     );
 
     await _probe(

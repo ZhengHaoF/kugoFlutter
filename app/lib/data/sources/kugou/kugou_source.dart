@@ -1,4 +1,6 @@
 import '../../../core/models/audio_quality.dart';
+import '../../../core/models/catalog_models.dart';
+import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/fm_mode.dart';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
@@ -6,6 +8,8 @@ import '../../../core/source/capabilities.dart';
 import '../../../core/source/music_platform.dart';
 import '../../../core/source/music_source.dart';
 import '../../../core/source/quality_map.dart';
+import '../../../data/repositories/catalog_repository.dart' as catalog;
+import '../../../data/repositories/discovery_repository.dart' as discovery;
 import '../../../data/repositories/fm_repository.dart' as fm;
 import '../../../data/repositories/lyric_repository.dart' as lyric;
 import '../../../data/repositories/play_repository.dart' as play;
@@ -26,7 +30,12 @@ class KugouSource
         QualityCatalogSource,
         DailyRecommendSource,
         RankSource,
-        SearchHotSource {
+        PlaylistCatalogSource,
+        NewSongFeedSource,
+        SearchHotSource,
+        PlaylistDetailSource,
+        AlbumDetailSource,
+        ArtistDetailSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -35,13 +44,18 @@ class KugouSource
     user.UserRepository? userRepository,
     rec.RecommendRepository? recommendRepository,
     playlist.PlaylistRepository? playlistRepository,
+    catalog.CatalogRepository? catalogRepository,
+    discovery.DiscoveryRepository? discoveryRepository,
   })  : _play = playRepository ?? play.playRepository,
         _lyric = lyricRepository ?? lyric.lyricRepository,
         _search = searchRepository ?? search.searchRepository,
         _fm = fmRepository ?? fm.fmRepository,
         _users = userRepository ?? user.userRepository,
         _rec = recommendRepository ?? rec.recommendRepository,
-        _playlists = playlistRepository ?? playlist.playlistRepository;
+        _playlists = playlistRepository ?? playlist.playlistRepository,
+        _catalog = catalogRepository ?? catalog.catalogRepository,
+        _discovery =
+            discoveryRepository ?? discovery.discoveryRepository;
 
   final play.PlayRepository _play;
   final lyric.LyricRepository _lyric;
@@ -50,12 +64,44 @@ class KugouSource
   final user.UserRepository _users;
   final rec.RecommendRepository _rec;
   final playlist.PlaylistRepository _playlists;
+  final catalog.CatalogRepository _catalog;
+  final discovery.DiscoveryRepository _discovery;
 
   FmMode _fmMode = FmMode.heart;
   FmSongPool _fmPool = FmSongPool.taste;
 
   @override
   MusicPlatform get platform => MusicPlatform.kugou;
+
+  // ── 详情（歌单/专辑/歌手，路由 `?src=` 按源分发到此） ────────
+
+  @override
+  Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
+    String id,
+  ) =>
+      _playlists.fetchPlaylist(id);
+
+  @override
+  Future<AlbumDetail?> fetchAlbumDetail(String albumId) =>
+      _catalog.fetchAlbum(albumId);
+
+  @override
+  Future<ArtistDetail?> fetchArtistDetail(String artistId) =>
+      _catalog.fetchArtist(artistId);
+
+  @override
+  Future<ArtistSongsPage> fetchArtistSongsPage(
+    String artistId, {
+    int page = 1,
+    int pageSize = 30,
+    ArtistSongSort sort = ArtistSongSort.hot,
+  }) =>
+      _catalog.fetchArtistSongs(
+        artistId,
+        page: page,
+        pageSize: pageSize,
+        sort: sort,
+      );
 
   /// 酷狗防盗链头；由 [resolvePlayUrl] 下发给播放引擎。
   static const Map<String, String> playbackHeaders = {
@@ -137,24 +183,67 @@ class KugouSource
   }
 
   @override
-  Future<List<Track>> dailyRecommendedSongs() async {
-    final result = await _rec.fetchDaily();
-    return result.tracks;
-  }
+  Future<DailyRecommendResult> dailyRecommend() => _rec.fetchDaily();
 
   @override
-  Future<List<({String id, String name, String coverUrl})>> rankBoards() async {
-    final boards = await _playlists.fetchRankList();
-    return [
-      for (final b in boards)
-        (id: b.id, name: b.name, coverUrl: b.coverUrl),
-    ];
-  }
+  Future<List<PlaylistBrief>> rankBoards() => _playlists.fetchRankList();
 
   @override
   Future<List<Track>> rankTracks(String boardId, {int page = 1}) async {
     final detail = await _playlists.fetchRankDetail(boardId, page: page);
     return detail?.tracks ?? const [];
+  }
+
+  // ── PlaylistCatalogSource（探索发现「歌单」Tab） ───────────
+
+  /// 二级 group 原样返回；分类接口失败时退回推荐分类，保证「歌单」Tab 仍可用。
+  @override
+  Future<List<PlaylistTagGroup>> playlistTagGroups() async {
+    final tags = await _discovery.fetchPlaylistTags();
+    if (tags.items.isNotEmpty) return tags.items;
+    return [
+      PlaylistTagGroup(
+        name: '推荐',
+        child: [
+          for (final c in rec.RecommendRepository.recommendPlaylistCategories)
+            PlaylistTag(id: c.id, name: c.label, group: '推荐'),
+        ],
+      ),
+    ];
+  }
+
+  /// 复用 `special_recommend`（`categoryid`）；空串回退「推荐」（id=0）。
+  @override
+  Future<List<PlaylistBrief>> categoryPlaylists({
+    required String cat,
+    int pageSize = 30,
+  }) async {
+    final c = cat.trim();
+    final result = await _rec.fetchRecommendPlaylists(
+      categoryId: c.isEmpty ? '0' : c,
+      pageSize: pageSize,
+    );
+    if (result.playlists.isEmpty && result.error.isNotEmpty) {
+      throw NetworkFailure(
+        result.error,
+        filtered: result.error.contains('拦截'),
+      );
+    }
+    return result.playlists;
+  }
+
+  // ── NewSongFeedSource（探索发现「新歌速递」Tab） ───────────
+
+  @override
+  Future<List<Track>> newSongs({int pageSize = 30}) async {
+    final result = await _discovery.fetchNewSongs(pageSize: pageSize);
+    if (result.items.isEmpty && result.error.isNotEmpty) {
+      throw NetworkFailure(
+        result.error,
+        filtered: result.error.contains('拦截'),
+      );
+    }
+    return result.items;
   }
 
   @override

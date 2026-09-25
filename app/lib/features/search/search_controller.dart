@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
@@ -140,12 +141,14 @@ class SearchController extends Notifier<SearchState> {
   @override
   SearchState build() => const SearchState();
 
-  /// 已注册且**启用**的音源（音源筛选条用）；≤1 时 UI 不显示筛选条。
+  /// 已注册、已启用且**该源搜索功能未关**的音源（音源筛选条用）；≤1 时 UI 不显示筛选条。
   ///
-  /// 设置里的整源开关（见 `SettingsController.setEnabledSources`）在此过滤：
-  /// 停用的源不参与混排；已在页面的旧结果不动，下次搜索生效。
+  /// 设置里的两级开关（整源开关 + 「源 × 搜索」子开关）在此一起过滤：
+  /// 任一关掉都不参与混排；已在页面的旧结果不动，下次搜索生效。
   List<MusicPlatform> get availablePlatforms => _registry.platforms
-      .where(ref.read(settingsControllerProvider).enabledSources.contains)
+      .where((p) => ref
+          .read(settingsControllerProvider)
+          .isFeatureEnabled(p, SourceFeature.search))
       .toList();
 
   /// Runs a fresh search. Clears every tab — a new keyword invalidates all of
@@ -280,15 +283,18 @@ class SearchController extends Notifier<SearchState> {
 
   /// 当前筛选命中的音源（按注册顺序，决定混排优先级）。
   ///
-  /// 停用的源一律剔除；筛选指向已停用的源时回落到「全部启用源」，
-  /// 否则用户在设置里关源后，搜索页会一直报「没有可用音源」。
+  /// 两级开关（整源 + 「源 × 搜索」）任一关掉的源一律剔除；筛选指向不可用的源
+  /// 时回落到「全部可用源」，否则用户在设置里关源后，搜索页会一直报
+  /// 「没有可用音源」。
   List<MusicSource> _sources() {
-    final enabled = ref.read(settingsControllerProvider).enabledSources;
+    final settings = ref.read(settingsControllerProvider);
+    bool usable(MusicPlatform p) =>
+        settings.isFeatureEnabled(p, SourceFeature.search);
     final filter = state.sourceFilter;
-    if (filter != null && enabled.contains(filter)) {
+    if (filter != null && usable(filter)) {
       return _registry.supports(filter) ? [_registry.of(filter)] : const [];
     }
-    return _registry.all.where((s) => enabled.contains(s.platform)).toList();
+    return _registry.all.where((s) => usable(s.platform)).toList();
   }
 
   Future<({List<Object> items, int? total, bool hasMore})> _fetch(

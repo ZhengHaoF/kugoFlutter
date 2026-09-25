@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/catalog_models.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
+import '../../core/source/music_source.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../data/repositories/discovery_repository.dart';
-import '../../data/repositories/playlist_repository.dart';
-import '../../data/repositories/recommend_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
@@ -19,6 +21,11 @@ import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// 探索发现 — EchoMusic `Explore.vue` 五 Tab：歌单 / 排行榜 / 新碟上架 / 新歌速递 / 歌手。
+///
+/// 数据按**音源能力**取（见 `core/source/capabilities.dart`）：
+/// - 歌单 / 新歌速递：酷狗与网易都实现（[PlaylistCatalogSource] / [NewSongFeedSource]）；
+/// - 排行榜：复用 [RankSource]（网易天生只有官方三榜）；
+/// - 新碟上架 / 歌手：本期仅酷狗有接口，非酷狗源出「暂不支持」空态，不做假入口。
 class DiscoveryPage extends ConsumerStatefulWidget {
   const DiscoveryPage({super.key});
 
@@ -33,9 +40,12 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   late final TabController _tabController;
   int _tab = 0;
 
+  /// 当前音源；`null` = 无可用源（均未注册、未启用或都不具备本页能力）。
+  MusicPlatform? _source;
+
   // 歌单
-  List<DiscoveryTagGroup> _tagGroups = const [];
-  DiscoveryTag? _activeTag;
+  List<PlaylistTagGroup> _tagGroups = const [];
+  PlaylistTag? _activeTag;
   List<PlaylistBrief> _playlists = const [];
   bool _playlistsLoading = true;
   String _playlistsError = '';
@@ -76,6 +86,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     // 选中瞬间就触发懒加载（含 animateTo 中的 indexIsChanging），
     // 不要等动画 settle —— 否则切换过来的 Tab 会先闪一帧空态。
     _tabController.addListener(_handleTabTick);
+    _source = _resolveSource(_availableSources());
     _loadPlaylists();
   }
 
@@ -109,70 +120,159 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     }
   }
 
-  /// 整源开关：本页五个 Tab（歌单/榜单/新碟/新歌/歌手）全部来自酷狗，
-  /// 停用即不发请求 + 整页空态。
-  bool get _kugouEnabled =>
-      ref.read(settingsControllerProvider).enabledSources
-          .contains(MusicPlatform.kugou);
+  T? _capability<T>(MusicPlatform? platform) => platform == null
+      ? null
+      : musicSourceRegistry?.capability<T>(platform);
+
+  /// 已注册、已启用且至少具备本页一项能力的音源。
+  ///
+  /// 本页各 Tab 能力不同（网易有歌单/榜单/新歌，酷狗五 Tab 齐全），故用「任一能力」
+  /// 判定「该源可用于探索发现」；单个 Tab 是否可用再由各 Tab 自己按能力判。
+  List<MusicPlatform> _availableSources() {
+    final registry = musicSourceRegistry;
+    if (registry == null) return const [];
+    final enabled = ref.read(settingsControllerProvider).enabledSources;
+    return registry.platforms
+        .where(
+          (p) =>
+              enabled.contains(p) &&
+              (registry.capability<PlaylistCatalogSource>(p) != null ||
+                  registry.capability<RankSource>(p) != null ||
+                  registry.capability<NewSongFeedSource>(p) != null),
+        )
+        .toList();
+  }
+
+  /// 首选项是设置里的「默认源」；不可用时退首个可用源。
+  MusicPlatform? _resolveSource(List<MusicPlatform> available) {
+    if (available.isEmpty) return null;
+    final preferred =
+        ref.read(settingsControllerProvider).effectiveDefaultSource;
+    return available.contains(preferred) ? preferred : available.first;
+  }
+
+  /// 新碟上架 / 歌手：本期只有酷狗有对应接口（网易无 `/weapi/album/new`、
+  /// `/weapi/artist/list` 实测口径），故非酷狗源整 Tab 出「暂不支持」空态；
+  /// 不做假入口，等网易接口实测通过后再补能力。
+  bool get _legacyCatalogSupported => _source == MusicPlatform.kugou;
+
+  void _switchTo(MusicPlatform platform) {
+    if (platform == _source) return;
+    setState(() {
+      _source = platform;
+      _resetData();
+    });
+    _ensureTab(_tab);
+  }
+
+  /// 切源必须清缓存：标签 id / 榜单 id / 曲目 id 都是各源私有的，混用会串源。
+  void _resetData() {
+    _tagGroups = const [];
+    _activeTag = null;
+    _tagsLoaded = false;
+    _playlists = const [];
+    _playlistsLoading = false;
+    _playlistsError = '';
+    _ranks = const [];
+    _activeRank = null;
+    _rankTracks = const [];
+    _ranksLoading = false;
+    _rankTracksLoading = false;
+    _ranksError = '';
+    _albums = const [];
+    _albumsLoading = false;
+    _albumsError = '';
+    _newSongs = const [];
+    _newSongsLoading = false;
+    _newSongsError = '';
+    _artists = const [];
+    _artistsLoading = false;
+    _artistsError = '';
+    _activeLetter = '全部';
+  }
+
+  String _errorText(Object e, String fallback) =>
+      e is SourceFailure && e.message.isNotEmpty ? e.message : fallback;
 
   Future<void> _loadPlaylists() async {
-    if (!_kugouEnabled) return;
+    final source = _source;
+    final catalog = _capability<PlaylistCatalogSource>(source);
+    if (catalog == null) {
+      setState(() {
+        _playlists = const [];
+        _playlistsLoading = false;
+        _playlistsError = '';
+      });
+      return;
+    }
     setState(() {
       _playlistsLoading = true;
       _playlistsError = '';
     });
     if (!_tagsLoaded) {
-      final tags = await discoveryRepository.fetchPlaylistTags();
-      if (!mounted) return;
-      _tagGroups = tags.items;
-      if (_tagGroups.isNotEmpty) {
-        final first = _tagGroups.first.child.first;
-        _activeTag ??= first;
+      List<PlaylistTagGroup> groups;
+      try {
+        groups = await catalog.playlistTagGroups();
+      } catch (_) {
+        // 分类拿不到不挡歌单：下面用各源自己的默认分类兜底。
+        groups = const [];
       }
+      if (!mounted || source != _source) return;
+      _tagGroups = groups;
       _tagsLoaded = true;
-      // 分类失败时仍用推荐分类兜底，保证「歌单」Tab 有内容可看。
-      if (_tagGroups.isEmpty) {
-        _tagGroups = [
-          DiscoveryTagGroup(
-            name: '推荐',
-            child: [
-              for (final cat in RecommendRepository.recommendPlaylistCategories)
-                DiscoveryTag(id: cat.id, name: cat.label, group: '推荐'),
-            ],
-          ),
-        ];
-        _activeTag ??= _tagGroups.first.child.first;
-      }
+      _activeTag = groups.isEmpty ? null : groups.first.child.first;
     }
 
-    final tagId = _activeTag?.id ?? '0';
-    final result = await recommendRepository.fetchRecommendPlaylists(
-      categoryId: tagId,
-      pageSize: 30,
-    );
-    if (!mounted) return;
+    List<PlaylistBrief> playlists = const [];
+    var error = '';
+    try {
+      playlists = await catalog.categoryPlaylists(
+        cat: _activeTag?.id ?? '',
+        pageSize: 30,
+      );
+    } catch (e) {
+      error = _errorText(e, '歌单加载失败，请检查网络后重试');
+    }
+    // 切源后到达的旧响应直接丢弃。
+    if (!mounted || source != _source) return;
     setState(() {
-      _playlists = result.playlists;
+      _playlists = playlists;
       _playlistsLoading = false;
-      _playlistsError = result.error;
+      _playlistsError = error;
     });
   }
 
   Future<void> _loadRanks() async {
-    if (!_kugouEnabled) return;
+    final source = _source;
+    final rankSource = _capability<RankSource>(source);
+    if (rankSource == null) {
+      setState(() {
+        _ranks = const [];
+        _ranksLoading = false;
+        _ranksError = '';
+      });
+      return;
+    }
     setState(() {
       _ranksLoading = true;
       _ranksError = '';
     });
-    final ranks = await playlistRepository.fetchRankList();
-    if (!mounted) return;
+    List<PlaylistBrief> ranks = const [];
+    var error = '';
+    try {
+      ranks = await rankSource.rankBoards();
+    } catch (e) {
+      error = _errorText(e, '排行榜加载失败，请检查网络后重试');
+    }
+    if (!mounted || source != _source) return;
     setState(() {
       _ranks = ranks;
       _ranksLoading = false;
       if (ranks.isEmpty) {
-        _ranksError = '排行榜加载失败，请检查网络后重试';
+        _ranksError =
+            error.isEmpty ? '排行榜加载失败，请检查网络后重试' : error;
       } else {
-        _activeRank ??= ranks.first;
+        _activeRank = ranks.first;
       }
     });
     final active = _activeRank;
@@ -182,24 +282,35 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadRankTracks(PlaylistBrief rank) async {
-    if (!_kugouEnabled) return;
+    final source = _source;
+    final rankSource = _capability<RankSource>(source);
+    if (rankSource == null) return;
     setState(() {
       _activeRank = rank;
       _rankTracksLoading = true;
     });
-    final detail = await playlistRepository.fetchRankDetail(
-      rank.id,
-      pageSize: 100,
-    );
-    if (!mounted) return;
+    List<Track> tracks = const [];
+    try {
+      tracks = await rankSource.rankTracks(rank.id);
+    } catch (_) {
+      tracks = const [];
+    }
+    if (!mounted || source != _source) return;
     setState(() {
-      _rankTracks = detail?.tracks ?? const [];
+      _rankTracks = tracks;
       _rankTracksLoading = false;
     });
   }
 
   Future<void> _loadAlbums() async {
-    if (!_kugouEnabled) return;
+    if (!_legacyCatalogSupported) {
+      setState(() {
+        _albums = const [];
+        _albumsLoading = false;
+        _albumsError = '';
+      });
+      return;
+    }
     setState(() {
       _albumsLoading = true;
       _albumsError = '';
@@ -214,22 +325,44 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadNewSongs() async {
-    if (!_kugouEnabled) return;
+    final source = _source;
+    final feed = _capability<NewSongFeedSource>(source);
+    if (feed == null) {
+      setState(() {
+        _newSongs = const [];
+        _newSongsLoading = false;
+        _newSongsError = '';
+      });
+      return;
+    }
     setState(() {
       _newSongsLoading = true;
       _newSongsError = '';
     });
-    final result = await discoveryRepository.fetchNewSongs(pageSize: 50);
-    if (!mounted) return;
+    List<Track> songs = const [];
+    var error = '';
+    try {
+      songs = await feed.newSongs(pageSize: 50);
+    } catch (e) {
+      error = _errorText(e, '新歌加载失败，请检查网络后重试');
+    }
+    if (!mounted || source != _source) return;
     setState(() {
-      _newSongs = result.items;
+      _newSongs = songs;
       _newSongsLoading = false;
-      _newSongsError = result.error;
+      _newSongsError = error;
     });
   }
 
   Future<void> _loadArtists() async {
-    if (!_kugouEnabled) return;
+    if (!_legacyCatalogSupported) {
+      setState(() {
+        _artists = const [];
+        _artistsLoading = false;
+        _artistsError = '';
+      });
+      return;
+    }
     setState(() {
       _artistsLoading = true;
       _artistsError = '';
@@ -258,9 +391,57 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     });
   }
 
+  /// 榜单来源说明：同源榜单共用同一个 `rankTypeName` 时说明「共几个」——
+  /// 网易天生只有官方三榜，不说明用户容易以为漏了榜。
+  String get _rankHint {
+    if (_ranks.isEmpty) return '';
+    final labels = <String>{
+      for (final r in _ranks)
+        if (r.rankTypeName.trim().isNotEmpty) r.rankTypeName.trim(),
+    };
+    if (labels.length != 1) return '';
+    return '${labels.first} · 共 ${_ranks.length} 个榜单';
+  }
+
+  /// 非酷狗源必须带 `?src=`，详情页据此按源取数（同 common.dart `artistTapFor`）。
+  String _playlistRoute(PlaylistBrief playlist) {
+    final src = playlist.platform == MusicPlatform.kugou
+        ? ''
+        : '?src=${playlist.platform.wireName}';
+    return '/playlist/${playlist.id}$src';
+  }
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final settings = ref.watch(settingsControllerProvider);
+
+    // 设置里改动整源开关后回到本页：重算可用源，必要时切源并清缓存重取。
+    ref.listen(settingsControllerProvider, (prev, next) {
+      if (prev?.enabledSources == next.enabledSources) return;
+      final available = _availableSources();
+      if (available.isEmpty) {
+        if (_source != null) {
+          setState(() {
+            _source = null;
+            _resetData();
+          });
+        }
+        return;
+      }
+      if (_source == null || !available.contains(_source)) {
+        _switchTo(_resolveSource(available) ?? available.first);
+      }
+    });
+
+    final available = _availableSources();
+    if (available.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('探索发现')),
+        body: SourceDisabledView(platform: settings.effectiveDefaultSource),
+      );
+    }
+    final active = _source ?? available.first;
     return Scaffold(
       appBar: AppBar(
         title: const Text('探索发现'),
@@ -271,19 +452,62 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
           tabs: [for (final t in _tabs) Tab(text: t)],
         ),
       ),
-      body: !ref.watch(settingsControllerProvider).enabledSources
-              .contains(MusicPlatform.kugou)
-          ? const SourceDisabledView(platform: MusicPlatform.kugou)
-          : TabBarView(
+      body: Column(
+        children: [
+          if (available.length > 1)
+            SourceFilterBar(
+              platforms: available,
+              selected: active,
+              showAll: false,
+              onSelect: (p) {
+                if (p != null) _switchTo(p);
+              },
+            ),
+          Expanded(
+            child: TabBarView(
               controller: _tabController,
               children: [
-                _buildPlaylistsTab(kugo),
-                _buildRanksTab(kugo),
-                _buildAlbumsTab(kugo),
-                _buildNewSongsTab(kugo),
-                _buildArtistsTab(kugo),
+                _capability<PlaylistCatalogSource>(active) == null
+                    ? _unsupportedTab('歌单')
+                    : _buildPlaylistsTab(kugo),
+                _capability<RankSource>(active) == null
+                    ? _unsupportedTab('排行榜')
+                    : _buildRanksTab(kugo),
+                !_legacyCatalogSupported
+                    ? _unsupportedTab('新碟上架')
+                    : _buildAlbumsTab(kugo),
+                _capability<NewSongFeedSource>(active) == null
+                    ? _unsupportedTab('新歌速递')
+                    : _buildNewSongsTab(kugo),
+                !_legacyCatalogSupported
+                    ? _unsupportedTab('歌手')
+                    : _buildArtistsTab(kugo),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 「该源不支持这个 Tab」：不做假入口，也不用整源停用文案（源其实开着）。
+  Widget _unsupportedTab(String tab) {
+    return SmoothCustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: KugoSpacing.xxl),
+            child: AsyncBody(
+              loading: false,
+              hasError: false,
+              isEmpty: true,
+              emptyMessage:
+                  '${_source?.label ?? ''}暂不支持「$tab」，可切换其他音源查看',
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -335,8 +559,10 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
             return PlaylistCard(
               playlist: playlist,
               width: double.infinity,
-              onTap: () =>
-                  context.push('/playlist/${playlist.id}', extra: playlist),
+              onTap: () => context.push(
+                _playlistRoute(playlist),
+                extra: playlist,
+              ),
             );
           },
         ),
@@ -377,6 +603,21 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
             ),
           ),
         ),
+        if (_rankHint.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KugoSpacing.lg,
+                0,
+                KugoSpacing.lg,
+                KugoSpacing.sm,
+              ),
+              child: Text(
+                _rankHint,
+                style: kugo.caption.copyWith(color: kugo.textTertiary),
+              ),
+            ),
+          ),
         if (_rankTracks.isNotEmpty)
           SliverToBoxAdapter(
             child: SectionHeader(
@@ -851,5 +1092,3 @@ class _ArtistGridCard extends StatelessWidget {
     );
   }
 }
-
-

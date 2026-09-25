@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/profile/profile_stats.dart';
+import '../../features/profile/source_account.dart';
 import '../../features/profile/user_profile_detail.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -36,18 +38,37 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     final isDesktop = isDesktopView(context);
-    final auth = ref.watch(authControllerProvider);
-    final user = auth.user;
-    final detail = user?.detail ?? UserProfileDetail.empty;
-    final grade = getGradeProgress(detail.toDetailMap());
 
-    if (!auth.isLogged) {
+    // 账号源：与「我的」页共用同一份选择（见 source_account.dart）。
+    final accountSources = ref.watch(accountSourcePlatformsProvider);
+    final accountPlatform = ref.watch(effectiveAccountSourceProvider);
+    final account = ref.watch(sourceAccountProvider(accountPlatform));
+    final isKugou = accountPlatform == MusicPlatform.kugou;
+
+    // 等级 / 关注 / 粉丝 / 档案都是酷狗口径（UserProfileDetail），只在酷狗源下取。
+    final user = ref.watch(authControllerProvider).user;
+    final detail =
+        isKugou ? (user?.detail ?? UserProfileDetail.empty) : UserProfileDetail.empty;
+    final grade = isKugou ? getGradeProgress(detail.toDetailMap()) : null;
+
+    Widget sourceBar(double horizontalPadding) => SourceFilterBar(
+          platforms: accountSources,
+          selected: accountPlatform,
+          showAll: false,
+          horizontalPadding: horizontalPadding,
+          onSelect: (p) {
+            if (p != null) ref.read(accountSourceProvider.notifier).state = p;
+          },
+        );
+
+    if (!account.isLogged) {
       return Scaffold(
         backgroundColor: kugo.bg,
         body: SafeArea(
           child: Column(
             children: [
               const _DetailHeader(showLogout: false, onLogout: null),
+              sourceBar(KugoSpacing.lg),
               Expanded(
                 child: Center(
                   child: Column(
@@ -60,12 +81,13 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
                       ),
                       const SizedBox(height: KugoSpacing.lg),
                       Text(
-                        '请先登录以查看个人中心',
+                        '请先登录${accountPlatform.label}账号',
                         style: kugo.title.copyWith(fontSize: 16),
                       ),
                       const SizedBox(height: KugoSpacing.xl),
                       FilledButton(
-                        onPressed: () => context.push('/login'),
+                        onPressed: () =>
+                            context.push(loginRouteFor(accountPlatform)),
                         child: const Text('立即登录'),
                       ),
                     ],
@@ -78,9 +100,8 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
       );
     }
 
-    final displayName = user?.nickname ?? '用户';
-    final avatarUrl = user?.avatarUrl ?? '';
-    final signature = detail.signature.trim();
+    final displayName =
+        account.nickname.isEmpty ? '${accountPlatform.label}用户' : account.nickname;
 
     return Scaffold(
       backgroundColor: kugo.bg,
@@ -95,29 +116,35 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
           children: [
             _DetailHeader(
               showLogout: true,
-              onLogout: () =>
-                  ref.read(authControllerProvider.notifier).logout(),
+              onLogout: () => logoutSource(ref, accountPlatform),
             ),
+            sourceBar(0),
             const SizedBox(height: KugoSpacing.lg),
             _IdentityCard(
-              avatarUrl: avatarUrl,
+              avatarUrl: account.avatarUrl,
               displayName: displayName,
-              signature: signature,
-              ipLocation: detail.ipLocation,
-              isVip: user?.isVip ?? false,
-              tvipActive: detail.tvipActive,
-              svipActive: detail.svipActive,
+              // 签名 / IP / 等级 / 关注粉丝都是酷狗档案，网易侧留空不出。
+              signature: isKugou ? detail.signature.trim() : '',
+              ipLocation: isKugou ? detail.ipLocation : '',
+              isVip: account.isVip,
+              tvipActive: isKugou && detail.tvipActive,
+              svipActive: isKugou && detail.svipActive,
               grade: grade,
-              follows: detail.follows,
-              fans: detail.fans,
-              visitors: detail.visitors,
+              follows: isKugou ? detail.follows : null,
+              fans: isKugou ? detail.fans : null,
+              visitors: isKugou ? detail.visitors : null,
             ),
-            const SizedBox(height: KugoSpacing.lg),
-            _ArchiveAndMembership(
-              userId: user?.userId ?? '',
-              detail: detail,
-              isDesktop: isDesktop,
-            ),
+            if (isKugou) ...[
+              const SizedBox(height: KugoSpacing.lg),
+              _ArchiveAndMembership(
+                userId: account.userId,
+                detail: detail,
+                isDesktop: isDesktop,
+              ),
+            ] else ...[
+              const SizedBox(height: KugoSpacing.lg),
+              _SourceAccountNotice(platform: accountPlatform),
+            ],
           ],
         ),
       ),
@@ -193,7 +220,9 @@ class _IdentityCard extends StatelessWidget {
   final bool isVip;
   final bool tvipActive;
   final bool svipActive;
-  final GradeProgress grade;
+
+  /// 等级进度。null = 该源没有等级口径（网易），此时不出等级/关注/粉丝/访客一行。
+  final GradeProgress? grade;
   final int? follows;
   final int? fans;
   final int? visitors;
@@ -201,6 +230,7 @@ class _IdentityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final g = grade;
     return GlassSurface(
       padding: const EdgeInsets.all(KugoSpacing.xl),
       child: Column(
@@ -273,45 +303,49 @@ class _IdentityCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: KugoSpacing.xl),
-          Row(
-            children: [
-              Expanded(
-                child: _Stat(
-                  label: '升级进度',
-                  value: grade.gradeLabel,
-                  onTap: () => _showGradeSheet(context),
+          if (g != null) ...[
+            const SizedBox(height: KugoSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: _Stat(
+                    label: '升级进度',
+                    value: g.gradeLabel,
+                    onTap: () => _showGradeSheet(context),
+                  ),
                 ),
-              ),
-              const _StatDivider(),
-              Expanded(
-                child: _Stat(
-                  label: '关注',
-                  value: follows == null ? '—' : '$follows',
+                const _StatDivider(),
+                Expanded(
+                  child: _Stat(
+                    label: '关注',
+                    value: follows == null ? '—' : '$follows',
+                  ),
                 ),
-              ),
-              const _StatDivider(),
-              Expanded(
-                child: _Stat(
-                  label: '粉丝',
-                  value: fans == null ? '—' : '$fans',
+                const _StatDivider(),
+                Expanded(
+                  child: _Stat(
+                    label: '粉丝',
+                    value: fans == null ? '—' : '$fans',
+                  ),
                 ),
-              ),
-              const _StatDivider(),
-              Expanded(
-                child: _Stat(
-                  label: '访客',
-                  value: visitors == null ? '—' : '$visitors',
+                const _StatDivider(),
+                Expanded(
+                  child: _Stat(
+                    label: '访客',
+                    value: visitors == null ? '—' : '$visitors',
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
   void _showGradeSheet(BuildContext context) {
+    final grade = this.grade;
+    if (grade == null) return;
     showKugoBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
@@ -594,6 +628,38 @@ class _ArchiveAndMembership extends StatelessWidget {
     if (p.isNotEmpty) return p;
     if (c.isNotEmpty) return c;
     return '—';
+  }
+}
+
+class _SourceAccountNotice extends StatelessWidget {
+  const _SourceAccountNotice({required this.platform});
+
+  final MusicPlatform platform;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return GlassSurface(
+      padding: const EdgeInsets.all(KugoSpacing.lg),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: kugo.textSecondary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${platform.label}账号暂不提供等级 / 歌龄 / 关注粉丝等档案信息；'
+              '歌单与「我喜欢」见「我的」页。',
+              style: kugo.caption.copyWith(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

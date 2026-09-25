@@ -9,6 +9,7 @@ import 'package:kugo/shared/widgets/common.dart';
 import 'package:kugo/shared/widgets/cover_box.dart';
 
 import 'fakes/fake_audio_player.dart';
+import 'fakes/fake_music_source.dart';
 
 void main() {
   group('KugoHeroTags', () {
@@ -90,6 +91,8 @@ void main() {
     });
 
     testWidgets('DailyRecommendPage mounts dailyRecommendBadge Hero on initial loading frame', (tester) async {
+      // 日推页现按源分发：需装一个具备 DailyRecommendSource 的源才会渲染正文。
+      bootstrapFakeMusicSources();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [

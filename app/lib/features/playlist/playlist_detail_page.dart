@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/music_platform.dart';
+import '../../core/source/music_source.dart' show NotFound;
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/playlist_repository.dart';
@@ -34,12 +38,16 @@ class PlaylistDetailPage extends ConsumerStatefulWidget {
     required this.id,
     this.initialBrief,
     this.isRank,
+    this.platform = MusicPlatform.kugou,
     this.userRepository,
   });
 
   final String id;
   final PlaylistBrief? initialBrief;
   final bool? isRank;
+
+  /// 深链平台：网易歌单/榜单共用歌单详情（G10），路由 `?src=` 分发。
+  final MusicPlatform platform;
   final UserRepository? userRepository;
 
   @override
@@ -87,6 +95,12 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       _loading = true;
       _error = '';
     });
+
+    // 网易：歌单/榜单共用 D2 歌单详情（G10），无酷狗那串多级 fallback。
+    if (widget.platform == MusicPlatform.netease) {
+      await _loadNetease();
+      return;
+    }
 
     final isRank = _isRankView;
     final targetId = _effectiveId;
@@ -198,6 +212,35 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       _error = '${isRank ? "榜单" : "歌单"}加载失败：接口不可用或该 ID 无公开数据';
     });
   }
+
+  /// 网易歌单/榜单详情：D2 一次拿 brief + tracks（上限 1000 首，无分页）。
+  Future<void> _loadNetease() async {
+    try {
+      final source = _neteaseDetailSource();
+      if (source == null) throw const NotFound('网易云音源不可用');
+      final detail = await source.fetchPlaylistDetail(_effectiveId);
+      if (!mounted) return;
+      if (detail == null || detail.tracks.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error = '${_isRankView ? "榜单" : "歌单"}加载失败：该 ID 无公开数据';
+        });
+        return;
+      }
+      _applyLoaded(detail.brief, detail.tracks, isRank: _isRankView);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '加载失败：${e.toString().split('\n').first}';
+      });
+    }
+  }
+
+  PlaylistDetailSource? _neteaseDetailSource() =>
+      musicSourceRegistry?.capability<PlaylistDetailSource>(
+        MusicPlatform.netease,
+      );
 
   void _applyLoaded(
     PlaylistBrief loadedBrief,
@@ -338,7 +381,12 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
     setState(() => _rankPickerLoading = true);
     if (_allRanks.isEmpty) {
       try {
-        _allRanks = await playlistRepository.fetchRankList();
+        // 两源均实现 RankSource：酷狗=榜单列表接口，网易=固定三榜 + 补元数据。
+        final rankSource =
+            musicSourceRegistry?.capability<RankSource>(widget.platform);
+        _allRanks = rankSource != null
+            ? await rankSource.rankBoards()
+            : await playlistRepository.fetchRankList();
       } catch (_) {
         _allRanks = const [];
       }

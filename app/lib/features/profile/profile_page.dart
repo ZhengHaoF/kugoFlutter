@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -12,6 +13,8 @@ import '../../core/theme/responsive.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/likes/likes_controller.dart';
+import '../../features/profile/netease_collections_controller.dart';
+import '../../features/profile/source_account.dart';
 import '../../features/profile/user_collections_controller.dart';
 import '../../features/rank/rank_hero.dart' show rankHeroFlightShuttle;
 import '../../features/settings/settings_controller.dart';
@@ -64,34 +67,61 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final isDesktop = isDesktopView(context);
     ref.watch(settingsControllerProvider.select((s) => s.themeMode));
     final settings = ref.watch(settingsControllerProvider);
-    final auth = ref.watch(authControllerProvider);
     final collections = ref.watch(userCollectionsProvider);
+    final neteaseCollections = ref.watch(neteaseCollectionsProvider);
     final likesCount = ref.watch(likesProvider).length;
-    final realLikesCount = auth.isLogged
-        ? (collections.defaultLikedPlaylist?.trackCount ??
-            (collections.cloudFavoriteTracks.isNotEmpty
+
+    // 账号源：页面级切换（见 source_account.dart），默认取设置里的默认源。
+    final accountSources = ref.watch(accountSourcePlatformsProvider);
+    final accountPlatform = ref.watch(effectiveAccountSourceProvider);
+    final account = ref.watch(sourceAccountProvider(accountPlatform));
+    final isKugou = accountPlatform == MusicPlatform.kugou;
+
+    // 歌单/「我喜欢」两源口径不同，按当前账号源取一份统一形状。
+    final playlistData = isKugou
+        ? (
+            created: collections.createdPlaylists,
+            collected: collections.collectedPlaylists,
+            loading: collections.isLoadingPlaylists,
+            loaded: collections.loaded,
+            error: collections.playlistsError,
+            likedCount: collections.defaultLikedPlaylist?.trackCount,
+          )
+        : (
+            created: neteaseCollections.created,
+            collected: neteaseCollections.collected,
+            loading: neteaseCollections.loading,
+            loaded: neteaseCollections.loaded,
+            error: neteaseCollections.error,
+            likedCount: neteaseCollections.likedPlaylist?.trackCount,
+          );
+
+    final realLikesCount = account.isLogged
+        ? (playlistData.likedCount ??
+            (isKugou && collections.cloudFavoriteTracks.isNotEmpty
                 ? collections.cloudFavoriteTracks.length
                 : likesCount))
         : likesCount;
-    final user = auth.user;
 
-    final displayName = auth.isLogged
-        ? (user?.nickname ?? '用户')
-        : (auth.restored ? '游客' : '…');
-    final displaySub = auth.isLogged
-        ? (user!.isVip ? '概念会员' : '已登录 · 查看个人中心')
+    final displayName = account.isLogged
+        ? (account.nickname.isEmpty ? '用户' : account.nickname)
+        : (account.restored ? '游客' : '…');
+    final displaySub = account.isLogged
+        ? (account.isVip
+            ? (isKugou ? '概念会员' : '黑胶会员')
+            : '已登录 · 查看个人中心')
         : '未登录 · 公开内容可用';
-    final avatarUrl = user?.avatarUrl ?? '';
+    final avatarUrl = account.avatarUrl;
     final sleepLabel = settings.sleepMinutes == 0
         ? '关闭'
         : '${settings.sleepMinutes} 分钟';
 
-    final playlistStatValue = !auth.isLogged
+    final playlistStatValue = !account.isLogged
         ? '—'
-        : (collections.isLoadingPlaylists && !collections.loaded
+        : (playlistData.loading && !playlistData.loaded
             ? '—'
-            : '${collections.totalPlaylistsCount}');
-    final playlistStatHint = !auth.isLogged ? '需登录' : null;
+            : '${playlistData.created.length + playlistData.collected.length}');
+    final playlistStatHint = !account.isLogged ? '需登录' : null;
 
     return SmoothListView(
       padding: EdgeInsets.fromLTRB(
@@ -102,7 +132,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ),
       children: [
         Text('我的', style: kugo.greeting),
-        const SizedBox(height: KugoSpacing.lg),
+        const SizedBox(height: KugoSpacing.md),
+        // 账号源切换条：多源启用才出（账号身份按源区分，不混排）。
+        if (accountSources.length > 1) ...[
+          SourceFilterBar(
+            platforms: accountSources,
+            selected: accountPlatform,
+            showAll: false,
+            horizontalPadding: 0,
+            onSelect: (p) {
+              if (p != null) ref.read(accountSourceProvider.notifier).state = p;
+            },
+          ),
+          const SizedBox(height: KugoSpacing.sm),
+        ],
         GlassSurface(
           padding: const EdgeInsets.all(KugoSpacing.lg),
           child: Column(
@@ -172,8 +215,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       value: playlistStatValue,
                       hint: playlistStatHint,
                       onTap: () {
-                        if (!auth.isLogged) {
-                          context.push('/login');
+                        if (!account.isLogged) {
+                          context.push(loginRouteFor(accountPlatform));
                         } else {
                           final ctx = _playlistsSectionKey.currentContext;
                           if (ctx != null) {
@@ -190,11 +233,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const _Divider(),
                 ],
               ),
-              if (auth.isLogged) ...[
+              if (account.isLogged) ...[
                 const SizedBox(height: KugoSpacing.xs),
                 TextButton(
-                  onPressed: () =>
-                      ref.read(authControllerProvider.notifier).logout(),
+                  onPressed: () => logoutSource(ref, accountPlatform),
                   style: TextButton.styleFrom(
                     minimumSize: const Size(64, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -225,9 +267,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     style: kugo.section.copyWith(fontSize: 16),
                   ),
                   const Spacer(),
-                  if (auth.isLogged)
+                  if (account.isLogged)
                     IconButton(
-                      icon: collections.isLoadingPlaylists
+                      icon: playlistData.loading
                           ? const SizedBox(
                               width: 16,
                               height: 16,
@@ -235,16 +277,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             )
                           : const Icon(Icons.refresh_rounded, size: 20),
                       tooltip: '刷新歌单',
-                      onPressed: collections.isLoadingPlaylists
+                      onPressed: playlistData.loading
                           ? null
-                          : () => ref
-                              .read(userCollectionsProvider.notifier)
-                              .loadPlaylists(),
+                          : () => isKugou
+                              ? ref
+                                  .read(userCollectionsProvider.notifier)
+                                  .loadPlaylists()
+                              : ref
+                                  .read(neteaseCollectionsProvider.notifier)
+                                  .load(force: true),
                     ),
                 ],
               ),
               const SizedBox(height: KugoSpacing.md),
-              if (!auth.isLogged) ...[
+              if (!account.isLogged) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -264,7 +310,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                       const SizedBox(height: KugoSpacing.sm),
                       Text(
-                        '登录酷狗账号后，即可同步自建与收藏歌单',
+                        '登录${accountPlatform.label}账号后，即可同步自建与收藏歌单',
                         style: kugo.caption.copyWith(fontSize: 13),
                         textAlign: TextAlign.center,
                       ),
@@ -276,7 +322,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             vertical: 8,
                           ),
                         ),
-                        onPressed: () => context.push('/login'),
+                        onPressed: () =>
+                            context.push(loginRouteFor(accountPlatform)),
                         child: const Text('立即登录'),
                       ),
                     ],
@@ -288,11 +335,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     segments: [
                       ButtonSegment<int>(
                         value: 0,
-                        label: Text('自建 (${collections.createdPlaylists.length})'),
+                        label: Text('自建 (${playlistData.created.length})'),
                       ),
                       ButtonSegment<int>(
                         value: 1,
-                        label: Text('收藏 (${collections.collectedPlaylists.length})'),
+                        label: Text('收藏 (${playlistData.collected.length})'),
                       ),
                     ],
                     selected: {_selectedPlaylistTab},
@@ -303,11 +350,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 const SizedBox(height: KugoSpacing.md),
                 ..._buildPlaylistList(
                   _selectedPlaylistTab == 0
-                      ? collections.createdPlaylists
-                      : collections.collectedPlaylists,
+                      ? playlistData.created
+                      : playlistData.collected,
                   isCreatedTab: _selectedPlaylistTab == 0,
-                  isLoading: collections.isLoadingPlaylists && !collections.loaded,
-                  error: collections.playlistsError,
+                  isLoading: playlistData.loading && !playlistData.loaded,
+                  error: playlistData.error,
                   kugo: kugo,
                 ),
               ],
@@ -398,9 +445,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return playlists.map((p) {
       final sub =
           '${p.trackCount} 首${p.creator.isNotEmpty ? ' · ${p.creator}' : ''}';
+      // 非酷狗歌单详情必须带 src，否则会落到酷狗口径的详情页取空数据。
+      final src = p.platform == MusicPlatform.kugou
+          ? ''
+          : '?src=${p.platform.wireName}';
       return InkWell(
         borderRadius: BorderRadius.circular(KugoRadius.tile),
-        onTap: () => context.push('/playlist/${p.id}', extra: p),
+        onTap: () => context.push('/playlist/${p.id}$src', extra: p),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           child: Row(
@@ -656,7 +707,9 @@ class _PlaylistTileCover extends ConsumerWidget {
     String targetCover = _isNetwork(p.coverUrl) ? p.coverUrl : '';
 
     // If it's "我喜欢" and direct cover is empty, check if first song in cloudFavoriteTracks has cover
-    if (isLiked && targetCover.isEmpty) {
+    // （cloudFavoriteTracks 是酷狗口径，别拿它给其他源的默认单凑封面。）
+    if (isLiked && targetCover.isEmpty &&
+        p.platform == MusicPlatform.kugou) {
       final firstSongCover = collections.cloudFavoriteTracks
           .where((t) => _isNetwork(t.coverUrl))
           .firstOrNull

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'core/app_navigator.dart';
 import 'core/models/track.dart' show PlaylistBrief;
 import 'core/platform.dart';
+import 'core/source/music_platform.dart';
 import 'core/theme/kugo_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
@@ -138,6 +139,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
                   child: PlaylistDetailPage(
                     id: state.pathParameters['id'] ?? '',
                     isRank: true,
+                    platform: MusicPlatform.fromWire(
+                      state.uri.queryParameters['src'] ?? '',
+                    ),
                     initialBrief: state.extra is PlaylistBrief
                         ? state.extra as PlaylistBrief
                         : null,
@@ -158,6 +162,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
                       id: state.pathParameters['id'] ?? '',
                       initialBrief: initialBrief,
                       isRank: isRank,
+                      platform: MusicPlatform.fromWire(
+                        state.uri.queryParameters['src'] ?? '',
+                      ),
                     ),
                   );
                 },
@@ -165,13 +172,23 @@ final _routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/album/:id',
                 pageBuilder: (context, state) => MaterialPage(
-                  child: AlbumDetailPage(id: state.pathParameters['id'] ?? ''),
+                  child: AlbumDetailPage(
+                    id: state.pathParameters['id'] ?? '',
+                    platform: MusicPlatform.fromWire(
+                      state.uri.queryParameters['src'] ?? '',
+                    ),
+                  ),
                 ),
               ),
               GoRoute(
                 path: '/artist/:id',
                 pageBuilder: (context, state) => MaterialPage(
-                  child: ArtistDetailPage(id: state.pathParameters['id'] ?? ''),
+                  child: ArtistDetailPage(
+                    id: state.pathParameters['id'] ?? '',
+                    platform: MusicPlatform.fromWire(
+                      state.uri.queryParameters['src'] ?? '',
+                    ),
+                  ),
                 ),
               ),
               GoRoute(

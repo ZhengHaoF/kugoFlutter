@@ -1,104 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'fakes/fake_music_source.dart';
-import 'package:kugo/core/api/kugo_client.dart';
 import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/playback_source.dart';
 import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/repositories/fm_repository.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:kugo/core/source/music_source.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/auth/auth_token_holder.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
-
-/// 脚本化搜索源：按关键词返回假曲目，并记录每次调用。
-class _FakeSearchRepo implements SearchRepository {
-  _FakeSearchRepo({this.perKeyword = 4, this.durations = const []});
-
-  final int perKeyword;
-  final List<int> durations;
-
-  final List<String> calls = [];
-  final Set<String> failing = {};
-  final Map<String, int> _round = {};
-
-  @override
-  Future<List<Track>> searchSongs(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async {
-    calls.add(keyword);
-    if (failing.contains(keyword)) throw KugoApiException('boom');
-    final round = (_round[keyword] ?? 0) + 1;
-    _round[keyword] = round;
-    return List.generate(
-      perKeyword,
-      (i) => Track(
-        id: '$keyword-$round-$i',
-        name: '$keyword-$round-$i',
-        artist: 'artist',
-        album: 'album',
-        coverUrl: 'http://cover/$keyword',
-        durationMs: durations.isEmpty ? 10000 : durations[i % durations.length],
-      ),
-    );
-  }
-
-  @override
-  Future<SearchPageResult<Track>> searchSongsPage(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async =>
-      SearchPageResult(items: await searchSongs(keyword, pageSize: pageSize));
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName} is not stubbed');
-}
-
-class _FakeFmRepo extends FmRepository {
-  _FakeFmRepo({
-    this.tracks = const [],
-    this.error = '',
-    this.serverAccepted = false,
-  });
-  final List<Track> tracks;
-  final String error;
-  final bool serverAccepted;
-  int fetchCalls = 0;
-  final List<int> remainSongcnts = [];
-
-  @override
-  Future<FmPage> fetch({
-    required FmMode mode,
-    required FmSongPool pool,
-    String hash = '',
-    String songid = '',
-    int playtime = 0,
-    int remainSongcnt = 0,
-    String action = 'play',
-    int limit = 30,
-  }) async {
-    fetchCalls++;
-    remainSongcnts.add(remainSongcnt);
-    if (tracks.isNotEmpty) {
-      return FmPage(tracks: tracks, fromServer: true, mode: mode, pool: pool);
-    }
-    return FmPage(
-      tracks: const [],
-      error: error,
-      fromServer: false,
-      serverAccepted: serverAccepted,
-      mode: mode,
-      pool: pool,
-    );
-  }
-}
+import 'fakes/fake_music_source.dart';
 
 /// 抽干微任务/定时器，让所有 `unawaited` 的后台取歌跑完。
 Future<void> _drain([int rounds = 24]) async {
@@ -109,8 +22,7 @@ Future<void> _drain([int rounds = 24]) async {
 
 typedef _Rig = ({
   ProviderContainer container,
-  _FakeSearchRepo repo,
-  _FakeFmRepo fmRepo,
+  ScriptedFmSource source,
   FakeAudioPlayer engine,
 });
 
@@ -118,8 +30,7 @@ Future<_Rig> _rig({
   int perKeyword = 4,
   List<int> durations = const [],
   List<Track> fmServerTracks = const [],
-  String fmServerError = '',
-  bool fmServerAccepted = false,
+  SourceFailure? fmServerFailure,
   bool loggedIn = false,
 }) async {
   // start() 会 await AuthController.ensureReady()：prefs 里没有会话时会清掉
@@ -134,29 +45,26 @@ Future<_Rig> _rig({
           'userId=1001&token=valid_token&nickname=t&avatarUrl=&isVip=false&isLocalDemo=false&t1=',
   });
   final engine = FakeAudioPlayer();
-  final repo = _FakeSearchRepo(perKeyword: perKeyword, durations: durations);
-  final fmRepo = _FakeFmRepo(
-    tracks: fmServerTracks,
-    error: fmServerError,
-    serverAccepted: fmServerAccepted,
+  // 取数一律经全局注册表（控制器不再直连 Repository）。
+  final source = ScriptedFmSource(
+    perKeyword: perKeyword,
+    durations: durations,
+    serverTracks: fmServerTracks,
+    serverFailure: fmServerFailure,
   );
+  musicSourceRegistry = MusicSourceRegistry([source]);
   final container = ProviderContainer(
     overrides: [
       playerControllerProvider.overrideWith(() => PlayerController(engine: engine)),
-      fmControllerProvider.overrideWith(
-        () => FmController(search: repo, fmRepo: fmRepo),
-      ),
     ],
   );
-  return (container: container, repo: repo, fmRepo: fmRepo, engine: engine);
+  return (container: container, source: source, engine: engine);
 }
 
 PlayerState _player(ProviderContainer c) => c.read(playerControllerProvider);
 FmSession _fm(ProviderContainer c) => c.read(fmControllerProvider);
 
 void main() {
-  setUpAll(bootstrapFakeMusicSources);
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('FM session start', () {
@@ -167,7 +75,7 @@ void main() {
       await r.container.read(fmControllerProvider.notifier).start();
       await _drain();
 
-      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+      expect(r.source.searchCalls.toSet(), {'热门', '华语流行', '经典'});
       expect(_player(r.container).queue.length, 12);
       expect(_player(r.container).queueSource, PlaybackQueueSource.fm);
       expect(_fm(r.container).active, isTrue);
@@ -219,7 +127,7 @@ void main() {
 
       expect(_fm(r.container).pool, FmSongPool.explore);
       expect(_fm(r.container).hasPendingChange, isFalse);
-      expect(r.repo.calls, containsAll(['独立', '冷门', '爵士']));
+      expect(r.source.searchCalls, containsAll(['独立', '冷门', '爵士']));
     });
 
     test('applyPendingNow restarts the session immediately', () async {
@@ -236,7 +144,7 @@ void main() {
       expect(_fm(r.container).mode, FmMode.niche);
       expect(_player(r.container).currentIndex, 0);
       expect(
-        r.repo.calls,
+        r.source.searchCalls,
         containsAll(['小众', '独立', '冷门', '地下', '宝藏']),
       );
     });
@@ -365,8 +273,8 @@ void main() {
       AuthTokenHolder.instance.clear();
     });
 
-    test('when logged in and server returns tracks, uses server tracks directly', () async {
-      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
+    test('when logged in and the source returns tracks, uses them directly',
+        () async {
       final serverTracks = List.generate(
         10,
         (i) => Track(
@@ -384,30 +292,35 @@ void main() {
       await r.container.read(fmControllerProvider.notifier).start();
       await _drain();
 
-      expect(r.fmRepo.fetchCalls, 1);
+      expect(r.source.fetchCalls, 1);
       expect(_fm(r.container).fromServer, isTrue);
       expect(_player(r.container).queue.map((t) => t.id), [
         for (var i = 0; i < 10; i++) 'rec-$i',
       ]);
-      expect(r.repo.calls, isEmpty, reason: 'should not fall back to search keywords');
+      expect(r.source.searchCalls, isEmpty,
+          reason: 'should not fall back to search keywords');
     });
 
-    test('when logged in but server returns error, automatically falls back to keyword pool', () async {
-      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
-      final r = await _rig(fmServerError: '网关繁忙', loggedIn: true);
+    test('when logged in but the source fails, falls back to the keyword pool',
+        () async {
+      final r = await _rig(
+        fmServerFailure: const UpstreamChanged('网关繁忙'),
+        loggedIn: true,
+      );
       addTearDown(r.container.dispose);
 
       await r.container.read(fmControllerProvider.notifier).start();
       await _drain();
 
-      expect(r.fmRepo.fetchCalls, 1);
+      expect(r.source.fetchCalls, 1);
       expect(_fm(r.container).fromServer, isFalse);
       expect(_fm(r.container).gatewayError, '网关繁忙');
-      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+      expect(r.source.searchCalls.toSet(), {'热门', '华语流行', '经典'});
       expect(_player(r.container).queue.isNotEmpty, isTrue);
     });
 
-    test('when not logged in, directly uses keyword pool without calling server', () async {
+    test('when not logged in, directly uses the keyword pool without a request',
+        () async {
       AuthTokenHolder.instance.clear();
       final r = await _rig();
       addTearDown(r.container.dispose);
@@ -415,15 +328,15 @@ void main() {
       await r.container.read(fmControllerProvider.notifier).start();
       await _drain();
 
-      expect(r.fmRepo.fetchCalls, 0);
+      expect(r.source.fetchCalls, 0);
       expect(_fm(r.container).fromServer, isFalse);
-      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+      expect(r.source.searchCalls.toSet(), {'热门', '华语流行', '经典'});
     });
 
-    test('fresh fetch sends remain_songcnt=0 even with a leftover queue', () async {
-      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
-      // 服务端只回会话元数据：以前会因 remain_songcnt=25 被写成「私人FM加载失败」。
-      final r = await _rig(fmServerAccepted: true, loggedIn: true);
+    test('fresh fetch sends remain=0 even with a leftover queue', () async {
+      // 源收下了但没给歌（无异常、无曲目）：以前会因 remain_songcnt=25 被写成
+      // 「私人FM加载失败」。
+      final r = await _rig(loggedIn: true);
       addTearDown(r.container.dispose);
 
       // 先塞一条普通队列，模拟开 FM 前用户正在听别的歌单。
@@ -447,9 +360,9 @@ void main() {
       await r.container.read(fmControllerProvider.notifier).start();
       await _drain();
 
-      expect(r.fmRepo.fetchCalls, 1);
+      expect(r.source.fetchCalls, 1);
       expect(
-        r.fmRepo.remainSongcnts.single,
+        r.source.remainSongcnts.single,
         0,
         reason: '开新会话必须明确要歌，不能把旧队列剩余数传上去',
       );
@@ -459,12 +372,11 @@ void main() {
         reason: '服务端收下但无新歌不能写成加载失败',
       );
       expect(_fm(r.container).fromServer, isFalse);
-      expect(r.repo.calls.toSet(), {'热门', '华语流行', '经典'});
+      expect(r.source.searchCalls.toSet(), {'热门', '华语流行', '经典'});
     });
 
-    test('server-accepted empty page falls back without gatewayError', () async {
-      AuthTokenHolder.instance.setSession(token: 'valid_token', userId: '1001');
-      final r = await _rig(fmServerAccepted: true, loggedIn: true);
+    test('source-accepted empty page falls back without gatewayError', () async {
+      final r = await _rig(loggedIn: true);
       addTearDown(r.container.dispose);
 
       await r.container.read(fmControllerProvider.notifier).start();

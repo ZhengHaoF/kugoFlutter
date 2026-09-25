@@ -1,6 +1,8 @@
 import '../../../core/api/netease/netease_client.dart';
 import '../../../core/api/netease/netease_mappers.dart';
 import '../../../core/models/audio_quality.dart';
+import '../../../core/models/catalog_models.dart';
+import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
 import '../../../core/source/capabilities.dart';
@@ -17,8 +19,14 @@ class NeteaseSource
         MusicSource,
         DailyRecommendSource,
         RankSource,
+        PlaylistCatalogSource,
+        NewSongFeedSource,
         PersonalFmSource,
+        PlaylistDetailSource,
+        AlbumDetailSource,
+        ArtistDetailSource,
         UserPlaylistWriteSource,
+        UserPlaylistReadSource,
         UserLibrarySource,
         DeviceLoginSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
@@ -125,27 +133,81 @@ class NeteaseSource
   // ── DailyRecommendSource（G3） ────────────────────────────
 
   /// G3 游客态即可用（实测 24 曲）；G2「每日推荐歌单」才强制登录。
+  ///
+  /// 网易日推本身即个性化歌单，故 `personalized: true`、无需登录、无错误态。
   @override
-  Future<List<Track>> dailyRecommendedSongs() async {
+  Future<DailyRecommendResult> dailyRecommend() async {
     final raw = await _client.dailyRecommendSongsRaw();
-    return mapNeteaseDailySongs(raw);
+    return DailyRecommendResult(
+      tracks: mapNeteaseDailySongs(raw),
+      personalized: true,
+    );
+  }
+
+  // ── 详情（D2/D3/D4/D6，路由 `?src=` 按源分发到此） ────────
+
+  /// D2 歌单详情。网易榜单也是歌单（G10），榜单/歌单共用本口。
+  @override
+  Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
+    String id,
+  ) async {
+    final pid = int.tryParse(id.trim()) ?? 0;
+    if (pid <= 0) return null;
+    return mapNeteasePlaylistDetail(await _client.playlistDetailRaw(pid));
+  }
+
+  /// D3 专辑详情：`album` 头 + `songs[]`。
+  @override
+  Future<AlbumDetail?> fetchAlbumDetail(String albumId) async {
+    final aid = int.tryParse(albumId.trim()) ?? 0;
+    if (aid <= 0) return null;
+    return mapNeteaseAlbumDetail(await _client.albumDetailRaw(aid));
+  }
+
+  /// D4 歌手头部信息（歌曲数 musicSize / 专辑数 albumSize）。
+  @override
+  Future<ArtistDetail?> fetchArtistDetail(String artistId) async {
+    final aid = int.tryParse(artistId.trim()) ?? 0;
+    if (aid <= 0) return null;
+    return mapNeteaseArtistDetail(await _client.artistDetailRaw(aid));
+  }
+
+  /// D6 歌手歌曲分页：`offset = (page-1)*pageSize`；`more` → hasMore。
+  @override
+  Future<ArtistSongsPage> fetchArtistSongsPage(
+    String artistId, {
+    int page = 1,
+    int pageSize = 30,
+    ArtistSongSort sort = ArtistSongSort.hot,
+  }) async {
+    final aid = int.tryParse(artistId.trim()) ?? 0;
+    if (aid <= 0) return const ArtistSongsPage();
+    final raw = await _client.artistSongsRaw(
+      aid,
+      order: sort == ArtistSongSort.newest ? 'new' : 'hot',
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+    );
+    return mapNeteaseArtistSongs(raw);
   }
 
   // ── RankSource（G10） ────────────────────────────────────
-
   /// 网易没有「榜单列表」接口，官方榜是固定三个 id；这里并行补一次封面/名称，
   /// 失败则退回内置名称（封面留空，由 UI 出占位图）。
   @override
-  Future<List<({String id, String name, String coverUrl})>> rankBoards() async {
+  Future<List<PlaylistBrief>> rankBoards() async {
     final metas = await Future.wait([
       for (final board in officialBoards) _boardMeta(board.id),
     ]);
     return [
       for (var i = 0; i < officialBoards.length; i++)
-        (
+        PlaylistBrief(
           id: officialBoards[i].id,
           name: metas[i].name.isEmpty ? officialBoards[i].name : metas[i].name,
           coverUrl: metas[i].coverUrl,
+          isRank: true,
+          platform: MusicPlatform.netease,
+          rankTypeName: '网易官方榜',
         ),
     ];
   }
@@ -157,6 +219,38 @@ class NeteaseSource
     if (id <= 0) throw const NotFound('榜单 id 无效');
     final raw = await _client.playlistDetailRaw(id);
     return mapNeteasePlaylistTracks(raw);
+  }
+
+  // ── PlaylistCatalogSource（G6 分类歌单 / G7b 标签） ────────
+
+  /// 网易标签是**一级扁平**（无酷狗式二级 group），故拍成单组返回。
+  @override
+  Future<List<PlaylistTagGroup>> playlistTagGroups() async {
+    return mapNeteasePlaylistTags(await _client.highQualityTagsRaw());
+  }
+
+  /// [cat] 即标签名（实测 `cat=华语`）；空串回退「全部」。
+  @override
+  Future<List<PlaylistBrief>> categoryPlaylists({
+    required String cat,
+    int pageSize = 30,
+  }) async {
+    final c = cat.trim();
+    final raw = await _client.topPlaylistsRaw(
+      cat: c.isEmpty ? '全部' : c,
+      limit: pageSize,
+    );
+    return mapNeteaseTopPlaylists(raw);
+  }
+
+  // ── NewSongFeedSource（G5 推荐新歌） ─────────────────────
+
+  /// 网易是「推荐新歌」口径：无地区分类，游客态也有数据。
+  @override
+  Future<List<Track>> newSongs({int pageSize = 30}) async {
+    return mapNeteasePersonalizedNewSongs(
+      await _client.personalizedNewSongsRaw(limit: pageSize),
+    );
   }
 
   // ── PersonalFmSource（G4） ───────────────────────────────
@@ -219,6 +313,22 @@ class NeteaseSource
     throwIfNeteaseWriteFailed(
       await _client.removeSongsFromPlaylistRaw(pid, songIds),
       '歌单删曲',
+    );
+  }
+
+  // ── UserPlaylistReadSource（F2，需登录） ──────────────────
+
+  /// F2 用户歌单：一次给全量（`limit` 给足，歌单数极少过千）。
+  @override
+  Future<UserPlaylistsPage> userPlaylists({
+    int offset = 0,
+    int limit = 1000,
+  }) async {
+    final account = await currentAccount();
+    final uid = int.tryParse(account?.userId ?? '') ?? 0;
+    if (uid <= 0) throw const LoginRequired('网易云未登录，无法读取歌单');
+    return mapNeteaseUserPlaylists(
+      await _client.userPlaylistsRaw(uid, offset: offset, limit: limit),
     );
   }
 

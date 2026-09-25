@@ -1,4 +1,6 @@
 import '../models/audio_quality.dart';
+import '../models/catalog_models.dart';
+import '../models/daily_recommend.dart';
 import '../models/fm_mode.dart';
 import '../models/track.dart';
 
@@ -23,13 +25,72 @@ abstract interface class HeartRadioSource {
 
 /// 每日推荐。
 abstract interface class DailyRecommendSource {
-  Future<List<Track>> dailyRecommendedSongs();
+  /// 拉取今日推荐。各源差异（酷狗 `/top/ip` 公开兜底、网易 G3 日推）收口到
+  /// [DailyRecommendResult] 的 tracks/personalized/needLogin/error 四字段。
+  Future<DailyRecommendResult> dailyRecommend();
 }
 
 /// 榜单。
 abstract interface class RankSource {
-  Future<List<({String id, String name, String coverUrl})>> rankBoards();
+  /// 榜单列表。统一返回 [PlaylistBrief]（含 `isRank`/`platform`/`rankTypeName`），
+  /// 供榜单列表页编排与详情页换榜弹窗复用。
+  Future<List<PlaylistBrief>> rankBoards();
+
   Future<List<Track>> rankTracks(String boardId, {int page = 1});
+}
+
+/// 歌单分类发现（探索发现「歌单」Tab）。
+///
+/// 标签层级差异收口在实现里：酷狗二级 group 原样返回，网易一级扁平拍成单组，
+/// UI 只认 [PlaylistTagGroup] 并渲染同一行 chips。
+abstract interface class PlaylistCatalogSource {
+  /// 分类标签。返回空 = 该源分类接口无数据（UI 出空态 + 默认分类）。
+  Future<List<PlaylistTagGroup>> playlistTagGroups();
+
+  /// 按分类取歌单。
+  ///
+  /// [cat] 是**各源原生分类值**（酷狗 `categoryid` / 网易中文标签名），由 UI
+  /// 原样回传 [PlaylistTag.id]；空串 = 用该源自己的默认分类。
+  Future<List<PlaylistBrief>> categoryPlaylists({
+    required String cat,
+    int pageSize = 30,
+  });
+}
+
+/// 推荐新歌（探索发现「新歌速递」Tab）。
+///
+/// 网易侧是「推荐新歌」口径（无地区分类），酷狗侧是新歌速递单口 —— 差异在实现里，
+/// UI 只拿曲目列表。
+abstract interface class NewSongFeedSource {
+  Future<List<Track>> newSongs({int pageSize = 30});
+}
+
+/// 歌单详情（非榜单；榜单走 [RankSource]）。
+///
+/// 返回 null = 接口无数据（酷狗公开歌单缺失）；实现也可抛异常（网易）。
+/// 深链路由 `/playlist/:id?src=<wire>` 按源分发到此。
+abstract interface class PlaylistDetailSource {
+  Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
+    String id,
+  );
+}
+
+/// 专辑详情。深链 `/album/:id?src=<wire>` 按源分发到此。
+abstract interface class AlbumDetailSource {
+  Future<AlbumDetail?> fetchAlbumDetail(String albumId);
+}
+
+/// 歌手详情 + 歌曲分页。深链 `/artist/:id?src=<wire>` 按源分发到此。
+abstract interface class ArtistDetailSource {
+  Future<ArtistDetail?> fetchArtistDetail(String artistId);
+
+  /// 网易侧 [ArtistSongSort.newest] 映射 `order=new`（按发行时间倒序）。
+  Future<ArtistSongsPage> fetchArtistSongsPage(
+    String artistId, {
+    int page = 1,
+    int pageSize = 30,
+    ArtistSongSort sort = ArtistSongSort.hot,
+  });
 }
 
 /// 可播音质目录（酷狗 relate_goods）。无此能力则跳过懒加载。
@@ -59,6 +120,33 @@ abstract interface class UserPlaylistWriteSource {
 abstract interface class UserLibrarySource {
   /// 拉取云端「我喜欢」全部曲目（翻页/分批由实现内部处理）。
   Future<List<Track>> likedTracks();
+}
+
+/// 用户云端歌单**读取**（自建 / 收藏，不含曲目）。
+///
+/// 酷狗侧仍走既有 `user_repository` 链路（带 fileid 等酷狗口径）；
+/// 网易侧由本能力提供，UI 用 `registry.capability<UserPlaylistReadSource>()` 取。
+abstract interface class UserPlaylistReadSource {
+  /// 拉取用户歌单（一次给全量；`more` 为真表示还有下一页）。
+  Future<UserPlaylistsPage> userPlaylists({int offset = 0, int limit = 1000});
+}
+
+/// 用户歌单读取结果。
+class UserPlaylistsPage {
+  const UserPlaylistsPage({
+    this.created = const [],
+    this.collected = const [],
+    this.more = false,
+  });
+
+  /// 自建（含「我喜欢的音乐」这类默认单）。
+  final List<PlaylistBrief> created;
+
+  /// 收藏（他人歌单）。
+  final List<PlaylistBrief> collected;
+
+  /// 是否还有下一页。
+  final bool more;
 }
 
 /// 热搜词。

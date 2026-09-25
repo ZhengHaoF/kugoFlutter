@@ -6,8 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'fakes/fake_music_source.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kugo/core/models/fm_mode.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/explore/quick_entries.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
 import 'package:kugo/features/fm/fm_radio_card.dart';
@@ -16,55 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
 
-/// 不 pump [ExplorePage]：它的 initState 会发起真实网络请求，
-/// dio 的超时 Timer 在 FakeAsync 里永远挂起（"A Timer is still pending"）。
-/// [QuickEntries] 本身无网络，单独 pump 即可覆盖布局与导航。
-class _FakeSearch implements SearchRepository {
-  _FakeSearch({this.gate});
-
-  /// 取歌闸门：非 null 时一直挂着，用来验证「入口不等取歌就跳转」。
-  final Completer<void>? gate;
-
-  final List<String> calls = [];
-
-  @override
-  Future<List<Track>> searchSongs(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async {
-    calls.add(keyword);
-    final gate = this.gate;
-    if (gate != null) await gate.future;
-    return List.generate(
-      4,
-      (i) => Track(
-        id: '$keyword-$i',
-        name: '$keyword-$i',
-        artist: 'artist',
-        album: 'album',
-        coverUrl: 'http://cover/$keyword',
-        durationMs: 10000,
-      ),
-    );
-  }
-
-  @override
-  Future<SearchPageResult<Track>> searchSongsPage(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async =>
-      SearchPageResult(items: await searchSongs(keyword, pageSize: pageSize));
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName} is not stubbed');
-}
-
 void main() {
-  setUpAll(bootstrapFakeMusicSources);
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
   /// 播放时舞台有常驻动画（盘自旋 / 频谱），`pumpAndSettle` 等不到静止。
@@ -74,12 +25,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  Future<({GoRouter router, _FakeSearch search})> pump(
+  Future<({GoRouter router, ScriptedFmSource source})> pump(
     WidgetTester tester, {
     Completer<void>? gate,
   }) async {
     SharedPreferences.setMockInitialValues({});
-    final search = _FakeSearch(gate: gate);
+    // 未登录 + 酷狗语义（有档位轴）：取数走关键词兜底池。
+    final source = ScriptedFmSource()..gate = gate;
+    musicSourceRegistry = MusicSourceRegistry([source]);
     final router = GoRouter(
       initialLocation: '/entries',
       routes: [
@@ -120,7 +73,6 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          fmControllerProvider.overrideWith(() => FmController(search: search)),
           playerControllerProvider.overrideWith(
             () => PlayerController(engine: FakeAudioPlayer()),
           ),
@@ -129,7 +81,7 @@ void main() {
       ),
     );
     await tester.pump();
-    return (router: router, search: search);
+    return (router: router, source: source);
   }
 
   testWidgets('FM hero takes its own full-width row above entry cards',
@@ -212,7 +164,7 @@ void main() {
     await settle(tester);
 
     // FM 会话直接在发现页就地起播，不跳进全屏播放页。
-    expect(rig.search.calls, isNotEmpty);
+    expect(rig.source.searchCalls, isNotEmpty);
     expect(find.text('PLAYER_STUB'), findsNothing);
   });
 
@@ -224,7 +176,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(rig.search.calls, isNotEmpty);
+    expect(rig.source.searchCalls, isNotEmpty);
     expect(find.text('PLAYER_STUB'), findsNothing);
   });
 
@@ -269,12 +221,12 @@ void main() {
     expect(container.read(fmControllerProvider).mode, FmMode.heart);
 
     // 切换到小众
-    rig.search.calls.clear();
+    rig.source.searchCalls.clear();
     await tester.tap(find.text('小众'));
     await settle(tester);
 
     // 立即以 niche 模式重开会话
     expect(container.read(fmControllerProvider).mode, FmMode.niche);
-    expect(rig.search.calls, isNotEmpty);
+    expect(rig.source.searchCalls, isNotEmpty);
   });
 }

@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/catalog_repository.dart';
 import '../../features/player/player_controller.dart';
@@ -16,9 +19,16 @@ import '../../core/theme/kugo_theme.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class ArtistDetailPage extends ConsumerStatefulWidget {
-  const ArtistDetailPage({super.key, required this.id});
+  const ArtistDetailPage({
+    super.key,
+    required this.id,
+    this.platform = MusicPlatform.kugou,
+  });
 
   final String id;
+
+  /// 深链平台（路由 `?src=` 分发）：网易歌手 id 是纯数字，两侧接口不同。
+  final MusicPlatform platform;
 
   @override
   ConsumerState<ArtistDetailPage> createState() => _ArtistDetailPageState();
@@ -66,7 +76,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       _loading = true;
       _error = '';
     });
-    final remote = await catalogRepository.fetchArtist(widget.id);
+    final remote = await _fetchDetail();
     if (!mounted) return;
     if (remote != null) {
       setState(() {
@@ -80,6 +90,39 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       _loading = false;
       _error = '歌手加载失败：接口不可用或无公开数据';
     });
+  }
+
+  /// 按源取歌手头部：网易 D4（`data.artist`）；酷狗 `singer/info`。
+  Future<ArtistDetail?> _fetchDetail() {
+    if (widget.platform == MusicPlatform.netease) {
+      final source = musicSourceRegistry
+          ?.capability<ArtistDetailSource>(MusicPlatform.netease);
+      if (source == null) return Future.value(null);
+      return source.fetchArtistDetail(widget.id);
+    }
+    return catalogRepository.fetchArtist(widget.id);
+  }
+
+  /// 按源取歌手歌曲分页：网易 D6（offset 分页，`more` → hasMore）；
+  /// 酷狗 `singer/song`（page 分页）。
+  Future<ArtistSongsPage> _fetchSongsPage(int page) {
+    if (widget.platform == MusicPlatform.netease) {
+      final source = musicSourceRegistry
+          ?.capability<ArtistDetailSource>(MusicPlatform.netease);
+      if (source == null) return Future.value(const ArtistSongsPage());
+      return source.fetchArtistSongsPage(
+        widget.id,
+        page: page,
+        pageSize: 50,
+        sort: _songSort,
+      );
+    }
+    return catalogRepository.fetchArtistSongs(
+      widget.id,
+      page: page,
+      pageSize: 50,
+      sort: _songSort,
+    );
   }
 
   Future<void> _loadSongs({bool reset = false}) async {
@@ -97,12 +140,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     }
 
     final page = reset ? 1 : _songPage + 1;
-    final result = await catalogRepository.fetchArtistSongs(
-      widget.id,
-      page: page,
-      pageSize: 50,
-      sort: _songSort,
-    );
+    final result = await _fetchSongsPage(page);
     if (!mounted || token != _songFetchToken) return;
 
     if (result.songs.isEmpty && page > 1) {
@@ -141,12 +179,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
         !_loadingMore) {
       setState(() => _loadingMore = true);
       final page = _songPage + 1;
-      final result = await catalogRepository.fetchArtistSongs(
-        widget.id,
-        page: page,
-        pageSize: 50,
-        sort: _songSort,
-      );
+      final result = await _fetchSongsPage(page);
       if (!mounted || token != _songFetchToken) return;
       if (result.songs.isEmpty) {
         setState(() {
