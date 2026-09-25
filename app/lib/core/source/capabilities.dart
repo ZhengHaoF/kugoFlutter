@@ -65,6 +65,24 @@ abstract interface class NewSongFeedSource {
   Future<List<Track>> newSongs({int pageSize = 30});
 }
 
+/// 推荐聚合（「为你推荐」页的「推荐歌单」「编辑精选」两块）。
+///
+/// 酷狗侧：`special_recommend`（`categoryid=0`）+ `musicadservice/top_ip`；
+/// 网易侧：G1 个性推荐歌单 + G7a 精品歌单。榜单 / 新歌 / 每日推荐另有契约。
+abstract interface class RecommendFeedSource {
+  /// 推荐歌单（算法/个性化）。
+  ///
+  /// [cat] 是**各源原生推荐分类值**（酷狗 `categoryid`）；空串 = 该源默认推荐。
+  /// 网易个性推荐歌单没有分类维度，实现忽略 [cat]。
+  Future<List<PlaylistBrief>> recommendPlaylists({
+    String cat = '',
+    int pageSize = 12,
+  });
+
+  /// 编辑精选（人工精选歌单）。
+  Future<List<PlaylistBrief>> editorialPlaylists({int pageSize = 12});
+}
+
 /// 歌单详情（非榜单；榜单走 [RankSource]）。
 ///
 /// 返回 null = 接口无数据（酷狗公开歌单缺失）；实现也可抛异常（网易）。

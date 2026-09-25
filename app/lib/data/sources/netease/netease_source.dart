@@ -21,6 +21,7 @@ class NeteaseSource
         RankSource,
         PlaylistCatalogSource,
         NewSongFeedSource,
+        RecommendFeedSource,
         PersonalFmSource,
         PlaylistDetailSource,
         AlbumDetailSource,
@@ -250,6 +251,29 @@ class NeteaseSource
   Future<List<Track>> newSongs({int pageSize = 30}) async {
     return mapNeteasePersonalizedNewSongs(
       await _client.personalizedNewSongsRaw(limit: pageSize),
+    );
+  }
+
+  // ── RecommendFeedSource（G1 个性推荐 / G7a 精品歌单） ──────
+
+  /// G1 个性推荐歌单：`result[]`（游客态实测 5 单）。
+  ///
+  /// 网易个性推荐无分类维度，[cat] 忽略（分类歌单走 G6 / [categoryPlaylists]）。
+  @override
+  Future<List<PlaylistBrief>> recommendPlaylists({
+    String cat = '',
+    int pageSize = 12,
+  }) async {
+    return mapNeteaseTopPlaylists(
+      await _client.personalizedPlaylistsRaw(limit: pageSize),
+    );
+  }
+
+  /// G7a 精品歌单：`playlists[]`（与 G1 同节点形态，复用同一 mapper）。
+  @override
+  Future<List<PlaylistBrief>> editorialPlaylists({int pageSize = 12}) async {
+    return mapNeteaseTopPlaylists(
+      await _client.highQualityPlaylistsRaw(limit: pageSize),
     );
   }
 

@@ -32,6 +32,7 @@ class KugouSource
         RankSource,
         PlaylistCatalogSource,
         NewSongFeedSource,
+        RecommendFeedSource,
         SearchHotSource,
         PlaylistDetailSource,
         AlbumDetailSource,
@@ -244,6 +245,41 @@ class KugouSource
       );
     }
     return result.items;
+  }
+
+  // ── RecommendFeedSource（推荐歌单 / 编辑精选） ─────────────
+
+  /// 复用 `special_recommend`（`categoryid`；空串 = 推荐 id 0）。
+  @override
+  Future<List<PlaylistBrief>> recommendPlaylists({
+    String cat = '',
+    int pageSize = 12,
+  }) async {
+    final c = cat.trim();
+    final result = await _rec.fetchRecommendPlaylists(
+      categoryId: c.isEmpty ? '0' : c,
+      pageSize: pageSize,
+    );
+    if (result.playlists.isEmpty && result.error.isNotEmpty) {
+      throw NetworkFailure(
+        result.error,
+        filtered: result.error.contains('拦截'),
+      );
+    }
+    return result.playlists;
+  }
+
+  /// 复用 `musicadservice/top_ip`（编辑精选）。
+  @override
+  Future<List<PlaylistBrief>> editorialPlaylists({int pageSize = 12}) async {
+    final result = await _rec.fetchEditorialPicks(limit: pageSize);
+    if (result.playlists.isEmpty && result.error.isNotEmpty) {
+      throw NetworkFailure(
+        result.error,
+        filtered: result.error.contains('拦截'),
+      );
+    }
+    return result.playlists;
   }
 
   @override

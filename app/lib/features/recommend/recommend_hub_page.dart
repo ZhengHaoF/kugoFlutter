@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/catalog_models.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
+import '../../core/source/music_source.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -34,27 +38,112 @@ class _Sec<T> {
 }
 
 class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
+  /// 当前音源；`null` = 无可用源（均未注册 / 未启用 / 都不具备本页能力）。
+  MusicPlatform? _source;
+
+  // 「风格」：酷狗是歌曲流（`everyday_style_recommend` 专属链路，无能力契约）；
+  // 网易退化为「风格歌单」（标签 chips + 歌单网格，复用 [PlaylistCatalogSource]）。
   _Sec<StyleRecommendResult> _style = _Sec(loading: true);
-  _Sec<RecommendPlaylistsSection> _playlists = _Sec(loading: true);
-  _Sec<RecommendPlaylistsSection> _editorial = _Sec(loading: true);
+  List<PlaylistTagGroup> _styleTags = const [];
+  PlaylistTag? _activeStyleTag;
+  List<PlaylistBrief> _stylePlaylists = const [];
+  bool _stylePlaylistsLoading = true;
+  String _stylePlaylistsError = '';
+
+  // 「推荐歌单」「编辑精选」：按 [RecommendFeedSource] 能力分发。
+  _Sec<List<PlaylistBrief>> _playlists = _Sec(loading: true);
+  _Sec<List<PlaylistBrief>> _editorial = _Sec(loading: true);
 
   final Set<String> _selectedTagIds = <String>{};
   String _activeGroupName = '';
   String _playlistCategoryId = '0';
   int _styleRequestId = 0;
+  int _stylePlaylistRequestId = 0;
   int _playlistRequestId = 0;
+  int _editorialRequestId = 0;
 
   @override
   void initState() {
     super.initState();
+    _source = _resolveSource(_availableSources());
+    _loadAll();
+  }
+
+  void _loadAll() {
     _loadStyle();
     _loadPlaylists();
     _loadEditorial();
   }
 
-  Future<void> _loadStyle({bool useSelectedTags = false}) async {
-    // 酷狗停用时不发请求（页面被整页空态替换，这里是入口防御）。
-    if (!_kugouEnabled) return;
+  T? _capability<T>(MusicPlatform? platform) => platform == null
+      ? null
+      : musicSourceRegistry?.capability<T>(platform);
+
+  /// 已注册、已启用且具备「推荐聚合」能力的音源（本页三块内容都依赖它）。
+  List<MusicPlatform> _availableSources() {
+    final registry = musicSourceRegistry;
+    if (registry == null) return const [];
+    final enabled = ref.read(settingsControllerProvider).enabledSources;
+    return registry.platforms
+        .where(
+          (p) =>
+              enabled.contains(p) &&
+              registry.capability<RecommendFeedSource>(p) != null,
+        )
+        .toList();
+  }
+
+  /// 首选项是设置里的「默认源」；不可用时退首个可用源。
+  MusicPlatform? _resolveSource(List<MusicPlatform> available) {
+    if (available.isEmpty) return null;
+    final preferred =
+        ref.read(settingsControllerProvider).effectiveDefaultSource;
+    return available.contains(preferred) ? preferred : available.first;
+  }
+
+  /// 「风格」是否退化为歌单形态：只有酷狗有风格歌曲流专属链路。
+  bool get _styleAsPlaylists => _source != MusicPlatform.kugou;
+
+  String _errorText(Object e, String fallback) =>
+      e is SourceFailure && e.message.isNotEmpty ? e.message : fallback;
+
+  void _switchTo(MusicPlatform platform) {
+    if (platform == _source) return;
+    setState(() {
+      _source = platform;
+      _resetData();
+    });
+    _loadAll();
+  }
+
+  /// 切源必须清缓存：标签 id / 歌单 id / 曲目 id 都是各源私有的，混用会串源；
+  /// 同时递增请求号，把在途的旧响应全部作废。
+  void _resetData() {
+    _style = _Sec(loading: true);
+    _styleTags = const [];
+    _activeStyleTag = null;
+    _stylePlaylists = const [];
+    _stylePlaylistsLoading = true;
+    _stylePlaylistsError = '';
+    _playlists = _Sec(loading: true);
+    _editorial = _Sec(loading: true);
+    _selectedTagIds.clear();
+    _activeGroupName = '';
+    _playlistCategoryId = '0';
+    _styleRequestId++;
+    _stylePlaylistRequestId++;
+    _playlistRequestId++;
+    _editorialRequestId++;
+  }
+
+  /// 风格板块入口：酷狗走歌曲流，其余源走风格歌单。
+  Future<void> _loadStyle({bool useSelectedTags = false}) {
+    if (_styleAsPlaylists) return _loadStylePlaylists(reloadTags: true);
+    return _loadKugouStyle(useSelectedTags: useSelectedTags);
+  }
+
+  Future<void> _loadKugouStyle({bool useSelectedTags = false}) async {
+    if (_source != MusicPlatform.kugou) return;
     final requestId = ++_styleRequestId;
     setState(() {
       _style = _Sec(loading: true);
@@ -88,38 +177,100 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
     });
   }
 
+  /// 非酷狗源的「风格歌单」：一次取标签，之后切换标签只重取歌单。
+  Future<void> _loadStylePlaylists({bool reloadTags = false}) async {
+    final source = _source;
+    final catalog = _capability<PlaylistCatalogSource>(source);
+    if (catalog == null) return;
+    final requestId = ++_stylePlaylistRequestId;
+    setState(() {
+      _stylePlaylistsLoading = true;
+      _stylePlaylistsError = '';
+    });
+
+    if (reloadTags || _styleTags.isEmpty) {
+      List<PlaylistTagGroup> tags;
+      try {
+        tags = await catalog.playlistTagGroups();
+      } catch (_) {
+        // 标签拿不到不挡歌单：下面用该源默认分类（空串）兜底。
+        tags = const [];
+      }
+      if (!mounted || requestId != _stylePlaylistRequestId) return;
+      setState(() {
+        _styleTags = tags;
+        final current = _activeStyleTag?.id;
+        final flat = [for (final g in tags) ...g.child];
+        if (flat.isNotEmpty &&
+            (current == null || !flat.any((t) => t.id == current))) {
+          _activeStyleTag = flat.first;
+        }
+      });
+    }
+
+    List<PlaylistBrief> playlists = const [];
+    var error = '';
+    try {
+      playlists = await catalog.categoryPlaylists(
+        cat: _activeStyleTag?.id ?? '',
+        pageSize: 30,
+      );
+    } catch (e) {
+      error = _errorText(e, '风格歌单加载失败，请检查网络后重试');
+    }
+    if (!mounted || requestId != _stylePlaylistRequestId) return;
+    setState(() {
+      _stylePlaylists = playlists;
+      _stylePlaylistsLoading = false;
+      _stylePlaylistsError = error;
+    });
+  }
+
   Future<void> _loadPlaylists() async {
-    if (!_kugouEnabled) return;
+    final feed = _capability<RecommendFeedSource>(_source);
+    if (feed == null) return;
     final requestId = ++_playlistRequestId;
-    final categoryId = _playlistCategoryId;
+    final cat = _playlistCategoryId;
     setState(() {
       _playlists = _Sec(loading: true);
     });
-    final result = await recommendRepository.fetchRecommendPlaylists(
-      categoryId: categoryId,
-    );
+    List<PlaylistBrief> items = const [];
+    var error = '';
+    try {
+      items = await feed.recommendPlaylists(cat: cat);
+    } catch (e) {
+      error = _errorText(e, '推荐歌单加载失败，请检查网络后重试');
+    }
     if (!mounted || requestId != _playlistRequestId) return;
     setState(() {
       _playlists = _Sec(
-        data: result,
+        data: items,
         loading: false,
-        error: result.playlists.isEmpty ? result.error : '',
+        error: items.isEmpty ? error : '',
       );
     });
   }
 
   Future<void> _loadEditorial() async {
-    if (!_kugouEnabled) return;
+    final feed = _capability<RecommendFeedSource>(_source);
+    if (feed == null) return;
+    final requestId = ++_editorialRequestId;
     setState(() {
       _editorial = _Sec(loading: true);
     });
-    final result = await recommendRepository.fetchEditorialPicks();
-    if (!mounted) return;
+    List<PlaylistBrief> items = const [];
+    var error = '';
+    try {
+      items = await feed.editorialPlaylists();
+    } catch (e) {
+      error = _errorText(e, '编辑精选加载失败，请检查网络后重试');
+    }
+    if (!mounted || requestId != _editorialRequestId) return;
     setState(() {
       _editorial = _Sec(
-        data: result,
+        data: items,
         loading: false,
-        error: result.playlists.isEmpty ? result.error : '',
+        error: items.isEmpty ? error : '',
       );
     });
   }
@@ -138,15 +289,16 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
         _selectedTagIds.add(tag.id);
       }
     });
-    _loadStyle(useSelectedTags: true);
+    _loadKugouStyle(useSelectedTags: true);
+  }
+
+  void _selectStyleTag(PlaylistTag tag) {
+    if (_activeStyleTag?.id == tag.id) return;
+    setState(() => _activeStyleTag = tag);
+    _loadStylePlaylists();
   }
 
   List<Track> get _styleTracks => _style.data?.tracks ?? const [];
-
-  /// 整源开关：本页四个板块全部来自酷狗，停用即不发请求 + 整页空态。
-  bool get _kugouEnabled =>
-      ref.read(settingsControllerProvider).enabledSources
-          .contains(MusicPlatform.kugou);
 
   String get _styleSummary {
     if (_selectedTagIds.isEmpty) return '默认推荐';
@@ -166,16 +318,43 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
     context.push('/player');
   }
 
+  /// 非酷狗源必须带 `?src=`，详情页据此按源取数（同 common.dart `artistTapFor`）。
+  String _playlistRoute(PlaylistBrief playlist) {
+    final src = playlist.platform == MusicPlatform.kugou
+        ? ''
+        : '?src=${playlist.platform.wireName}';
+    return '/playlist/${playlist.id}$src';
+  }
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final auth = ref.watch(authControllerProvider);
+    final settings = ref.watch(settingsControllerProvider);
 
     ref.listen(authControllerProvider, (prev, next) {
       final wasLogged = prev?.isLogged ?? false;
       if (!wasLogged && next.isLogged) {
         _refreshAll();
+      }
+    });
+
+    // 设置里改动整源开关后回到本页：可用源变了就切源并清缓存重取。
+    ref.listen(settingsControllerProvider, (prev, next) {
+      if (prev?.enabledSources == next.enabledSources) return;
+      final avail = _availableSources();
+      if (avail.isEmpty) {
+        if (_source != null) {
+          setState(() {
+            _source = null;
+            _resetData();
+          });
+        }
+        return;
+      }
+      if (_source == null || !avail.contains(_source)) {
+        _switchTo(_resolveSource(avail) ?? avail.first);
       }
     });
 
@@ -191,19 +370,22 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
 
     final styleTracks = _styleTracks;
     final styleGroups = _style.data?.groups ?? const <StyleTagGroup>[];
-    final playlistItems =
-        _playlists.data?.playlists ?? const <PlaylistBrief>[];
-    final editorialItems =
-        _editorial.data?.playlists ?? const <PlaylistBrief>[];
+    final playlistItems = _playlists.data ?? const <PlaylistBrief>[];
+    final editorialItems = _editorial.data ?? const <PlaylistBrief>[];
 
-    // 整源开关：本页四个板块全部来自酷狗，停用即整页空态。
-    if (!ref.watch(settingsControllerProvider).enabledSources
-        .contains(MusicPlatform.kugou)) {
+    // 整源开关：所有可用源都被停用/未注册 → 整页停用空态
+    // （区别于「源可用但板块无数据」的板块级空态）。
+    final available = _availableSources();
+    final active = _source ?? (available.isEmpty ? null : available.first);
+    if (active == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('为你推荐')),
-        body: const SourceDisabledView(platform: MusicPlatform.kugou),
+        body: SourceDisabledView(platform: settings.effectiveDefaultSource),
       );
     }
+
+    // 只有酷狗有「风格歌曲流」；其余源这一块退化为「风格歌单」。
+    final styleAsPlaylists = active != MusicPlatform.kugou;
 
     return Scaffold(
       appBar: AppBar(
@@ -216,125 +398,188 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
             ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _refreshAll,
-        child: SmoothCustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.md,
-                  KugoSpacing.lg,
-                  KugoSpacing.sm,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      auth.isLogged ? greeting : '为你推荐',
-                      style: kugo.greeting,
+      body: Column(
+        children: [
+          if (available.length > 1)
+            SourceFilterBar(
+              platforms: available,
+              selected: active,
+              showAll: false,
+              onSelect: (p) {
+                if (p != null) _switchTo(p);
+              },
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refreshAll,
+              child: SmoothCustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        KugoSpacing.lg,
+                        KugoSpacing.md,
+                        KugoSpacing.lg,
+                        KugoSpacing.sm,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            auth.isLogged ? greeting : '为你推荐',
+                            style: kugo.greeting,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '由此开启好心情 ~',
+                            style: kugo.caption.copyWith(fontSize: 13),
+                          ),
+                          const SizedBox(height: KugoSpacing.lg),
+                          const _FeatureEntryRow(),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '由此开启好心情 ~',
-                      style: kugo.caption.copyWith(fontSize: 13),
-                    ),
-                    const SizedBox(height: KugoSpacing.lg),
-                    const _FeatureEntryRow(),
-                  ],
-                ),
-              ),
-            ),
-
-            // 风格推荐
-            SliverToBoxAdapter(
-              child: SectionHeader(
-                title: '风格推荐',
-                showAccent: true,
-                actionLabel: styleTracks.isEmpty ? null : '播放全部',
-                onAction: styleTracks.isEmpty ? null : _playStyleAll,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: _StylePanel(
-                loading: _style.loading,
-                error: _style.error,
-                groups: styleGroups,
-                activeGroupName: _activeGroupName,
-                selectedTagIds: _selectedTagIds,
-                summary: _styleSummary,
-                tracks: styleTracks,
-                isPlaying: (track) =>
-                    player.current?.id == track.id && player.isPlaying,
-                onGroupTap: (name) => setState(() => _activeGroupName = name),
-                onTagTap: _toggleStyleTag,
-                onRetry: () => _loadStyle(
-                  useSelectedTags: _selectedTagIds.isNotEmpty,
-                ),
-                onTrackTap: (index) {
-                  ref
-                      .read(playerControllerProvider.notifier)
-                      .playQueue(styleTracks, startIndex: index);
-                  context.push('/player');
-                },
-              ),
-            ),
-
-            // 推荐歌单
-            SliverToBoxAdapter(
-              child: SectionHeader(
-                title: '推荐歌单',
-                showAccent: true,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final cat
-                          in RecommendRepository.recommendPlaylistCategories)
-                        ChoiceChip(
-                          label: Text(cat.label),
-                          selected: _playlistCategoryId == cat.id,
-                          onSelected: (_) {
-                            if (_playlistCategoryId == cat.id) return;
-                            setState(() => _playlistCategoryId = cat.id);
-                            _loadPlaylists();
-                          },
-                        ),
-                    ],
                   ),
-                ),
+
+                  // 风格：酷狗 = 风格歌曲流；其余源 = 风格歌单
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      title: styleAsPlaylists ? '风格歌单' : '风格推荐',
+                      showAccent: true,
+                      actionLabel:
+                          styleAsPlaylists || styleTracks.isEmpty ? null : '播放全部',
+                      onAction:
+                          styleAsPlaylists || styleTracks.isEmpty ? null : _playStyleAll,
+                    ),
+                  ),
+                  if (styleAsPlaylists)
+                    ..._stylePlaylistSlivers()
+                  else
+                    SliverToBoxAdapter(
+                      child: _StylePanel(
+                        loading: _style.loading,
+                        error: _style.error,
+                        groups: styleGroups,
+                        activeGroupName: _activeGroupName,
+                        selectedTagIds: _selectedTagIds,
+                        summary: _styleSummary,
+                        tracks: styleTracks,
+                        isPlaying: (track) =>
+                            player.current?.id == track.id && player.isPlaying,
+                        onGroupTap: (name) =>
+                            setState(() => _activeGroupName = name),
+                        onTagTap: _toggleStyleTag,
+                        onRetry: () => _loadStyle(
+                          useSelectedTags: _selectedTagIds.isNotEmpty,
+                        ),
+                        onTrackTap: (index) {
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playQueue(styleTracks, startIndex: index);
+                          context.push('/player');
+                        },
+                      ),
+                    ),
+
+                  // 推荐歌单
+                  SliverToBoxAdapter(
+                    child: SectionHeader(
+                      title: '推荐歌单',
+                      showAccent: true,
+                    ),
+                  ),
+                  // 分类 chips 是酷狗口径（categoryid）；网易个性推荐无分类维度。
+                  if (!styleAsPlaylists)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final cat
+                                  in RecommendRepository
+                                      .recommendPlaylistCategories)
+                                ChoiceChip(
+                                  label: Text(cat.label),
+                                  selected: _playlistCategoryId == cat.id,
+                                  onSelected: (_) {
+                                    if (_playlistCategoryId == cat.id) return;
+                                    setState(
+                                      () => _playlistCategoryId = cat.id,
+                                    );
+                                    _loadPlaylists();
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ..._playlistSlivers(
+                    loading: _playlists.loading,
+                    error: _playlists.error,
+                    items: playlistItems,
+                    onRetry: _loadPlaylists,
+                    emptyMessage: '暂无推荐歌单',
+                  ),
+
+                  // 编辑精选
+                  SliverToBoxAdapter(
+                    child: const SectionHeader(title: '编辑精选', showAccent: true),
+                  ),
+                  ..._playlistSlivers(
+                    loading: _editorial.loading,
+                    error: _editorial.error,
+                    items: editorialItems,
+                    onRetry: _loadEditorial,
+                    emptyMessage: '暂无编辑精选',
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 140)),
+                ],
               ),
             ),
-            ..._playlistSlivers(
-              loading: _playlists.loading,
-              error: _playlists.error,
-              items: playlistItems,
-              onRetry: _loadPlaylists,
-            ),
-
-            // 编辑精选
-            SliverToBoxAdapter(
-              child: const SectionHeader(title: '编辑精选', showAccent: true),
-            ),
-            ..._playlistSlivers(
-              loading: _editorial.loading,
-              error: _editorial.error,
-              items: editorialItems,
-              onRetry: _loadEditorial,
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 140)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  /// 非酷狗源「风格歌单」：标签 chips + 歌单网格（对齐探索发现「歌单」Tab 形态）。
+  List<Widget> _stylePlaylistSlivers() {
+    final tags = [
+      for (final g in _styleTags)
+        for (final t in g.child)
+          ChoiceChip(
+            label: Text(t.name),
+            selected: _activeStyleTag?.id == t.id,
+            onSelected: (_) => _selectStyleTag(t),
+          ),
+    ];
+    return [
+      if (tags.isNotEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KugoSpacing.lg,
+              0,
+              KugoSpacing.lg,
+              KugoSpacing.md,
+            ),
+            child: Wrap(spacing: 8, runSpacing: 8, children: tags),
+          ),
+        ),
+      ..._playlistSlivers(
+        loading: _stylePlaylistsLoading,
+        error: _stylePlaylistsError,
+        items: _stylePlaylists,
+        onRetry: () => _loadStylePlaylists(),
+        emptyMessage: '暂无风格歌单',
+      ),
+    ];
   }
 
   List<Widget> _playlistSlivers({
@@ -342,6 +587,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
     required String error,
     required List<PlaylistBrief> items,
     required VoidCallback onRetry,
+    String emptyMessage = '暂无内容',
   }) {
     if (loading) {
       return [
@@ -357,7 +603,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
       return [
         SliverToBoxAdapter(
           child: _SectionStatus(
-            message: error.isEmpty ? '暂无内容' : error,
+            message: error.isEmpty ? emptyMessage : error,
             onRetry: onRetry,
           ),
         ),
@@ -395,7 +641,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
                     playlist: playlist,
                     width: double.infinity,
                     onTap: () => context.push(
-                      '/playlist/${playlist.id}',
+                      _playlistRoute(playlist),
                       extra: playlist,
                     ),
                   );
