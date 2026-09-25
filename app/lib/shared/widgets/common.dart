@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
 import '../../core/source/features.dart';
@@ -10,6 +10,7 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
+import '../../features/settings/settings_controller.dart';
 import 'cover_box.dart';
 
 /// Builds an `onArtistTap` callback for a track row.
@@ -141,6 +142,47 @@ class SourceBadge extends StatelessWidget {
       QualityBadge(label: platform.label);
 }
 
+/// 当前音源只读小字：`来源：酷狗`。
+///
+/// 与 [SourceBadge]（行内角标）区分：用于「整页 / 整块内容来自哪个源」的
+/// 场景——播放器、详情页头部、以及**单源时的底部全局提示**。多源场景下
+/// 优先用可切换的 `SourceFilterBar` chips，这里只做只读陈述，不承载切换。
+class SourceLabel extends StatelessWidget {
+  const SourceLabel({
+    super.key,
+    required this.platform,
+    this.prefix = '来源：',
+    this.compact = false,
+  });
+
+  final MusicPlatform platform;
+
+  /// 前缀文案。底部全局提示可改成「当前音源：」等更明确的说法。
+  final String prefix;
+
+  /// 紧凑模式：去掉图标，只留文字（用于空间受限处，如迷你播放条）。
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    final style = kugo.caption.copyWith(
+      fontSize: compact ? 10 : 11,
+      color: kugo.textTertiary,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!compact) ...[
+          Icon(Icons.source_rounded, size: 12, color: kugo.textTertiary),
+          const SizedBox(width: 4),
+        ],
+        Text('$prefix${platform.label}', style: style),
+      ],
+    );
+  }
+}
+
 /// 「音源已停用」空态：整源开关关掉某源后，只依赖该源的页面（FM /
 /// 榜单 / 每日推荐 / 发现）用它代替内容区，避免空白或一串请求报错。
 ///
@@ -198,7 +240,11 @@ class SourceDisabledView extends StatelessWidget {
 ///
 /// 「切换音源」的轻量机制之一（见方案 §11 决策记录），不做全局音源切换。
 /// 搜索页与「我喜欢」页共用。
-class SourceFilterBar extends StatelessWidget {
+///
+/// 选中具体音源时会**同步写入全局默认源**（`settings.defaultSource`），这样
+/// 用户在任意页面切过源之后，其它未显式选源的入口（首页 / 搜索初始筛选）会
+/// 跟着走同一个源；「全部」是混排视图，不代表某个源，不写。
+class SourceFilterBar extends ConsumerWidget {
   const SourceFilterBar({
     super.key,
     required this.platforms,
@@ -222,9 +268,19 @@ class SourceFilterBar extends StatelessWidget {
   final double horizontalPadding;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (platforms.length <= 1) return const SizedBox.shrink();
     final kugo = KugoTheme.of(context);
+
+    void select(MusicPlatform? platform) {
+      if (platform != null) {
+        ref
+            .read(settingsControllerProvider.notifier)
+            .setDefaultSource(platform);
+      }
+      onSelect(platform);
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: KugoSpacing.sm),
       child: SizedBox(
@@ -237,7 +293,7 @@ class SourceFilterBar extends StatelessWidget {
               _SourceChip(
                 label: '全部',
                 selected: selected == null,
-                onTap: () => onSelect(null),
+                onTap: () => select(null),
                 kugo: kugo,
               ),
             for (var i = 0; i < platforms.length; i++) ...[
@@ -245,7 +301,7 @@ class SourceFilterBar extends StatelessWidget {
               _SourceChip(
                 label: platforms[i].label,
                 selected: selected == platforms[i],
-                onTap: () => onSelect(platforms[i]),
+                onTap: () => select(platforms[i]),
                 kugo: kugo,
               ),
             ],

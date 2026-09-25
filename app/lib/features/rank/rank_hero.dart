@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/cache/cover_cache.dart';
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
@@ -111,11 +112,15 @@ class RankDetailHeaderSurface extends StatelessWidget {
     required this.brief,
     required this.tracksCount,
     required this.fallbackId,
+    this.platform = MusicPlatform.kugou,
   });
 
   final PlaylistBrief? brief;
   final int tracksCount;
   final String fallbackId;
+
+  /// 头部信息行里追加「来源：X」，告诉用户这份歌单 / 榜单来自哪个音源。
+  final MusicPlatform platform;
 
   @override
   Widget build(BuildContext context) {
@@ -221,6 +226,7 @@ class RankDetailHeaderSurface extends StatelessWidget {
                           '$tracksCount 首',
                           if (b.playCountLabel.isNotEmpty) b.playCountLabel,
                           if (b.updateFrequency.isNotEmpty) b.updateFrequency,
+                          '来源：${platform.label}',
                         ].join(' · '),
                   style: kugo.caption.copyWith(decoration: TextDecoration.none),
                 ),
@@ -273,6 +279,7 @@ Widget rankHeroFlightShuttle(
   bool showTitle = false;
   bool dense = false;
   String fallbackId = '';
+  MusicPlatform? platform;
 
   bool isRankCard = false;
   for (final ctx in [toHeroContext, fromHeroContext]) {
@@ -283,6 +290,7 @@ Widget rankHeroFlightShuttle(
         brief ??= surface.brief;
         tracksCount = surface.tracksCount;
         fallbackId = surface.fallbackId;
+        platform ??= surface.platform;
       } else if (w.child is RankCardSurface) {
         final surface = w.child as RankCardSurface;
         brief ??= surface.brief;
@@ -416,6 +424,8 @@ Widget rankHeroFlightShuttle(
                                     brief.playCountLabel,
                                   if (brief.updateFrequency.isNotEmpty)
                                     brief.updateFrequency,
+                                  if (platform != null)
+                                    '来源：${platform.label}',
                                 ].join(' · '),
                           style: kugo.caption
                               .copyWith(decoration: TextDecoration.none),

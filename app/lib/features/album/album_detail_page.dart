@@ -151,6 +151,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                             if (album?.publishTime.isNotEmpty == true)
                               album!.publishTime,
                             if (album != null) '${songs.length} 首',
+                            '来源：${widget.platform.label}',
                           ].join(' · '),
                           style: kugo.caption,
                         ),

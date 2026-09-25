@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -49,7 +50,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       ? null
       : musicSourceRegistry?.capability<T>(platform);
 
-  /// 已注册、已启用且至少具备本页一项能力的音源。
+  /// 已启用、且**该源「发现」功能未关**、并具备本页任一能力的音源。
   ///
   /// 本页四块内容分别依赖 [RankSource] / [PlaylistCatalogSource] /
   /// [NewSongFeedSource]，故用「任一能力」判定该源可用于发现页；
@@ -57,11 +58,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   List<MusicPlatform> _availableSources() {
     final registry = musicSourceRegistry;
     if (registry == null) return const [];
-    final enabled = ref.read(settingsControllerProvider).enabledSources;
+    final settings = ref.read(settingsControllerProvider);
     return registry.platforms
         .where(
           (p) =>
-              enabled.contains(p) &&
+              settings.isFeatureEnabled(p, SourceFeature.discovery) &&
               (registry.capability<RankSource>(p) != null ||
                   registry.capability<PlaylistCatalogSource>(p) != null ||
                   registry.capability<NewSongFeedSource>(p) != null),
@@ -203,9 +204,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _ => '晚上好',
     };
 
-    // 设置里改动整源开关后回到本页：可用源变了就重取（含从「无可用源」恢复）。
+    // 设置里改动整源开关或「发现」功能开关后回到本页：可用源变了就重取（含从「无可用源」恢复）。
     ref.listen(settingsControllerProvider, (prev, next) {
-      if (prev?.enabledSources == next.enabledSources) return;
+      if (prev?.enabledSources == next.enabledSources &&
+          prev?.disabledFeatures == next.disabledFeatures) {
+        return;
+      }
       if (_resolveSource(_availableSources()) != _source) _load();
     });
 
@@ -237,6 +241,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 Text(
                   '发现好音乐 · 为你精选今日旋律',
                   style: kugo.caption.copyWith(fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                // 本页定位是浏览落地页，不放可切换 chips；用一行只读小字
+                // 说明当前内容来自哪个音源。
+                SourceLabel(
+                  platform: _source ?? settings.effectiveDefaultSource,
                 ),
                 const SizedBox(height: KugoSpacing.lg),
                 const _SearchPill(),
@@ -362,6 +372,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               child: available.isEmpty
                   ? SourceDisabledView(
                       platform: settings.effectiveDefaultSource,
+                      feature: settings.featureSwitchCause(
+                        SourceFeature.discovery,
+                      ),
                     )
                   : AsyncBody(
                       loading: false,

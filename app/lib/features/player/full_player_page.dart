@@ -1005,11 +1005,20 @@ class _TrackMetaRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '${track.artist} · ${track.album}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: kugo.caption.copyWith(height: 1.2),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '${track.artist} · ${track.album}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: kugo.caption.copyWith(height: 1.2),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // 当前曲目来自哪个音源（混排队列里尤其需要）。
+                        SourceBadge(platform: track.platform),
+                      ],
                     ),
                   ],
                 ),

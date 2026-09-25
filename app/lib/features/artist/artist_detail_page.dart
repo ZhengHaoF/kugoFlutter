@@ -290,6 +290,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       '$songCount 歌曲',
       if ((artist?.albumCount ?? 0) > 0) '${artist!.albumCount} 专辑',
       if ((artist?.mvCount ?? 0) > 0) '${artist!.mvCount} MV',
+      '来源：${widget.platform.label}',
     ];
     return parts.join(' · ');
   }

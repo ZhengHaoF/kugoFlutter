@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
+import '../../shared/widgets/common.dart';
 import '../../shared/widgets/desktop_player_bar.dart';
 import '../../shared/widgets/mini_player_bar.dart';
 import 'desktop_sidebar.dart';
@@ -225,6 +227,10 @@ class _RootShellState extends ConsumerState<RootShell>
           MiniPlayerBar(
             key: ValueKey('mini-player-${kugo.palette.brightness.name}'),
           ),
+          // 单源时全局只读提示：多源页面各自有可切 chips，单源时没有任何
+          // 入口告诉用户「当前用的是哪个源」，这里补一行小字（多源时隐藏，
+          // 避免与页面内 chips 重复）。
+          const _SingleSourceHint(),
         ],
       ),
       bottomNavigationBar: _DockNavBar(
@@ -429,6 +435,32 @@ class _DockNavBar extends StatelessWidget {
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Single-source read-only hint pinned just above the dock.
+///
+/// Only rendered when exactly one source is enabled — with two or more the
+/// in-page switchable chips already show (and change) the active source, so a
+/// global line would just duplicate them.
+class _SingleSourceHint extends ConsumerWidget {
+  const _SingleSourceHint();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kugo = KugoTheme.of(context);
+    final settings = ref.watch(settingsControllerProvider);
+    final sources = settings.enabledSources;
+    if (sources.length != 1) return const SizedBox.shrink();
+    final platform = sources.first;
+    return Container(
+      width: double.infinity,
+      color: kugo.bg,
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Center(
+        child: SourceLabel(platform: platform, prefix: '当前音源：'),
       ),
     );
   }

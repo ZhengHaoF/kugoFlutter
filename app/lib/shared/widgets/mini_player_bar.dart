@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
+import 'common.dart';
 import 'cover_box.dart';
 
 class MiniPlayerBar extends ConsumerWidget {
@@ -73,11 +74,23 @@ class MiniPlayerBar extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                               style: kugo.body.copyWith(fontSize: 14),
                             ),
-                            Text(
-                              track.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: kugo.caption,
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    track.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: kugo.caption,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // 混排队列下这首歌来自哪个源（紧凑只读小字）。
+                                SourceLabel(
+                                  platform: track.platform,
+                                  compact: true,
+                                ),
+                              ],
                             ),
                           ],
                         ),

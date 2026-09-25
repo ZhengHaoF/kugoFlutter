@@ -314,6 +314,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 onDismissed: (_) => _deleteItem(track.id),
                 child: TrackTile(
                   track: track,
+                  // 历史是跨源混排的，标明每首来自哪个音源。
+                  showSource: true,
                   isPlaying: player.current?.id == track.id && player.isPlaying,
                   trailing: IconButton(
                     icon: Icon(

@@ -67,11 +67,20 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
                               isCurrent ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
-                      subtitle: Text(
-                        track.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: kugo.caption,
+                      subtitle: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              track.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: kugo.caption,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // 队列可跨源混排，标明每首来自哪个音源。
+                          SourceBadge(platform: track.platform),
+                        ],
                       ),
                       trailing: isCurrent
                           ? Icon(

@@ -214,9 +214,19 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                   children: [
                     Text(track.name, style: kugo.title),
                     const SizedBox(height: 6),
-                    Text(
-                      track.artist.isEmpty ? '未知歌手' : track.artist,
-                      style: kugo.caption,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            track.artist.isEmpty ? '未知歌手' : track.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: kugo.caption,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        SourceBadge(platform: track.platform),
+                      ],
                     ),
                     if (track.album.isNotEmpty) ...[
                       const SizedBox(height: 4),

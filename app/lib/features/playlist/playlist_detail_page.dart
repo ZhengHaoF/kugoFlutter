@@ -565,6 +565,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                   flightShuttleBuilder: rankHeroFlightShuttle,
                   child: RankDetailHeaderSurface(
                     brief: brief,
+                    platform: widget.platform,
                     tracksCount: tracks.isNotEmpty
                         ? tracks.length
                         : (brief?.trackCount ??
