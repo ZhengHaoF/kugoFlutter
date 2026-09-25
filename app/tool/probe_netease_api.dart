@@ -40,9 +40,11 @@ import 'package:qr/qr.dart';
 /// dart run tool/probe_netease_api.dart --suite login --phone 13800000000 --send-sms
 /// dart run tool/probe_netease_api.dart --suite login --phone 13800000000 --captcha 1234 --verify-sms
 ///
-/// # F4 / F5 写操作（必须 --write 显式打开，会真改账号）
+/// # F4 / F5 / F5b 写操作（必须 --write 显式打开，会真改账号）
 /// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --like true --id 1234567
+/// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --like false --id 1234567
 /// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --playlist 24381616 --id 1234567
+/// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --playlist 24381616 --id 1234567 --del
 /// ```
 Future<void> main(List<String> args) async {
   final o = _Args.parse(args);
@@ -371,13 +373,18 @@ Future<void> _probeLike(NeteaseClient client, _Args o) async {
     }
     try {
       final raw = await client.userAlbumsRaw(uid);
-      print('[F6] userAlbums ${_firstItemKeys(raw)}');
+      final shape = _summary(raw);
+      print('[F6] userAlbums $shape');
+      print('[F6] 首条 ${_firstItemKeys(raw)}');
+      if ((shape['count'] as int? ?? 0) == 0) {
+        print('[F6] 该账号无收藏专辑 → 非空形态仍未验证（先收藏一张专辑再重跑本项）');
+      }
     } catch (e) {
       print('[F6] FAIL ${_err(e)}');
     }
   }
 
-  // F4 / F5 写操作：默认不发，必须 --write 显式打开。
+  // F4 / F5 / F5b 写操作：默认不发，必须 --write 显式打开。
   if (!o.write) {
     print('[F4/F5] write APIs not fired（加 --write 才发，会真改账号）');
     return;
@@ -395,15 +402,23 @@ Future<void> _probeLike(NeteaseClient client, _Args o) async {
       }
     }
   }
+  if (o.playlistId == 0 && o.del) {
+    print('[F5b] skip — 需 --playlist');
+  }
+  if (o.playlistId != 0 && songId == null) {
+    print('[F5/F5b] skip — 需 --id');
+  }
   if (o.playlistId != 0) {
-    if (songId == null) {
-      print('[F5] skip — 需 --id');
-    } else {
+    if (songId != null) {
+      final tag = o.del ? 'F5b' : 'F5';
       try {
-        final raw = await client.addSongsToPlaylistRaw(o.playlistId, [songId]);
-        print('[F5] addTrack(pid=${o.playlistId}, id=$songId) code=${_codeOf(raw)}');
+        final raw = o.del
+            ? await client.removeSongsFromPlaylistRaw(o.playlistId, [songId])
+            : await client.addSongsToPlaylistRaw(o.playlistId, [songId]);
+        print('[$tag] ${o.del ? 'delTrack' : 'addTrack'}'
+            '(pid=${o.playlistId}, id=$songId) code=${_codeOf(raw)}');
       } catch (e) {
-        print('[F5] FAIL ${_err(e)}');
+        print('[$tag] FAIL ${_err(e)}');
       }
     }
   }
@@ -512,6 +527,9 @@ class _Args {
   bool verifySms = false;
   bool write = false;
   bool? like;
+
+  /// F5b：把 `--playlist` + `--id` 的动作用 `op=del` 发（默认 `add`）。
+  bool del = false;
   Set<String> suites = {'search'};
 
   static _Args parse(List<String> args) {
@@ -557,6 +575,8 @@ class _Args {
         o.write = true;
       } else if (a == '--like') {
         o.like = next() != 'false';
+      } else if (a == '--del') {
+        o.del = true;
       } else if (a == '--suite') {
         o.suites = _split(next()).toSet();
       } else {

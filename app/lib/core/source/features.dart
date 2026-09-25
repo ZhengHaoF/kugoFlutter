@@ -15,7 +15,15 @@ enum SourceFeature {
   search('search', '搜索'),
   personalFm('fm', '私人 FM'),
   dailyRecommend('daily', '每日推荐'),
-  rank('rank', '排行榜');
+  rank('rank', '排行榜'),
+
+  /// 「发现」浏览入口：首页「发现」与探索发现页。
+  ///
+  /// 两页共用一项——它们取的是同一批「逛内容」的数据面（榜单 / 分类歌单 / 新歌），
+  /// 用户心智里就是一个入口；拆成两项只会让人在两处各关一遍。
+  /// **不含**「为你推荐」推荐中心（`/recommend`），它有自己的数据面
+  /// （[RecommendFeedSource]），本期未接子开关。
+  discovery('discovery', '发现');
 
   const SourceFeature(this.id, this.label);
 
@@ -41,6 +49,12 @@ enum SourceFeature {
       SourceFeature.dailyRecommend =>
         registry.capability<DailyRecommendSource>(platform) != null,
       SourceFeature.rank => registry.capability<RankSource>(platform) != null,
+      // 首页与探索发现页各 Tab 能力不同，用「任一」判该源能否用于这两页
+      // （与两页 `_availableSources()` 的判据保持一致）。
+      SourceFeature.discovery =>
+        registry.capability<PlaylistCatalogSource>(platform) != null ||
+            registry.capability<NewSongFeedSource>(platform) != null ||
+            registry.capability<RankSource>(platform) != null,
     };
   }
 }

@@ -6,6 +6,7 @@ import '../../core/models/catalog_models.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
@@ -124,18 +125,18 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       ? null
       : musicSourceRegistry?.capability<T>(platform);
 
-  /// 已注册、已启用且至少具备本页一项能力的音源。
+  /// 已启用、且**该源「发现」功能未关**、并具备本页任一能力的音源。
   ///
   /// 本页各 Tab 能力不同（网易有歌单/榜单/新歌，酷狗五 Tab 齐全），故用「任一能力」
   /// 判定「该源可用于探索发现」；单个 Tab 是否可用再由各 Tab 自己按能力判。
   List<MusicPlatform> _availableSources() {
     final registry = musicSourceRegistry;
     if (registry == null) return const [];
-    final enabled = ref.read(settingsControllerProvider).enabledSources;
+    final settings = ref.read(settingsControllerProvider);
     return registry.platforms
         .where(
           (p) =>
-              enabled.contains(p) &&
+              settings.isFeatureEnabled(p, SourceFeature.discovery) &&
               (registry.capability<PlaylistCatalogSource>(p) != null ||
                   registry.capability<RankSource>(p) != null ||
                   registry.capability<NewSongFeedSource>(p) != null),
@@ -416,9 +417,12 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     final kugo = KugoTheme.of(context);
     final settings = ref.watch(settingsControllerProvider);
 
-    // 设置里改动整源开关后回到本页：重算可用源，必要时切源并清缓存重取。
+    // 设置里改动整源开关或「发现」功能开关后回到本页：重算可用源，必要时切源并清缓存重取。
     ref.listen(settingsControllerProvider, (prev, next) {
-      if (prev?.enabledSources == next.enabledSources) return;
+      if (prev?.enabledSources == next.enabledSources &&
+          prev?.disabledFeatures == next.disabledFeatures) {
+        return;
+      }
       final available = _availableSources();
       if (available.isEmpty) {
         if (_source != null) {
@@ -438,7 +442,10 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     if (available.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('探索发现')),
-        body: SourceDisabledView(platform: settings.effectiveDefaultSource),
+        body: SourceDisabledView(
+          platform: settings.effectiveDefaultSource,
+          feature: settings.featureSwitchCause(SourceFeature.discovery),
+        ),
       );
     }
     final active = _source ?? available.first;

@@ -314,4 +314,39 @@ void main() {
     expect(find.byType(SourceDisabledView), findsOneWidget);
     expect(find.text('酷狗音源已停用'), findsOneWidget);
   });
+
+  testWidgets('关闭酷狗的「发现」功能：该源从本页可用源中移除', (tester) async {
+    final sources = twoSources();
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'kugou',
+      'settings.disabledFeatures': ['kugou:discovery'],
+    });
+
+    await pumpDiscovery(tester, container);
+
+    // 只剩网易一个可用源 → 隐藏切源栏，直接取网易数据。
+    expect(find.byType(SourceFilterBar), findsNothing);
+    expect(find.text('网易歌单'), findsOneWidget);
+    expect(sources.netease.playlistCalls, 1);
+    expect(sources.kugou.playlistCalls, 0);
+  });
+
+  testWidgets('两源的「发现」功能都关掉：整页停用且文案归因到功能', (tester) async {
+    musicSourceRegistry = MusicSourceRegistry([FakeMusicSource()]);
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.disabledFeatures': [
+        'kugou:discovery',
+        'netease:discovery',
+      ],
+    });
+
+    await pumpDiscovery(tester, container);
+
+    expect(find.byType(SourceDisabledView), findsOneWidget);
+    // 源都还启用着，锅在功能子开关 → 不能提示「音源已停用」。
+    expect(find.text('酷狗的「发现」已关闭'), findsOneWidget);
+    expect(find.text('酷狗音源已停用'), findsNothing);
+  });
 }
