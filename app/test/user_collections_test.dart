@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/core/theme/hero_tags.dart';
 import 'package:kugo/data/repositories/user_repository.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
@@ -18,7 +19,17 @@ import 'package:kugo/features/profile/profile_detail_page.dart';
 import 'package:kugo/features/profile/profile_page.dart';
 import 'package:kugo/features/profile/user_collections_controller.dart';
 import 'package:kugo/features/profile/user_profile_detail.dart';
+import 'package:kugo/features/settings/settings_controller.dart';
 import 'fakes/fake_audio_player.dart';
+
+/// 固定 settings 的替身（照 lyrics_view_test 的做法），避免测试里碰 prefs。
+class _FixedSettings extends SettingsController {
+  _FixedSettings(this._initial);
+  final AppSettings _initial;
+
+  @override
+  AppSettings build() => _initial;
+}
 
 class _FakeDioAdapter implements HttpClientAdapter {
   _FakeDioAdapter(this.handler);
@@ -586,6 +597,38 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('周杰伦 · 10首'), findsOneWidget);
+    });
+
+    testWidgets('kugou source disabled hides singers/albums tabs',
+        (tester) async {
+      final engine = FakeAudioPlayer();
+      final container = ProviderContainer(
+        overrides: [
+          playerControllerProvider.overrideWith(
+            () => PlayerController(engine: engine),
+          ),
+          // 歌手/专辑两个 Tab 只反映酷狗账号的云收藏；酷狗整源关闭时
+          // 应整块隐藏，而不是摆两个永远为 0 的空 Tab。
+          settingsControllerProvider.overrideWith(
+            () => _FixedSettings(
+              const AppSettings(enabledSources: {MusicPlatform.netease}),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: LikesPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('歌曲 (0)'), findsOneWidget);
+      expect(find.textContaining('歌手'), findsNothing);
+      expect(find.textContaining('专辑'), findsNothing);
     });
   });
 }

@@ -81,6 +81,22 @@ class _LikesPageState extends ConsumerState<LikesPage>
   /// 上一次渲染时用的 Tab 索引。
   int _tabIndex = 0;
 
+  /// 「歌手 / 专辑」两个 Tab 只反映**酷狗账号**的云收藏（关注歌手 / 收藏
+  /// 专辑），网易侧没有对应口径。酷狗整源被关掉时这两个 Tab 直接隐藏。
+  late bool _kugouCollectionsTab;
+
+  void _syncTabController(bool kugouEnabled) {
+    if (kugouEnabled == _kugouCollectionsTab) return;
+    final old = _tabController;
+    _kugouCollectionsTab = kugouEnabled;
+    _tabIndex = 0;
+    _tabController = TabController(length: kugouEnabled ? 3 : 1, vsync: this);
+    _tabController.addListener(_onTabChanged);
+    // 旧 controller 还被本帧的 TabBar/TabBarView 引用，等帧末再销毁，
+    // 避免 removeListener 撞上已 dispose 的对象。
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  }
+
   /// 只在索引**真的变了**时重建。
   ///
   /// 原来这里无条件 setState：TabBarView 拖动期间 offset 每帧都在变，
@@ -95,7 +111,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _kugouCollectionsTab = ref
+        .read(settingsControllerProvider)
+        .enabledSources
+        .contains(MusicPlatform.kugou);
+    _tabController = TabController(
+      length: _kugouCollectionsTab ? 3 : 1,
+      vsync: this,
+    );
     _tabController.addListener(_onTabChanged);
     _sourceFilter = _registeredPlatforms().length > 1
         ? ref.read(settingsControllerProvider).effectiveDefaultSource
@@ -189,6 +212,13 @@ class _LikesPageState extends ConsumerState<LikesPage>
     final player = ref.watch(playerControllerProvider);
     final neteaseAuth = ref.watch(neteaseLoginControllerProvider);
     final neteaseLikes = ref.watch(neteaseLikesProvider);
+    // 整源开关变化时同步「歌手/专辑」Tab 的有无（用户在设置里关掉酷狗）。
+    _syncTabController(
+      ref
+          .watch(settingsControllerProvider)
+          .enabledSources
+          .contains(MusicPlatform.kugou),
+    );
 
     // Keep local heart cache in sync with cloud favorites.
     if (auth.isLogged && collections.cloudFavoriteTracks.isNotEmpty) {
@@ -350,8 +380,12 @@ class _LikesPageState extends ConsumerState<LikesPage>
             indicatorSize: TabBarIndicatorSize.label,
             tabs: [
               Tab(text: '歌曲 ($songsCount)'),
-              Tab(text: '歌手 (${collections.followedSingers.length})'),
-              Tab(text: '专辑 (${collections.favoritedAlbums.length})'),
+              // 这两个 Tab 只反映酷狗账号的云收藏，酷狗源关闭时没有可看的
+              // 内容，整块隐藏而不是摆两个永远为 0 的空 Tab。
+              if (_kugouCollectionsTab) ...[
+                Tab(text: '歌手 (${collections.followedSingers.length})'),
+                Tab(text: '专辑 (${collections.favoritedAlbums.length})'),
+              ],
             ],
           ),
         ),
@@ -371,24 +405,25 @@ class _LikesPageState extends ConsumerState<LikesPage>
             player: player,
             platforms: platforms,
           ),
-          // Tab 2: 歌手
-          _buildSingersTab(
-            auth: auth,
-            singers: displayedSingers,
-            totalCount: collections.followedSingers.length,
-            isLoading: collections.isLoadingFollow && !collections.loaded,
-            error: collections.followError,
-            kugo: kugo,
-          ),
-          // Tab 3: 专辑
-          _buildAlbumsTab(
-            auth: auth,
-            albums: displayedAlbums,
-            totalCount: collections.favoritedAlbums.length,
-            isLoading: collections.isLoadingPlaylists && !collections.loaded,
-            error: collections.playlistsError,
-            kugo: kugo,
-          ),
+          // Tab 2/3: 歌手 / 专辑（酷狗账号口径，酷狗源关闭时随 Tab 一起隐藏）
+          if (_kugouCollectionsTab) ...[
+            _buildSingersTab(
+              auth: auth,
+              singers: displayedSingers,
+              totalCount: collections.followedSingers.length,
+              isLoading: collections.isLoadingFollow && !collections.loaded,
+              error: collections.followError,
+              kugo: kugo,
+            ),
+            _buildAlbumsTab(
+              auth: auth,
+              albums: displayedAlbums,
+              totalCount: collections.favoritedAlbums.length,
+              isLoading: collections.isLoadingPlaylists && !collections.loaded,
+              error: collections.playlistsError,
+              kugo: kugo,
+            ),
+          ],
         ],
       ),
     );
