@@ -41,7 +41,8 @@ class KugouSource
         PlaylistDetailSource,
         AlbumDetailSource,
         ArtistDetailSource,
-        CommentReadSource {
+        CommentReadSource,
+        CommentWriteSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -53,17 +54,16 @@ class KugouSource
     catalog.CatalogRepository? catalogRepository,
     discovery.DiscoveryRepository? discoveryRepository,
     comment.CommentRepository? commentRepository,
-  })  : _play = playRepository ?? play.playRepository,
-        _lyric = lyricRepository ?? lyric.lyricRepository,
-        _search = searchRepository ?? search.searchRepository,
-        _fm = fmRepository ?? fm.fmRepository,
-        _users = userRepository ?? user.userRepository,
-        _rec = recommendRepository ?? rec.recommendRepository,
-        _playlists = playlistRepository ?? playlist.playlistRepository,
-        _catalog = catalogRepository ?? catalog.catalogRepository,
-        _discovery =
-            discoveryRepository ?? discovery.discoveryRepository,
-        _comments = commentRepository ?? comment.commentRepository;
+  }) : _play = playRepository ?? play.playRepository,
+       _lyric = lyricRepository ?? lyric.lyricRepository,
+       _search = searchRepository ?? search.searchRepository,
+       _fm = fmRepository ?? fm.fmRepository,
+       _users = userRepository ?? user.userRepository,
+       _rec = recommendRepository ?? rec.recommendRepository,
+       _playlists = playlistRepository ?? playlist.playlistRepository,
+       _catalog = catalogRepository ?? catalog.catalogRepository,
+       _discovery = discoveryRepository ?? discovery.discoveryRepository,
+       _comments = commentRepository ?? comment.commentRepository;
 
   final play.PlayRepository _play;
   final lyric.LyricRepository _lyric;
@@ -87,8 +87,7 @@ class KugouSource
   @override
   Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
     String id,
-  ) =>
-      _playlists.fetchPlaylist(id);
+  ) => _playlists.fetchPlaylist(id);
 
   @override
   Future<AlbumDetail?> fetchAlbumDetail(String albumId) =>
@@ -104,13 +103,12 @@ class KugouSource
     int page = 1,
     int pageSize = 30,
     ArtistSongSort sort = ArtistSongSort.hot,
-  }) =>
-      _catalog.fetchArtistSongs(
-        artistId,
-        page: page,
-        pageSize: pageSize,
-        sort: sort,
-      );
+  }) => _catalog.fetchArtistSongs(
+    artistId,
+    page: page,
+    pageSize: pageSize,
+    sort: sort,
+  );
 
   /// 酷狗防盗链头；由 [resolvePlayUrl] 下发给播放引擎。
   static const Map<String, String> playbackHeaders = {
@@ -202,13 +200,12 @@ class KugouSource
     int page = 1,
     int pageSize = 20,
     CommentSort sort = CommentSort.all,
-  }) =>
-      _comments.fetchSongComments(
-        mixSongId: mixSongId,
-        page: page,
-        pageSize: pageSize,
-        sort: sort,
-      );
+  }) => _comments.fetchSongComments(
+    mixSongId: mixSongId,
+    page: page,
+    pageSize: pageSize,
+    sort: sort,
+  );
 
   @override
   Future<List<Comment>> floorReplies({
@@ -217,18 +214,49 @@ class KugouSource
     String mixSongId = '',
     int page = 1,
     int pageSize = 20,
-  }) =>
-      _comments.fetchFloorReplies(
-        childrenId: childrenId,
-        rootCommentId: rootCommentId,
-        mixSongId: mixSongId,
-        page: page,
-        pageSize: pageSize,
-      );
+  }) => _comments.fetchFloorReplies(
+    childrenId: childrenId,
+    rootCommentId: rootCommentId,
+    mixSongId: mixSongId,
+    page: page,
+    pageSize: pageSize,
+  );
 
   @override
   Future<int?> commentCount(String hash) =>
       _comments.fetchCommentCount(hash: hash);
+
+  @override
+  Future<void> sendSongComment({
+    required String childrenId,
+    required String content,
+    String songName = '',
+    String mixSongId = '',
+  }) => _comments.sendSongComment(
+    childrenId: childrenId,
+    content: content,
+    songName: songName,
+    mixSongId: mixSongId,
+  );
+
+  @override
+  Future<void> sendFloorReply({
+    required String childrenId,
+    required String rootCommentId,
+    required String content,
+    String replyToUser = '',
+    String replyToContent = '',
+    String songName = '',
+    String mixSongId = '',
+  }) => _comments.sendFloorReply(
+    childrenId: childrenId,
+    rootCommentId: rootCommentId,
+    content: content,
+    replyToUser: replyToUser,
+    replyToContent: replyToContent,
+    songName: songName,
+    mixSongId: mixSongId,
+  );
 
   @override
   Future<DailyRecommendResult> dailyRecommend() => _rec.fetchDaily();
@@ -272,10 +300,7 @@ class KugouSource
       pageSize: pageSize,
     );
     if (result.playlists.isEmpty && result.error.isNotEmpty) {
-      throw NetworkFailure(
-        result.error,
-        filtered: result.error.contains('拦截'),
-      );
+      throw NetworkFailure(result.error, filtered: result.error.contains('拦截'));
     }
     return result.playlists;
   }
@@ -286,10 +311,7 @@ class KugouSource
   Future<List<Track>> newSongs({int pageSize = 30}) async {
     final result = await _discovery.fetchNewSongs(pageSize: pageSize);
     if (result.items.isEmpty && result.error.isNotEmpty) {
-      throw NetworkFailure(
-        result.error,
-        filtered: result.error.contains('拦截'),
-      );
+      throw NetworkFailure(result.error, filtered: result.error.contains('拦截'));
     }
     return result.items;
   }
@@ -311,10 +333,7 @@ class KugouSource
       pageSize: pageSize,
     );
     if (result.items.isEmpty && result.error.isNotEmpty) {
-      throw NetworkFailure(
-        result.error,
-        filtered: result.error.contains('拦截'),
-      );
+      throw NetworkFailure(result.error, filtered: result.error.contains('拦截'));
     }
     return result.items;
   }
@@ -362,15 +381,11 @@ class KugouSource
     final result = await _discovery.fetchArtists(
       sextype: int.tryParse(gender) ?? 0,
       type: int.tryParse(parts.first) ?? 0,
-      musician:
-          parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+      musician: parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
       hotsize: pageSize,
     );
     if (result.items.isEmpty && result.error.isNotEmpty) {
-      throw NetworkFailure(
-        result.error,
-        filtered: result.error.contains('拦截'),
-      );
+      throw NetworkFailure(result.error, filtered: result.error.contains('拦截'));
     }
     _artistCache = result.items;
     final picked = initial.isEmpty
@@ -406,10 +421,7 @@ class KugouSource
       pageSize: pageSize,
     );
     if (result.playlists.isEmpty && result.error.isNotEmpty) {
-      throw NetworkFailure(
-        result.error,
-        filtered: result.error.contains('拦截'),
-      );
+      throw NetworkFailure(result.error, filtered: result.error.contains('拦截'));
     }
     return result.playlists;
   }
@@ -419,10 +431,7 @@ class KugouSource
   Future<List<PlaylistBrief>> editorialPlaylists({int pageSize = 12}) async {
     final result = await _rec.fetchEditorialPicks(limit: pageSize);
     if (result.playlists.isEmpty && result.error.isNotEmpty) {
-      throw NetworkFailure(
-        result.error,
-        filtered: result.error.contains('拦截'),
-      );
+      throw NetworkFailure(result.error, filtered: result.error.contains('拦截'));
     }
     return result.playlists;
   }
@@ -530,9 +539,7 @@ SourceFailure mapKugouFailure(String message) {
       msg.contains('无权限')) {
     return NoPermission(msg);
   }
-  if (msg.contains('URL过滤') ||
-      msg.contains('网络网关') ||
-      msg.contains('网络请求失败')) {
+  if (msg.contains('URL过滤') || msg.contains('网络网关') || msg.contains('网络请求失败')) {
     return NetworkFailure(
       msg,
       filtered: msg.contains('过滤') || msg.contains('网关'),

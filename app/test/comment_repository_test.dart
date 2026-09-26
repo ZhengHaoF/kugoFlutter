@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kugo/core/api/kugo_sign.dart';
 import 'package:kugo/core/models/comment.dart';
+import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/data/repositories/comment_repository.dart';
 import 'package:kugo/data/storage/device_identity.dart';
 import 'package:kugo/features/auth/auth_token_holder.dart';
@@ -327,5 +329,157 @@ void main() {
     expect(AuthTokenHolder.instance.hasToken, isFalse);
     expect(repo.lastError, contains('评论需要安全校验'));
     expect(repo.lastError, isNot(contains('重新登录')));
+  });
+
+  // ── 写侧 ────────────────────────────────────────────────
+  //
+  // 写口与读口是两条不同的链路：`index.php` + `x-router`，无 `signature`、
+  // 无公共参数，靠 `key` 自证。下面的用例把 key 复算一遍，保证「body 参与签名」
+  // 这条最容易写错的约定不会被改坏。
+
+  void login() =>
+      AuthTokenHolder.instance.setSession(token: 'tok', userId: '42');
+
+  test('发评论：未登录不发请求，直接抛 LoginRequired', () async {
+    final adapter = _ScriptedAdapter([]);
+    final repo = _repo(adapter);
+
+    await expectLater(
+      repo.sendSongComment(childrenId: '20505418', content: '你好'),
+      throwsA(isA<LoginRequired>()),
+    );
+    expect(adapter.seen, isEmpty);
+  });
+
+  test('发评论：走 index.php + x-router，key 把 body 一起签', () async {
+    login();
+    final adapter = _ScriptedAdapter(['{"status":1,"err_code":0}']);
+    final repo = _repo(adapter);
+
+    await repo.sendSongComment(
+      childrenId: '20505418',
+      content: '  好听  ',
+      songName: '晴天',
+      mixSongId: '32100650',
+    );
+
+    final req = adapter.seen.single;
+    expect(req.uri.path, '/index.php');
+    expect(req.method, 'POST');
+    expect(req.queryParameters['r'], 'commentsv3/add');
+    expect(req.queryParameters['childrenid'], 20505418);
+    expect(req.queryParameters['childrenname'], '晴天');
+    expect(req.queryParameters['kugouid'], 42);
+    expect(req.queryParameters['clienttoken'], 'tok');
+    expect(req.queryParameters['signature'], isNull); // 写口不吃 signature
+    expect(req.headers['x-router'], 'm.comment.service.kugou.com');
+
+    // 正文已 trim；body 形态与上游一致，且 key 必须覆盖这段 JSON
+    final payload = req.data as String;
+    expect(payload, '{"data":{"content":"好听","album_audio_id":32100650}}');
+    final device = await DeviceIdentity.ensure();
+    final ct = req.queryParameters['clienttime'] as int;
+    expect(
+      req.queryParameters['key'],
+      KugoSign.signParamsKey('${ct}${device.mid}$payload'),
+    );
+  });
+
+  test('发评论：20028 → RateLimited（引导去官方客户端验证）', () async {
+    login();
+    final adapter = _ScriptedAdapter([
+      '{"status":0,"err_code":20028,"msg":"security"}',
+    ]);
+    final repo = _repo(adapter);
+
+    await expectLater(
+      repo.sendSongComment(childrenId: '20505418', content: '你好'),
+      throwsA(isA<RateLimited>()),
+    );
+  });
+
+  test('发评论：20006 → UpstreamChanged（key 被拒的文案）', () async {
+    login();
+    final adapter = _ScriptedAdapter([
+      '{"status":0,"err_code":20006,"message":"参数验证失败"}',
+    ]);
+    final repo = _repo(adapter);
+
+    await expectLater(
+      repo.sendSongComment(childrenId: '20505418', content: '你好'),
+      throwsA(isA<UpstreamChanged>()),
+    );
+  });
+
+  test('发评论：空内容 / 超长在本地就拦下，不发请求', () async {
+    login();
+    final adapter = _ScriptedAdapter([]);
+    final repo = _repo(adapter);
+    final tooLong = List<String>.filled(201, '字').join();
+
+    await expectLater(
+      repo.sendSongComment(childrenId: '20505418', content: '   '),
+      throwsA(isA<UpstreamChanged>()),
+    );
+    await expectLater(
+      repo.sendSongComment(childrenId: '20505418', content: tooLong),
+      throwsA(isA<UpstreamChanged>()),
+    );
+    expect(adapter.seen, isEmpty);
+  });
+
+  test('发评论：评论池缺失不发请求', () async {
+    login();
+    final adapter = _ScriptedAdapter([]);
+    final repo = _repo(adapter);
+
+    await expectLater(
+      repo.sendSongComment(childrenId: '', content: '你好'),
+      throwsA(isA<NotFound>()),
+    );
+    expect(adapter.seen, isEmpty);
+  });
+
+  test('楼层回复：key 只算 clienttime+mid，正文走 query 且带 is_t/pid', () async {
+    login();
+    final adapter = _ScriptedAdapter(['{"status":1,"err_code":0}']);
+    final repo = _repo(adapter);
+
+    await repo.sendFloorReply(
+      childrenId: '20505418',
+      rootCommentId: '1723639894',
+      content: '同意',
+      replyToUser: '屿知',
+      replyToContent: '听《晴天》',
+      songName: '晴天',
+      mixSongId: '32100650',
+    );
+
+    final req = adapter.seen.single;
+    expect(req.uri.path, '/index.php');
+    expect(req.queryParameters['r'], 'commentsv2/reply');
+    expect(req.queryParameters['tid'], 1723639894);
+    expect(req.queryParameters['is_t'], 1);
+    expect(req.queryParameters['pid'], 0);
+    expect(req.queryParameters['content'], '同意//@屿知:听《晴天》');
+    expect(req.data, ''); // 回复无 body
+    final device = await DeviceIdentity.ensure();
+    final ct = req.queryParameters['clienttime'] as int;
+    expect(
+      req.queryParameters['key'],
+      KugoSign.signParamsKey('${ct}${device.mid}'),
+    );
+  });
+
+  test('楼层回复：缺 childrenId / rootId 不发请求', () async {
+    login();
+    final adapter = _ScriptedAdapter([]);
+    final repo = _repo(adapter);
+
+    await expectLater(
+      repo.sendFloorReply(childrenId: '', rootCommentId: '', content: 'x'),
+      throwsA(isA<NotFound>()),
+    );
+    expect(adapter.seen, isEmpty);
   });
 }

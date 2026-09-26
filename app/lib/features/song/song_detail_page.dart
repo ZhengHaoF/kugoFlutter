@@ -7,12 +7,16 @@ import '../../core/models/comment.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
+import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../data/repositories/comment_repository.dart' show CommentRepository;
 import '../../data/repositories/search_repository.dart';
+import '../../features/auth/auth_token_holder.dart';
 import '../../features/player/player_controller.dart';
+import '../../shared/widgets/comment_composer_sheet.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -293,6 +297,97 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     });
   }
 
+  // ── 写侧（发评论 / 回复） ────────────────────────────────
+
+  CommentWriteSource? get _writer =>
+      musicSourceRegistry?.capability<CommentWriteSource>(MusicPlatform.kugou);
+
+  bool get _isLoggedIn => AuthTokenHolder.instance.hasToken;
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// 打开输入弹层并提交。[replyTo] 为空 = 发主评论，否则回复该主评论。
+  Future<void> _compose({Comment? replyTo}) async {
+    if (!_isLoggedIn) {
+      _toast('登录后才能发表评论');
+      context.push('/login');
+      return;
+    }
+    final writer = _writer;
+    if (writer == null) {
+      _toast('当前音源不支持评论');
+      return;
+    }
+    final pool = _comments.childrenId;
+    if (pool.isEmpty) {
+      _toast('评论池未知，请刷新评论后再试');
+      return;
+    }
+
+    final text = await showCommentComposerSheet(
+      context,
+      replyTo: replyTo?.user,
+      maxLength: CommentRepository.maxContentLength,
+    );
+    if (!mounted || text == null || text.isEmpty) return;
+
+    final songName = widget.name.trim();
+    final mixSongId = _resolvedMixId ?? widget.mixSongId;
+    try {
+      if (replyTo == null) {
+        await writer.sendSongComment(
+          childrenId: pool,
+          content: text,
+          songName: songName,
+          mixSongId: mixSongId,
+        );
+        if (!mounted) return;
+        _toast('评论已发布');
+        await _loadFirst();
+      } else {
+        await writer.sendFloorReply(
+          childrenId: pool,
+          rootCommentId: replyTo.id,
+          content: text,
+          replyToUser: replyTo.user,
+          replyToContent: replyTo.content,
+          songName: songName,
+          mixSongId: mixSongId,
+        );
+        if (!mounted) return;
+        _toast('回复已发布');
+        await _reloadFloor(replyTo);
+      }
+    } on SourceFailure catch (e) {
+      _toast(e.message);
+    } catch (e) {
+      _toast('发送失败：${e.toString().split('\n').first}');
+    }
+  }
+
+  /// 回复成功后强制重拉该楼层 —— 楼层已缓存，仅展开不会看到新内容。
+  Future<void> _reloadFloor(Comment root) async {
+    final source = _source;
+    if (source == null) return;
+    setState(() => _floorLoading.add(root.id));
+    final list = await source.floorReplies(
+      childrenId: _comments.childrenId,
+      rootCommentId: root.id,
+      mixSongId: _resolvedMixId ?? widget.mixSongId,
+    );
+    if (!mounted) return;
+    setState(() {
+      _floorLoading.remove(root.id);
+      _floors[root.id] = list;
+      _expanded.add(root.id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
@@ -409,6 +504,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               _sortButton(kugo, CommentSort.all, '全部'),
             ],
           ),
+          const SizedBox(height: KugoSpacing.sm),
+          _composerEntry(kugo),
           const SizedBox(height: KugoSpacing.md),
           if (_loading)
             const Padding(
@@ -431,6 +528,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                 loadingFloor: _floorLoading.contains(c.id),
                 replies: _floors[c.id] ?? const [],
                 onToggleReplies: c.hasReplies ? () => _toggleFloor(c) : null,
+                onReply: () => _compose(replyTo: c),
               ),
             if (_pageHasMore)
               TextButton(
@@ -466,6 +564,37 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       ),
     );
   }
+
+  /// 「说点什么…」入口：未登录时点击直接引导登录。
+  Widget _composerEntry(KugoTheme kugo) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(KugoRadius.card),
+      onTap: () => _compose(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KugoSpacing.md,
+          vertical: 12,
+        ),
+        decoration: BoxDecoration(
+          color: kugo.surfaceElevated,
+          borderRadius: BorderRadius.circular(KugoRadius.card),
+          border: Border.all(color: kugo.divider),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.edit_outlined, size: 16, color: kugo.textTertiary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _isLoggedIn ? '说点什么…' : '登录后参与评论',
+                style: kugo.caption.copyWith(color: kugo.textTertiary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _CommentTile extends StatelessWidget {
@@ -475,6 +604,7 @@ class _CommentTile extends StatelessWidget {
     this.loadingFloor = false,
     this.replies = const [],
     this.onToggleReplies,
+    this.onReply,
   });
 
   final Comment comment;
@@ -482,6 +612,7 @@ class _CommentTile extends StatelessWidget {
   final bool loadingFloor;
   final List<Comment> replies;
   final VoidCallback? onToggleReplies;
+  final VoidCallback? onReply;
 
   @override
   Widget build(BuildContext context) {
@@ -566,6 +697,23 @@ class _CommentTile extends StatelessWidget {
                             loadingFloor
                                 ? '加载中…'
                                 : '${formatCount(comment.replyCount)}条回复',
+                            style: kugo.caption.copyWith(color: kugo.primary),
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (onReply != null) ...[
+                      const SizedBox(width: 12),
+                      InkWell(
+                        onTap: onReply,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            '回复',
                             style: kugo.caption.copyWith(color: kugo.primary),
                           ),
                         ),

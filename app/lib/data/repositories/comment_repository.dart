@@ -6,6 +6,7 @@ import '../../core/api/kugo_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../core/api/network_log.dart';
 import '../../core/models/comment.dart';
+import '../../core/source/music_source.dart';
 import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
 
@@ -104,8 +105,18 @@ class CommentRepository {
   static const String _cmtListPath = '/mcomment/v1/cmtlist';
   static const String _hottestPath = '/m.comment.service/r/v1/rank/topliked';
   static const String _floorPath = '/mcomment/v1/hot_replylist';
-  static const String _countPath = '/index.php';
+
+  /// `index.php` 是评论数**和**评论写口共用的入口，靠 `x-router` 分流。
+  static const String _indexPath = '/index.php';
+
+  /// 评论数用的 host（**注意与下面的写口 host 不是同一个**）。
   static const String _countRouter = 'sum.comment.service.kugou.com';
+
+  /// 写口（发评论 / 回复楼层）的 host。
+  static const String _commentRouter = 'm.comment.service.kugou.com';
+
+  /// 评论正文上限。EchoMusic 自定 200 字；服务端另有一道 `10003 发送字数不够` 兜底。
+  static const int maxContentLength = 200;
 
   final Dio _dio;
 
@@ -250,7 +261,7 @@ class CommentRepository {
     params['signature'] = KugoSign.signatureWebParams(params);
     try {
       final res = await _dio.get<dynamic>(
-        '$_gateway$_countPath',
+        '$_gateway$_indexPath',
         queryParameters: params,
         options: Options(
           headers: {'User-Agent': KugoSign.userAgent, 'x-router': _countRouter},
@@ -270,6 +281,230 @@ class CommentRepository {
     } on DioException {
       return null;
     }
+  }
+
+  // ── 写侧（发评论 / 回复楼层） ────────────────────────────
+  //
+  // 走 `index.php` + `x-router: m.comment.service.kugou.com`：这条链路
+  // **不吃 `signature`、也不注入公共参数**，只带显式字段 + 上游约定的 `key`。
+  // 实测（空正文对照实验）：正确 key → `10003 发送字数不够`（说明链路与签名都过），
+  // 故意写错 key → `20006 参数验证失败`（说明 key 确实被校验）。
+
+  /// 发表歌曲评论。未登录 / 参数非法 / 被风控都会抛 [SourceFailure]。
+  Future<void> sendSongComment({
+    required String childrenId,
+    required String content,
+    String songName = '',
+    String mixSongId = '',
+  }) async {
+    _requireLogin();
+    final text = _validatedContent(content);
+    final pool = childrenId.trim();
+    if (pool.isEmpty) {
+      throw const NotFound('评论池未知，请刷新评论后再试');
+    }
+
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+    // body 参与 key 计算，必须与提交的字符串逐字节一致 —— 所以这里先编码好再用。
+    final payload = jsonEncode({
+      'data': {
+        'content': text,
+        if (mixSongId.trim().isNotEmpty)
+          'album_audio_id': _asNumber(mixSongId.trim()),
+      },
+    });
+
+    final body = await _postIndex(
+      query: <String, dynamic>{
+        'r': 'commentsv3/add',
+        'code': _songCode,
+        'childrenid': _asNumber(pool) ?? pool,
+        if (songName.trim().isNotEmpty) 'childrenname': songName.trim(),
+        'kugouid': _kugouId(auth),
+        'ver': 6,
+        'clienttoken': auth.token,
+        'appid': int.parse(KugoSign.appId),
+        'clientver': int.parse(KugoSign.clientVer),
+        'mid': device.mid,
+        'clienttime': clienttime,
+        'key': KugoSign.signParamsKey('$clienttime${device.mid}$payload'),
+        'uuid': '-',
+        'dfid': device.dfid,
+      },
+      body: payload,
+      dfid: device.dfid,
+      mid: device.mid,
+      clienttime: clienttime,
+    );
+    _assertWriteOk(body, what: '评论');
+  }
+
+  /// 回复某条主评论（楼层）。
+  ///
+  /// 与发评论的两点差异：**key 只算 `clienttime + mid`**（正文走 query、无 body），
+  /// 且 [replyToUser] 非空时按上游约定把正文拼成 `//@昵称:被回复内容`。
+  Future<void> sendFloorReply({
+    required String childrenId,
+    required String rootCommentId,
+    required String content,
+    String replyToUser = '',
+    String replyToContent = '',
+    String songName = '',
+    String mixSongId = '',
+  }) async {
+    _requireLogin();
+    final pool = childrenId.trim();
+    final root = rootCommentId.trim();
+    if (pool.isEmpty || root.isEmpty) {
+      throw const NotFound('楼层信息不完整，请刷新评论后再试');
+    }
+
+    var text = content.trim();
+    if (text.isEmpty) throw const UpstreamChanged('回复内容不能为空');
+    if (replyToUser.trim().isNotEmpty &&
+        replyToContent.trim().isNotEmpty &&
+        !text.contains('//@')) {
+      text = '$text//@${replyToUser.trim()}:${replyToContent.trim()}';
+    }
+    text = _validatedContent(text);
+
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+
+    final body = await _postIndex(
+      query: <String, dynamic>{
+        'r': 'commentsv2/reply',
+        'code': _songCode,
+        'childrenid': _asNumber(pool) ?? pool,
+        if (songName.trim().isNotEmpty) 'childrenname': songName.trim(),
+        'kugouid': _kugouId(auth),
+        'ver': 6,
+        'clienttoken': auth.token,
+        'appid': int.parse(KugoSign.appId),
+        'clientver': int.parse(KugoSign.clientVer),
+        'mid': device.mid,
+        'clienttime': clienttime,
+        'key': KugoSign.signParamsKey('$clienttime${device.mid}'),
+        'uuid': '-',
+        'dfid': device.dfid,
+        if (mixSongId.trim().isNotEmpty)
+          'mixsongid': _asNumber(mixSongId.trim()),
+        'extdata': '0',
+        'content': text,
+        'tid': _asNumber(root) ?? root,
+        // P1 只做「在主评论下发一条新回复」：is_t=1 / pid=0（回复楼层内的回复另议）。
+        'is_t': 1,
+        'pid': 0,
+      },
+      dfid: device.dfid,
+      mid: device.mid,
+      clienttime: clienttime,
+    );
+    _assertWriteOk(body, what: '回复');
+  }
+
+  /// 写口专用通道（`index.php` + `x-router`，无 `signature`、无公共参数）。
+  Future<Map<String, dynamic>> _postIndex({
+    required Map<String, dynamic> query,
+    required String dfid,
+    required String mid,
+    required int clienttime,
+    String? body,
+  }) async {
+    final auth = AuthTokenHolder.instance;
+    final cookieParts = <String>[
+      if (auth.hasToken) 'token=${auth.token}',
+      if (auth.userId.isNotEmpty) 'userid=${auth.userId}',
+      'dfid=$dfid',
+      'KUGOU_API_MID=$mid',
+      'KUGOU_API_GUID=${auth.guid}',
+    ];
+    final Response<dynamic> res;
+    try {
+      res = await _dio.post<dynamic>(
+        '$_gateway$_indexPath',
+        queryParameters: query,
+        data: body ?? '',
+        options: Options(
+          headers: {
+            'User-Agent': KugoSign.userAgent,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'x-router': _commentRouter,
+            'dfid': dfid,
+            'mid': mid,
+            'clienttime': '$clienttime',
+            'Cookie': cookieParts.join(';'),
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      final msg = e.message ?? '';
+      throw NetworkFailure(
+        msg.contains('过滤') || msg.contains('Access Deny')
+            ? '网络网关拦截，无法发送'
+            : (msg.isEmpty ? '网络错误' : msg.split('\n').first),
+        filtered: msg.contains('过滤') || msg.contains('Access Deny'),
+      );
+    }
+
+    final decoded = _decodeBody(res.data);
+    if (decoded == null) {
+      final raw = res.data?.toString() ?? '';
+      if (raw.contains('Access Deny') || raw.contains('URL过滤')) {
+        throw const NetworkFailure('网络网关拦截，无法发送', filtered: true);
+      }
+      throw const UpstreamChanged('评论响应无法解析');
+    }
+    return decoded;
+  }
+
+  void _assertWriteOk(Map<String, dynamic> body, {required String what}) {
+    final status = body['status'];
+    if (status == 1 || status == '1' || status == true) return;
+    final err = body['err_code'] ?? body['errcode'] ?? body['error_code'];
+    final errNum = err is int ? err : int.tryParse('$err') ?? 0;
+    final msg = (body['msg'] ?? body['message'] ?? '').toString();
+    if (errNum == 20028) {
+      throw const RateLimited('需要安全校验：请先在酷狗官方客户端完成一次验证，再回来重试');
+    }
+    if (errNum == 20006) {
+      throw const UpstreamChanged('评论参数校验失败（20006）');
+    }
+    if (errNum == 10003) {
+      throw const UpstreamChanged('评论内容长度不合规（10003）');
+    }
+    if (errNum == 20010 || errNum == 10002) {
+      throw UpstreamChanged(msg.isEmpty ? '评论参数不完整（$errNum）' : msg);
+    }
+    throw UpstreamChanged(
+      msg.isEmpty ? '$what发送失败（status=$status err=$err）' : msg,
+    );
+  }
+
+  static void _requireLogin() {
+    if (!AuthTokenHolder.instance.hasToken) {
+      throw const LoginRequired('登录后才能发表评论');
+    }
+  }
+
+  static String _validatedContent(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) throw const UpstreamChanged('评论内容不能为空');
+    if (text.runes.length > maxContentLength) {
+      throw UpstreamChanged('评论最多 $maxContentLength 字，请精简后再发');
+    }
+    return text;
+  }
+
+  static int _nowSeconds() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+  static Object _kugouId(AuthTokenHolder auth) {
+    final id = auth.userId.trim();
+    if (id.isEmpty || id == '0') return 0;
+    return int.tryParse(id) ?? 0;
   }
 
   // ── 请求 ────────────────────────────────────────────────

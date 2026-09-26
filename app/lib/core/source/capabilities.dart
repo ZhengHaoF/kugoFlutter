@@ -5,6 +5,7 @@ import '../models/daily_recommend.dart';
 import '../models/fm_mode.dart';
 import '../models/search_result.dart';
 import '../models/track.dart';
+import 'music_source.dart';
 
 /// 可选能力接口：谁有谁 `implements`。UI 用 `registry.capability<T>()` 显隐，
 /// 禁止在基类堆 `bool get hasXxx` + 空实现。
@@ -192,6 +193,37 @@ abstract interface class CommentReadSource {
 
   /// 评论总数（入参是音频 hash，与列表 `count` 同口径）；null = 无数据。
   Future<int?> commentCount(String hash);
+}
+
+/// 评论**写**侧：发评论 / 回复楼层。
+///
+/// 与读侧拆开是因为写侧的两个硬约束：**要登录**、**可能触发风控（SSA）**。
+/// 失败一律抛 [SourceFailure]（与 [UserPlaylistWriteSource] 一致），UI 捕获后展示可读文案。
+abstract interface class CommentWriteSource {
+  /// 发表歌曲评论。
+  ///
+  /// [childrenId] 是评论池 id（取 [CommentPage.childrenId]，**不是** mixsongid）；
+  /// [songName] 只在接口要求 `childrenname` 时使用，缺失时实现可自行回查。
+  Future<void> sendSongComment({
+    required String childrenId,
+    required String content,
+    String songName = '',
+    String mixSongId = '',
+  });
+
+  /// 回复某条主评论（楼层）。
+  ///
+  /// [replyToUser] / [replyToContent] 非空时，实现按上游约定把正文拼成
+  /// `//@昵称:被回复内容` 的引用格式再提交。
+  Future<void> sendFloorReply({
+    required String childrenId,
+    required String rootCommentId,
+    required String content,
+    String replyToUser = '',
+    String replyToContent = '',
+    String songName = '',
+    String mixSongId = '',
+  });
 }
 
 /// 用户云端歌单写操作（加/删曲；建单另议）。
