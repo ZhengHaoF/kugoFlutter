@@ -112,7 +112,7 @@ class _CoverBoxState extends State<CoverBox> {
     return Stack(
       fit: StackFit.expand,
       alignment: Alignment.center,
-      children: [...previousChildren, if (currentChild != null) currentChild],
+      children: [...previousChildren, ?currentChild],
     );
   }
 
