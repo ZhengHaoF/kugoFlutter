@@ -36,14 +36,13 @@ Future<void> main() async {
   // the user picked (no dark→light flash on launch).
   await container.read(settingsControllerProvider.notifier).ensureRestored();
   final themeMode = container.read(settingsControllerProvider).materialThemeMode;
-  applyKugoSystemUi(
-    switch (themeMode) {
-      ThemeMode.dark => Brightness.dark,
-      ThemeMode.light => Brightness.light,
-      ThemeMode.system =>
-        WidgetsBinding.instance.platformDispatcher.platformBrightness,
-    },
-  );
+  final initialBrightness = switch (themeMode) {
+    ThemeMode.dark => Brightness.dark,
+    ThemeMode.light => Brightness.light,
+    ThemeMode.system =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+  };
+  applyKugoSystemUi(initialBrightness);
 
   // Pipe Dio interceptor logs into Riverpod network log list.
   void sink(NetworkLog log) {
@@ -74,12 +73,13 @@ Future<void> main() async {
     player.attachBridge(
       await AudioService.init<KugoAudioHandler>(
         builder: () => KugoAudioHandler(player),
-        config: const AudioServiceConfig(
+        config: AudioServiceConfig(
           androidNotificationChannelId: 'com.kugo.player',
           androidNotificationChannelName: 'kugo 播放',
           androidNotificationOngoing: true,
           androidStopForegroundOnPause: true,
-          notificationColor: Color(0xFF5B7CFF),
+          // 通知的主色跟着当前调色板走（原来是写死的深色 primary）。
+          notificationColor: kugoPaletteFor(initialBrightness).primary,
           // Monochrome white icon: needed for the seek bar to render on some
           // Android builds / head units (see audio_service docs).
           androidNotificationIcon: 'drawable/ic_stat_music',

@@ -434,7 +434,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             Expanded(
               child: _MetricCard(
                 icon: Icons.access_time_rounded,
-                color: const Color(0xFF5B7CFF),
+                // 原来是写死的 0xFF5B7CFF（深色主题的 primary），浅色下是一块
+                // 深蓝压在浅底卡片上；这里跟着当前调色板走。
+                color: kugo.primary,
                 label: '预估时长',
                 value: durationText,
               ),
@@ -462,41 +464,53 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // 每根柱子封顶 36：宽屏下 7 根 Expanded 会被拉到 ~120 宽、
+                    // 配上固定的 70 高度，看着像一排大色块而不是柱状图。
+                    // 居中保留原来的等分节奏，只是把柱子本身的宽度收住了。
                     for (int i = 0; i < 7; i++)
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${dailyCounts[i]}',
-                                style: kugo.caption.copyWith(
-                                  fontSize: 10,
-                                  color: dailyCounts[i] > 0
-                                      ? kugo.primary
-                                      : kugo.textSecondary.withValues(alpha: 0.5),
-                                ),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 36),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '${dailyCounts[i]}',
+                                    style: kugo.caption.copyWith(
+                                      fontSize: 10,
+                                      color: dailyCounts[i] > 0
+                                          ? kugo.primary
+                                          : kugo.textSecondary
+                                              .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    height: (dailyCounts[i] /
+                                            maxDaily *
+                                            70)
+                                        .clamp(4.0, 70.0),
+                                    decoration: BoxDecoration(
+                                      gradient: dailyCounts[i] > 0
+                                          ? kugo.accentGradient
+                                          : null,
+                                      color: dailyCounts[i] == 0
+                                          ? kugo.surfaceElevated
+                                          : null,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    dayLabels[i],
+                                    style: kugo.caption.copyWith(fontSize: 10),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Container(
-                                height: (dailyCounts[i] / maxDaily * 70).clamp(4.0, 70.0),
-                                decoration: BoxDecoration(
-                                  gradient: dailyCounts[i] > 0
-                                      ? kugo.accentGradient
-                                      : null,
-                                  color: dailyCounts[i] == 0
-                                      ? kugo.surfaceElevated
-                                      : null,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                dayLabels[i],
-                                style: kugo.caption.copyWith(fontSize: 10),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),

@@ -652,73 +652,119 @@ class _SongsToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
-    return Row(
+    final heading = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text('歌曲', style: kugo.section.copyWith(fontSize: 17)),
         const SizedBox(width: KugoSpacing.sm),
-        Text(countLabel, style: kugo.caption),
-        const Spacer(),
-        SegmentedButton<ArtistSongSort>(
-          segments: const [
-            ButtonSegment(
-              value: ArtistSongSort.hot,
-              label: Text('热门'),
-            ),
-            ButtonSegment(
-              value: ArtistSongSort.newest,
-              label: Text('最新'),
-            ),
-          ],
-          selected: {sort},
-          onSelectionChanged: (s) => onSort(s.first),
-          showSelectedIcon: false,
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
+        Flexible(child: Text(countLabel, style: kugo.caption)),
+      ],
+    );
+    final sortControl = SegmentedButton<ArtistSongSort>(
+      segments: const [
+        ButtonSegment(
+          value: ArtistSongSort.hot,
+          label: Text('热门'),
         ),
-        const SizedBox(width: KugoSpacing.sm),
-        SizedBox(
-          width: 180,
-          height: 36,
-          child: TextField(
-            controller: searchController,
-            onChanged: onSearchChanged,
-            style: kugo.caption.copyWith(color: kugo.textPrimary),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: '搜索歌曲…',
-              hintStyle: kugo.caption,
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                size: 18,
-                color: kugo.textTertiary,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
-              filled: true,
-              fillColor: kugo.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(KugoRadius.tile),
-                borderSide: BorderSide(color: kugo.divider),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(KugoRadius.tile),
-                borderSide: BorderSide(color: kugo.divider),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: KugoSpacing.xs),
-        IconButton(
-          onPressed: onLocate,
-          tooltip: '定位当前播放',
-          icon: const Icon(Icons.my_location_rounded, size: 18),
-          color: kugo.textSecondary,
+        ButtonSegment(
+          value: ArtistSongSort.newest,
+          label: Text('最新'),
         ),
       ],
+      selected: {sort},
+      onSelectionChanged: (s) => onSort(s.first),
+      showSelectedIcon: false,
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+    final searchField = SizedBox(
+      height: 36,
+      child: TextField(
+        controller: searchController,
+        onChanged: onSearchChanged,
+        style: kugo.caption.copyWith(color: kugo.textPrimary),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: '搜索歌曲…',
+          hintStyle: kugo.caption,
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 18,
+            color: kugo.textTertiary,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+          filled: true,
+          fillColor: kugo.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(KugoRadius.tile),
+            borderSide: BorderSide(color: kugo.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(KugoRadius.tile),
+            borderSide: BorderSide(color: kugo.divider),
+          ),
+        ),
+      ),
+    );
+    final locateButton = IconButton(
+      onPressed: onLocate,
+      tooltip: '定位当前播放',
+      icon: const Icon(Icons.my_location_rounded, size: 18),
+      color: kugo.textSecondary,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 三个控件挤一行约需 450px：360dp 屏 / 系统大字号下必然 RenderFlex
+        // overflow。宽度不够就把「标题+排序」和「搜索+定位」拆成两行，
+        // 而不是让整排溢出出黄黑条。
+        final compact = constraints.maxWidth < 520;
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  heading,
+                  const Spacer(),
+                  sortControl,
+                ],
+              ),
+              const SizedBox(height: KugoSpacing.sm),
+              Row(
+                children: [
+                  Expanded(child: searchField),
+                  locateButton,
+                ],
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            heading,
+            const Spacer(),
+            sortControl,
+            const SizedBox(width: KugoSpacing.sm),
+            // 之前写死 180 宽：窄屏撑破、宽屏又太挤。改成有上下限的弹性宽度，
+            // 空间不足时优先让搜索框变窄而不是溢出。
+            Flexible(
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(minWidth: 96, maxWidth: 220),
+                child: searchField,
+              ),
+            ),
+            const SizedBox(width: KugoSpacing.xs),
+            locateButton,
+          ],
+        );
+      },
     );
   }
 }
