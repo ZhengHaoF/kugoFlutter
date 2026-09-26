@@ -163,8 +163,10 @@ abstract interface class QualityCatalogSource {
 
 /// 评论**读**侧（写侧另立接口：需要登录且可能触发风控）。
 ///
-/// 各源差异（酷狗的「排序 = 两个不同接口」、网易的 `R_SO_4_` 口径）收口在实现里，
-/// UI 只认 [CommentSort] 与 [CommentPage]。
+/// **入参一律是 [Track]，不是平台 id**：各源自己决定拿 track 的哪个字段去查
+/// （酷狗要 `album_audio_id` 且可能需回搜解析、网易是 `R_SO_4_<songId>`），
+/// 这就是「源差异收口在实现里」——UI 不该替某个源做 id 计算。
+/// UI 只认 [Track] / [CommentSort] / [CommentPage]。
 abstract interface class CommentReadSource {
   /// 最近一次失败的**用户可读**原因；成功时为空串。
   ///
@@ -172,31 +174,33 @@ abstract interface class CommentReadSource {
   /// 所以原因要能从能力面上取到，UI 不必回头去碰 repository。
   String get lastError;
 
-  /// 歌曲评论分页。[mixSongId] 是平台的歌曲 id（酷狗 = mixsongid）。
+  /// 歌曲评论分页。
   ///
-  /// 返回的 [CommentPage.childrenId] 是评论池 id，调 [floorReplies] 时要原样回传。
+  /// 返回的 [CommentPage.childrenId] 是**该源的评论池 token**（酷狗 = `childrenid`，
+  /// 既不是歌曲 id 也不是 hash）：调 [floorReplies] / [featuredComments] /
+  /// [CommentWriteSource] 时原样回传即可，UI 不解读它的含义。
   Future<CommentPage> songComments(
-    String mixSongId, {
+    Track track, {
     int page = 1,
     int pageSize = 20,
     CommentSort sort = CommentSort.all,
   });
 
-  /// 主评论下的楼层回复。
+  /// 主评论下的楼层回复。[childrenId] 取自 [CommentPage.childrenId]。
   Future<List<Comment>> floorReplies({
+    required Track track,
     required String childrenId,
     required String rootCommentId,
-    String mixSongId = '',
     int page = 1,
     int pageSize = 20,
   });
 
-  /// 评论总数（入参是音频 hash，与列表 `count` 同口径）；null = 无数据。
-  Future<int?> commentCount(String hash);
+  /// 评论总数；null = 该源未提供（UI 显示「—」，**不要编数字**）。
+  Future<int?> commentCount(Track track);
 
   /// 分类评论。[typeId] 取自 [CommentPage.classifyList]。
   Future<CommentPage> classifyComments(
-    String mixSongId, {
+    Track track, {
     required String typeId,
     int page = 1,
     int pageSize = 20,
@@ -204,16 +208,17 @@ abstract interface class CommentReadSource {
 
   /// 热词评论。[hotWord] 取自 [CommentPage.hotwordList]。
   Future<CommentPage> hotwordComments(
-    String mixSongId, {
+    Track track, {
     required String hotWord,
     int page = 1,
     int pageSize = 20,
   });
 
-  /// 精彩评论。**空列表是正常结果**（游客态拿不到），UI 据此隐藏该区块。
+  /// 精彩评论（[childrenId] 同 [floorReplies]）。
+  /// **空列表是正常结果**（游客态拿不到），UI 据此隐藏该区块。
   Future<List<Comment>> featuredComments({
+    required Track track,
     required String childrenId,
-    String mixSongId = '',
     int page = 1,
     int pageSize = 10,
   });
@@ -224,15 +229,12 @@ abstract interface class CommentReadSource {
 /// 与读侧拆开是因为写侧的两个硬约束：**要登录**、**可能触发风控（SSA）**。
 /// 失败一律抛 [SourceFailure]（与 [UserPlaylistWriteSource] 一致），UI 捕获后展示可读文案。
 abstract interface class CommentWriteSource {
-  /// 发表歌曲评论。
-  ///
-  /// [childrenId] 是评论池 id（取 [CommentPage.childrenId]，**不是** mixsongid）；
-  /// [songName] 只在接口要求 `childrenname` 时使用，缺失时实现可自行回查。
+  /// 发表歌曲评论。[childrenId] 取自 [CommentPage.childrenId]；歌名由实现从
+  /// [track] 取（上游 `childrenname` 用），UI 不必单独传。
   Future<void> sendSongComment({
+    required Track track,
     required String childrenId,
     required String content,
-    String songName = '',
-    String mixSongId = '',
   });
 
   /// 回复某条主评论（楼层）。
@@ -240,13 +242,12 @@ abstract interface class CommentWriteSource {
   /// [replyToUser] / [replyToContent] 非空时，实现按上游约定把正文拼成
   /// `//@昵称:被回复内容` 的引用格式再提交。
   Future<void> sendFloorReply({
+    required Track track,
     required String childrenId,
     required String rootCommentId,
     required String content,
     String replyToUser = '',
     String replyToContent = '',
-    String songName = '',
-    String mixSongId = '',
   });
 }
 

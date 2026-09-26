@@ -189,113 +189,282 @@ class KugouSource
     return _play.fetchRelateGoods(track);
   }
 
-  // ── 评论（读侧） ────────────────────────────────────────
+  // ── 评论（Track → 酷狗 id 的翻译都在这里，UI 不参与） ──────
+
+  /// mixsongid 解析缓存：key = [Track.identityKey]。
+  ///
+  /// 酷狗评论族要的是 `album_audio_id`，而队列 / 历史里的老数据存的是 `audio_id`
+  /// （拿它查评论会得到空），所以拿到 track 后可能要回搜一次。解析结果缓存下来，
+  /// 翻页 / 楼层 / 写侧都不必重搜。
+  final Map<String, String> _mixSongIdCache = {};
+
+  /// 能力面自己的失败文案（如「定位不到歌曲」）；空则透传 repository 的。
+  String _commentError = '';
+
+  /// 缓存上限。解析结果丢了可以重算，所以用最朴素的 FIFO 淘汰即可。
+  static const int _mixSongIdCacheLimit = 64;
 
   @override
-  String get lastError => _comments.lastError;
+  String get lastError =>
+      _commentError.isNotEmpty ? _commentError : _comments.lastError;
 
   @override
   Future<CommentPage> songComments(
-    String mixSongId, {
+    Track track, {
     int page = 1,
     int pageSize = 20,
     CommentSort sort = CommentSort.all,
-  }) => _comments.fetchSongComments(
-    mixSongId: mixSongId,
-    page: page,
-    pageSize: pageSize,
-    sort: sort,
-  );
+  }) async {
+    _commentError = '';
+    final cached = _mixSongIdCache[track.identityKey] ?? '';
+    if (cached.isNotEmpty) {
+      return _comments.fetchSongComments(
+        mixSongId: cached,
+        page: page,
+        pageSize: pageSize,
+        sort: sort,
+      );
+    }
+    // 没解析过 id 却要第 N 页：说明首屏没跑过（正常情况下不会），无可取。
+    if (page > 1) return CommentPage.empty;
+
+    // 首屏：逐个候选试。酷狗没有「按 track 直查评论」的路径，只能这样。
+    //
+    // **空列表也要继续试下一个候选**：候选里既有「同名翻唱确实没评论」，也有
+    // 「id 形态不对（老数据的 audio_id）」，只有全试完才敢说这首歌没评论。
+    final candidates = await _mixSongIdCandidates(track);
+    if (candidates.isEmpty) {
+      _commentError = '无法定位该歌曲（缺少歌曲 ID / 歌名）';
+      return CommentPage.empty;
+    }
+
+    var emptyResult = CommentPage.empty;
+    String? firstUsableId;
+    for (final id in candidates) {
+      final result = await _comments.fetchSongComments(
+        mixSongId: id,
+        page: page,
+        pageSize: pageSize,
+        sort: sort,
+      );
+      if (result.items.isNotEmpty) {
+        _rememberMixSongId(track, id);
+        return result;
+      }
+      if (_comments.lastError.isEmpty) {
+        // 接口成功却无数据 → 这个 id 至少是「能被服务端接受」的，记作兜底缓存，
+        // 免得下次刷新又把候选全试一遍。
+        firstUsableId ??= id;
+        if (emptyResult.items.isEmpty && result.childrenId.isNotEmpty) {
+          emptyResult = result;
+        }
+      }
+    }
+    if (firstUsableId != null) _rememberMixSongId(track, firstUsableId);
+    return emptyResult;
+  }
 
   @override
   Future<List<Comment>> floorReplies({
+    required Track track,
     required String childrenId,
     required String rootCommentId,
-    String mixSongId = '',
     int page = 1,
     int pageSize = 20,
-  }) => _comments.fetchFloorReplies(
-    childrenId: childrenId,
-    rootCommentId: rootCommentId,
-    mixSongId: mixSongId,
-    page: page,
-    pageSize: pageSize,
-  );
+  }) async {
+    _commentError = '';
+    return _comments.fetchFloorReplies(
+      childrenId: childrenId,
+      rootCommentId: rootCommentId,
+      mixSongId: _mixSongIdOf(track),
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 
   @override
-  Future<int?> commentCount(String hash) =>
-      _comments.fetchCommentCount(hash: hash);
+  Future<int?> commentCount(Track track) =>
+      _comments.fetchCommentCount(hash: track.hash);
 
   @override
   Future<CommentPage> classifyComments(
-    String mixSongId, {
+    Track track, {
     required String typeId,
     int page = 1,
     int pageSize = 20,
-  }) => _comments.fetchClassifyComments(
-    mixSongId: mixSongId,
-    typeId: typeId,
-    page: page,
-    pageSize: pageSize,
-  );
+  }) async {
+    _commentError = '';
+    return _comments.fetchClassifyComments(
+      mixSongId: _mixSongIdOf(track),
+      typeId: typeId,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 
   @override
   Future<CommentPage> hotwordComments(
-    String mixSongId, {
+    Track track, {
     required String hotWord,
     int page = 1,
     int pageSize = 20,
-  }) => _comments.fetchHotwordComments(
-    mixSongId: mixSongId,
-    hotWord: hotWord,
-    page: page,
-    pageSize: pageSize,
-  );
+  }) async {
+    _commentError = '';
+    return _comments.fetchHotwordComments(
+      mixSongId: _mixSongIdOf(track),
+      hotWord: hotWord,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 
   @override
   Future<List<Comment>> featuredComments({
+    required Track track,
     required String childrenId,
-    String mixSongId = '',
     int page = 1,
     int pageSize = 10,
-  }) => _comments.fetchFeaturedComments(
-    childrenId: childrenId,
-    mixSongId: mixSongId,
-    page: page,
-    pageSize: pageSize,
-  );
+  }) async {
+    _commentError = '';
+    return _comments.fetchFeaturedComments(
+      childrenId: childrenId,
+      mixSongId: _mixSongIdOf(track),
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 
   @override
   Future<void> sendSongComment({
+    required Track track,
     required String childrenId,
     required String content,
-    String songName = '',
-    String mixSongId = '',
-  }) => _comments.sendSongComment(
-    childrenId: childrenId,
-    content: content,
-    songName: songName,
-    mixSongId: mixSongId,
-  );
+  }) {
+    _commentError = '';
+    return _comments.sendSongComment(
+      childrenId: childrenId,
+      content: content,
+      songName: track.name.trim(),
+      mixSongId: _mixSongIdOf(track),
+    );
+  }
 
   @override
   Future<void> sendFloorReply({
+    required Track track,
     required String childrenId,
     required String rootCommentId,
     required String content,
     String replyToUser = '',
     String replyToContent = '',
-    String songName = '',
-    String mixSongId = '',
-  }) => _comments.sendFloorReply(
-    childrenId: childrenId,
-    rootCommentId: rootCommentId,
-    content: content,
-    replyToUser: replyToUser,
-    replyToContent: replyToContent,
-    songName: songName,
-    mixSongId: mixSongId,
-  );
+  }) {
+    _commentError = '';
+    return _comments.sendFloorReply(
+      childrenId: childrenId,
+      rootCommentId: rootCommentId,
+      content: content,
+      replyToUser: replyToUser,
+      replyToContent: replyToContent,
+      songName: track.name.trim(),
+      mixSongId: _mixSongIdOf(track),
+    );
+  }
+
+  /// 已知的 mixsongid：优先用解析缓存，退回 track 自带字段。
+  ///
+  /// 分类 / 热词 / 楼层 / 写口的前置都是「列表已加载」，所以缓存通常已命中；
+  /// 真取不到时交给 repository 报「缺少歌曲 ID」，不在这里编一个。
+  String _mixSongIdOf(Track track) =>
+      _mixSongIdCache[track.identityKey] ?? track.mixSongId.trim();
+
+  void _rememberMixSongId(Track track, String mixSongId) {
+    final key = track.identityKey;
+    if (key.isEmpty || mixSongId.isEmpty) return;
+    if (_mixSongIdCache.length >= _mixSongIdCacheLimit) {
+      _mixSongIdCache.remove(_mixSongIdCache.keys.first);
+    }
+    _mixSongIdCache[key] = mixSongId;
+  }
+
+  /// 解析该曲在酷狗评论侧的 `mixsongid`（= `album_audio_id`）候选。
+  ///
+  /// 顺序与旧 UI 版一致：**先回搜**（老数据里的 mixSongId 字段可能是 `audio_id`，
+  /// 搜索结果才可靠），再退回 track 自带字段。hash 形态（≥32 位 hex）不是合法
+  /// mixsongid，直接排除。
+  Future<List<String>> _mixSongIdCandidates(Track track) async {
+    final out = <String>[];
+    void add(String? v) {
+      if (v == null) return;
+      final s = v.trim();
+      if (s.isEmpty || s == '0' || s.toLowerCase() == 'null') return;
+      if (s.length >= 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(s)) return;
+      if (!out.contains(s)) out.add(s);
+    }
+
+    final name = track.name.trim();
+    final artist = track.artist.trim();
+    final hash = track.hash.trim().toLowerCase();
+
+    Future<void> searchOnce(String keyword) async {
+      if (keyword.isEmpty) return;
+      try {
+        final hits = await _search.searchSongs(keyword, pageSize: 10);
+        Track? byHash;
+        Track? byNameArtist;
+        Track? byName;
+        for (final t in hits) {
+          if (hash.isNotEmpty &&
+              t.hash.isNotEmpty &&
+              t.hash.toLowerCase() == hash) {
+            byHash = t;
+            break;
+          }
+        }
+        for (final t in hits) {
+          final nOk = name.isEmpty || t.name == name;
+          final aOk =
+              artist.isEmpty ||
+              t.artist.contains(artist) ||
+              artist.contains(t.artist);
+          if (nOk && aOk) {
+            byNameArtist = t;
+            break;
+          }
+        }
+        for (final t in hits) {
+          if (name.isNotEmpty && t.name == name) {
+            byName = t;
+            break;
+          }
+        }
+        final match =
+            byHash ??
+            byNameArtist ??
+            byName ??
+            (hits.isNotEmpty ? hits.first : null);
+        if (match != null) add(match.mixSongId);
+        // 同名其他版本（翻唱 / Live）也一并作为候选。
+        for (final t in hits) {
+          if (name.isNotEmpty && t.name.startsWith(name)) add(t.mixSongId);
+        }
+      } catch (_) {
+        // 搜索失败不是致命错误：后面还有 track 自带字段兜底。
+      }
+    }
+
+    await searchOnce(
+      [
+        if (name.isNotEmpty) name,
+        if (artist.isNotEmpty) artist,
+      ].join(' ').trim(),
+    );
+    if (out.isEmpty) await searchOnce(name);
+    if (out.isEmpty && hash.isNotEmpty) await searchOnce(hash);
+
+    add(track.mixSongId);
+    add(track.id);
+    return out;
+  }
 
   @override
   Future<DailyRecommendResult> dailyRecommend() => _rec.fetchDaily();

@@ -15,7 +15,6 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
-import '../../data/repositories/search_repository.dart';
 import '../../features/auth/auth_token_holder.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/comment_composer_sheet.dart';
@@ -65,7 +64,6 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   bool _loading = true;
   bool _loadingMore = false;
   String _error = '';
-  String? _resolvedMixId;
 
   /// 分页游标：`_loadedPage` 是已加载到的页码，`_lastPageFull` 是最近一页是否满页。
   /// **不能**用「累积条数 ÷ pageSize」推页码 —— 空页/短页会把它带偏。
@@ -93,10 +91,11 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     coverUrl: widget.coverUrl,
     durationMs: widget.durationMs,
     hash: widget.hash,
-    mixSongId: _resolvedMixId ?? widget.mixSongId,
+    mixSongId: widget.mixSongId,
   );
 
   /// 评论走能力接口取，UI 不直连 repository；**按页面音源取**。
+  /// 平台 id（酷狗的 mixsongid 等）由各源实现自己从 [Track] 解析，页面不参与。
   CommentReadSource? get _source =>
       musicSourceRegistry?.capability<CommentReadSource>(widget.platform);
 
@@ -104,87 +103,6 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   void initState() {
     super.initState();
     _loadFirst();
-  }
-
-  /// cmtlist needs album_audio_id as mixsongid (NOT audio_id).
-  /// EchoMusic: mixSongId || resourceId, with search-backed detailSong.
-  Future<List<String>> _mixSongIdCandidates() async {
-    final out = <String>[];
-    void add(String? v) {
-      if (v == null) return;
-      var s = v.trim();
-      if (s.isEmpty || s == '0' || s.toLowerCase() == 'null') return;
-      // Hash-like values are never valid mixsongid.
-      if (s.length >= 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(s)) return;
-      if (!out.contains(s)) out.add(s);
-    }
-
-    final name = widget.name.trim();
-    final artist = widget.artist.trim();
-    final hash = widget.hash.trim().toLowerCase();
-
-    // Prefer live search album_audio_id — old queue stores audio_id.
-    Future<void> searchOnce(String keyword) async {
-      if (keyword.isEmpty) return;
-      try {
-        final hits = await searchRepository.searchSongs(keyword, pageSize: 10);
-        Track? byHash;
-        Track? byNameArtist;
-        Track? byName;
-        for (final t in hits) {
-          if (hash.isNotEmpty &&
-              t.hash.isNotEmpty &&
-              t.hash.toLowerCase() == hash) {
-            byHash = t;
-            break;
-          }
-        }
-        for (final t in hits) {
-          final nOk = name.isEmpty || t.name == name;
-          final aOk =
-              artist.isEmpty ||
-              t.artist.contains(artist) ||
-              artist.contains(t.artist);
-          if (nOk && aOk) {
-            byNameArtist = t;
-            break;
-          }
-        }
-        for (final t in hits) {
-          if (name.isNotEmpty && t.name == name) {
-            byName = t;
-            break;
-          }
-        }
-        final match =
-            byHash ??
-            byNameArtist ??
-            byName ??
-            (hits.isNotEmpty ? hits.first : null);
-        if (match != null) {
-          add(match.mixSongId);
-          _resolvedMixId ??= match.mixSongId;
-        }
-        // Also collect other album_audio_ids for the same title (covers/Live).
-        for (final t in hits) {
-          if (name.isNotEmpty && t.name.startsWith(name)) add(t.mixSongId);
-        }
-      } catch (_) {}
-    }
-
-    await searchOnce(
-      [
-        if (name.isNotEmpty) name,
-        if (artist.isNotEmpty) artist,
-      ].join(' ').trim(),
-    );
-    if (out.isEmpty) await searchOnce(name);
-    if (out.isEmpty && hash.isNotEmpty) await searchOnce(hash);
-
-    add(_resolvedMixId);
-    add(widget.mixSongId);
-    add(widget.id);
-    return out;
   }
 
   /// 首屏 / 切排序：**切排序会清空旧列表**（两种排序的内容完全不同，
@@ -211,19 +129,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       }
     });
 
-    final candidates = _resolvedMixId != null
-        ? <String>[_resolvedMixId!]
-        : await _mixSongIdCandidates();
-    var page = CommentPage.empty;
-    var err = '';
-    for (final id in candidates) {
-      page = await _fetchPage(source, id, 1);
-      if (page.items.isNotEmpty) {
-        _resolvedMixId = id;
-        break;
-      }
-      err = source.lastError;
-    }
+    final page = await _fetchPage(source, 1);
+    final err = source.lastError;
 
     if (!mounted) return;
     setState(() {
@@ -256,12 +163,11 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
   Future<void> _loadMore() async {
     final source = _source;
-    final id = _resolvedMixId;
-    if (source == null || id == null || _loadingMore || !_pageHasMore) return;
+    if (source == null || _loadingMore || !_pageHasMore) return;
 
     final next = _loadedPage + 1;
     setState(() => _loadingMore = true);
-    final page = await _fetchPage(source, id, next);
+    final page = await _fetchPage(source, next);
     if (!mounted) return;
     setState(() {
       _loadingMore = false;
@@ -283,15 +189,12 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   }
 
   /// 按当前「档位 + 筛选」取一页。分类 / 热词只在「全部」档生效。
-  Future<CommentPage> _fetchPage(
-    CommentReadSource source,
-    String mixSongId,
-    int page,
-  ) {
+  Future<CommentPage> _fetchPage(CommentReadSource source, int page) {
+    final track = _track;
     if (_sort == CommentSort.all) {
       if (_hotword.isNotEmpty) {
         return source.hotwordComments(
-          mixSongId,
+          track,
           hotWord: _hotword,
           page: page,
           pageSize: _pageSize,
@@ -299,7 +202,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       }
       if (_classifyId.isNotEmpty) {
         return source.classifyComments(
-          mixSongId,
+          track,
           typeId: _classifyId,
           page: page,
           pageSize: _pageSize,
@@ -307,7 +210,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       }
     }
     return source.songComments(
-      mixSongId,
+      track,
       page: page,
       pageSize: _pageSize,
       sort: _sort,
@@ -337,10 +240,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     final source = _source;
     final pool = _comments.childrenId;
     if (source == null || pool.isEmpty) return;
-    final list = await source.featuredComments(
-      childrenId: pool,
-      mixSongId: _resolvedMixId ?? widget.mixSongId,
-    );
+    final list = await source.featuredComments(track: _track, childrenId: pool);
     if (!mounted) return;
     setState(() => _featured = list);
   }
@@ -369,9 +269,9 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     if (source == null) return;
     setState(() => _floorLoading.add(id));
     final list = await source.floorReplies(
+      track: _track,
       childrenId: _comments.childrenId,
       rootCommentId: id,
-      mixSongId: _resolvedMixId ?? widget.mixSongId,
     );
     if (!mounted) return;
     setState(() {
@@ -419,28 +319,25 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     );
     if (!mounted || text == null || text.isEmpty) return;
 
-    final songName = widget.name.trim();
-    final mixSongId = _resolvedMixId ?? widget.mixSongId;
+    final track = _track;
     try {
       if (replyTo == null) {
         await writer.sendSongComment(
+          track: track,
           childrenId: pool,
           content: text,
-          songName: songName,
-          mixSongId: mixSongId,
         );
         if (!mounted) return;
         _toast('评论已发布');
         await _loadFirst();
       } else {
         await writer.sendFloorReply(
+          track: track,
           childrenId: pool,
           rootCommentId: replyTo.id,
           content: text,
           replyToUser: replyTo.user,
           replyToContent: replyTo.content,
-          songName: songName,
-          mixSongId: mixSongId,
         );
         if (!mounted) return;
         _toast('回复已发布');
@@ -459,9 +356,9 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     if (source == null) return;
     setState(() => _floorLoading.add(root.id));
     final list = await source.floorReplies(
+      track: _track,
       childrenId: _comments.childrenId,
       rootCommentId: root.id,
-      mixSongId: _resolvedMixId ?? widget.mixSongId,
     );
     if (!mounted) return;
     setState(() {
