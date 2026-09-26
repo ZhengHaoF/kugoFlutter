@@ -81,55 +81,82 @@ class _CoverBoxState extends State<CoverBox> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final colors = CoverPalette.fromSeed(widget.seed, kugo.palette);
-    final fallback = BoxDecoration(
-      borderRadius: BorderRadius.circular(widget.radius),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: colors,
-        stops: const [0.0, 0.55, 1.0],
-      ),
-    );
-
-    Widget placeholder() {
-      if (widget._fillsParent) {
-        return SizedBox.expand(
-          child: DecoratedBox(
-            decoration: fallback,
-            child: widget.child == null ? null : Center(child: widget.child),
-          ),
-        );
-      }
-      final box = DecoratedBox(
-        decoration: fallback,
-        child: widget.child == null ? null : Center(child: widget.child),
+    // 封面出来（或 seed 换了退回占位）时做交叉淡入——直接硬切会出现
+    // 「一片渐变占位 → 图片齐刷刷蹦出来」，列表尤其明显。
+    if (widget._fillsParent) {
+      return SizedBox.expand(
+        child: AnimatedSwitcher(
+          duration: _kCoverFade,
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: _content(fill: true),
+        ),
       );
-      return SizedBox(width: widget.size, height: widget.size, child: box);
     }
-
-    if (!widget._isNetwork) return placeholder();
-
-    final bytes = _bytes;
-    if (bytes == null) return placeholder();
-
-    final image = Image.memory(
-      bytes,
-      key: ValueKey(widget.seed),
-      fit: BoxFit.cover,
-      gaplessPlayback: true,
-      width: widget._fillsParent ? null : widget.size,
-      height: widget._fillsParent ? null : widget.size,
-      errorBuilder: (context, error, stackTrace) => placeholder(),
-    );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.radius),
-      child: image,
+    return AnimatedSwitcher(
+      duration: _kCoverFade,
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: _content(fill: false),
     );
   }
+
+  /// 占位 → 图片（或反向）。两个分支带不同的 key，AnimatedSwitcher 才知道要过渡。
+  Widget _content({required bool fill}) {
+    final bytes = _bytes;
+    if (!widget._isNetwork || bytes == null) {
+      return KeyedSubtree(
+        key: ValueKey('cover-placeholder-${widget.seed}'),
+        child: _placeholder(fill: fill),
+      );
+    }
+    return ClipRRect(
+      key: ValueKey('cover-image-${widget.seed}'),
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: Image.memory(
+        bytes,
+        key: ValueKey(widget.seed),
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        width: fill ? null : widget.size,
+        height: fill ? null : widget.size,
+        // 解码出第一帧之前保持透明，否则会先闪一帧空白再淡入。
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => _placeholder(fill: fill),
+      ),
+    );
+  }
+
+  Widget _placeholder({required bool fill}) {
+    final kugo = KugoTheme.of(context);
+    final colors = CoverPalette.fromSeed(widget.seed, kugo.palette);
+    final box = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(widget.radius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+          stops: const [0.0, 0.55, 1.0],
+        ),
+      ),
+      child: widget.child == null ? null : Center(child: widget.child),
+    );
+    if (fill) return box;
+    return SizedBox(width: widget.size, height: widget.size, child: box);
+  }
 }
+
+/// 交叉淡入时长。与 mini_player_bar / common 的 220ms 靠拢，别再开新档。
+const Duration _kCoverFade = Duration(milliseconds: 240);
 
 CoverBox? _coverFromHeroContext(BuildContext context) {
   final w = context.widget;

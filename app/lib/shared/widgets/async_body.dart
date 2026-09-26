@@ -26,24 +26,63 @@ class AsyncBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const SkeletonList();
-    if (hasError) {
-      return _StatusView(
-        icon: Icons.wifi_off_rounded,
-        message: errorMessage,
-        actionLabel: '重试',
-        onAction: onRetry,
+    // 三态（骨架 / 错误 / 空 / 内容）之间做交叉淡入 + 8px 上移，而不是 if 硬切：
+    // 请求一回来整页「啪」地换掉，是这个 app 最明显的糙点之一。
+    final Widget target;
+    if (loading) {
+      target = const KeyedSubtree(
+        key: ValueKey('async-loading'),
+        child: SkeletonList(),
+      );
+    } else if (hasError) {
+      target = KeyedSubtree(
+        key: const ValueKey('async-error'),
+        child: _StatusView(
+          icon: Icons.wifi_off_rounded,
+          message: errorMessage,
+          actionLabel: '重试',
+          onAction: onRetry,
+        ),
+      );
+    } else if (isEmpty) {
+      target = KeyedSubtree(
+        key: const ValueKey('async-empty'),
+        child: _StatusView(
+          icon: Icons.music_off_rounded,
+          message: emptyMessage,
+          actionLabel: onRetry == null ? null : '刷新',
+          onAction: onRetry,
+        ),
+      );
+    } else {
+      target = KeyedSubtree(
+        key: const ValueKey('async-content'),
+        child: child,
       );
     }
-    if (isEmpty) {
-      return _StatusView(
-        icon: Icons.music_off_rounded,
-        message: emptyMessage,
-        actionLabel: onRetry == null ? null : '刷新',
-        onAction: onRetry,
-      );
-    }
-    return child;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.02),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+      child: target,
+    );
   }
 }
 
