@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -68,7 +70,11 @@ class FullPlayerPage extends ConsumerWidget {
       );
     }
     // 冷启动恢复 / 未起播时也可能停在本页：歌词与播放解耦，打开即 ensure。
-    controller.ensureLyricsForCurrent(retryIfEmpty: true);
+    // build 期间不允许改 provider（会抛 Tried to modify a provider while the
+    // widget tree was building），所以推迟到当前同步构建结束之后。
+    unawaited(Future<void>.microtask(
+      () => controller.ensureLyricsForCurrent(retryIfEmpty: true),
+    ));
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
     final isDesktop = isDesktopView(context);
@@ -419,7 +425,10 @@ class PlayerLyricsPage extends ConsumerWidget {
         ),
       );
     }
-    controller.ensureLyricsForCurrent(retryIfEmpty: true);
+    // 同上：build 期间改 provider 会抛异常，推迟到构建结束之后。
+    unawaited(Future<void>.microtask(
+      () => controller.ensureLyricsForCurrent(retryIfEmpty: true),
+    ));
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
 
