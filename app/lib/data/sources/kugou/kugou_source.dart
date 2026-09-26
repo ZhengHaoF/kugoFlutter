@@ -1,5 +1,6 @@
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/catalog_models.dart';
+import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/fm_mode.dart';
 import '../../../core/models/search_result.dart';
@@ -9,6 +10,7 @@ import '../../../core/source/music_platform.dart';
 import '../../../core/source/music_source.dart';
 import '../../../core/source/quality_map.dart';
 import '../../../data/repositories/catalog_repository.dart' as catalog;
+import '../../../data/repositories/comment_repository.dart' as comment;
 import '../../../data/repositories/discovery_repository.dart' as discovery;
 import '../../../data/repositories/fm_repository.dart' as fm;
 import '../../../data/repositories/lyric_repository.dart' as lyric;
@@ -32,11 +34,14 @@ class KugouSource
         RankSource,
         PlaylistCatalogSource,
         NewSongFeedSource,
+        NewAlbumFeedSource,
+        ArtistListSource,
         RecommendFeedSource,
         SearchHotSource,
         PlaylistDetailSource,
         AlbumDetailSource,
-        ArtistDetailSource {
+        ArtistDetailSource,
+        CommentReadSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -47,6 +52,7 @@ class KugouSource
     playlist.PlaylistRepository? playlistRepository,
     catalog.CatalogRepository? catalogRepository,
     discovery.DiscoveryRepository? discoveryRepository,
+    comment.CommentRepository? commentRepository,
   })  : _play = playRepository ?? play.playRepository,
         _lyric = lyricRepository ?? lyric.lyricRepository,
         _search = searchRepository ?? search.searchRepository,
@@ -56,7 +62,8 @@ class KugouSource
         _playlists = playlistRepository ?? playlist.playlistRepository,
         _catalog = catalogRepository ?? catalog.catalogRepository,
         _discovery =
-            discoveryRepository ?? discovery.discoveryRepository;
+            discoveryRepository ?? discovery.discoveryRepository,
+        _comments = commentRepository ?? comment.commentRepository;
 
   final play.PlayRepository _play;
   final lyric.LyricRepository _lyric;
@@ -67,6 +74,7 @@ class KugouSource
   final playlist.PlaylistRepository _playlists;
   final catalog.CatalogRepository _catalog;
   final discovery.DiscoveryRepository _discovery;
+  final comment.CommentRepository _comments;
 
   FmMode _fmMode = FmMode.heart;
   FmSongPool _fmPool = FmSongPool.taste;
@@ -183,6 +191,45 @@ class KugouSource
     return _play.fetchRelateGoods(track);
   }
 
+  // ── 评论（读侧） ────────────────────────────────────────
+
+  @override
+  String get lastError => _comments.lastError;
+
+  @override
+  Future<CommentPage> songComments(
+    String mixSongId, {
+    int page = 1,
+    int pageSize = 20,
+    CommentSort sort = CommentSort.all,
+  }) =>
+      _comments.fetchSongComments(
+        mixSongId: mixSongId,
+        page: page,
+        pageSize: pageSize,
+        sort: sort,
+      );
+
+  @override
+  Future<List<Comment>> floorReplies({
+    required String childrenId,
+    required String rootCommentId,
+    String mixSongId = '',
+    int page = 1,
+    int pageSize = 20,
+  }) =>
+      _comments.fetchFloorReplies(
+        childrenId: childrenId,
+        rootCommentId: rootCommentId,
+        mixSongId: mixSongId,
+        page: page,
+        pageSize: pageSize,
+      );
+
+  @override
+  Future<int?> commentCount(String hash) =>
+      _comments.fetchCommentCount(hash: hash);
+
   @override
   Future<DailyRecommendResult> dailyRecommend() => _rec.fetchDaily();
 
@@ -245,6 +292,104 @@ class KugouSource
       );
     }
     return result.items;
+  }
+
+  // ── NewAlbumFeedSource（探索发现「新碟上架」Tab） ──────────
+
+  /// 酷狗 `/top/album` 的地区分片（`chn/eur/jpn/kor`）。
+  @override
+  List<({String id, String label})> get albumRegions =>
+      discovery.DiscoveryRepository.albumTypes;
+
+  @override
+  Future<List<AlbumBrief>> newAlbums({
+    required String region,
+    int pageSize = 30,
+  }) async {
+    final result = await _discovery.fetchNewAlbums(
+      type: region,
+      pageSize: pageSize,
+    );
+    if (result.items.isEmpty && result.error.isNotEmpty) {
+      throw NetworkFailure(
+        result.error,
+        filtered: result.error.contains('拦截'),
+      );
+    }
+    return result.items;
+  }
+
+  // ── ArtistListSource（探索发现「歌手」Tab） ────────────────
+
+  /// 上次 `singer/list` 的原始结果。
+  ///
+  /// 酷狗接口没有字母入参：字母是**响应自带的分组标题**（`热门`/`A`/`B`…），
+  /// 故 [_artistCache] 既供字母分片取值，也供本地按字母过滤。
+  List<discovery.DiscoveryArtist> _artistCache = const [];
+
+  @override
+  List<({String id, String label})> get artistGenderOptions =>
+      discovery.DiscoveryRepository.artistSexTypes;
+
+  @override
+  List<({String id, String label})> get artistStyleOptions =>
+      discovery.DiscoveryRepository.artistTypes;
+
+  /// 字母分片来自上次响应（首次渲染时为空 → UI 隐藏该行，取数后出现）。
+  @override
+  List<({String id, String label})> get artistInitialOptions {
+    final letters = <String>[
+      for (final a in _artistCache)
+        if (a.letter.isNotEmpty) a.letter,
+    ];
+    if (letters.isEmpty) return const [];
+    final seen = <String>{};
+    return [
+      (id: '', label: '全部'),
+      for (final l in letters)
+        if (seen.add(l)) (id: l, label: l),
+    ];
+  }
+
+  @override
+  Future<List<ArtistBrief>> artistList({
+    required String gender,
+    required String style,
+    required String initial,
+    int pageSize = 30,
+  }) async {
+    final parts = style.split(':');
+    final result = await _discovery.fetchArtists(
+      sextype: int.tryParse(gender) ?? 0,
+      type: int.tryParse(parts.first) ?? 0,
+      musician:
+          parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+      hotsize: pageSize,
+    );
+    if (result.items.isEmpty && result.error.isNotEmpty) {
+      throw NetworkFailure(
+        result.error,
+        filtered: result.error.contains('拦截'),
+      );
+    }
+    _artistCache = result.items;
+    final picked = initial.isEmpty
+        ? result.items
+        : result.items.where((a) => a.letter == initial).toList();
+    // 字母是响应自带分组：切性别/流派后旧字母可能整个消失，此时按「不筛」处理
+    // （页面取数后会把 chips 回退到首项），否则会闪一下空列表。
+    final shown = picked.isEmpty && initial.isNotEmpty ? result.items : picked;
+    return [
+      for (final a in shown)
+        ArtistBrief(
+          id: a.id,
+          name: a.name,
+          avatarUrl: a.avatarUrl,
+          songCount: a.songCount,
+          fansCount: a.fansCount,
+          platform: MusicPlatform.kugou,
+        ),
+    ];
   }
 
   // ── RecommendFeedSource（推荐歌单 / 编辑精选） ─────────────

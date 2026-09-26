@@ -1,7 +1,9 @@
 import '../models/audio_quality.dart';
 import '../models/catalog_models.dart';
+import '../models/comment.dart';
 import '../models/daily_recommend.dart';
 import '../models/fm_mode.dart';
+import '../models/search_result.dart';
 import '../models/track.dart';
 
 /// 可选能力接口：谁有谁 `implements`。UI 用 `registry.capability<T>()` 显隐，
@@ -65,6 +67,46 @@ abstract interface class NewSongFeedSource {
   Future<List<Track>> newSongs({int pageSize = 30});
 }
 
+/// 新碟上架（探索发现「新碟上架」Tab）。
+///
+/// 地区分片各源不同（酷狗 `all/chn/eur/jpn/kor`、网易 `ALL/ZH/EA/KR/JP`），
+/// 故选项由实现给出，UI 只按顺序渲染 chips、把 [region] 原样回传。
+abstract interface class NewAlbumFeedSource {
+  /// 地区分片（各源原生值，**首项即默认**）。
+  List<({String id, String label})> get albumRegions;
+
+  Future<List<AlbumBrief>> newAlbums({
+    required String region,
+    int pageSize = 30,
+  });
+}
+
+/// 歌手列表（探索发现「歌手」Tab）。
+///
+/// 筛选维度各源不同（酷狗：性别 + 流派 + 响应分组字母；网易：性别 + 地区 + 首字母），
+/// 故选项一律由实现给出，UI 只按顺序渲染 chips 行、把选中的 id 原样回传。
+/// 某维度返回空列表 = 该源无此项，UI 隐藏该行。
+abstract interface class ArtistListSource {
+  /// 性别分片（首项即默认）。
+  List<({String id, String label})> get artistGenderOptions;
+
+  /// 地区 / 流派分片（首项即默认）。
+  List<({String id, String label})> get artistStyleOptions;
+
+  /// 首字母分片（首项即默认 = 不筛）。
+  ///
+  /// 酷狗无字母入参，其字母来自**上次响应**的分组标题（调过 [artistList] 后才有值，
+  /// 由实现内部按响应回填）；网易则直接是 `initial` 入参（服务端筛选）。
+  List<({String id, String label})> get artistInitialOptions;
+
+  Future<List<ArtistBrief>> artistList({
+    required String gender,
+    required String style,
+    required String initial,
+    int pageSize = 30,
+  });
+}
+
 /// 推荐聚合（「为你推荐」页的「推荐歌单」「编辑精选」两块）。
 ///
 /// 酷狗侧：`special_recommend`（`categoryid=0`）+ `musicadservice/top_ip`；
@@ -116,6 +158,40 @@ abstract interface class QualityCatalogSource {
   Future<({List<RelateGood> goods, bool catalogComplete})?> fetchQualityCatalog(
     Track track,
   );
+}
+
+/// 评论**读**侧（写侧另立接口：需要登录且可能触发风控）。
+///
+/// 各源差异（酷狗的「排序 = 两个不同接口」、网易的 `R_SO_4_` 口径）收口在实现里，
+/// UI 只认 [CommentSort] 与 [CommentPage]。
+abstract interface class CommentReadSource {
+  /// 最近一次失败的**用户可读**原因；成功时为空串。
+  ///
+  /// 读接口以「返回空 + 原因」而不是抛异常收口（与既有 repository 一致），
+  /// 所以原因要能从能力面上取到，UI 不必回头去碰 repository。
+  String get lastError;
+
+  /// 歌曲评论分页。[mixSongId] 是平台的歌曲 id（酷狗 = mixsongid）。
+  ///
+  /// 返回的 [CommentPage.childrenId] 是评论池 id，调 [floorReplies] 时要原样回传。
+  Future<CommentPage> songComments(
+    String mixSongId, {
+    int page = 1,
+    int pageSize = 20,
+    CommentSort sort = CommentSort.all,
+  });
+
+  /// 主评论下的楼层回复。
+  Future<List<Comment>> floorReplies({
+    required String childrenId,
+    required String rootCommentId,
+    String mixSongId = '',
+    int page = 1,
+    int pageSize = 20,
+  });
+
+  /// 评论总数（入参是音频 hash，与列表 `count` 同口径）；null = 无数据。
+  Future<int?> commentCount(String hash);
 }
 
 /// 用户云端歌单写操作（加/删曲；建单另议）。
