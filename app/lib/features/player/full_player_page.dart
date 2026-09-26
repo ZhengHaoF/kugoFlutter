@@ -72,9 +72,11 @@ class FullPlayerPage extends ConsumerWidget {
     // 冷启动恢复 / 未起播时也可能停在本页：歌词与播放解耦，打开即 ensure。
     // build 期间不允许改 provider（会抛 Tried to modify a provider while the
     // widget tree was building），所以推迟到当前同步构建结束之后。
-    unawaited(Future<void>.microtask(
-      () => controller.ensureLyricsForCurrent(retryIfEmpty: true),
-    ));
+    unawaited(
+      Future<void>.microtask(
+        () => controller.ensureLyricsForCurrent(retryIfEmpty: true),
+      ),
+    );
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
     final isDesktop = isDesktopView(context);
@@ -86,7 +88,10 @@ class FullPlayerPage extends ConsumerWidget {
           duration: const Duration(milliseconds: 420),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
+            gradient: CoverPalette.playerBackground(
+              track.coverUrl,
+              kugo.palette,
+            ),
           ),
           child: SafeArea(
             child: Row(
@@ -95,7 +100,10 @@ class FullPlayerPage extends ConsumerWidget {
                 SizedBox(
                   width: 440,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 16,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -116,12 +124,18 @@ class FullPlayerPage extends ConsumerWidget {
                             IconButton(
                               onPressed: () => _openSongDetail(context, track),
                               tooltip: '歌曲详情',
-                              icon: const Icon(Icons.info_outline_rounded, size: 20),
+                              icon: const Icon(
+                                Icons.info_outline_rounded,
+                                size: 20,
+                              ),
                             ),
                             IconButton(
                               onPressed: () => _showQueueSheet(context, ref),
                               tooltip: '播放队列',
-                              icon: const Icon(Icons.queue_music_rounded, size: 20),
+                              icon: const Icon(
+                                Icons.queue_music_rounded,
+                                size: 20,
+                              ),
                             ),
                           ],
                         ),
@@ -165,34 +179,49 @@ class FullPlayerPage extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: PlayerPositionBuilder(
                             builder: (context, positionMs) {
-                              final progress =
-                                  (positionMs / duration).clamp(0.0, 1.0);
+                              final progress = (positionMs / duration).clamp(
+                                0.0,
+                                1.0,
+                              );
                               return Column(
                                 children: [
                                   SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       trackHeight: 3,
-                                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                                      thumbShape: const RoundSliderThumbShape(
+                                        enabledThumbRadius: 5,
+                                      ),
+                                      overlayShape:
+                                          const RoundSliderOverlayShape(
+                                            overlayRadius: 10,
+                                          ),
                                     ),
                                     child: Slider(
                                       value: progress,
-                                      onChanged: (v) =>
-                                          controller.seekTo((v * duration).round()),
+                                      onChanged: (v) => controller.seekTo(
+                                        (v * duration).round(),
+                                      ),
                                     ),
                                   ),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           FullPlayerPage.format(positionMs),
-                                          style: kugo.caption.copyWith(fontSize: 11),
+                                          style: kugo.caption.copyWith(
+                                            fontSize: 11,
+                                          ),
                                         ),
                                         Text(
                                           '-${FullPlayerPage.format(duration - positionMs)}',
-                                          style: kugo.caption.copyWith(fontSize: 11),
+                                          style: kugo.caption.copyWith(
+                                            fontSize: 11,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -220,7 +249,10 @@ class FullPlayerPage extends ConsumerWidget {
                 ),
 
                 // 分割线
-                VerticalDivider(width: 1, color: kugo.divider.withValues(alpha: 0.5)),
+                VerticalDivider(
+                  width: 1,
+                  color: kugo.divider.withValues(alpha: 0.5),
+                ),
 
                 // ---------------- 右栏：完整平滑滚动歌词 ----------------
                 Expanded(
@@ -312,6 +344,11 @@ class FullPlayerPage extends ConsumerWidget {
       'platform': track.platform.wireName,
       'name': track.name,
       'artist': track.artist,
+      // 带全 id 与 hash：详情页的「歌手」按钮靠 artistId（缺了就禁用），
+      // 评论取数靠 hash / mixSongId（缺了要多跑一次搜歌解析）。
+      'artistId': track.artistId,
+      'hash': track.hash,
+      'mixSongId': track.mixSongId,
       'album': track.album,
       'cover': track.coverUrl,
       'duration': '${track.durationMs}',
@@ -358,13 +395,10 @@ class FullPlayerPage extends ConsumerWidget {
                     title: Text(
                       track.name,
                       style: kugo.body.copyWith(
-                        color: isCurrent
-                            ? kugo.primary
-                            : kugo.textPrimary,
+                        color: isCurrent ? kugo.primary : kugo.textPrimary,
                       ),
                     ),
-                    subtitle:
-                        Text(track.artist, style: kugo.caption),
+                    subtitle: Text(track.artist, style: kugo.caption),
                     trailing: isCurrent
                         ? Icon(
                             Icons.equalizer_rounded,
@@ -413,12 +447,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                 ),
               ),
               Expanded(
-                child: Center(
-                  child: Text(
-                    '暂无播放内容',
-                    style: kugo.caption,
-                  ),
-                ),
+                child: Center(child: Text('暂无播放内容', style: kugo.caption)),
               ),
             ],
           ),
@@ -426,9 +455,11 @@ class PlayerLyricsPage extends ConsumerWidget {
       );
     }
     // 同上：build 期间改 provider 会抛异常，推迟到构建结束之后。
-    unawaited(Future<void>.microtask(
-      () => controller.ensureLyricsForCurrent(retryIfEmpty: true),
-    ));
+    unawaited(
+      Future<void>.microtask(
+        () => controller.ensureLyricsForCurrent(retryIfEmpty: true),
+      ),
+    );
 
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
 
@@ -494,9 +525,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                                 '${track.artist} · ${track.album}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: kugo.caption.copyWith(
-                                  height: 1.2,
-                                ),
+                                style: kugo.caption.copyWith(height: 1.2),
                               ),
                             ],
                           ),
@@ -546,8 +575,10 @@ class PlayerLyricsPage extends ConsumerWidget {
                     children: [
                       PlayerPositionBuilder(
                         builder: (context, positionMs) {
-                          final progress =
-                              (positionMs / duration).clamp(0.0, 1.0);
+                          final progress = (positionMs / duration).clamp(
+                            0.0,
+                            1.0,
+                          );
                           return Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -565,8 +596,9 @@ class PlayerLyricsPage extends ConsumerWidget {
                                   ),
                                   child: Slider(
                                     value: progress,
-                                    onChanged: (v) => controller
-                                        .seekTo((v * duration).round()),
+                                    onChanged: (v) => controller.seekTo(
+                                      (v * duration).round(),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -582,13 +614,15 @@ class PlayerLyricsPage extends ConsumerWidget {
                                     children: [
                                       Text(
                                         FullPlayerPage.format(positionMs),
-                                        style: kugo.caption
-                                            .copyWith(height: 1.2),
+                                        style: kugo.caption.copyWith(
+                                          height: 1.2,
+                                        ),
                                       ),
                                       Text(
                                         '-${FullPlayerPage.format((duration - positionMs).clamp(0, duration))}',
-                                        style: kugo.caption
-                                            .copyWith(height: 1.2),
+                                        style: kugo.caption.copyWith(
+                                          height: 1.2,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -682,10 +716,7 @@ class _TopBar extends StatelessWidget {
               child: IconButton(
                 onPressed: expanded ? onCollapseLyrics : onCollapsePage,
                 tooltip: expanded ? '收起歌词' : '返回',
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 32,
-                ),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
               ),
             ),
             Align(
@@ -734,12 +765,7 @@ class _PlayerCoverSlot extends StatelessWidget {
     if (!useHero) {
       return CoverBox(seed: seed, size: size, radius: radius);
     }
-    return CoverHero(
-      tag: tag,
-      seed: seed,
-      size: size,
-      radius: radius,
-    );
+    return CoverHero(tag: tag, seed: seed, size: size, radius: radius);
   }
 }
 
@@ -785,7 +811,8 @@ class _CollapsedPlayerBody extends StatelessWidget {
         const controlsH = 64.0;
         const padTop = KugoSpacing.sm;
         const padBottom = 20.0;
-        final bottomH = padTop +
+        final bottomH =
+            padTop +
             metaH +
             (showError ? 56 : 0) +
             sliderH +
@@ -830,8 +857,9 @@ class _CollapsedPlayerBody extends StatelessWidget {
                     aspectRatio: 1,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(KugoRadius.card + 4),
+                        borderRadius: BorderRadius.circular(
+                          KugoRadius.card + 4,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.35),
@@ -908,8 +936,10 @@ class _CollapsedPlayerBody extends StatelessWidget {
                       height: sliderH + timeH,
                       child: PlayerPositionBuilder(
                         builder: (context, positionMs) {
-                          final progress =
-                              (positionMs / duration).clamp(0.0, 1.0);
+                          final progress = (positionMs / duration).clamp(
+                            0.0,
+                            1.0,
+                          );
                           return Column(
                             children: [
                               SizedBox(
@@ -921,15 +951,18 @@ class _CollapsedPlayerBody extends StatelessWidget {
                                       thumbShape: const RoundSliderThumbShape(
                                         enabledThumbRadius: 6,
                                       ),
-                                      overlayShape: const RoundSliderOverlayShape(
-                                        overlayRadius: 10,
-                                      ),
-                                      trackShape: const RoundedRectSliderTrackShape(),
+                                      overlayShape:
+                                          const RoundSliderOverlayShape(
+                                            overlayRadius: 10,
+                                          ),
+                                      trackShape:
+                                          const RoundedRectSliderTrackShape(),
                                     ),
                                     child: Slider(
                                       value: progress,
-                                      onChanged: (v) => controller
-                                          .seekTo((v * duration).round()),
+                                      onChanged: (v) => controller.seekTo(
+                                        (v * duration).round(),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -997,10 +1030,8 @@ class _TrackMetaRow extends StatelessWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
         switchInCurve: Curves.easeOutCubic,
-        transitionBuilder: (child, anim) => FadeTransition(
-          opacity: anim,
-          child: child,
-        ),
+        transitionBuilder: (child, anim) =>
+            FadeTransition(opacity: anim, child: child),
         child: SizedBox(
           key: ValueKey(track.id),
           height: height,
@@ -1080,8 +1111,8 @@ class _PlayerQualityChip extends ConsumerWidget {
               children: [
                 QualityBadge(
                   label: quality.badge,
-                  gradient: quality == AppQuality.sq ||
-                      quality == AppQuality.hiRes,
+                  gradient:
+                      quality == AppQuality.sq || quality == AppQuality.hiRes,
                 ),
                 const SizedBox(width: 2),
                 Icon(
@@ -1137,7 +1168,8 @@ class _ControlBar extends ConsumerWidget {
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                onPressed: () => ref.read(fmControllerProvider.notifier).dislike(),
+                onPressed: () =>
+                    ref.read(fmControllerProvider.notifier).dislike(),
                 tooltip: '不喜欢，换下一首',
                 icon: const Icon(
                   Icons.thumb_down_alt_rounded,
@@ -1228,9 +1260,9 @@ class _ControlBar extends ConsumerWidget {
   }
 
   static String _modeLabel(PlayerLoopMode mode) => switch (mode) {
-        PlayerLoopMode.order => '顺序播放',
-        PlayerLoopMode.listLoop => '列表循环',
-        PlayerLoopMode.shuffle => '随机播放',
-        PlayerLoopMode.single => '单曲循环',
-      };
+    PlayerLoopMode.order => '顺序播放',
+    PlayerLoopMode.listLoop => '列表循环',
+    PlayerLoopMode.shuffle => '随机播放',
+    PlayerLoopMode.single => '单曲循环',
+  };
 }

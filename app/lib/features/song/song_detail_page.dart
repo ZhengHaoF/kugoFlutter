@@ -23,7 +23,7 @@ import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
-/// Route: /song?id=&platform=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
+/// Route: /song?id=&platform=&name=&artist=&artistId=&album=&cover=&hash=&mixSongId=&duration=
 class SongDetailPage extends ConsumerStatefulWidget {
   const SongDetailPage({
     super.key,
@@ -31,6 +31,7 @@ class SongDetailPage extends ConsumerStatefulWidget {
     this.platform = MusicPlatform.kugou,
     this.name = '',
     this.artist = '',
+    this.artistId = '',
     this.album = '',
     this.coverUrl = '',
     this.hash = '',
@@ -46,6 +47,11 @@ class SongDetailPage extends ConsumerStatefulWidget {
 
   final String name;
   final String artist;
+
+  /// 歌手 id（酷狗 = 数字 singerid）。**缺了「歌手」按钮就会永远禁用** ——
+  /// 所以调用方有 `Track.artistId` 时必须带上（见 `full_player_page`）。
+  final String artistId;
+
   final String album;
   final String coverUrl;
   final String hash;
@@ -97,6 +103,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     platform: widget.platform,
     name: widget.name.isEmpty ? '歌曲' : widget.name,
     artist: widget.artist,
+    artistId: widget.artistId,
     album: widget.album,
     coverUrl: widget.coverUrl,
     durationMs: widget.durationMs,

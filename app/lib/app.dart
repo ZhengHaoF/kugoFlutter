@@ -117,6 +117,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
               platform: MusicPlatform.fromWire(q['platform'] ?? q['src'] ?? ''),
               name: q['name'] ?? '',
               artist: q['artist'] ?? '',
+              // 缺了歌手 id，「歌手」按钮会永远禁用（artistTapFor 返回 null）。
+              artistId: q['artistId'] ?? '',
               album: q['album'] ?? '',
               coverUrl: q['cover'] ?? '',
               hash: q['hash'] ?? '',

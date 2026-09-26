@@ -1,3 +1,13 @@
+/// 歌曲详情页（`/song`）的 widget 测试。
+///
+/// 两部分：
+///  · 评论筛选项 —— 钉住「筛选项不跟着一页评论走」（否则点 chip 后 chips 行消失、
+///    无法取消筛选）；
+///  · 「歌手」按钮 —— 钉住 artistId 必须从深链传进来（缺了就永远禁用）。
+///
+/// 评论源的 fake 刻意复刻酷狗的真实口径：**只有「全部」档带筛选项**。
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,7 +110,10 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-Future<_CommentFakeSource> _pump(WidgetTester tester) async {
+Future<_CommentFakeSource> _pump(
+  WidgetTester tester, {
+  String artistId = '',
+}) async {
   SharedPreferences.setMockInitialValues({
     'kugo_device_dfid_registered': true,
     'kugo_device_dfid': 'test-dfid',
@@ -126,13 +139,22 @@ Future<_CommentFakeSource> _pump(WidgetTester tester) async {
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        home: const SongDetailPage(id: '32100650', name: '晴天', artist: '周杰伦'),
+        home: SongDetailPage(
+          id: '32100650',
+          name: '晴天',
+          artist: '周杰伦',
+          artistId: artistId,
+        ),
       ),
     ),
   );
   await _settle(tester);
   return source;
 }
+
+/// 「歌手」按钮（页面上的 `OutlinedButton.icon`）。
+OutlinedButton _artistButton(WidgetTester tester) =>
+    tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '歌手'));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -194,5 +216,19 @@ void main() {
     // 「最热」的响应不带筛选项（真实口径），但选项留在页面状态里，切回即可用。
     expect(find.text('歌曲相关'), findsOneWidget);
     expect(find.byIcon(Icons.close_rounded), findsNothing);
+  });
+
+  testWidgets('深链带 artistId：「歌手」按钮可点（回归：永远灰着点不动）', (tester) async {
+    await _pump(tester, artistId: '4286');
+
+    expect(_artistButton(tester).onPressed, isNotNull);
+  });
+
+  testWidgets('没有 artistId 时「歌手」按钮禁用，而不是装作能点', (tester) async {
+    // `artistTapFor` 在缺 id 时返回 null（歌手详情页需要**数字 singerid**，
+    // 传名字会让接口回「参数错误」），所以按钮必须是禁用态而非点了报错。
+    await _pump(tester);
+
+    expect(_artistButton(tester).onPressed, isNull);
   });
 }
