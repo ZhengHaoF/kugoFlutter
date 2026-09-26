@@ -63,10 +63,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/player',
-        pageBuilder: (context, state) => const MaterialPage(
-          fullscreenDialog: true,
-          child: FullPlayerPage(),
-        ),
+        pageBuilder: (context, state) =>
+            const MaterialPage(fullscreenDialog: true, child: FullPlayerPage()),
       ),
       GoRoute(
         path: '/player/lyrics',
@@ -81,10 +79,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/login',
-        pageBuilder: (context, state) => const MaterialPage(
-          fullscreenDialog: true,
-          child: LoginPage(),
-        ),
+        pageBuilder: (context, state) =>
+            const MaterialPage(fullscreenDialog: true, child: LoginPage()),
       ),
       GoRoute(
         path: '/netease-login',
@@ -99,10 +95,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return RootShell(
-            location: state.uri.path,
-            child: navigationShell,
-          );
+          return RootShell(location: state.uri.path, child: navigationShell);
         },
         branches: [
           StatefulShellBranch(
@@ -136,10 +129,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/rank/:id',
                 pageBuilder: (context, state) {
-                  final extra =
-                      state.extra is PlaylistBrief
-                          ? state.extra as PlaylistBrief
-                          : null;
+                  final extra = state.extra is PlaylistBrief
+                      ? state.extra as PlaylistBrief
+                      : null;
                   return MaterialPage(
                     child: PlaylistDetailPage(
                       id: state.pathParameters['id'] ?? '',
@@ -159,7 +151,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/playlist/:id',
                 pageBuilder: (context, state) {
-                  final isRankQuery = state.uri.queryParameters['type'] == 'rank' ||
+                  final isRankQuery =
+                      state.uri.queryParameters['type'] == 'rank' ||
                       state.uri.queryParameters['isRank'] == 'true';
                   final initialBrief = state.extra is PlaylistBrief
                       ? state.extra as PlaylistBrief
@@ -218,6 +211,10 @@ final _routerProvider = Provider<GoRouter>((ref) {
                   return MaterialPage(
                     child: SongDetailPage(
                       id: q['id'] ?? '',
+                      // 玩家页传的是 `platform`；兼容深链惯用的 `src`。
+                      platform: MusicPlatform.fromWire(
+                        q['platform'] ?? q['src'] ?? '',
+                      ),
                       name: q['name'] ?? '',
                       artist: q['artist'] ?? '',
                       album: q['album'] ?? '',

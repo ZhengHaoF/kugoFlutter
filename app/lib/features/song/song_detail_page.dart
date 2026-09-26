@@ -24,11 +24,12 @@ import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
-/// Route: /song?id=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
+/// Route: /song?id=&platform=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
 class SongDetailPage extends ConsumerStatefulWidget {
   const SongDetailPage({
     super.key,
     required this.id,
+    this.platform = MusicPlatform.kugou,
     this.name = '',
     this.artist = '',
     this.album = '',
@@ -39,6 +40,11 @@ class SongDetailPage extends ConsumerStatefulWidget {
   });
 
   final String id;
+
+  /// 深链平台（玩家页 `/song?...&platform=` 已带）。能力插槽按它取源，
+  /// **不要写死酷狗** —— 否则网易曲目会拿到酷狗的实现。
+  final MusicPlatform platform;
+
   final String name;
   final String artist;
   final String album;
@@ -80,6 +86,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
   Track get _track => Track(
     id: widget.id,
+    platform: widget.platform,
     name: widget.name.isEmpty ? '歌曲' : widget.name,
     artist: widget.artist,
     album: widget.album,
@@ -89,9 +96,9 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     mixSongId: _resolvedMixId ?? widget.mixSongId,
   );
 
-  /// 评论走能力接口取，UI 不直连 repository。
+  /// 评论走能力接口取，UI 不直连 repository；**按页面音源取**。
   CommentReadSource? get _source =>
-      musicSourceRegistry?.capability<CommentReadSource>(MusicPlatform.kugou);
+      musicSourceRegistry?.capability<CommentReadSource>(widget.platform);
 
   @override
   void initState() {
@@ -376,7 +383,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   // ── 写侧（发评论 / 回复） ────────────────────────────────
 
   CommentWriteSource? get _writer =>
-      musicSourceRegistry?.capability<CommentWriteSource>(MusicPlatform.kugou);
+      musicSourceRegistry?.capability<CommentWriteSource>(widget.platform);
 
   bool get _isLoggedIn => AuthTokenHolder.instance.hasToken;
 
