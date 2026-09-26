@@ -16,6 +16,7 @@ import '../../features/player/player_controller.dart';
 import '../../features/profile/user_collections_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/rank/rank_list_page.dart'
@@ -381,7 +382,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
     setState(() => _rankPickerLoading = true);
     if (_allRanks.isEmpty) {
       try {
-        // 两源均实现 RankSource：酷狗=榜单列表接口，网易=固定三榜 + 补元数据。
+        // 两源均实现 RankSource：酷狗=榜单列表接口，网易=G11 榜单列表按白名单过滤。
         final rankSource =
             musicSourceRegistry?.capability<RankSource>(widget.platform);
         _allRanks = rankSource != null
@@ -452,22 +453,28 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                           const SizedBox(height: 8),
                           SizedBox(
                             height: 36,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: groupKeys.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                final key = groupKeys[index];
-                                final selected = key == activeGroup;
-                                return ChoiceChip(
-                                  label: Text(key),
-                                  selected: selected,
-                                  onSelected: (_) {
-                                    setDialogState(() => _rankPickerGroup = key);
-                                  },
-                                );
-                              },
+                            child: KugoHScroll(
+                              builder: (context, controller) =>
+                                  ListView.separated(
+                                controller: controller,
+                                scrollDirection: Axis.horizontal,
+                                itemCount: groupKeys.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final key = groupKeys[index];
+                                  final selected = key == activeGroup;
+                                  return ChoiceChip(
+                                    label: Text(key),
+                                    selected: selected,
+                                    onSelected: (_) {
+                                      setDialogState(
+                                        () => _rankPickerGroup = key,
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],

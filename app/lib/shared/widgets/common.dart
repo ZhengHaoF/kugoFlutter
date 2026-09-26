@@ -11,6 +11,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
 import 'cover_box.dart';
+import 'kugo_h_scroll.dart';
 
 /// Builds an `onArtistTap` callback for a track row.
 ///
@@ -274,27 +275,30 @@ class SourceFilterBar extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: KugoSpacing.sm),
       child: SizedBox(
         height: 32,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-          children: [
-            if (showAll)
-              _SourceChip(
-                label: '全部',
-                selected: selected == null,
-                onTap: () => onSelect(null),
-                kugo: kugo,
-              ),
-            for (var i = 0; i < platforms.length; i++) ...[
-              if (showAll || i > 0) const SizedBox(width: KugoSpacing.sm),
-              _SourceChip(
-                label: platforms[i].label,
-                selected: selected == platforms[i],
-                onTap: () => onSelect(platforms[i]),
-                kugo: kugo,
-              ),
+        child: KugoHScroll(
+          builder: (context, controller) => ListView(
+            controller: controller,
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            children: [
+              if (showAll)
+                _SourceChip(
+                  label: '全部',
+                  selected: selected == null,
+                  onTap: () => onSelect(null),
+                  kugo: kugo,
+                ),
+              for (var i = 0; i < platforms.length; i++) ...[
+                if (showAll || i > 0) const SizedBox(width: KugoSpacing.sm),
+                _SourceChip(
+                  label: platforms[i].label,
+                  selected: selected == platforms[i],
+                  onTap: () => onSelect(platforms[i]),
+                  kugo: kugo,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

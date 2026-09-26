@@ -11,6 +11,7 @@ import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import 'search_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -247,21 +248,24 @@ class _TabBar extends StatelessWidget {
     final kugo = KugoTheme.of(context);
     return SizedBox(
       height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-        children: [
-          for (final type in SearchType.values) ...[
-            _TabChip(
-              label: type.label,
-              selected: type == active,
-              count: _countOf(type),
-              onTap: () => onSelect(type),
-              kugo: kugo,
-            ),
-            const SizedBox(width: KugoSpacing.sm),
+      child: KugoHScroll(
+        builder: (context, controller) => ListView(
+          controller: controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          children: [
+            for (final type in SearchType.values) ...[
+              _TabChip(
+                label: type.label,
+                selected: type == active,
+                count: _countOf(type),
+                onTap: () => onSelect(type),
+                kugo: kugo,
+              ),
+              const SizedBox(width: KugoSpacing.sm),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

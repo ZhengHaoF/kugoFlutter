@@ -17,6 +17,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// 为你推荐聚合页（对齐 EchoMusic Home.vue「为您推荐」信息架构）。
@@ -916,20 +917,23 @@ class _StylePanel extends StatelessWidget {
                   const SizedBox(height: 10),
                   SizedBox(
                     height: 34,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: groups.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final g = groups[index];
-                        final selected = active?.name == g.name;
-                        return ChoiceChip(
-                          label: Text(g.name),
-                          selected: selected,
-                          onSelected: (_) => onGroupTap(g.name),
-                          visualDensity: VisualDensity.compact,
-                        );
-                      },
+                    child: KugoHScroll(
+                      builder: (context, controller) => ListView.separated(
+                        controller: controller,
+                        scrollDirection: Axis.horizontal,
+                        itemCount: groups.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final g = groups[index];
+                          final selected = active?.name == g.name;
+                          return ChoiceChip(
+                            label: Text(g.name),
+                            selected: selected,
+                            onSelected: (_) => onGroupTap(g.name),
+                            visualDensity: VisualDensity.compact,
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ],

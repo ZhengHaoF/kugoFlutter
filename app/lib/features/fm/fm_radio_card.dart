@@ -9,6 +9,7 @@ import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 
 /// 私人 FM 的视觉件：电台卡 / 黑胶舞台 / 信息 chip / 来源标注 / 胶囊开关。
 ///
@@ -789,34 +790,41 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
           final viewportW = constraints.maxWidth;
           // 尾垫让最后一盘也能滑到左缘吸附位：maxScroll = (n-1)*pitch。
           final trailing = math.max(0.0, viewportW - pitch);
-          return NotificationListener<ScrollNotification>(
-            onNotification: _onScrollNotification,
-            child: ListView.builder(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: _OneStepSnapPhysics(
-                pitch: pitch,
-                pageCount: widget.tracks.length,
-                anchor: _anchor,
+          // 整块盘阵独占这片区域，鼠标滚轮上下=前后一张盘（Windows 端唯一
+          // 能不用拖拽翻盘的方式）；Scrollbar 让「右边还有盘」看得见。
+          return KugoHScroll(
+            controller: _scrollController,
+            wheelToHorizontal: true,
+            crossAxisMargin: 4,
+            builder: (context, controller) => NotificationListener<ScrollNotification>(
+              onNotification: _onScrollNotification,
+              child: ListView.builder(
+                controller: controller,
+                scrollDirection: Axis.horizontal,
+                physics: _OneStepSnapPhysics(
+                  pitch: pitch,
+                  pageCount: widget.tracks.length,
+                  anchor: _anchor,
+                ),
+                // 盘外还有一圈圆形阴影（blur≈30–42）。ListView 默认按 viewport
+                // 硬裁，会把圆影裁成矩形色块。Clip.none 放行溢出绘制；
+                // scrollCacheExtent:0 避免屏外 item 的阴影提前漏进视口。
+                clipBehavior: Clip.none,
+                scrollCacheExtent: const ScrollCacheExtent.pixels(0),
+                padding: EdgeInsets.only(right: trailing),
+                itemCount: widget.tracks.length,
+                itemExtent: pitch,
+                itemBuilder: (context, index) {
+                  return SizedBox(
+                    width: pitch,
+                    height: widget.height,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _buildDisc(index),
+                    ),
+                  );
+                },
               ),
-              // 盘外还有一圈圆形阴影（blur≈30–42）。ListView 默认按 viewport
-              // 硬裁，会把圆影裁成矩形色块。Clip.none 放行溢出绘制；
-              // scrollCacheExtent:0 避免屏外 item 的阴影提前漏进视口。
-              clipBehavior: Clip.none,
-              scrollCacheExtent: const ScrollCacheExtent.pixels(0),
-              padding: EdgeInsets.only(right: trailing),
-              itemCount: widget.tracks.length,
-              itemExtent: pitch,
-              itemBuilder: (context, index) {
-                return SizedBox(
-                  width: pitch,
-                  height: widget.height,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: _buildDisc(index),
-                  ),
-                );
-              },
             ),
           );
         },

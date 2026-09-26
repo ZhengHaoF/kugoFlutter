@@ -13,20 +13,24 @@ import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
-import '../../data/repositories/discovery_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// 探索发现 — EchoMusic `Explore.vue` 五 Tab：歌单 / 排行榜 / 新碟上架 / 新歌速递 / 歌手。
 ///
-/// 数据按**音源能力**取（见 `core/source/capabilities.dart`）：
-/// - 歌单 / 新歌速递：酷狗与网易都实现（[PlaylistCatalogSource] / [NewSongFeedSource]）；
-/// - 排行榜：复用 [RankSource]（网易天生只有官方三榜）；
-/// - 新碟上架 / 歌手：本期仅酷狗有接口，非酷狗源出「暂不支持」空态，不做假入口。
+/// 数据一律按**音源能力**取（见 `core/source/capabilities.dart`）：
+/// - 歌单 / 新歌速递 / 新碟上架 / 歌手：酷狗与网易都实现
+///   （[PlaylistCatalogSource] / [NewSongFeedSource] / [NewAlbumFeedSource] / [ArtistListSource]）；
+/// - 排行榜：复用 [RankSource]（网易为官方榜白名单，见 G11）。
+///
+/// 各源筛选维度不同（如网易新碟用 `ZH/EA/KR/JP`、歌手用「性别 + 地区 + 首字母」），
+/// 故 chips 的**取值与顺序一律由能力给出**，本页只负责渲染与回传；
+/// 某能力缺失时该 Tab 出「暂不支持」空态（不建假入口）。
 class DiscoveryPage extends ConsumerStatefulWidget {
   const DiscoveryPage({super.key});
 
@@ -61,8 +65,8 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   bool _rankTracksLoading = false;
   String _ranksError = '';
 
-  // 新碟
-  String _albumType = 'all';
+  // 新碟（'' = 用该源首项，即「全部」）
+  String _albumRegion = '';
   List<AlbumBrief> _albums = const [];
   bool _albumsLoading = false;
   String _albumsError = '';
@@ -72,11 +76,11 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   bool _newSongsLoading = false;
   String _newSongsError = '';
 
-  // 歌手
-  String _artistSex = '0';
-  String _artistType = '0:0';
-  String _activeLetter = '全部';
-  List<DiscoveryArtist> _artists = const [];
+  // 歌手（'' = 用该源首项）
+  String _artistGender = '';
+  String _artistStyle = '';
+  String _artistInitial = '';
+  List<ArtistBrief> _artists = const [];
   bool _artistsLoading = false;
   String _artistsError = '';
 
@@ -127,8 +131,8 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
 
   /// 已启用、且**该源「发现」功能未关**、并具备本页任一能力的音源。
   ///
-  /// 本页各 Tab 能力不同（网易有歌单/榜单/新歌，酷狗五 Tab 齐全），故用「任一能力」
-  /// 判定「该源可用于探索发现」；单个 Tab 是否可用再由各 Tab 自己按能力判。
+  /// 本页各 Tab 能力不同（网易五 Tab 齐全，酷狗同），故用「任一能力」判定
+  /// 「该源可用于探索发现」；单个 Tab 是否可用再由各 Tab 自己按能力判。
   List<MusicPlatform> _availableSources() {
     final registry = musicSourceRegistry;
     if (registry == null) return const [];
@@ -139,7 +143,9 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
               settings.isFeatureEnabled(p, SourceFeature.discovery) &&
               (registry.capability<PlaylistCatalogSource>(p) != null ||
                   registry.capability<RankSource>(p) != null ||
-                  registry.capability<NewSongFeedSource>(p) != null),
+                  registry.capability<NewSongFeedSource>(p) != null ||
+                  registry.capability<NewAlbumFeedSource>(p) != null ||
+                  registry.capability<ArtistListSource>(p) != null),
         )
         .toList();
   }
@@ -152,10 +158,15 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     return available.contains(preferred) ? preferred : available.first;
   }
 
-  /// 新碟上架 / 歌手：本期只有酷狗有对应接口（网易无 `/weapi/album/new`、
-  /// `/weapi/artist/list` 实测口径），故非酷狗源整 Tab 出「暂不支持」空态；
-  /// 不做假入口，等网易接口实测通过后再补能力。
-  bool get _legacyCatalogSupported => _source == MusicPlatform.kugou;
+  /// 选中值不在该源本次选项里（首帧 / 切源）时回退首项；无选项则空串。
+  String _pickOption(List<({String id, String label})> options, String current) {
+    if (options.isEmpty) return '';
+    return options.any((o) => o.id == current) ? current : options.first.id;
+  }
+
+  /// 详情深链要带的源标记：酷狗是默认源，不带（同 `_playlistRoute`）。
+  String _srcSuffix(MusicPlatform platform) =>
+      platform == MusicPlatform.kugou ? '' : '?src=${platform.wireName}';
 
   void _switchTo(MusicPlatform platform) {
     if (platform == _source) return;
@@ -183,13 +194,16 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     _albums = const [];
     _albumsLoading = false;
     _albumsError = '';
+    _albumRegion = '';
     _newSongs = const [];
     _newSongsLoading = false;
     _newSongsError = '';
     _artists = const [];
     _artistsLoading = false;
     _artistsError = '';
-    _activeLetter = '全部';
+    _artistGender = '';
+    _artistStyle = '';
+    _artistInitial = '';
   }
 
   String _errorText(Object e, String fallback) =>
@@ -304,7 +318,9 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadAlbums() async {
-    if (!_legacyCatalogSupported) {
+    final source = _source;
+    final feed = _capability<NewAlbumFeedSource>(source);
+    if (feed == null) {
       setState(() {
         _albums = const [];
         _albumsLoading = false;
@@ -312,16 +328,25 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       });
       return;
     }
+    final region = _pickOption(feed.albumRegions, _albumRegion);
     setState(() {
+      _albumRegion = region;
       _albumsLoading = true;
       _albumsError = '';
     });
-    final result = await discoveryRepository.fetchNewAlbums(type: _albumType);
-    if (!mounted) return;
+    List<AlbumBrief> albums = const [];
+    var error = '';
+    try {
+      albums = await feed.newAlbums(region: region, pageSize: 30);
+    } catch (e) {
+      error = _errorText(e, '新碟加载失败，请检查网络后重试');
+    }
+    // 切源后到达的旧响应直接丢弃。
+    if (!mounted || source != _source) return;
     setState(() {
-      _albums = result.items;
+      _albums = albums;
       _albumsLoading = false;
-      _albumsError = result.error;
+      _albumsError = error;
     });
   }
 
@@ -356,7 +381,9 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Future<void> _loadArtists() async {
-    if (!_legacyCatalogSupported) {
+    final source = _source;
+    final artistSource = _capability<ArtistListSource>(source);
+    if (artistSource == null) {
       setState(() {
         _artists = const [];
         _artistsLoading = false;
@@ -364,36 +391,46 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       });
       return;
     }
+    final gender = _pickOption(artistSource.artistGenderOptions, _artistGender);
+    final style = _pickOption(artistSource.artistStyleOptions, _artistStyle);
+    final initialOptions = artistSource.artistInitialOptions;
+    final initial =
+        initialOptions.isEmpty ? '' : _pickOption(initialOptions, _artistInitial);
     setState(() {
+      _artistGender = gender;
+      _artistStyle = style;
+      _artistInitial = initial;
       _artistsLoading = true;
       _artistsError = '';
     });
-    final sex = int.tryParse(_artistSex) ?? 0;
-    final parts = _artistType.split(':');
-    final result = await discoveryRepository.fetchArtists(
-      sextype: sex,
-      type: int.tryParse(parts.elementAt(0)) ?? 0,
-      musician: int.tryParse(parts.elementAt(1)) ?? 0,
-    );
-    if (!mounted) return;
+    List<ArtistBrief> items = const [];
+    var error = '';
+    try {
+      items = await artistSource.artistList(
+        gender: gender,
+        style: style,
+        initial: initial,
+        pageSize: 30,
+      );
+    } catch (e) {
+      error = _errorText(e, '歌手加载失败，请检查网络后重试');
+    }
+    if (!mounted || source != _source) return;
     setState(() {
-      _artists = result.items;
+      _artists = items;
       _artistsLoading = false;
-      _artistsError = result.error;
-      if (_artists.isNotEmpty) {
-        final hot = _artists
-            .map((a) => a.letter)
-            .firstWhere((l) => l.isNotEmpty, orElse: () => '全部');
-        if (_activeLetter != '全部' &&
-            !_artists.any((a) => a.letter == _activeLetter)) {
-          _activeLetter = hot == '' ? '全部' : hot;
-        }
+      _artistsError = error;
+      // 字母取自响应（酷狗）时，取数后选项才会刷新 → 顺带校正选中值，
+      // 免得筛选条件变了（性别/流派）却把旧字母留在 chips 上。
+      final fresh = artistSource.artistInitialOptions;
+      if (fresh.isNotEmpty) {
+        _artistInitial = _pickOption(fresh, _artistInitial);
       }
     });
   }
 
   /// 榜单来源说明：同源榜单共用同一个 `rankTypeName` 时说明「共几个」——
-  /// 网易天生只有官方三榜，不说明用户容易以为漏了榜。
+  /// 网易一次返回多个官方榜（白名单 G11），不说明用户容易以为漏了榜。
   String get _rankHint {
     if (_ranks.isEmpty) return '';
     final labels = <String>{
@@ -405,12 +442,8 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   /// 非酷狗源必须带 `?src=`，详情页据此按源取数（同 common.dart `artistTapFor`）。
-  String _playlistRoute(PlaylistBrief playlist) {
-    final src = playlist.platform == MusicPlatform.kugou
-        ? ''
-        : '?src=${playlist.platform.wireName}';
-    return '/playlist/${playlist.id}$src';
-  }
+  String _playlistRoute(PlaylistBrief playlist) =>
+      '/playlist/${playlist.id}${_srcSuffix(playlist.platform)}';
 
   @override
   Widget build(BuildContext context) {
@@ -484,13 +517,13 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
                 _capability<RankSource>(active) == null
                     ? _unsupportedTab('排行榜')
                     : _buildRanksTab(kugo),
-                !_legacyCatalogSupported
+                _capability<NewAlbumFeedSource>(active) == null
                     ? _unsupportedTab('新碟上架')
                     : _buildAlbumsTab(kugo),
                 _capability<NewSongFeedSource>(active) == null
                     ? _unsupportedTab('新歌速递')
                     : _buildNewSongsTab(kugo),
-                !_legacyCatalogSupported
+                _capability<ArtistListSource>(active) == null
                     ? _unsupportedTab('歌手')
                     : _buildArtistsTab(kugo),
               ],
@@ -523,15 +556,18 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Widget _chipRow(List<Widget> children) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-      child: Row(children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          children[i],
-        ],
-      ]),
+    return KugoHScroll(
+      builder: (context, controller) => SingleChildScrollView(
+        controller: controller,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+        child: Row(children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            children[i],
+          ],
+        ]),
+      ),
     );
   }
 
@@ -665,26 +701,20 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Widget _buildAlbumsTab(KugoTheme kugo) {
-    final chips = [
-      for (final t in DiscoveryRepository.albumTypes)
-        ChoiceChip(
-          label: Text(t.label),
-          selected: _albumType == t.id,
-          onSelected: (_) {
-            if (_albumType == t.id) return;
-            setState(() => _albumType = t.id);
-            _loadAlbums();
-          },
-        ),
-    ];
+    final regions = _capability<NewAlbumFeedSource>(_source)?.albumRegions ??
+        const <({String id, String label})>[];
     return SmoothCustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: KugoSpacing.md),
-            child: _chipRow(chips),
+        if (regions.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: KugoSpacing.md),
+              child: _filterChips(regions, _albumRegion, (id) {
+                setState(() => _albumRegion = id);
+                _loadAlbums();
+              }),
+            ),
           ),
-        ),
         _gridSliver(
           loading: _albumsLoading,
           error: _albumsError,
@@ -696,7 +726,9 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
             final album = _albums[index];
             return _AlbumGridCard(
               album: album,
-              onTap: () => context.push('/album/${album.id}'),
+              onTap: () => context.push(
+                '/album/${album.id}${_srcSuffix(album.platform)}',
+              ),
             );
           },
         ),
@@ -735,37 +767,13 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Widget _buildArtistsTab(KugoTheme kugo) {
-    final sexChips = [
-      for (final t in DiscoveryRepository.artistSexTypes)
-        ChoiceChip(
-          label: Text(t.label),
-          selected: _artistSex == t.id,
-          onSelected: (_) {
-            if (_artistSex == t.id) return;
-            setState(() => _artistSex = t.id);
-            _loadArtists();
-          },
-        ),
-    ];
-    final typeChips = [
-      for (final t in DiscoveryRepository.artistTypes)
-        ChoiceChip(
-          label: Text(t.label),
-          selected: _artistType == t.id,
-          onSelected: (_) {
-            if (_artistType == t.id) return;
-            setState(() => _artistType = t.id);
-            _loadArtists();
-          },
-        ),
-    ];
-    final letters = <String>{'全部'};
-    for (final a in _artists) {
-      if (a.letter.isNotEmpty) letters.add(a.letter);
-    }
-    final visible = _activeLetter == '全部'
-        ? _artists
-        : _artists.where((a) => a.letter == _activeLetter).toList();
+    final artistSource = _capability<ArtistListSource>(_source);
+    final genders = artistSource?.artistGenderOptions ??
+        const <({String id, String label})>[];
+    final styles = artistSource?.artistStyleOptions ??
+        const <({String id, String label})>[];
+    final initials = artistSource?.artistInitialOptions ??
+        const <({String id, String label})>[];
 
     return SmoothCustomScrollView(
       slivers: [
@@ -775,20 +783,25 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _chipRow(sexChips),
-                const SizedBox(height: 8),
-                _chipRow(typeChips),
-                if (letters.length > 1) ...[
+                if (genders.isNotEmpty)
+                  _filterChips(genders, _artistGender, (id) {
+                    setState(() => _artistGender = id);
+                    _loadArtists();
+                  }),
+                if (styles.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  _chipRow([
-                    for (final l in letters)
-                      ChoiceChip(
-                        label: Text(l),
-                        selected: _activeLetter == l,
-                        onSelected: (_) =>
-                            setState(() => _activeLetter = l),
-                      ),
-                  ]),
+                  _filterChips(styles, _artistStyle, (id) {
+                    setState(() => _artistStyle = id);
+                    _loadArtists();
+                  }),
+                ],
+                // 首字母行：网易用 `initial` 入参，酷狗是响应分组（取数后才出现该项）。
+                if (initials.length > 1) ...[
+                  const SizedBox(height: 8),
+                  _filterChips(initials, _artistInitial, (id) {
+                    setState(() => _artistInitial = id);
+                    _loadArtists();
+                  }),
                 ],
               ],
             ),
@@ -797,10 +810,10 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
         _gridSliver(
           loading: _artistsLoading,
           error: _artistsError,
-          empty: visible.isEmpty,
+          empty: _artists.isEmpty,
           emptyMessage: '暂无歌手',
           onRetry: _loadArtists,
-          itemCount: visible.length,
+          itemCount: _artists.length,
           // 歌手头像要比歌单封面更碎：宽屏 8 列会把圆撑到 300px+。
           // 0.78 留出「圆 + 间距 + 名字」的高度，避免 BOTTOM OVERFLOW。
           preferredExtent: 112,
@@ -808,16 +821,37 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
           mobileAspectRatio: 0.78,
           desktopAspectRatio: 0.78,
           itemBuilder: (context, index) {
-            final artist = visible[index];
+            final artist = _artists[index];
             return _ArtistGridCard(
               artist: artist,
-              onTap: () => context.push('/artist/${artist.id}'),
+              onTap: () => context.push(
+                '/artist/${artist.id}${_srcSuffix(artist.platform)}',
+              ),
             );
           },
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
     );
+  }
+
+  /// 一行筛选 chips；取值与顺序全部来自能力，选中项原样回传给实现。
+  Widget _filterChips(
+    List<({String id, String label})> options,
+    String current,
+    ValueChanged<String> onPick,
+  ) {
+    return _chipRow([
+      for (final o in options)
+        ChoiceChip(
+          label: Text(o.label),
+          selected: current == o.id,
+          onSelected: (_) {
+            if (current == o.id) return;
+            onPick(o.id);
+          },
+        ),
+    ]);
   }
 
   Widget _gridSliver({
@@ -1054,7 +1088,7 @@ class _AlbumGridCard extends StatelessWidget {
 class _ArtistGridCard extends StatelessWidget {
   const _ArtistGridCard({required this.artist, required this.onTap});
 
-  final DiscoveryArtist artist;
+  final ArtistBrief artist;
   final VoidCallback onTap;
 
   @override

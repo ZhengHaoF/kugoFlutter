@@ -12,6 +12,7 @@ import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankCardSurface, rankHeroFlightShuttle;
 import '../../core/theme/hero_tags.dart';
@@ -457,22 +458,25 @@ class _RankStrip extends StatelessWidget {
         return SizedBox(
           // 卡片等比缩放，高度跟着走，封面裁切与文字比例保持不变。
           height: cardWidth / _aspectRatio,
-          child: ListView.separated(
-            key: const ValueKey('explore_rank_strip'),
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: side),
-            itemCount: count,
-            separatorBuilder: (_, _) => const SizedBox(width: _gap),
-            itemBuilder: (context, index) {
-              final rank = ranks[index];
-              return SizedBox(
-                width: cardWidth,
-                child: _RankingCard(
-                  rank: rank,
-                  onTap: () => onRankTap(rank),
-                ),
-              );
-            },
+          child: KugoHScroll(
+            builder: (context, controller) => ListView.separated(
+              key: const ValueKey('explore_rank_strip'),
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: side),
+              itemCount: count,
+              separatorBuilder: (_, _) => const SizedBox(width: _gap),
+              itemBuilder: (context, index) {
+                final rank = ranks[index];
+                return SizedBox(
+                  width: cardWidth,
+                  child: _RankingCard(
+                    rank: rank,
+                    onTap: () => onRankTap(rank),
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
@@ -555,21 +559,24 @@ class _PlaylistStrip extends StatelessWidget {
 
         return SizedBox(
           height: cardWidth + _belowCover,
-          child: ListView.separated(
-            key: const ValueKey('explore_playlist_strip'),
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: side),
-            itemCount: count,
-            separatorBuilder: (_, _) => const SizedBox(width: _gap),
-            itemBuilder: (context, index) {
-              final playlist = playlists[index];
-              return PlaylistCard(
-                playlist: playlist,
-                width: cardWidth,
-                platform: platform,
-                onTap: () => onTap(playlist),
-              );
-            },
+          child: KugoHScroll(
+            builder: (context, controller) => ListView.separated(
+              key: const ValueKey('explore_playlist_strip'),
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: side),
+              itemCount: count,
+              separatorBuilder: (_, _) => const SizedBox(width: _gap),
+              itemBuilder: (context, index) {
+                final playlist = playlists[index];
+                return PlaylistCard(
+                  playlist: playlist,
+                  width: cardWidth,
+                  platform: platform,
+                  onTap: () => onTap(playlist),
+                );
+              },
+            ),
           ),
         );
       },
