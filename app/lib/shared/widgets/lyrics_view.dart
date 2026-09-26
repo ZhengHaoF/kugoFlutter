@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,6 +44,18 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   /// 上次渲染时的行盒高度。字号/行间距倍率或副行开关变化都会改变它，
   /// 此时需重新居中当前行——否则滚动偏移仍按旧行高算，当前行会跑偏。
   double _lastExtent = 0;
+
+  /// 用户手动翻看的宽限期计时器。非空 = 处于手动态。
+  Timer? _manualTimer;
+
+  /// 手动态期间不跟随播放进度，否则下一次 tick 会把用户拽回当前行。
+  bool get _isManual => _manualTimer != null;
+
+  /// 配置变化触发的重新居中只需要排一帧就够了，重复排队会连续抢滚动。
+  bool _recenterQueued = false;
+
+  /// 手动介入后停留多久自动恢复跟随。
+  static const _resumeDelay = Duration(seconds: 4);
 
   int get activeIndex {
     var active = 0;
@@ -87,7 +101,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
       _scrollToActive(animated: false);
     });
   }
-
   @override
   void didUpdateWidget(covariant LyricsView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -95,15 +108,52 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         widget.lines.isNotEmpty &&
         (activeIndex != _lastActive || oldWidget.lines.isEmpty)) {
       _lastActive = activeIndex;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _scrollToActive();
-      });
+      // 手动态下只更新「认准的行」，不动滚动位置。
+      if (_isManual) return;
+      _queueRecenter(animated: true);
     }
+  }
+
+  /// 排一帧后重新居中去重调用者——行高/视口变化时 build 里可能会连着算好几帧。
+  void _queueRecenter({bool animated = false}) {
+    if (_recenterQueued) return;
+    _recenterQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recenterQueued = false;
+      if (!mounted || widget.compact || widget.lines.isEmpty) return;
+      _scrollToActive(animated: animated);
+    });
+  }
+
+  /// 进入「用户手动态」：[_resumeDelay] 内暂停自动跟随。
+  ///
+  /// 桌面端用滚轮/触摸板翻歌词、移动端拖拽都一样处理：没有这段宽限期的话，
+  /// 下一次进度 tick 会立刻把视图拽回当前行，用户看起来像「歌词滚不动」。
+  void _enterManualMode() {
+    _manualTimer?.cancel();
+    final wasManual = _manualTimer != null;
+    _manualTimer = Timer(_resumeDelay, () {
+      _manualTimer = null;
+      if (!mounted) return;
+      setState(() {});
+      _scrollToActive();
+    });
+    // 第一次进入时要重建一份手动态 UI（「回到当前行」按钮）。
+    if (!wasManual && mounted) setState(() {});
+  }
+
+  /// 点「回到当前行」：立刻恢复跟随，不等宽限期。
+  void _resumeFollow() {
+    _manualTimer?.cancel();
+    _manualTimer = null;
+    if (mounted) setState(() {});
+    _scrollToActive();
   }
 
   /// Scroll so the **active line is vertically centered** in the viewport.
   void _scrollToActive({bool animated = true}) {
     if (!_controller.hasClients) return;
+    if (_isManual && animated) return;
     final pos = _controller.position;
     final viewport = pos.viewportDimension;
     final padTop = _verticalPad(viewport);
@@ -124,6 +174,8 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
 
   @override
   void dispose() {
+    _manualTimer?.cancel();
+    _manualTimer = null;
     _controller.dispose();
     super.dispose();
   }
@@ -163,10 +215,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     // 此处已排除 lines 为空的情况（上方提前返回）。
     if ((extent - _lastExtent).abs() > 0.01) {
       _lastExtent = extent;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || widget.compact || widget.lines.isEmpty) return;
-        _scrollToActive(animated: false);
-      });
+      _queueRecenter();
     }
 
     return LayoutBuilder(
@@ -175,10 +224,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
         if (viewport.isFinite && viewport > 0) {
           if ((viewport - _lastViewport).abs() > 0.5) {
             _lastViewport = viewport;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted || widget.compact || widget.lines.isEmpty) return;
-              _scrollToActive(animated: false);
-            });
+            _queueRecenter();
           }
         }
         final vPad = viewport.isFinite && viewport > 0
@@ -276,29 +322,58 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
         );
-        return ScrollConfiguration(
-          behavior: noBars,
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (_) => true,
-            child: desktop
-                ? ShaderMask(
-                    shaderCallback: (rect) {
-                      return const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0x00000000),
-                          Color(0xFF000000),
-                          Color(0xFF000000),
-                          Color(0x00000000),
-                        ],
-                        stops: [0.0, 0.12, 0.88, 1.0],
-                      ).createShader(rect);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: content,
-                  )
-                : content,
+        final masked = desktop
+            ? ShaderMask(
+                shaderCallback: (rect) {
+                  return const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x00000000),
+                      Color(0xFF000000),
+                      Color(0xFF000000),
+                      Color(0x00000000),
+                    ],
+                    stops: [0.0, 0.12, 0.88, 1.0],
+                  ).createShader(rect);
+                },
+                blendMode: BlendMode.dstIn,
+                child: content,
+              )
+            : content;
+
+        return Listener(
+          // 桌面滚轮/触摸板不会带 dragDetails，只能从 pointer signal 认出来。
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) _enterManualMode();
+          },
+          child: ScrollConfiguration(
+            behavior: noBars,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                // 拖拽（移动端手指 / 桌面按住滑）只有用户发起时才带 dragDetails。
+                if (notification is ScrollStartNotification &&
+                    notification.dragDetails != null) {
+                  _enterManualMode();
+                }
+                return true;
+              },
+              child: Stack(
+                children: [
+                  masked,
+                  // 「回到当前行」放在遮罩之外，否则会被上下渐隐吃掉透明度。
+                  if (_isManual)
+                    Positioned(
+                      right: desktop ? 24 : 12,
+                      bottom: desktop ? 20 : 12,
+                      child: _ResumeFollowChip(
+                        kugo: kugo,
+                        onTap: _resumeFollow,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -399,6 +474,59 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
           ? kugo.textSecondary
           : kugo.textSecondary.withValues(alpha: 0.7),
       height: 1.25,
+    );
+  }
+}
+
+/// 手动翻歌词期间浮出的「回到当前行」。
+///
+/// 点一下立刻恢复跟随；不点则等宽限期结束自动回来。
+class _ResumeFollowChip extends StatelessWidget {
+  const _ResumeFollowChip({required this.kugo, required this.onTap});
+
+  final KugoTheme kugo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '回到正在播放的那一行',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: kugo.surface.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: kugo.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.my_location_rounded, size: 14, color: kugo.primary),
+                const SizedBox(width: 6),
+                Text(
+                  '回到当前行',
+                  style: kugo.caption.copyWith(
+                    fontSize: 12,
+                    color: kugo.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
