@@ -177,7 +177,7 @@ void main() {
     );
 
     testWidgets(
-      'Mobile narrow screen hides dock on subpages, keeping full-screen experience',
+      'Mobile narrow screen drops the dock on subpages but keeps the mini player bar',
       (tester) async {
         tester.view.physicalSize = const Size(400, 800);
         tester.view.devicePixelRatio = 1.0;
@@ -209,9 +209,12 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 400));
 
-        // Subpage on mobile: dock and mini bar are hidden
+        // Subpage on mobile: the tab dock is gone (deep pages shouldn't carry
+        // the tab bar), but the mini player must stay — otherwise starting a
+        // track from /daily and coming back leaves no playback entry at all.
         expect(find.byType(DailyRecommendPage), findsOneWidget);
-        expect(find.byType(MiniPlayerBar), findsNothing);
+        expect(find.text('发现'), findsNothing);
+        expect(find.byType(MiniPlayerBar), findsOneWidget);
       },
     );
   });

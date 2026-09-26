@@ -194,16 +194,15 @@ class _RootShellState extends ConsumerState<RootShell>
       );
     }
 
-    final isMainTab = widget.location == '/explore' ||
-        widget.location == '/profile' ||
-        widget.location == '/';
-
-    if (!isMainTab) {
-      return Scaffold(
-        backgroundColor: kugo.bg,
-        body: widget.child,
-      );
-    }
+    // 全屏路由（/player、/player/lyrics、/login、/netease-login）挂在 shell
+    // 之外，压根不会渲染本组件；能走进来的都是两个主 branch 内的路径。
+    //
+    // 所以**不再按路由字面值判断**要不要播放条：二级页（歌单/专辑/歌手/榜单/
+    // 历史/我喜欢/设置/个人中心/搜索…）同样要挂 MiniPlayerBar，否则在详情页
+    // 起一首歌再返回，底部既看不到在播什么、也没有回播放器的入口。
+    // 只有底部 Tab 栏是主 tab 专属——深页带 tab 会把层级关系画错。
+    final isMainTab =
+        widget.location == '/explore' || widget.location == '/profile';
 
     final index = _indexOf(widget.location);
     // easeOutBack — light Dock bounce without looking springy-cheap.
@@ -233,19 +232,21 @@ class _RootShellState extends ConsumerState<RootShell>
           const _SingleSourceHint(),
         ],
       ),
-      bottomNavigationBar: _DockNavBar(
-        index: index,
-        bounce: bounceT,
-        tabs: _tabs,
-        onTap: (i) {
-          switch (i) {
-            case 0:
-              _goTo(0, '/explore');
-            case 1:
-              _goTo(1, '/profile');
-          }
-        },
-      ),
+      bottomNavigationBar: isMainTab
+          ? _DockNavBar(
+              index: index,
+              bounce: bounceT,
+              tabs: _tabs,
+              onTap: (i) {
+                switch (i) {
+                  case 0:
+                    _goTo(0, '/explore');
+                  case 1:
+                    _goTo(1, '/profile');
+                }
+              },
+            )
+          : null,
     );
   }
 }
