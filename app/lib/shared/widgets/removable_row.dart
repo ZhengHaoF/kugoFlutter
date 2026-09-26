@@ -20,6 +20,7 @@ class RemovableRow extends StatefulWidget {
     required this.onRemove,
     required this.onUndo,
     required this.message,
+    this.onCommit,
   });
 
   /// 第二个参数是「请求删除」，接到行的删除按钮上。
