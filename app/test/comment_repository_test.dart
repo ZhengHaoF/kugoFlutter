@@ -381,7 +381,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('${ct}${device.mid}$payload'),
+      KugoSign.signParamsKey('$ct${device.mid}$payload'),
     );
   });
 
@@ -467,7 +467,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('${ct}${device.mid}'),
+      KugoSign.signParamsKey('$ct${device.mid}'),
     );
   });
 
