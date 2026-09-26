@@ -83,12 +83,18 @@ class _CoverBoxState extends State<CoverBox> {
   Widget build(BuildContext context) {
     // 封面出来（或 seed 换了退回占位）时做交叉淡入——直接硬切会出现
     // 「一片渐变占位 → 图片齐刷刷蹦出来」，列表尤其明显。
+    //
+    // 关键：AnimatedSwitcher 默认 layoutBuilder 的 Stack 对子级是**松约束**，
+    // 且 Stack 收缩到最大子级——交叉淡入一结束、占位层（Align 会撑满）被
+    // 移走，没给显式宽高的 Image 就缩回固有尺寸，「封面没占满位置」就是这么
+    // 来的。fill 模式必须用 StackFit.expand 把两层都钉死在容器尺寸上。
     if (widget._fillsParent) {
       return SizedBox.expand(
         child: AnimatedSwitcher(
           duration: _kCoverFade,
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
+          layoutBuilder: _expandLayout,
           child: _content(fill: true),
         ),
       );
@@ -98,6 +104,15 @@ class _CoverBoxState extends State<CoverBox> {
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
       child: _content(fill: false),
+    );
+  }
+
+  /// 交叉淡入的层都铺满容器（fill 模式专用）。
+  Widget _expandLayout(Widget? currentChild, List<Widget> previousChildren) {
+    return Stack(
+      fit: StackFit.expand,
+      alignment: Alignment.center,
+      children: [...previousChildren, if (currentChild != null) currentChild],
     );
   }
 
