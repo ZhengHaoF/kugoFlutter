@@ -17,6 +17,7 @@ import '../../core/theme/hero_tags.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart' show CoverHero;
+import '../../shared/widgets/removable_row.dart';
 import 'likes_controller.dart';
 import 'netease_likes_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -77,13 +78,25 @@ class _LikesPageState extends ConsumerState<LikesPage>
   /// （只有一个源时不筛选，见方案 §11「切换音源」轻量机制）。
   MusicPlatform? _sourceFilter;
 
+  /// 上一次渲染时用的 Tab 索引。
+  int _tabIndex = 0;
+
+  /// 只在索引**真的变了**时重建。
+  ///
+  /// 原来这里无条件 setState：TabBarView 拖动期间 offset 每帧都在变，
+  /// 三个 Tab 的列表（歌单/歌手/专辑）会被逐帧重编一遍。
+  void _onTabChanged() {
+    if (!mounted) return;
+    if (_tabController.index == _tabIndex) return;
+    _tabIndex = _tabController.index;
+    setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _tabController.addListener(_onTabChanged);
     _sourceFilter = _registeredPlatforms().length > 1
         ? ref.read(settingsControllerProvider).effectiveDefaultSource
         : null;
@@ -543,23 +556,11 @@ class _LikesPageState extends ConsumerState<LikesPage>
                     // 红心只对酷狗曲目生效：网易侧取消红心的写口未实测，
                     // 误点会拿网易 songId 去打酷狗删曲（见接口文档 §五 F4/F5）。
                     final isKugou = track.platform == MusicPlatform.kugou;
-                    return TrackTile(
+                    final tile = TrackTile(
                       track: track,
                       isPlaying: player.current?.id == track.id &&
                           player.isPlaying,
                       showSource: _sourceFilter == null && platforms.length > 1,
-                      trailing: isKugou
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.favorite_rounded,
-                                color: Color(0xFFE87A90),
-                                size: 20,
-                              ),
-                              onPressed: () => ref
-                                  .read(likesProvider.notifier)
-                                  .removeTrack(track),
-                            )
-                          : null,
                       onArtistTap: artistTapFor(context, track),
                       onTap: () {
                         ref
@@ -567,6 +568,38 @@ class _LikesPageState extends ConsumerState<LikesPage>
                             .playQueue(displayed, startIndex: index);
                         context.push('/player');
                       },
+                    );
+                    // 非酷狗曲目没有可信的取消红心写口，保持跟原来一致（不给按钮）。
+                    if (!isKugou) return tile;
+                    return RemovableRow(
+                      message: '已取消喜欢',
+                      onRemove: () =>
+                          ref.read(likesProvider.notifier).removeTrack(track),
+                      onUndo: () =>
+                          ref.read(likesProvider.notifier).toggle(track),
+                      builder: (context, requestRemove) => TrackTile(
+                        track: track,
+                        isPlaying: player.current?.id == track.id &&
+                            player.isPlaying,
+                        showSource:
+                            _sourceFilter == null && platforms.length > 1,
+                        trailing: IconButton(
+                          tooltip: '取消喜欢',
+                          icon: const Icon(
+                            Icons.favorite_rounded,
+                            color: Color(0xFFE87A90),
+                            size: 20,
+                          ),
+                          onPressed: requestRemove,
+                        ),
+                        onArtistTap: artistTapFor(context, track),
+                        onTap: () {
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playQueue(displayed, startIndex: index);
+                          context.push('/player');
+                        },
+                      ),
                     );
                   },
                 ),

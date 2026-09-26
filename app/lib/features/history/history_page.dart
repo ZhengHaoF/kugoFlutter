@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../data/storage/queue_store.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/removable_row.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class HistoryPage extends ConsumerStatefulWidget {
@@ -37,6 +40,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
 
   @override
   void dispose() {
+    // 页面走人但 SnackBar 还没走完的删除：补落库，别悄悄丢掉。
+    for (final id in _pendingDeletes.keys.toList()) {
+      unawaited(_commitDelete(id));
+    }
     _searchController.dispose();
     super.dispose();
   }
@@ -60,20 +67,60 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     }
   }
 
-  Future<void> _deleteItem(String trackId) async {
+  /// 待真正落库的删除：SnackBar 还在时只从内存里摘掉，撤销直接放回原位，
+  /// 只有 SnackBar 走完了才去删库——省一条「按原 playedAt 回写」的写口。
+  final Map<String, ({int index, HistoryEntry entry})> _pendingDeletes = {};
+  final Set<String> _committedDeletes = {};
+
+  /// [animate] 为 false 时只做事、不弹 SnackBar——滑删（Dismissible）和
+  /// RemovableRow 各自负责动画与提示，这里就不再重复弹一次。
+  Future<void> _deleteItem(String trackId, {bool animate = true}) async {
+    final index = _entries.indexWhere((e) => e.track.id == trackId);
+    if (index < 0) return;
+    final entry = _entries[index];
+    if (!mounted) return;
+    setState(() {
+      _entries = _entries.where((e) => e.track.id != trackId).toList();
+      _pendingDeletes[trackId] = (index: index, entry: entry);
+    });
+    if (!animate) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final closed = messenger.showSnackBar(
+      SnackBar(
+        content: const Text('已从播放历史中移除'),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: '撤销',
+          onPressed: () => _undoDelete(trackId),
+        ),
+      ),
+    ).closed;
+    unawaited(closed.then((reason) {
+      if (reason == SnackBarClosedReason.action) return;
+      unawaited(_commitDelete(trackId));
+    }));
+  }
+
+  Future<void> _undoDelete(String trackId) async {
+    final pending = _pendingDeletes.remove(trackId);
+    if (pending == null || !mounted) return;
+    setState(() {
+      final next = List<HistoryEntry>.of(_entries);
+      // clamp 返回 num，这里要 int；原索引可能被后来的删除挤到越界。
+      final at = pending.index > next.length ? next.length : pending.index;
+      next.insert(at, pending.entry);
+      _entries = next;
+    });
+  }
+
+  Future<void> _commitDelete(String trackId) async {
+    if (_pendingDeletes.remove(trackId) == null) return;
+    if (!_committedDeletes.add(trackId)) return;
     try {
       final store = await QueueStore.open();
       await store.deleteHistory(trackId);
-      if (!mounted) return;
-      setState(() {
-        _entries = _entries.where((e) => e.track.id != trackId).toList();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已从播放历史中移除'),
-          duration: Duration(seconds: 1),
-        ),
-      );
     } catch (_) {}
   }
 
@@ -311,28 +358,36 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   padding: const EdgeInsets.only(right: 20),
                   child: const Icon(Icons.delete_rounded, color: Colors.white),
                 ),
-                onDismissed: (_) => _deleteItem(track.id),
-                child: TrackTile(
-                  track: track,
-                  // 历史是跨源混排的，标明每首来自哪个音源。
-                  showSource: true,
-                  isPlaying: player.current?.id == track.id && player.isPlaying,
-                  trailing: IconButton(
-                    icon: Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: kugo.textSecondary.withValues(alpha: 0.6),
+                onDismissed: (_) => _deleteItem(track.id, animate: false),
+                child: RemovableRow(
+                  message: '已从播放历史中移除',
+                  // 只动内存：撤销要能按原位置放回去。
+                  onRemove: () => _deleteItem(track.id, animate: false),
+                  onUndo: () => _undoDelete(track.id),
+                  onCommit: () => _commitDelete(track.id),
+                  builder: (context, requestRemove) => TrackTile(
+                    track: track,
+                    // 历史是跨源混排的，标明每首来自哪个音源。
+                    showSource: true,
+                    isPlaying:
+                        player.current?.id == track.id && player.isPlaying,
+                    trailing: IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: kugo.textSecondary.withValues(alpha: 0.6),
+                      ),
+                      tooltip: '从历史移除',
+                      onPressed: requestRemove,
                     ),
-                    tooltip: '从历史移除',
-                    onPressed: () => _deleteItem(track.id),
+                    onArtistTap: artistTapFor(context, track),
+                    onTap: () {
+                      ref
+                          .read(playerControllerProvider.notifier)
+                          .playQueue(filteredTracks, startIndex: index);
+                      context.push('/player');
+                    },
                   ),
-                  onArtistTap: artistTapFor(context, track),
-                  onTap: () {
-                    ref
-                        .read(playerControllerProvider.notifier)
-                        .playQueue(filteredTracks, startIndex: index);
-                    context.push('/player');
-                  },
                 ),
               );
             },
