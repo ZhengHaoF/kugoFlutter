@@ -93,6 +93,39 @@ final _routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
+      // 歌曲详情：**顶级路由**（与 /player、/login 同层）。
+      //
+      // 必须放这儿，不能塞进下面的 StatefulShellBranch —— 否则从顶级路由
+      // （播放页 `/player`、玩家页 `/player/lyrics`）push 它时，go_router 生成的
+      // match list 里会同时出现「shell 的 page」与「imperative 携带的 shell page」，
+      // 二者共用同一个 `ShellRouteMatch.pageKey`（`ValueKey(route.hashCode)`，见
+      // go_router `src/match.dart`），于是 NavigatorState 的
+      // _debugCheckDuplicatedPageKeys 断言失败：
+      //   '!keyReservation.contains(key)': is not true.
+      // 也不能用 `parentNavigatorKey: kugoNavigatorKey` 绕 —— go_router 在
+      // `route.dart:481` 明确断言「branch 内子路由的 parentNavigatorKey 必须为 null
+      // 或等于该 branch 自己的 navigatorKey」，那样会在**构造路由表时**直接崩。
+      // 想让它渲染在根 navigator，唯一正确做法就是定义在顶级。
+      GoRoute(
+        path: '/song',
+        pageBuilder: (context, state) {
+          final q = state.uri.queryParameters;
+          return MaterialPage(
+            child: SongDetailPage(
+              id: q['id'] ?? '',
+              // 玩家页传的是 `platform`；兼容深链惯用的 `src`。
+              platform: MusicPlatform.fromWire(q['platform'] ?? q['src'] ?? ''),
+              name: q['name'] ?? '',
+              artist: q['artist'] ?? '',
+              album: q['album'] ?? '',
+              coverUrl: q['cover'] ?? '',
+              hash: q['hash'] ?? '',
+              mixSongId: q['mixSongId'] ?? '',
+              durationMs: int.tryParse(q['duration'] ?? '') ?? 0,
+            ),
+          );
+        },
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return RootShell(location: state.uri.path, child: navigationShell);
@@ -204,28 +237,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 pageBuilder: (context, state) =>
                     MaterialPage(child: const SearchPage()),
               ),
-              GoRoute(
-                path: '/song',
-                pageBuilder: (context, state) {
-                  final q = state.uri.queryParameters;
-                  return MaterialPage(
-                    child: SongDetailPage(
-                      id: q['id'] ?? '',
-                      // 玩家页传的是 `platform`；兼容深链惯用的 `src`。
-                      platform: MusicPlatform.fromWire(
-                        q['platform'] ?? q['src'] ?? '',
-                      ),
-                      name: q['name'] ?? '',
-                      artist: q['artist'] ?? '',
-                      album: q['album'] ?? '',
-                      coverUrl: q['cover'] ?? '',
-                      hash: q['hash'] ?? '',
-                      mixSongId: q['mixSongId'] ?? '',
-                      durationMs: int.tryParse(q['duration'] ?? '') ?? 0,
-                    ),
-                  );
-                },
-              ),
+              // 注：`/song` 已上提到**顶级路由**（见本文件 routes 开头），
+              // 不能留在 branch 里 —— 原因见那里的注释。
             ],
           ),
           StatefulShellBranch(
