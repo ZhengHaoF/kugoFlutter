@@ -6,6 +6,7 @@ import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/profile/profile_page.dart';
 import 'package:kugo/shared/widgets/common.dart';
 import 'package:kugo/shared/widgets/mini_player_bar.dart';
+import 'package:kugo/shared/widgets/player_icon_buttons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
@@ -18,6 +19,10 @@ Track _track(String id, {String name = '', String artist = 'artist'}) => Track(
       coverUrl: 'mock://$id',
       durationMs: 120000,
     );
+
+/// 取迷你条上那个播放/暂停形态图标（同一时刻只会有一个）。
+PlayPauseIcon _playPause(WidgetTester tester) =>
+    tester.widget<PlayPauseIcon>(find.byType(PlayPauseIcon));
 
 void main() {
   testWidgets('TrackTile shows name and artist', (tester) async {
@@ -50,20 +55,21 @@ void main() {
     );
     // Empty queue → hidden
     expect(find.byType(MiniPlayerBar), findsOneWidget);
-    expect(find.byIcon(Icons.play_arrow_rounded), findsNothing);
+    expect(find.byType(PlayPauseIcon), findsNothing);
 
     final controller = container.read(playerControllerProvider.notifier);
     await controller.playQueue([_track('a', name: '唯一')]);
     await tester.pump();
 
     expect(find.text('唯一'), findsOneWidget);
-    expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+    // 播放/暂停现在是 AnimatedIcon 变形（PlayPauseIcon），不再是 IconData
+    // 硬切换，所以按组件状态断言而不是按 byIcon 找图标。
+    expect(_playPause(tester).playing, isTrue);
 
     controller.togglePlay();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.pause_rounded), findsNothing);
+    expect(_playPause(tester).playing, isFalse);
   });
 
   testWidgets('Profile shortcut tiles open their sheets', (tester) async {
