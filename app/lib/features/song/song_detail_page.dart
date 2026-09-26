@@ -79,6 +79,16 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   String _classifyId = '';
   String _hotword = '';
 
+  /// chips 的**选项列表** —— 这是歌曲级元数据（这首歌有哪些分类 / 热词），
+  /// 只有「全部档 + 无筛选」那一个请求（`cmtlist`）的响应会带。
+  ///
+  /// **必须独立于 `_comments` 存**：分类/热词接口**不返回**筛选项，若直接读
+  /// `_comments.classifyList`，点一下 chip 就会整页替换 `_comments` → 选项变空
+  /// → chips 行整行消失 → 那个 chip 再也点不到，于是无法取消筛选
+  /// （只能退出重进）。见 `docs/评论接入评估.md` §14。
+  List<CommentFilterOption> _classifyOptions = const [];
+  List<CommentFilterOption> _hotwordOptions = const [];
+
   /// 精彩评论。游客态实测拿不到（接口返回空），空就不显示这一块。
   List<Comment> _featured = const [];
 
@@ -129,6 +139,12 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       }
     });
 
+    // 只有「全部档 + 无筛选」这一路请求（cmtlist）的响应带筛选项；
+    // 点了 chip 之后走的是分类/热词接口，它不返回，所以那时**不要**覆盖，
+    // chips 行才能一直留在屏幕上（否则取消入口跟着消失）。
+    final refreshesFilters =
+        _sort == CommentSort.all && _classifyId.isEmpty && _hotword.isEmpty;
+
     final page = await _fetchPage(source, 1);
     final err = source.lastError;
 
@@ -143,13 +159,17 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
         return;
       }
       _comments = page;
+      if (refreshesFilters) {
+        _classifyOptions = page.classifyList;
+        _hotwordOptions = page.hotwordList;
+      }
       _loadedPage = 1;
       _lastPageFull = page.items.length >= _pageSize;
       _error = '';
     });
 
     // 精彩评论只在「全部」且未筛选时补一块；游客态拿不到就是空，不显示。
-    if (_sort == CommentSort.all && _classifyId.isEmpty && _hotword.isEmpty) {
+    if (refreshesFilters) {
       unawaited(_loadFeatured());
     }
   }
@@ -174,6 +194,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       _lastPageFull = page.items.length >= _pageSize;
       if (page.items.isEmpty) return;
       _loadedPage = next;
+      // 筛选项不在这里续 —— 它是页面状态（`_classifyOptions` / `_hotwordOptions`），
+      // 不跟着「一页评论」走，见字段注释。
       _comments = CommentPage(
         items: [..._comments.items, ...page.items],
         total: page.total > 0 ? page.total : _comments.total,
@@ -181,9 +203,6 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
             ? page.childrenId
             : _comments.childrenId,
         maxPage: page.maxPage > 0 ? page.maxPage : _comments.maxPage,
-        // 筛选项只有首屏响应带，翻页时必须原样续上，否则 chips 会消失。
-        classifyList: _comments.classifyList,
-        hotwordList: _comments.hotwordList,
       );
     });
   }
@@ -596,16 +615,19 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   }
 
   /// 分类 / 热词 chips。只在「全部」档出现；没有筛选项时整行收起。
+  ///
+  /// 读的是页面状态里的选项（**不是** `_comments.classifyList`）——
+  /// 否则点一下就整行消失。详见字段注释。
   Widget _filterChipsRow(KugoTheme kugo) {
     final options = <Widget>[
-      for (final c in _comments.classifyList)
+      for (final c in _classifyOptions)
         _chip(
           kugo,
           label: c.count > 0 ? '${c.label} ${formatCount(c.count)}' : c.label,
           selected: _classifyId == c.id,
           onTap: () => _selectClassify(c.id),
         ),
-      for (final w in _comments.hotwordList)
+      for (final w in _hotwordOptions)
         _chip(
           kugo,
           label: '#${w.label}',
@@ -626,6 +648,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     );
   }
 
+  /// 一个筛选 chip。**选中态右侧带 ✕** —— 提示「再点一次即取消」，
+  /// 否则用户看不出还能退出筛选（点整块任意处都算取消）。
   Widget _chip(
     KugoTheme kugo, {
     required String label,
@@ -638,7 +662,12 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.only(
+            left: 12,
+            right: selected ? 8 : 12,
+            top: 6,
+            bottom: 6,
+          ),
           decoration: BoxDecoration(
             color: selected
                 ? kugo.primary.withValues(alpha: 0.14)
@@ -646,12 +675,21 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: selected ? kugo.primary : kugo.divider),
           ),
-          child: Text(
-            label,
-            style: kugo.caption.copyWith(
-              color: selected ? kugo.primary : kugo.textSecondary,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: kugo.caption.copyWith(
+                  color: selected ? kugo.primary : kugo.textSecondary,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: 4),
+                Icon(Icons.close_rounded, size: 14, color: kugo.primary),
+              ],
+            ],
           ),
         ),
       ),
