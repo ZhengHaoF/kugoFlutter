@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -53,6 +53,17 @@ class DesktopShell with WindowListener {
 
   Future<void> _start() async {
     await windowManager.ensureInitialized();
+    // 窗口标题与尺寸下限：
+    // - 之前没有 setTitle，任务栏 / Alt+Tab 上窗口名是空的；
+    // - minimumSize 兜住 isDesktopView 的 800px 判据——拖窄过 800 会整容成手机
+    //   布局（侧栏消失、底部 dock 出现），这在桌面端不像同一款软件。
+    // 刻意不设 size / center：保留用户上次调过的窗口尺寸与位置。
+    await windowManager.waitUntilReadyToShow(
+      const WindowOptions(
+        title: 'kugo',
+        minimumSize: Size(900, 640),
+      ),
+    );
     // 始终拦截原生关闭：关到托盘或真正退出都由我们决定，
     // 避免 win32 SetQuitOnClose 在 hide 前把进程带走。
     await windowManager.setPreventClose(true);
