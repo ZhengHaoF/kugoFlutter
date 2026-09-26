@@ -277,8 +277,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             SliverToBoxAdapter(
               child: _RankStrip(
                 ranks: _rankings,
-                onRankTap: (rank) =>
-                    context.push('/rank/${rank.id}', extra: rank),
+                // 非酷狗榜单必须带 src，否则详情页按酷狗口径加载必然失败
+                // （与 profile 页歌单跳转同一约定）。
+                onRankTap: (rank) => context.push(
+                  '/rank/${rank.id}${_rankSrc(rank)}',
+                  extra: rank,
+                ),
               ),
             ),
           ],
@@ -312,7 +316,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 onAction: () {
                   final board = _hotBoard;
                   if (board != null) {
-                    context.push('/rank/${board.id}', extra: board);
+                    context.push('/rank/${board.id}${_rankSrc(board)}',
+                        extra: board);
                   } else {
                     context.push('/ranks');
                   }
@@ -409,6 +414,12 @@ PlaylistBrief? _pickHotBoard(List<PlaylistBrief> ranks) {
   }
   return hot ?? top ?? (ranks.isEmpty ? null : ranks.first);
 }
+
+/// 非酷狗源的详情路由必须带 `?src=`，否则 `MusicPlatform.fromWire('')`
+/// 会兜底成酷狗（与 profile 页的约定一致）。
+String _rankSrc(PlaylistBrief rank) => rank.platform == MusicPlatform.kugou
+    ? ''
+    : '?src=${rank.platform.wireName}';
 
 /// 发现页「排行榜」横排。
 ///

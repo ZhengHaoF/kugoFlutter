@@ -135,18 +135,26 @@ final _routerProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: '/rank/:id',
-                pageBuilder: (context, state) => MaterialPage(
-                  child: PlaylistDetailPage(
-                    id: state.pathParameters['id'] ?? '',
-                    isRank: true,
-                    platform: MusicPlatform.fromWire(
-                      state.uri.queryParameters['src'] ?? '',
+                pageBuilder: (context, state) {
+                  final extra =
+                      state.extra is PlaylistBrief
+                          ? state.extra as PlaylistBrief
+                          : null;
+                  return MaterialPage(
+                    child: PlaylistDetailPage(
+                      id: state.pathParameters['id'] ?? '',
+                      isRank: true,
+                      // src 缺省时退回 extra 带来的平台——调用方忘带
+                      // `?src=` 时不至于把网易榜按酷狗口径加载。
+                      platform: MusicPlatform.fromWire(
+                        state.uri.queryParameters['src'] ??
+                            extra?.platform.wireName ??
+                            '',
+                      ),
+                      initialBrief: extra,
                     ),
-                    initialBrief: state.extra is PlaylistBrief
-                        ? state.extra as PlaylistBrief
-                        : null,
-                  ),
-                ),
+                  );
+                },
               ),
               GoRoute(
                 path: '/playlist/:id',
@@ -163,7 +171,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
                       initialBrief: initialBrief,
                       isRank: isRank,
                       platform: MusicPlatform.fromWire(
-                        state.uri.queryParameters['src'] ?? '',
+                        state.uri.queryParameters['src'] ??
+                            initialBrief?.platform.wireName ??
+                            '',
                       ),
                     ),
                   );
