@@ -25,6 +25,16 @@ import 'package:qr/qr.dart';
 /// dart run tool/probe_netease_api.dart --suite login,like,detail,discover
 /// dart run tool/probe_netease_api.dart --suite detail --playlist 24381616 --album 32311 --artist 6452
 ///
+/// # G11 榜单列表（只读免登录）：确认官方榜全集，决定能否替掉硬编码 3 个 id
+/// dart run tool/probe_netease_api.dart --suite toplist
+///
+/// # G12/G13 新碟上架 + 歌手列表（只读免登录）：验证探索发现页两 Tab 的
+/// #   「网易无此口」是否成立（该结论此前从未被探针覆盖）
+/// #   G12 第一轮已通过；G13 第一轮参数被忽略 → 第二轮三形态并测（明文/weapi/GET）
+/// dart run tool/probe_netease_api.dart --suite albumnew,artistlist
+/// dart run tool/probe_netease_api.dart --suite artistlist  # 只跑歌手（9 个请求）
+/// dart run tool/probe_netease_api.dart --suite albumnew    # 只跑新碟（5 个 area）
+///
 /// # E2/E3 交互式扫码登录（打印二维码 → 每 2s 轮询到 803）
 /// #   默认不带 yd_token；2026-09-24 实测发空串即可走到 803
 /// dart run tool/probe_netease_api.dart --suite login --qr
@@ -65,6 +75,9 @@ Future<void> main(List<String> args) async {
   if (o.suites.contains('like')) await _probeLike(client, o);
   if (o.suites.contains('detail')) await _probeDetail(client, o);
   if (o.suites.contains('discover')) await _probeDiscover(client);
+  if (o.suites.contains('toplist')) await _probeToplist(client);
+  if (o.suites.contains('albumnew')) await _probeAlbumNew(client);
+  if (o.suites.contains('artistlist')) await _probeArtistList(client);
 
   print('== done · cookies=${client.cookies.keys.join(',')} ==');
 }
@@ -500,6 +513,89 @@ Future<void> _probeDiscover(NeteaseClient client) async {
       print('[G10] ${e.key}(${e.value}) ${parseProbePlaylistDetail(raw)}');
     } catch (err) {
       print('[G10] ${e.key} FAIL ${_err(err)}');
+    }
+  }
+}
+
+/// G11 榜单列表：确认官方榜**全集**（决定能否替掉硬编码的 3 个 id）。
+///
+/// 只读、免登录。输出失败时先按失败码排查（`-460` 风控 / 需 Cookie / 需 Referer）。
+Future<void> _probeToplist(NeteaseClient client) async {
+  try {
+    final raw = await client.toplistDetailRaw();
+    print('[G11] ${parseProbeToplist(raw)}');
+  } catch (e) {
+    print('[G11] FAIL ${_err(e)}');
+  }
+}
+
+/// G12 新碟上架：验证 `POST /api/album/new` 是否可用。
+///
+/// 探索发现页「新碟上架」Tab 此前按「网易无 `/weapi/album/new`」出「暂不支持」
+/// 空态，但那句话是从未进过接口总表、探针零覆盖的**假设**（与已被推翻的
+/// 「网易无榜单列表接口」同类）。这里跑 5 个 `area` 覆盖产品侧分区筛选。
+///
+/// **2026-09-26 第一轮已通过**：5 区全 `code=200`、`count=10`、`total=500`、
+/// 封面齐全，且 ZH/EA/KR 各区首条不同 → `area` 真生效。本轮保留作回归。
+Future<void> _probeAlbumNew(NeteaseClient client) async {
+  for (final area in const ['ALL', 'ZH', 'EA', 'KR', 'JP']) {
+    try {
+      final raw = await client.albumNewRaw(area: area, limit: 10);
+      final s = parseProbeAlbumNew(raw, label: area);
+      print('[G12] $s');
+      if (s['code'] != 200) print('      raw=${_short(raw, 160)}');
+    } catch (e) {
+      print('[G12] area=$area FAIL ${_err(e)}');
+    }
+  }
+}
+
+/// G13 歌手列表：验证 `/api/v1/artist/list` 的正确形态。
+///
+/// **根因（2026-09-26，对照 NeteaseCloudMusicApi 4.32.0 `module/artist_list.js`）**：
+/// 参考实现打 **`/api/v1/artist/list`（带 `v1`）**、`crypto: 'weapi'`、`total: true`，
+/// 并把 `initial` 由字母**转成大写 ASCII 码**（`'a'` → `65`）。我们前两轮打的
+/// `/api/artist/list`（**缺 `v1`**）命中**旧路由**：只认 `limit`，`type`/`area` 全被忽略
+/// （换参数响应逐字节相同）；`initial='a'` 因服务端期望数字而回 `code: 400`。
+///
+/// **第三轮实测**：换成 `/api/v1/artist/list` 后**明文即通且 `area` 生效**
+/// （`area=96` → Justin Bieber / The Weeknd / Taylor Swift；`area=-1/7` → 陈奕迅 / 林俊杰 / 孙燕姿）。
+/// 同轮 weapi 走 `callWeApiAt`（加密体 + 原 `/api/` 路径）仍全丢参数 → 已改为
+/// [callWeApi] 的 `/weapi/v1/artist/list` 再对照一次。
+///
+/// 本轮补齐 `type`（男/女/乐队）与 `initial`（字母转码）在**明文**下是否生效。
+/// 判据：`head` 随 `area`/`type`/`initial` 变化。
+Future<void> _probeArtistList(NeteaseClient client) async {
+  const cases = <({String label, String type, String area, String initial})>[
+    (label: '明文 area=-1(全部)', type: '-1', area: '-1', initial: ''),
+    (label: '明文 area=96(欧美)', type: '-1', area: '96', initial: ''),
+    (label: '明文 area=7(华语)', type: '-1', area: '7', initial: ''),
+    (label: '明文 type=1(男) area=7', type: '1', area: '7', initial: ''),
+    (label: '明文 type=2(女) area=7', type: '2', area: '7', initial: ''),
+    (label: '明文 type=3(乐队) area=7', type: '3', area: '7', initial: ''),
+    (label: '明文 area=7 initial=a', type: '-1', area: '7', initial: 'a'),
+    (label: '明文 area=7 initial=z', type: '-1', area: '7', initial: 'z'),
+    (label: '明文 area=96 type=2 initial=z', type: '2', area: '96', initial: 'z'),
+    (label: 'weapi /weapi/v1 area=96', type: '-1', area: '96', initial: ''),
+    (label: 'weapi /weapi/v1 area=7', type: '-1', area: '7', initial: ''),
+  ];
+  for (final c in cases) {
+    Future<String> call() {
+      if (c.label.startsWith('weapi')) {
+        return client.artistListWeapiRaw(
+            type: c.type, area: c.area, initial: c.initial, limit: 5);
+      }
+      return client.artistListRaw(
+          type: c.type, area: c.area, initial: c.initial, limit: 5);
+    }
+
+    try {
+      final raw = await call();
+      final s = parseProbeArtistList(raw, label: c.label);
+      print('[G13] $s');
+      if (s['code'] != 200) print('      raw=${_short(raw, 160)}');
+    } catch (e) {
+      print('[G13] ${c.label} FAIL ${_err(e)}');
     }
   }
 }
