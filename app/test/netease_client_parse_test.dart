@@ -4,6 +4,7 @@ import 'package:kugo/core/api/netease/netease_failures.dart';
 import 'package:kugo/core/api/netease/netease_mappers.dart';
 import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/core/source/music_source.dart';
+import 'package:kugo/data/sources/netease/netease_source.dart';
 
 void main() {
   test('parseProbeSongs reads ar/al/dt', () {
@@ -283,6 +284,165 @@ void main() {
       expect(songs.single.album, '叶惠美');
       expect(songs.single.durationMs, 269000);
       expect(songs.single.platform, MusicPlatform.netease);
+    });
+  });
+
+  group('G11 榜单列表（toplist/detail）', () {
+    test('mapNeteaseToplistBoards：只取 id/name/封面，跳过无 id 节点', () {
+      // 实测（2026-09-26）每张榜另带整榜 `tracks`，这里不解析（曲目走 G10）。
+      const raw = '''
+      {"code":200,"list":[
+        {"id":19723756,"name":"飙升榜","coverImgUrl":"http://p1.music.126.net/a.jpg",
+         "trackCount":100,"tracks":[{"id":1,"name":"x"}]},
+        {"name":"无 id 的坏节点","coverImgUrl":"https://p1.music.126.net/b.jpg"}
+      ]}
+      ''';
+      final boards = mapNeteaseToplistBoards(raw);
+      expect(boards, hasLength(1));
+      expect(boards.single.id, '19723756');
+      expect(boards.single.name, '飙升榜');
+      // http:// 统一升级 https，避免明文封面被平台拦。
+      expect(boards.single.coverUrl, 'https://p1.music.126.net/a.jpg');
+    });
+
+    test('mapNeteaseToplistBoards：无 list 时返回空', () {
+      expect(mapNeteaseToplistBoards('{"code":200}'), isEmpty);
+    });
+
+    test('boardsFromWhitelist：按白名单顺序保留主流榜，剔除活动/车友榜', () {
+      final boards = NeteaseSource.boardsFromWhitelist([
+        // 故意乱序 + 夹带白名单外的活动/车友榜
+        (id: '3778678', name: '热歌榜', coverUrl: 'https://c/hot.jpg'),
+        (id: '12911403728', name: '音乐合伙人推荐榜', coverUrl: 'https://c/x.jpg'),
+        (id: '8703179781', name: '特斯拉车友爱听榜', coverUrl: 'https://c/y.jpg'),
+        (id: '19723756', name: '飙升榜', coverUrl: 'https://c/up.jpg'),
+      ]);
+      expect(boards, hasLength(NeteaseSource.boardWhitelist.length));
+      // 顺序以白名单为准，与接口返回顺序无关
+      expect(boards.first.id, '19723756');
+      expect(boards.first.name, '飙升榜');
+      expect(boards.first.coverUrl, 'https://c/up.jpg');
+      // 白名单外的不出现
+      expect(boards.any((b) => b.name.contains('合伙人')), isFalse);
+      expect(boards.any((b) => b.name.contains('车友')), isFalse);
+      // 未命中的用内置名兜底、封面留空（UI 出占位图）
+      expect(boards[1].id, '3779629');
+      expect(boards[1].name, '新歌榜');
+      expect(boards[1].coverUrl, isEmpty);
+      // 第 4 位是热歌榜：首页「今日热歌」按名字含「热歌」命中它
+      expect(boards[3].id, '3778678');
+      expect(boards[3].coverUrl, 'https://c/hot.jpg');
+      // 统一标记：详情页据此带 ?src=netease 取数，弹窗按 rankTypeName 分组
+      expect(boards.every((b) => b.isRank), isTrue);
+      expect(boards.every((b) => b.platform == MusicPlatform.netease), isTrue);
+      expect(boards.every((b) => b.rankTypeName == '网易官方榜'), isTrue);
+    });
+
+    test('boardsFromWhitelist：G11 不可用时退回内置名（封面空）', () {
+      final boards = NeteaseSource.boardsFromWhitelist(const []);
+      expect(boards, hasLength(NeteaseSource.boardWhitelist.length));
+      expect(
+        boards.map((b) => b.name).toList(),
+        NeteaseSource.boardWhitelist.map((b) => b.name).toList(),
+      );
+      expect(boards.every((b) => b.coverUrl.isEmpty), isTrue);
+    });
+  });
+
+  group('G13 歌手列表入参（artist/list）', () {
+    test('initial 字母转大写 ASCII 码（a→65 / z→90 / A→65）', () {
+      // 服务端要数字：传字符 'a' 会回 code=400（2026-09-26 实测）
+      expect(NeteaseClient.artistListParams(
+        type: '-1', area: '7', initial: 'a', limit: 5, offset: 0,
+      )['initial'], '65');
+      expect(NeteaseClient.artistListParams(
+        type: '-1', area: '7', initial: 'z', limit: 5, offset: 0,
+      )['initial'], '90');
+      expect(NeteaseClient.artistListParams(
+        type: '-1', area: '7', initial: 'A', limit: 5, offset: 0,
+      )['initial'], '65');
+    });
+
+    test('initial 空串省略字段；纯数字原样透传', () {
+      final empty = NeteaseClient.artistListParams(
+        type: '-1', area: '-1', initial: '', limit: 30, offset: 0,
+      );
+      expect(empty.containsKey('initial'), isFalse);
+      // 服务端约定的「热门」= -1，须原样传而非转码
+      expect(NeteaseClient.artistListParams(
+        type: '-1', area: '-1', initial: '-1', limit: 30, offset: 0,
+      )['initial'], '-1');
+    });
+
+    test('必带 total=true（少了会退化为忽略筛选的旧路由）', () {
+      final p = NeteaseClient.artistListParams(
+        type: '2', area: '96', initial: 'z', limit: 30, offset: 0,
+      );
+      expect(p['total'], 'true');
+      expect(p['type'], '2');
+      expect(p['area'], '96');
+      expect(p['limit'], '30');
+      expect(p['offset'], '0');
+    });
+  });
+
+  group('G12 新碟 / G13 歌手列表映射', () {
+    test('mapNeteaseNewAlbums：顶层 albums[]，节点只有 picId 时拼 CDN 封面', () {
+      // 实测（2026-09-26）：新碟节点无 picUrl，只有 picId → 必须拼直链。
+      const raw = '''
+      {"code":200,"albums":[
+        {"id":1,"name":"神的游戏","picId":109951167805012,
+         "artists":[{"name":"张悬"}],"size":9},
+        {"name":"无 id 的坏节点"}
+      ]}
+      ''';
+      final albums = mapNeteaseNewAlbums(raw);
+      expect(albums, hasLength(1));
+      expect(albums.single.id, '1');
+      expect(albums.single.name, '神的游戏');
+      expect(albums.single.artist, '张悬');
+      expect(albums.single.trackCount, 9);
+      expect(albums.single.platform, MusicPlatform.netease);
+      expect(albums.single.coverUrl, startsWith('https://p3.music.126.net/'));
+    });
+
+    test('mapNeteaseNewAlbums：data.albums[] 同样可解析；有 picUrl 时优先', () {
+      const raw = '''
+      {"code":200,"data":{"albums":[
+        {"id":2,"name":"叶惠美","picUrl":"http://p1.music.126.net/y.jpg"}
+      ]}}
+      ''';
+      final albums = mapNeteaseNewAlbums(raw);
+      expect(albums.single.name, '叶惠美');
+      // http 统一升级 https
+      expect(albums.single.coverUrl, 'https://p1.music.126.net/y.jpg');
+    });
+
+    test('mapNeteaseNewAlbums：无 albums 返回空', () {
+      expect(mapNeteaseNewAlbums('{"code":200}'), isEmpty);
+    });
+
+    test('mapNeteaseArtistList：顶层 artists[]，头像走 img1v1Url', () {
+      const raw = '''
+      {"code":200,"artists":[
+        {"id":6452,"name":"周杰伦","img1v1Url":"http://p1.music.126.net/a.jpg",
+         "musicSize":568,"fansCount":123456,"alias":["Jay"]},
+        {"name":"无 id 的坏节点"}
+      ]}
+      ''';
+      final artists = mapNeteaseArtistList(raw);
+      expect(artists, hasLength(1));
+      expect(artists.single.id, '6452');
+      expect(artists.single.name, '周杰伦');
+      expect(artists.single.songCount, 568);
+      expect(artists.single.fansCount, 123456);
+      expect(artists.single.sourceDesc, 'Jay');
+      expect(artists.single.avatarUrl, 'https://p1.music.126.net/a.jpg');
+      expect(artists.single.platform, MusicPlatform.netease);
+    });
+
+    test('mapNeteaseArtistList：无 artists 返回空', () {
+      expect(mapNeteaseArtistList('{"code":200}'), isEmpty);
     });
   });
 }

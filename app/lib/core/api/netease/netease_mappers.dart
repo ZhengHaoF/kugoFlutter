@@ -102,7 +102,11 @@ PlaylistBrief? mapNeteasePlaylistBrief(Object? node) {
   );
 }
 
-/// 搜索专辑节点 → [AlbumBrief]；`id` 非数字视为无效。
+/// 搜索 / 新碟专辑节点 → [AlbumBrief]；`id` 非数字视为无效。
+///
+/// 封面走 [_albumCover]：**G12 新碟节点只给 `picId`**（实测 2026-09-26，
+/// `ALL`/`KR`/`JP` 分区节点键为 `songs,paid,…,artists,copyrightId,picId`，无 `picUrl`），
+/// 故必须带 `picId` → CDN 直链回退，否则新碟列表整列灰块。
 AlbumBrief? mapNeteaseAlbumBrief(Object? node) {
   if (node is! Map) return null;
   final m = Map<String, dynamic>.from(node);
@@ -112,9 +116,7 @@ AlbumBrief? mapNeteaseAlbumBrief(Object? node) {
   return AlbumBrief(
     id: '$id',
     name: _str(m['name'] ?? m['albumName']),
-    coverUrl: _pic(_str(
-      m['picUrl'] ?? m['blurPicUrl'] ?? m['coverImgUrl'] ?? m['albumPic'],
-    )),
+    coverUrl: _albumCover(m),
     artist: artists.names.isEmpty
         ? _str(_asMap(m['artist'])['name'] ?? m['artistName'])
         : artists.names.join('/'),
@@ -295,6 +297,33 @@ List<PlaylistBrief> mapNeteaseTopPlaylists(String raw) {
   );
 }
 
+/// G12 新碟上架：`albums[]`（顶层或 `result` 下）→ [AlbumBrief]。
+///
+/// 节点形态同搜索专辑（复用 [mapNeteaseAlbumBrief]），但**只给 `picId` 不给 `picUrl`**，
+/// 封面由 [_albumCover] 拼 CDN 直链。
+List<AlbumBrief> mapNeteaseNewAlbums(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '新碟上架');
+  final data = _asMap(root['data']);
+  return _mapNodes(
+    root['albums'] ?? data['albums'] ?? root['result'],
+    mapNeteaseAlbumBrief,
+  );
+}
+
+/// G13 歌手列表：`artists[]`（顶层或 `result` 下）→ [ArtistBrief]。
+///
+/// 节点形态同搜索歌手（复用 [mapNeteaseArtistBrief]，头像走 `img1v1Url`）。
+List<ArtistBrief> mapNeteaseArtistList(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '歌手列表');
+  final data = _asMap(root['data']);
+  return _mapNodes(
+    root['artists'] ?? data['artists'] ?? root['result'],
+    mapNeteaseArtistBrief,
+  );
+}
+
 /// G7b 精品标签：`tags[]` → **单组扁平**标签（网易无二级分类）。
 ///
 /// 网易分类歌单接口 `cat` 收的是**标签名**（实测 `cat=华语`），故 [PlaylistTag.id]
@@ -321,17 +350,28 @@ List<PlaylistTagGroup> mapNeteasePlaylistTags(String raw) {
   return [PlaylistTagGroup(name: '推荐', child: out)];
 }
 
-/// 歌单元数据（榜单封面用）：`playlist.name / coverImgUrl / trackCount`。
-({String name, String coverUrl, int trackCount}) mapNeteasePlaylistMeta(
+/// G11 榜单列表 → 榜单元数据（`id` 为空的节点跳过）。
+///
+/// 响应里每张榜另带的整榜 `tracks` **不解析**（曲目走 G10 `playlistDetailRaw`）；
+/// 这里只取 `id / name / coverImgUrl`，即「有哪些榜 + 榜名 + 封面」。
+List<({String id, String name, String coverUrl})> mapNeteaseToplistBoards(
   String raw,
 ) {
   final root = _decode(raw);
-  final playlist = _asMap(root['playlist']);
-  return (
-    name: _str(playlist['name']),
-    coverUrl: _pic(_str(playlist['coverImgUrl'] ?? playlist['picUrl'])),
-    trackCount: _int(playlist['trackCount']),
-  );
+  final list = root['list'];
+  if (list is! List) return const [];
+  final out = <({String id, String name, String coverUrl})>[];
+  for (final item in list) {
+    final m = _asMap(item);
+    final id = _str(m['id']);
+    if (id.isEmpty) continue;
+    out.add((
+      id: id,
+      name: _str(m['name']),
+      coverUrl: _pic(_str(m['coverImgUrl'])),
+    ));
+  }
+  return out;
 }
 
 /// 任意曲目节点列表 → [Track]。无法识别的节点跳过（不抛）。
@@ -750,7 +790,12 @@ String _pic(String raw) {
 /// `publishTime,size,artist,copyrightId,name,id,picId,mark,status`），
 /// 此时按官方算法拼 CDN 直链，否则封面会退化成空串（列表显示灰块）。
 String _albumCover(Map<String, dynamic> album) {
-  final url = _pic(_str(album['picUrl'] ?? album['blurPicUrl']));
+  final url = _pic(_str(
+    album['picUrl'] ??
+        album['blurPicUrl'] ??
+        album['coverImgUrl'] ??
+        album['albumPic'],
+  ));
   if (url.isNotEmpty) return url;
   return NeteaseCrypto.picUrl(_int(album['picId']));
 }

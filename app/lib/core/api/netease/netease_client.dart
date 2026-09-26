@@ -801,6 +801,119 @@ class NeteaseClient {
     });
   }
 
+  /// `POST /api/toplist/detail`（明文 CryptoMode.API）——全部官方榜元数据（G11）。
+  ///
+  /// 与 [playlistDetailRaw] 同族但用途不同：这里只取「有哪些榜」的列表
+  /// （`list[].id/name/coverImgUrl/trackCount/updateFrequency`），不取曲目；
+  /// 曲目仍走 G10 的 `playlistDetailRaw(id)`。
+  Future<String> toplistDetailRaw() {
+    return callPlainApi(NeteaseEndpoints.toplistDetail, const {});
+  }
+
+  /// `POST /api/album/new`（明文 CryptoMode.API）——新碟上架（G12）。
+  ///
+  /// [area] 取 `ALL` / `ZH` / `EA` / `KR` / `JP`；`total=true` 额外回总量。
+  Future<String> albumNewRaw({
+    String area = 'ALL',
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return callPlainApi(NeteaseEndpoints.albumNew, {
+      'area': area,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      'total': 'true',
+    });
+  }
+
+  /// `initial` → 服务端要的**大写 ASCII 码**（`a` → `65`）。
+  ///
+  /// 依据 NeteaseCloudMusicApi 4.32.0 `module/artist_list.js`：
+  /// `initial: isNaN(q.initial) ? (q.initial || '').toUpperCase().charCodeAt() || undefined : q.initial`
+  /// —— 即纯数字原样透传；字母转码；空串省略。
+  ///
+  /// **2026-09-26 实测**：直接传字符 `'a'` 服务端返回 `code: 400`（它要的是数字），
+  /// 返回空串则不带该字段。
+  static String _artistInitialCode(String initial) {
+    final s = initial.trim();
+    if (s.isEmpty) return '';
+    if (int.tryParse(s) != null) return s;
+    return '${s.toUpperCase().codeUnitAt(0)}';
+  }
+
+  /// `POST /api/v1/artist/list`（明文 CryptoMode.API）——歌手列表（G13）。
+  ///
+  /// [type] -1 全部 / 1 男 / 2 女 / 3 乐队；[area] -1 全部 / 7 华语 / 96 欧美 /
+  /// 8 日本 / 16 韩国 / 0 其他；[initial] 拼音首字母（`a`–`z` / 数字，空串=不限）。
+  ///
+  /// **路径必须带 `v1`**，且须带 `total=true`——少任一项即退化为「忽略筛选的旧路由」，
+  /// 换成 `area`/`type` 参数响应也逐字节相同。
+  Future<String> artistListRaw({
+    String type = '-1',
+    String area = '-1',
+    String initial = '',
+    int limit = 30,
+    int offset = 0,
+  }) {
+    return callPlainApi(
+      NeteaseEndpoints.artistList,
+      artistListParams(
+        type: type,
+        area: area,
+        initial: initial,
+        limit: limit,
+        offset: offset,
+      ),
+    );
+  }
+
+  /// `POST /weapi/v1/artist/list`（**WEAPI 加密**形态，对照用）。
+  ///
+  /// 参考实现（NeteaseCloudMusicApi `module/artist_list.js`）用的是 weapi，其 `request`
+  /// 会对 weapi 做 `url.replace(/\w*api/, 'weapi')` —— 即**路径也换成 `/weapi/v1/...`**，
+  /// 而不是「加密体 + 原 `/api/` 路径」。故这里走 [callWeApi]（它自动加 `/weapi` 前缀）。
+  ///
+  /// **2026-09-26 实测**：明文 [artistListRaw] 已通且 `area` 生效，本形态留作对照与备用。
+  Future<String> artistListWeapiRaw({
+    String type = '-1',
+    String area = '-1',
+    String initial = '',
+    int limit = 30,
+    int offset = 0,
+  }) {
+    return callWeApi(
+      '/v1/artist/list',
+      artistListParams(
+        type: type,
+        area: area,
+        initial: initial,
+        limit: limit,
+        offset: offset,
+      ),
+    );
+  }
+
+  /// G13 两形态共用的入参（`initial` 转码 + 空串省略 + `total=true`）。
+  ///
+  /// 公开 static 以便单测锁死转码契约（错了服务端回 `code: 400`）。
+  static Map<String, dynamic> artistListParams({
+    required String type,
+    required String area,
+    required String initial,
+    required int limit,
+    required int offset,
+  }) {
+    final code = _artistInitialCode(initial);
+    return {
+      'type': type,
+      'area': area,
+      if (code.isNotEmpty) 'initial': code,
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      'total': 'true',
+    };
+  }
+
   /// `POST /weapi/v1/album/{id}`（interface host）。
   Future<String> albumDetailRaw(int albumId, {int n = 100000, int s = 8}) {
     return callWeApi(
@@ -1258,3 +1371,141 @@ Map<String, Object?> parseProbeRecommend(String raw, {String label = ''}) {
   }
   return {'code': code, 'label': label, 'count': count, 'first': first};
 }
+
+/// G11 榜单列表摘要。
+///
+/// 只输出「多少张榜 + 每张 `名称(id)` + 首条字段名/封面/曲目数」，用于确认
+/// `/api/toplist/detail` 能否替代 `NeteaseSource.boardWhitelist`（实测 63 张里挑 20 张）。
+/// `withCovers` 统计能取到 `coverImgUrl` 的张数（封面为空时 UI 只能退回渐变兜底）。
+Map<String, Object?> parseProbeToplist(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final list = root['list'] as List? ?? const [];
+  final boards = <String>[];
+  var withCovers = 0;
+  for (final e in list) {
+    if (e is! Map) continue;
+    boards.add('${e['name']}(${e['id']}) top=${e['trackCount']}');
+    final cover = e['coverImgUrl'];
+    if (cover is String && cover.isNotEmpty) withCovers++;
+  }
+  final first = list.isNotEmpty && list.first is Map
+      ? list.first as Map
+      : null;
+  // 体积观测：63 榜里若每条都带整榜 `tracks`，响应会到 MB 级，就不适合每次
+  // 首页加载都真拉。`firstTracks` 与首条曲目的键名用于判断 tracks 是「整对象」
+  // 还是「仅 id」。
+  final firstTracks = first?['tracks'] as List?;
+  final firstTrack = firstTracks != null && firstTracks.isNotEmpty
+      ? firstTracks.first
+      : null;
+  return {
+    'code': root['code'],
+    'count': list.length,
+    'withCovers': withCovers,
+    'bytes': raw.length,
+    'firstKeys': first?.keys.take(14).join(','),
+    'firstTracks': firstTracks?.length ?? 0,
+    'firstTrackKeys':
+        firstTrack is Map ? firstTrack.keys.take(10).join(',') : 'n/a',
+    'boards': boards.join(' | '),
+  };
+}
+
+/// G12 新碟上架摘要（`POST /api/album/new`）。
+///
+/// 只输出「拿回多少张碟 + 总量 + 首张名字/歌手/封面有无 + 键名 + 体积」，
+/// 用于确认这个口到底通不通 —— 探索发现页「新碟上架」Tab 此前按「网易无
+/// `/weapi/album/new`」处理，但那句话是从未被探针覆盖的假设。
+///
+/// [label] 为 `area` 分区（`ALL`/`ZH`/`EA`/`KR`/`JP`），循环探测时用于区分。
+/// `head` 给前 3 条 `name(id)`：**换 `area` 后 `first` 应变化**，逐条比对可确认
+/// 分区参数是否真生效（而非服务端忽略后恒定返回同一页）。
+Map<String, Object?> parseProbeAlbumNew(String raw, {String label = ''}) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final list = _probeList(root, const ['albums', 'data']);
+  final first = _probeFirstMap(list);
+  final artists = first?['artists'];
+  final firstArtist =
+      artists is List && artists.isNotEmpty && artists.first is Map
+          ? artists.first as Map
+          : null;
+  final cover = first?['picUrl'];
+  return {
+    'code': root['code'],
+    'area': label,
+    'count': list.length,
+    'total': _probeDeep(root, 'total'),
+    'first': first == null
+        ? null
+        : '${first['name']}(${first['id']}) size=${first['size']}'
+            ' art=${firstArtist?['name'] ?? 'n/a'}',
+    'head': _probeHead(list),
+    'firstKeys': first?.keys.take(12).join(','),
+    'cover': cover is String && cover.isNotEmpty,
+    'bytes': raw.length,
+  };
+}
+
+/// G13 歌手列表摘要（`POST /api/artist/list`）。
+///
+/// 同 [parseProbeAlbumNew]，用于验证探索发现页「歌手」Tab 的「网易无
+/// `/weapi/artist/list`」假设。[label] 为筛选组合（`area=7` / `type=1` …）。
+///
+/// `head` 同 G12：**换 `area`/`type` 后 `head` 应变化**；若各组合的 `head` 与
+/// `bytes` 完全一致，即说明筛选参数被服务端忽略（2026-09-26 第一轮明文形态
+/// 就是这种情况）。
+Map<String, Object?> parseProbeArtistList(String raw, {String label = ''}) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final list = _probeList(root, const ['artists', 'data']);
+  final first = _probeFirstMap(list);
+  final alias = first?['alias'];
+  final cover = first?['picUrl'];
+  return {
+    'code': root['code'],
+    'filter': label,
+    'count': list.length,
+    'more': _probeDeep(root, 'more'),
+    'first': first == null
+        ? null
+        : '${first['name']}(${first['id']})'
+            ' mus=${first['musicSize']} alb=${first['albumSize']}'
+            ' alias=${alias is List ? alias.take(2).join('/') : ''}',
+    'head': _probeHead(list),
+    'firstKeys': first?.keys.take(12).join(','),
+    'cover': cover is String && cover.isNotEmpty,
+    'bytes': raw.length,
+  };
+}
+
+/// 探针用：从响应里挖出列表，兼容 `key[]` / `result.key[]`。
+List _probeList(Map<String, dynamic> root, List<String> keys) {
+  final scopes = <Map>[
+    root,
+    if (root['result'] is Map) root['result'] as Map,
+  ];
+  for (final scope in scopes) {
+    for (final k in keys) {
+      final v = scope[k];
+      if (v is List) return v;
+    }
+  }
+  return const [];
+}
+
+/// 探针用：取顶层或 `result` 里的一层标量（`total` / `more`）。
+Object? _probeDeep(Map<String, dynamic> root, String key) {
+  if (root[key] != null) return root[key];
+  final result = root['result'];
+  if (result is Map && result[key] != null) return result[key];
+  return null;
+}
+
+Map? _probeFirstMap(List list) =>
+    list.isNotEmpty && list.first is Map ? list.first as Map : null;
+
+/// 探针用：列表前 3 条 `name(id)`，用于比对不同筛选参数下返回的是否同一页。
+String _probeHead(List list) => list
+    .whereType<Map>()
+    .take(3)
+    .map((m) => '${m['name']}(${m['id']})')
+    .join(' | ');

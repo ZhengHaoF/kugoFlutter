@@ -21,6 +21,8 @@ class NeteaseSource
         RankSource,
         PlaylistCatalogSource,
         NewSongFeedSource,
+        NewAlbumFeedSource,
+        ArtistListSource,
         RecommendFeedSource,
         PersonalFmSource,
         PlaylistDetailSource,
@@ -37,12 +39,40 @@ class NeteaseSource
   @override
   MusicPlatform get platform => MusicPlatform.netease;
 
-  /// 网易官方榜单 id（实测 G10：飙升 / 新歌 / 热歌）。
-  static const List<({String id, String name})> officialBoards = [
+  /// 榜单**精选白名单**（数组顺序即首页「排行榜」横排的优先级）。
+  ///
+  /// G11 `toplist/detail` 实测（2026-09-26）返回 **63 张**官方榜，其中大量是
+  /// 活动/品牌/车友榜（音乐合伙人 ×5、车友榜 ×8、`星云榜VOL.31…`、`喜力®…`），
+  /// 原样全铺噪音过大，故只取主流榜。`name` 仅在 G11 失败或该榜下架时作兜底显示名
+  /// （正常以接口返回名为准）。
+  static const List<({String id, String name})> boardWhitelist = [
     (id: '19723756', name: '飙升榜'),
     (id: '3779629', name: '新歌榜'),
+    (id: '2884035', name: '原创榜'),
     (id: '3778678', name: '热歌榜'),
+    (id: '991319590', name: '网易云中文说唱榜'),
+    (id: '5059642708', name: '网易云国风榜'),
+    (id: '5059661515', name: '网易云民谣榜'),
+    (id: '5059633707', name: '网易云摇滚榜'),
+    (id: '1978921795', name: '网易云电音榜'),
+    (id: '71384707', name: '网易云古典榜'),
+    (id: '71385702', name: '网易云ACG榜'),
+    (id: '2809513713', name: '网易云欧美热歌榜'),
+    (id: '2809577409', name: '网易云欧美新歌榜'),
+    (id: '12225155968', name: '欧美R&B榜'),
+    (id: '5059644681', name: '网易云日语榜'),
+    (id: '745956260', name: '网易云韩语榜'),
+    (id: '60198', name: '美国Billboard榜'),
+    (id: '180106', name: 'UK排行榜周榜'),
+    (id: '60131', name: '日本Oricon榜'),
+    (id: '3812895', name: 'Beatport全球电子舞曲榜'),
   ];
+
+  /// G11 结果缓存（**仅在命中白名单时**写入）。
+  ///
+  /// G11 一次返回 63 张榜（每条另带 `tracks`），体积不小；首页「排行榜」、
+  /// `/ranks`、歌单详情页的「更换榜单」弹窗都会调 [rankBoards]，缓存一份避免重复拉。
+  List<PlaylistBrief>? _boardsCache;
 
   /// 「我喜欢」详情单批 id 数：一次 `song/detail` 带 100 个 id（实测形态安全）。
   static const int _likedDetailBatch = 100;
@@ -192,25 +222,51 @@ class NeteaseSource
     return mapNeteaseArtistSongs(raw);
   }
 
-  // ── RankSource（G10） ────────────────────────────────────
-  /// 网易没有「榜单列表」接口，官方榜是固定三个 id；这里并行补一次封面/名称，
-  /// 失败则退回内置名称（封面留空，由 UI 出占位图）。
+  // ── RankSource（G11 榜单列表 / G10 曲目） ────────────────
+
+  /// G11 一次拿全部官方榜元数据 → 按 [boardWhitelist] 顺序挑出主流榜。
+  ///
+  /// 失败或白名单一条都没命中（接口改版/风控）时**不重试、不抛错**，直接用
+  /// 白名单内置名兜底（封面留空，由 UI 出占位图），保证榜单入口始终可用；
+  /// 这种情况不写缓存，下次进页面会重新试。
   @override
   Future<List<PlaylistBrief>> rankBoards() async {
-    final metas = await Future.wait([
-      for (final board in officialBoards) _boardMeta(board.id),
-    ]);
-    return [
-      for (var i = 0; i < officialBoards.length; i++)
+    final cached = _boardsCache;
+    if (cached != null) return cached;
+    List<({String id, String name, String coverUrl})> metas;
+    try {
+      metas = mapNeteaseToplistBoards(await _client.toplistDetailRaw());
+    } catch (_) {
+      metas = const [];
+    }
+    final boards = boardsFromWhitelist(metas);
+    if (metas.isNotEmpty) _boardsCache = boards;
+    return boards;
+  }
+
+  /// 白名单过滤 + 排序：只保留白名单内的榜，顺序以白名单为准。
+  ///
+  /// 纯函数（不碰网络），便于单测；[metas] 为空即「G11 不可用」的兜底分支。
+  static List<PlaylistBrief> boardsFromWhitelist(
+    List<({String id, String name, String coverUrl})> metas,
+  ) {
+    final byId = {for (final m in metas) m.id: m};
+    final boards = <PlaylistBrief>[];
+    for (final b in boardWhitelist) {
+      final meta = byId[b.id];
+      final name = meta?.name.trim() ?? '';
+      boards.add(
         PlaylistBrief(
-          id: officialBoards[i].id,
-          name: metas[i].name.isEmpty ? officialBoards[i].name : metas[i].name,
-          coverUrl: metas[i].coverUrl,
+          id: b.id,
+          name: name.isEmpty ? b.name : name,
+          coverUrl: meta?.coverUrl ?? '',
           isRank: true,
           platform: MusicPlatform.netease,
           rankTypeName: '网易官方榜',
         ),
-    ];
+      );
+    }
+    return boards;
   }
 
   /// 复用歌单详情（G10）。歌单曲目**上限 1000 首**（实测），故 [page] 不生效。
@@ -251,6 +307,93 @@ class NeteaseSource
   Future<List<Track>> newSongs({int pageSize = 30}) async {
     return mapNeteasePersonalizedNewSongs(
       await _client.personalizedNewSongsRaw(limit: pageSize),
+    );
+  }
+
+  // ── NewAlbumFeedSource（G12 新碟上架） ───────────────────
+
+  /// G12 地区分片：网易用 `ALL/ZH/EA/KR/JP`（与酷狗的 `all/chn/eur/jpn/kor` 同义，
+  /// 顺序对齐为「全部 / 华语 / 欧美 / 日本 / 韩国」）。
+  static const _albumRegions = <({String id, String label})>[
+    (id: 'ALL', label: '全部'),
+    (id: 'ZH', label: '华语'),
+    (id: 'EA', label: '欧美'),
+    (id: 'JP', label: '日本'),
+    (id: 'KR', label: '韩国'),
+  ];
+
+  @override
+  List<({String id, String label})> get albumRegions => _albumRegions;
+
+  /// G12 明文即通（免登录，5 区实测 `code=200`、`total=500`），故不需要预热。
+  @override
+  Future<List<AlbumBrief>> newAlbums({
+    required String region,
+    int pageSize = 30,
+  }) async {
+    final r = region.trim();
+    return mapNeteaseNewAlbums(
+      await _client.albumNewRaw(
+        area: r.isEmpty ? 'ALL' : r,
+        limit: pageSize,
+      ),
+    );
+  }
+
+  // ── ArtistListSource（G13 歌手列表） ─────────────────────
+
+  /// G13 性别分片＝`type`（-1 全部 / 1 男 / 2 女 / 3 组合），与酷狗 `sextypes` 同义。
+  static const _artistGenders = <({String id, String label})>[
+    (id: '-1', label: '全部'),
+    (id: '1', label: '男'),
+    (id: '2', label: '女'),
+    (id: '3', label: '组合'),
+  ];
+
+  /// G13 第二分片＝`area`（网易是**地区**，酷狗那行是**流派**，故各行取值互不通用）。
+  static const _artistAreas = <({String id, String label})>[
+    (id: '-1', label: '全部'),
+    (id: '7', label: '华语'),
+    (id: '96', label: '欧美'),
+    (id: '8', label: '日本'),
+    (id: '16', label: '韩国'),
+    (id: '0', label: '其他'),
+  ];
+
+  /// G13 首字母＝`initial`（须转大写 ASCII 码，见 [NeteaseClient.artistListParams]）。
+  /// 空串 = 不筛；实测 `a`/`z` 均生效，其余字母同参数形态。
+  static final _artistInitials = <({String id, String label})>[
+    (id: '', label: '全部'),
+    for (var c = 0x41; c <= 0x5A; c++)
+      (id: String.fromCharCode(c), label: String.fromCharCode(c)),
+  ];
+
+  @override
+  List<({String id, String label})> get artistGenderOptions => _artistGenders;
+
+  @override
+  List<({String id, String label})> get artistStyleOptions => _artistAreas;
+
+  @override
+  List<({String id, String label})> get artistInitialOptions => _artistInitials;
+
+  /// G13 明文即通（免登录）；三个筛选全部生效（实测 2026-09-26）。
+  @override
+  Future<List<ArtistBrief>> artistList({
+    required String gender,
+    required String style,
+    required String initial,
+    int pageSize = 30,
+  }) async {
+    final t = gender.trim();
+    final a = style.trim();
+    return mapNeteaseArtistList(
+      await _client.artistListRaw(
+        type: t.isEmpty ? '-1' : t,
+        area: a.isEmpty ? '-1' : a,
+        initial: initial.trim(),
+        limit: pageSize,
+      ),
     );
   }
 
@@ -420,21 +563,6 @@ class NeteaseSource
   }
 
   // ── 内部 ─────────────────────────────────────────────────
-
-  Future<({String name, String coverUrl, int trackCount})> _boardMeta(
-    String boardId,
-  ) async {
-    try {
-      final raw = await _client.playlistDetailRaw(
-        int.parse(boardId),
-        n: 1,
-        s: 0,
-      );
-      return mapNeteasePlaylistMeta(raw);
-    } catch (_) {
-      return (name: '', coverUrl: '', trackCount: 0);
-    }
-  }
 
   int _songId(Track track) => int.tryParse(track.id.trim()) ?? 0;
 

@@ -50,6 +50,28 @@ abstract final class NeteaseEndpoints {
   static const highQualityTags = '/api/playlist/highquality/tags';
   static const radarPlaylistMeta = '/api/playlist/detail';
 
+  /// G11 榜单列表：全部官方榜的**元数据**（id / name / coverImgUrl /
+  /// trackCount / updateFrequency），与 G10 的「按 id 取曲目」互补。
+  /// 免登录 PLAIN API，形态与 `playlistDetail` 同族。
+  static const toplistDetail = '/api/toplist/detail';
+
+  /// G12 新碟上架：`area`（ALL / ZH / EA / KR / JP）+ `limit` / `offset` / `total`。
+  ///
+  /// 2026-09-26 实测**明文即通**（5 区全 `code=200`、`total=500`、`area` 真生效）——
+  /// 参考实现（NeteaseCloudMusicApi `module/album_new.js`）用 weapi，但网易这口双认，
+  /// 故留明文以免每次预热。
+  static const albumNew = '/api/album/new';
+
+  /// G13 歌手列表：`type`（-1 全部 / 1 男 / 2 女 / 3 乐队）+ `area`
+  /// （-1 全部 / 7 华语 / 96 欧美 / 8 日本 / 16 韩国 / 0 其他）+ `initial`
+  /// + `limit` / `offset` / `total`。
+  ///
+  /// **路径必须带 `v1`**（2026-09-26 实测）：`/api/artist/list`（无 `v1`）是**旧路由**，
+  /// 只认 `limit`，`type`/`area`/`initial` 全被忽略（换参数响应逐字节相同）；
+  /// 参照 NeteaseCloudMusicApi `module/artist_list.js` 打 `/api/v1/artist/list`。
+  /// 另注意 `initial` 需转**大写 ASCII 码**（`a` → `65`），见 `NeteaseClient._artistInitialCode`。
+  static const artistList = '/api/v1/artist/list';
+
   static String weapiUrl(String path, {String host = mainHost}) {
     final p = path.startsWith('/') ? path : '/$path';
     return '$host/weapi$p'.replaceFirst('/weapi/weapi', '/weapi');

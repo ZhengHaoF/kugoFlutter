@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kugo/core/models/catalog_models.dart';
+import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/music_platform.dart';
@@ -16,26 +17,96 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_music_source.dart';
 
-/// 只加「发现页」三项能力的离线音源；其余方法走 [FakeMusicSource] 的空实现。
+/// 只加「发现页」各项能力的离线音源；其余方法走 [FakeMusicSource] 的空实现。
 class _DiscoveryFake extends FakeMusicSource
-    implements PlaylistCatalogSource, NewSongFeedSource, RankSource {
+    implements
+        PlaylistCatalogSource,
+        NewSongFeedSource,
+        NewAlbumFeedSource,
+        ArtistListSource,
+        RankSource {
   _DiscoveryFake({
     required super.platform,
     this.tagGroups = const [],
     this.playlists = const [],
     this.newSongItems = const [],
+    this.albumItems = const [],
+    this.artistItems = const [],
+    this.albumRegions = const [
+      (id: 'all', label: '全部'),
+      (id: 'chn', label: '华语'),
+    ],
+    this.artistGenderOptions = const [
+      (id: '-1', label: '全部'),
+      (id: '1', label: '男'),
+    ],
+    this.artistStyleOptions = const [
+      (id: '0:0', label: '全部'),
+      (id: '1:0', label: '流行'),
+    ],
+    this.artistInitialOptions = const [
+      (id: '', label: '全部'),
+      (id: 'A', label: 'A'),
+    ],
   });
 
   final List<PlaylistTagGroup> tagGroups;
   final List<PlaylistBrief> playlists;
   final List<Track> newSongItems;
+  final List<AlbumBrief> albumItems;
+  final List<ArtistBrief> artistItems;
+
+  @override
+  final List<({String id, String label})> albumRegions;
+
+  @override
+  final List<({String id, String label})> artistGenderOptions;
+
+  @override
+  final List<({String id, String label})> artistStyleOptions;
+
+  @override
+  final List<({String id, String label})> artistInitialOptions;
 
   int tagCalls = 0;
   int playlistCalls = 0;
   int newSongCalls = 0;
+  int newAlbumCalls = 0;
+  int artistListCalls = 0;
 
   /// 记录 `categoryPlaylists` 收到的分类值（验证 UI 原样回传 tag id）。
   final List<String> requestedCats = [];
+
+  /// 记录 `newAlbums` 收到的地区值（验证 UI 原样回传能力给的 id）。
+  final List<String> requestedRegions = [];
+
+  /// 记录 `artistList` 收到的三项筛选值。
+  final List<({String gender, String style, String initial})>
+      requestedArtistFilters = [];
+
+  @override
+  Future<List<AlbumBrief>> newAlbums({
+    required String region,
+    int pageSize = 30,
+  }) async {
+    newAlbumCalls += 1;
+    requestedRegions.add(region);
+    return albumItems;
+  }
+
+  @override
+  Future<List<ArtistBrief>> artistList({
+    required String gender,
+    required String style,
+    required String initial,
+    int pageSize = 30,
+  }) async {
+    artistListCalls += 1;
+    requestedArtistFilters.add(
+      (gender: gender, style: style, initial: initial),
+    );
+    return artistItems;
+  }
 
   @override
   Future<List<PlaylistTagGroup>> playlistTagGroups() async {
@@ -59,6 +130,16 @@ class _DiscoveryFake extends FakeMusicSource
     return newSongItems;
   }
 
+  @override
+  Future<List<PlaylistBrief>> rankBoards() async => const [];
+
+  @override
+  Future<List<Track>> rankTracks(String boardId, {int page = 1}) async =>
+      const [];
+}
+
+/// 只有榜单能力的音源：用来验证「能力缺失 → 该 Tab 出暂不支持空态」。
+class _RankOnlyFake extends FakeMusicSource implements RankSource {
   @override
   Future<List<PlaylistBrief>> rankBoards() async => const [];
 
@@ -123,6 +204,24 @@ void main() {
           ),
         ),
         GoRoute(
+          path: '/album/:id',
+          builder: (_, state) => Scaffold(
+            body: Text(
+              'album:${state.pathParameters['id']}'
+              ':src=${state.uri.queryParameters['src'] ?? ''}',
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/artist/:id',
+          builder: (_, state) => Scaffold(
+            body: Text(
+              'artist:${state.pathParameters['id']}'
+              ':src=${state.uri.queryParameters['src'] ?? ''}',
+            ),
+          ),
+        ),
+        GoRoute(
           path: '/settings',
           builder: (_, _) => const Scaffold(body: Text('设置页')),
         ),
@@ -142,6 +241,8 @@ void main() {
   /// 两源场景：酷狗 / 网易各一份歌单（名字不同，便于断言切源是否真的换源）。
   ({_DiscoveryFake kugou, _DiscoveryFake netease}) twoSources({
     List<Track> neteaseNewSongs = const [],
+    List<AlbumBrief> neteaseAlbums = const [],
+    List<ArtistBrief> neteaseArtists = const [],
   }) {
     final kugou = _DiscoveryFake(
       platform: MusicPlatform.kugou,
@@ -153,6 +254,28 @@ void main() {
       tagGroups: [_group('华语')],
       playlists: [_playlist('163-1', '网易歌单', MusicPlatform.netease)],
       newSongItems: neteaseNewSongs,
+      albumItems: neteaseAlbums,
+      artistItems: neteaseArtists,
+      // 各源原生筛选值（网易口径），验证 UI 只渲染并原样回传。
+      albumRegions: const [
+        (id: 'ALL', label: '全部'),
+        (id: 'ZH', label: '华语'),
+      ],
+      artistGenderOptions: const [
+        (id: '-1', label: '全部'),
+        (id: '1', label: '男'),
+        (id: '2', label: '女'),
+      ],
+      artistStyleOptions: const [
+        (id: '-1', label: '全部'),
+        (id: '7', label: '华语'),
+        (id: '96', label: '欧美'),
+      ],
+      artistInitialOptions: const [
+        (id: '', label: '全部'),
+        (id: 'A', label: 'A'),
+        (id: 'B', label: 'B'),
+      ],
     );
     musicSourceRegistry = MusicSourceRegistry([kugou, netease]);
     return (kugou: kugou, netease: netease);
@@ -230,8 +353,18 @@ void main() {
     expect(sources.netease.playlistCalls, 0);
   });
 
-  testWidgets('网易源：新碟上架出「暂不支持」空态，不建假入口', (tester) async {
-    twoSources();
+  testWidgets('网易源：新碟上架走 NewAlbumFeedSource，地区取值来自能力并原样回传', (tester) async {
+    final sources = twoSources(
+      neteaseAlbums: const [
+        AlbumBrief(
+          id: '163-al-1',
+          name: '网易新碟',
+          coverUrl: '',
+          artist: '周杰伦',
+          platform: MusicPlatform.netease,
+        ),
+      ],
+    );
     final container = await containerWith({
       'settings.enabledSources': ['kugou', 'netease'],
       'settings.defaultSource': 'netease',
@@ -244,8 +377,145 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
+    expect(find.text('网易新碟'), findsOneWidget);
+    expect(find.textContaining('暂不支持「新碟上架」'), findsNothing);
+    expect(sources.netease.newAlbumCalls, 1);
+    // 首次取地区默认项 = 能力给出的首项。
+    expect(sources.netease.requestedRegions, ['ALL']);
+    expect(sources.kugou.newAlbumCalls, 0);
+
+    // 点第二个地区 chip（本 Tab 只有一行 chips）→ 原样回传该能力项的 id。
+    await tester.tap(find.byType(ChoiceChip).at(1));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(sources.netease.requestedRegions, ['ALL', 'ZH']);
+  });
+
+  testWidgets('点击网易新碟：详情路由带 ?src=netease', (tester) async {
+    twoSources(
+      neteaseAlbums: const [
+        AlbumBrief(
+          id: '163-al-1',
+          name: '网易新碟',
+          coverUrl: '',
+          platform: MusicPlatform.netease,
+        ),
+      ],
+    );
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'netease',
+    });
+
+    await pumpDiscovery(tester, container, size: const Size(900, 1000));
+    await tester.tap(find.text('新碟上架'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('网易新碟'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('album:163-al-1:src=netease'), findsOneWidget);
+  });
+
+  testWidgets('网易源：歌手 Tab 走 ArtistListSource，三项筛选取自能力并原样回传', (tester) async {
+    final sources = twoSources(
+      neteaseArtists: const [
+        ArtistBrief(
+          id: '163-ar-1',
+          name: '网易歌手',
+          avatarUrl: '',
+          platform: MusicPlatform.netease,
+        ),
+      ],
+    );
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'netease',
+    });
+
+    await pumpDiscovery(tester, container, size: const Size(900, 1000));
+    await tester.tap(find.text('歌手'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('网易歌手'), findsOneWidget);
+    expect(find.textContaining('暂不支持「歌手」'), findsNothing);
+    expect(sources.netease.artistListCalls, 1);
+    // 首帧三项都取能力给的首项（不筛）。
+    expect(
+      sources.netease.requestedArtistFilters,
+      [(gender: '-1', style: '-1', initial: '')],
+    );
+    expect(sources.kugou.artistListCalls, 0);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, '男'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.widgetWithText(ChoiceChip, '欧美'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'A'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      sources.netease.requestedArtistFilters.last,
+      (gender: '1', style: '96', initial: 'A'),
+    );
+  });
+
+  testWidgets('点击网易歌手：详情路由带 ?src=netease', (tester) async {
+    twoSources(
+      neteaseArtists: const [
+        ArtistBrief(
+          id: '163-ar-1',
+          name: '网易歌手',
+          avatarUrl: '',
+          platform: MusicPlatform.netease,
+        ),
+      ],
+    );
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'netease',
+    });
+
+    await pumpDiscovery(tester, container, size: const Size(900, 1000));
+    await tester.tap(find.text('歌手'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('网易歌手'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('artist:163-ar-1:src=netease'), findsOneWidget);
+  });
+
+  testWidgets('源缺能力：新碟上架 / 歌手 Tab 出「暂不支持」空态，不建假入口', (tester) async {
+    // 只有榜单能力的源 → 新碟上架与歌手都无能力，但本页仍有可用源（不出整页停用）。
+    musicSourceRegistry = MusicSourceRegistry([_RankOnlyFake()]);
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou'],
+      'settings.defaultSource': 'kugou',
+    });
+
+    await pumpDiscovery(tester, container, size: const Size(900, 1000));
+    expect(find.byType(SourceDisabledView), findsNothing);
+
+    await tester.tap(find.text('新碟上架'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.textContaining('暂不支持「新碟上架」'), findsOneWidget);
     expect(find.text('暂无新碟'), findsNothing);
+
+    await tester.tap(find.text('歌手'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.textContaining('暂不支持「歌手」'), findsOneWidget);
+    expect(find.text('暂无歌手'), findsNothing);
   });
 
   testWidgets('网易源：新歌速递 Tab 走 NewSongFeedSource 取曲目', (tester) async {
