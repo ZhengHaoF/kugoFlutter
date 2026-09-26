@@ -7,6 +7,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
 import 'cover_box.dart';
+import 'player_icon_buttons.dart';
 
 class MiniPlayerBar extends ConsumerWidget {
   const MiniPlayerBar({super.key});
@@ -113,22 +114,23 @@ class MiniPlayerBar extends ConsumerWidget {
                           : () => ref
                               .read(playerControllerProvider.notifier)
                               .togglePlay(),
-                      icon: player.isLoading
-                          ? SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: player.isLoading
+                            ? SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: kugo.primary,
+                                ),
+                              )
+                            : PlayPauseIcon(
+                                playing: player.isPlaying,
+                                size: 34,
                                 color: kugo.primary,
                               ),
-                            )
-                          : Icon(
-                              player.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: kugo.primary,
-                              size: 34,
-                            ),
+                      ),
                     ),
                     IconButton(
                       onPressed: player.isLoading

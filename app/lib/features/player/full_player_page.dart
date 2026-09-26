@@ -9,6 +9,7 @@ import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/player_icon_buttons.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/lyrics_view.dart';
 import '../../core/models/playback_source.dart';
@@ -75,7 +76,9 @@ class FullPlayerPage extends ConsumerWidget {
     if (isDesktop) {
       return Scaffold(
         backgroundColor: kugo.bg,
-        body: Container(
+        body: AnimatedContainer(
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOut,
           decoration: BoxDecoration(
             gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
           ),
@@ -259,7 +262,9 @@ class FullPlayerPage extends ConsumerWidget {
     return Scaffold(
       // Solid page bg avoids Material/Zoom settle flash-through.
       backgroundColor: kugo.bg,
-      body: Container(
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOut,
         decoration: BoxDecoration(
           gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
         ),
@@ -420,7 +425,9 @@ class PlayerLyricsPage extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: kugo.bg,
-      body: Container(
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOut,
         decoration: BoxDecoration(
           gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
         ),
@@ -1165,25 +1172,28 @@ class _ControlBar extends ConsumerWidget {
                 gradient: kugo.accentGradient,
                 shape: BoxShape.circle,
               ),
-              child: isLoading
-                  ? Padding(
-                      padding: EdgeInsets.all(playSize * 0.28),
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: isLoading
+                    ? Padding(
+                        key: const ValueKey('play-loading'),
+                        padding: EdgeInsets.all(playSize * 0.28),
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : IconButton(
+                        key: const ValueKey('play-toggle'),
+                        padding: EdgeInsets.zero,
+                        onPressed: controller.togglePlay,
+                        icon: PlayPauseIcon(
+                          playing: isPlaying,
+                          size: compact ? 28 : 32,
+                          color: Colors.white,
+                        ),
                       ),
-                    )
-                  : IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: controller.togglePlay,
-                      icon: Icon(
-                        isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        size: compact ? 28 : 32,
-                        color: Colors.white,
-                      ),
-                    ),
+              ),
             ),
             IconButton(
               padding: EdgeInsets.zero,
@@ -1195,18 +1205,12 @@ class _ControlBar extends ConsumerWidget {
                 color: kugo.textPrimary,
               ),
             ),
-            IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              onPressed: () {
-                ref.read(likesProvider.notifier).toggle(track);
-              },
-              icon: Icon(
-                liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color:
-                    liked ? const Color(0xFFE87A90) : kugo.textSecondary,
-                size: 22,
-              ),
+            LikeButton(
+              liked: liked,
+              onToggle: () => ref.read(likesProvider.notifier).toggle(track),
+              size: 22,
+              activeColor: const Color(0xFFE87A90),
+              inactiveColor: kugo.textSecondary,
             ),
           ],
         ),

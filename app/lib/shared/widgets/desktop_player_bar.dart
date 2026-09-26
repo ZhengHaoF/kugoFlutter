@@ -11,6 +11,7 @@ import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
 import 'cover_box.dart';
+import 'player_icon_buttons.dart';
 import 'quality_sheet.dart';
 import 'queue_sheet.dart';
 
@@ -168,18 +169,13 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                       ),
                       const SizedBox(width: 8),
                       // 喜欢按钮
-                      IconButton(
-                        tooltip: isLiked ? '取消喜欢' : '喜欢',
-                        onPressed: () => ref
-                            .read(likesProvider.notifier)
-                            .toggle(track),
-                        icon: Icon(
-                          isLiked
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          size: 20,
-                          color: isLiked ? Colors.redAccent : kugo.textTertiary,
-                        ),
+                      LikeButton(
+                        liked: isLiked,
+                        onToggle: () =>
+                            ref.read(likesProvider.notifier).toggle(track),
+                        size: 20,
+                        activeColor: Colors.redAccent,
+                        inactiveColor: kugo.textTertiary,
                       ),
                     ],
                   ),
@@ -228,10 +224,8 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                             tooltip: player.isPlaying ? '暂停' : '播放',
                             padding: EdgeInsets.zero,
                             onPressed: () => controller.togglePlay(),
-                            icon: Icon(
-                              player.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
+                            icon: PlayPauseIcon(
+                              playing: player.isPlaying,
                               size: 22,
                               color: Colors.white,
                             ),
