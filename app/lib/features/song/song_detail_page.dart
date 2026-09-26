@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,6 +21,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/comment_composer_sheet.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// Route: /song?id=&name=&artist=&album=&cover=&hash=&mixSongId=&duration=
@@ -67,6 +70,13 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   final Map<String, List<Comment>> _floors = {};
   final Set<String> _expanded = {};
   final Set<String> _floorLoading = {};
+
+  /// 分类 / 热词筛选（只在「全部」档生效；再点一次同一个 chip 取消）。
+  String _classifyId = '';
+  String _hotword = '';
+
+  /// 精彩评论。游客态实测拿不到（接口返回空），空就不显示这一块。
+  List<Comment> _featured = const [];
 
   Track get _track => Track(
     id: widget.id,
@@ -200,12 +210,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     var page = CommentPage.empty;
     var err = '';
     for (final id in candidates) {
-      page = await source.songComments(
-        id,
-        page: 1,
-        pageSize: _pageSize,
-        sort: _sort,
-      );
+      page = await _fetchPage(source, id, 1);
       if (page.items.isNotEmpty) {
         _resolvedMixId = id;
         break;
@@ -228,6 +233,11 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       _lastPageFull = page.items.length >= _pageSize;
       _error = '';
     });
+
+    // 精彩评论只在「全部」且未筛选时补一块；游客态拿不到就是空，不显示。
+    if (_sort == CommentSort.all && _classifyId.isEmpty && _hotword.isEmpty) {
+      unawaited(_loadFeatured());
+    }
   }
 
   /// 还有下一页？= 上一页是满页，且未到达服务端的 `maxPage`。
@@ -244,12 +254,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
     final next = _loadedPage + 1;
     setState(() => _loadingMore = true);
-    final page = await source.songComments(
-      id,
-      page: next,
-      pageSize: _pageSize,
-      sort: _sort,
-    );
+    final page = await _fetchPage(source, id, next);
     if (!mounted) return;
     setState(() {
       _loadingMore = false;
@@ -263,13 +268,84 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
             ? page.childrenId
             : _comments.childrenId,
         maxPage: page.maxPage > 0 ? page.maxPage : _comments.maxPage,
+        // 筛选项只有首屏响应带，翻页时必须原样续上，否则 chips 会消失。
+        classifyList: _comments.classifyList,
+        hotwordList: _comments.hotwordList,
       );
     });
   }
 
+  /// 按当前「档位 + 筛选」取一页。分类 / 热词只在「全部」档生效。
+  Future<CommentPage> _fetchPage(
+    CommentReadSource source,
+    String mixSongId,
+    int page,
+  ) {
+    if (_sort == CommentSort.all) {
+      if (_hotword.isNotEmpty) {
+        return source.hotwordComments(
+          mixSongId,
+          hotWord: _hotword,
+          page: page,
+          pageSize: _pageSize,
+        );
+      }
+      if (_classifyId.isNotEmpty) {
+        return source.classifyComments(
+          mixSongId,
+          typeId: _classifyId,
+          page: page,
+          pageSize: _pageSize,
+        );
+      }
+    }
+    return source.songComments(
+      mixSongId,
+      page: page,
+      pageSize: _pageSize,
+      sort: _sort,
+    );
+  }
+
+  /// 选中 / 取消分类 chip（再点同一个即取消）。
+  Future<void> _selectClassify(String id) async {
+    setState(() {
+      _classifyId = _classifyId == id ? '' : id;
+      _hotword = '';
+    });
+    await _loadFirst();
+  }
+
+  /// 选中 / 取消热词 chip。
+  Future<void> _selectHotword(String word) async {
+    setState(() {
+      _hotword = _hotword == word ? '' : word;
+      _classifyId = '';
+    });
+    await _loadFirst();
+  }
+
+  /// 精彩评论：只在「全部」且未筛选时拉一次；空就是空（游客态拿不到），不显示区块。
+  Future<void> _loadFeatured() async {
+    final source = _source;
+    final pool = _comments.childrenId;
+    if (source == null || pool.isEmpty) return;
+    final list = await source.featuredComments(
+      childrenId: pool,
+      mixSongId: _resolvedMixId ?? widget.mixSongId,
+    );
+    if (!mounted) return;
+    setState(() => _featured = list);
+  }
+
   Future<void> _switchSort(CommentSort sort) async {
     if (sort == _sort) return;
-    setState(() => _sort = sort);
+    setState(() {
+      _sort = sort;
+      // 分类 / 热词只属于「全部」档，换档时清掉，免得标签与数据源不一致。
+      _classifyId = '';
+      _hotword = '';
+    });
     await _loadFirst();
   }
 
@@ -502,10 +578,29 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               const Spacer(),
               _sortButton(kugo, CommentSort.hottest, '最热'),
               _sortButton(kugo, CommentSort.all, '全部'),
+              _sortButton(kugo, CommentSort.barrage, '弹幕'),
             ],
           ),
           const SizedBox(height: KugoSpacing.sm),
           _composerEntry(kugo),
+          if (_sort == CommentSort.all) _filterChipsRow(kugo),
+          if (_featured.isNotEmpty) ...[
+            const SizedBox(height: KugoSpacing.md),
+            Row(
+              children: [
+                Icon(
+                  Icons.local_fire_department_rounded,
+                  size: 16,
+                  color: kugo.primary,
+                ),
+                const SizedBox(width: 6),
+                Text('精彩评论', style: kugo.section),
+              ],
+            ),
+            const SizedBox(height: KugoSpacing.sm),
+            for (final c in _featured) _CommentTile(comment: c),
+            Divider(color: kugo.divider),
+          ],
           const SizedBox(height: KugoSpacing.md),
           if (_loading)
             const Padding(
@@ -595,6 +690,69 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       ),
     );
   }
+
+  /// 分类 / 热词 chips。只在「全部」档出现；没有筛选项时整行收起。
+  Widget _filterChipsRow(KugoTheme kugo) {
+    final options = <Widget>[
+      for (final c in _comments.classifyList)
+        _chip(
+          kugo,
+          label: c.count > 0 ? '${c.label} ${formatCount(c.count)}' : c.label,
+          selected: _classifyId == c.id,
+          onTap: () => _selectClassify(c.id),
+        ),
+      for (final w in _comments.hotwordList)
+        _chip(
+          kugo,
+          label: '#${w.label}',
+          selected: _hotword == w.id,
+          onTap: () => _selectHotword(w.id),
+        ),
+    ];
+    if (options.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: KugoSpacing.sm),
+      child: KugoHScroll(
+        builder: (context, controller) => SingleChildScrollView(
+          controller: controller,
+          scrollDirection: Axis.horizontal,
+          child: Row(children: options),
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(
+    KugoTheme kugo, {
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? kugo.primary.withValues(alpha: 0.14)
+                : kugo.surfaceElevated,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: selected ? kugo.primary : kugo.divider),
+          ),
+          child: Text(
+            label,
+            style: kugo.caption.copyWith(
+              color: selected ? kugo.primary : kugo.textSecondary,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _CommentTile extends StatelessWidget {
@@ -622,17 +780,34 @@ class _CommentTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CoverBox(
-            seed: comment.avatarUrl.isEmpty
-                ? 'avatar-${comment.user}'
-                : comment.avatarUrl,
-            size: 36,
-            radius: 999,
-            child: const Icon(
-              Icons.person_rounded,
-              size: 18,
-              color: Colors.white70,
-            ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CoverBox(
+                seed: comment.avatarUrl.isEmpty
+                    ? 'avatar-${comment.user}'
+                    : comment.avatarUrl,
+                size: 36,
+                radius: 999,
+                child: const Icon(
+                  Icons.person_rounded,
+                  size: 18,
+                  color: Colors.white70,
+                ),
+              ),
+              // 达人 / 演唱者角标（`vinfo9.pic`），叠在头像右下角。
+              if (comment.talentIcon.isNotEmpty)
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: CoverBox(
+                    seed: comment.talentIcon,
+                    size: 14,
+                    radius: 999,
+                    child: const SizedBox.shrink(),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -642,12 +817,26 @@ class _CommentTile extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        comment.user,
-                        style: kugo.caption.copyWith(
-                          color: kugo.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              comment.user,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: kugo.caption.copyWith(
+                                color: kugo.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (comment.badges.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            for (final b in comment.badges.take(2))
+                              _badge(kugo, b),
+                          ],
+                        ],
                       ),
                     ),
                     if (comment.timeLabel.isNotEmpty)
@@ -735,6 +924,31 @@ class _CommentTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 铭牌 chip：VIP 类用主色，身份类（学生/演员/认证/明星）用中性色。
+  Widget _badge(KugoTheme kugo, CommentBadge badge) {
+    const identityKinds = {'student', 'actor', 'biz', 'tme-star', 'auth'};
+    final isVip = !identityKinds.contains(badge.kind);
+    return Container(
+      margin: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: isVip
+            ? kugo.primary.withValues(alpha: 0.14)
+            : kugo.surfaceElevated,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: isVip ? kugo.primary : kugo.divider),
+      ),
+      child: Text(
+        badge.label,
+        style: kugo.caption.copyWith(
+          fontSize: 10,
+          height: 1.3,
+          color: isVip ? kugo.primary : kugo.textSecondary,
+        ),
       ),
     );
   }

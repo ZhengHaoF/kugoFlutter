@@ -193,6 +193,30 @@ abstract interface class CommentReadSource {
 
   /// 评论总数（入参是音频 hash，与列表 `count` 同口径）；null = 无数据。
   Future<int?> commentCount(String hash);
+
+  /// 分类评论。[typeId] 取自 [CommentPage.classifyList]。
+  Future<CommentPage> classifyComments(
+    String mixSongId, {
+    required String typeId,
+    int page = 1,
+    int pageSize = 20,
+  });
+
+  /// 热词评论。[hotWord] 取自 [CommentPage.hotwordList]。
+  Future<CommentPage> hotwordComments(
+    String mixSongId, {
+    required String hotWord,
+    int page = 1,
+    int pageSize = 20,
+  });
+
+  /// 精彩评论。**空列表是正常结果**（游客态拿不到），UI 据此隐藏该区块。
+  Future<List<Comment>> featuredComments({
+    required String childrenId,
+    String mixSongId = '',
+    int page = 1,
+    int pageSize = 10,
+  });
 }
 
 /// 评论**写**侧：发评论 / 回复楼层。

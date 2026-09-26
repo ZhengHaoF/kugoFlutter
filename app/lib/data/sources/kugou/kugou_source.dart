@@ -227,6 +227,45 @@ class KugouSource
       _comments.fetchCommentCount(hash: hash);
 
   @override
+  Future<CommentPage> classifyComments(
+    String mixSongId, {
+    required String typeId,
+    int page = 1,
+    int pageSize = 20,
+  }) => _comments.fetchClassifyComments(
+    mixSongId: mixSongId,
+    typeId: typeId,
+    page: page,
+    pageSize: pageSize,
+  );
+
+  @override
+  Future<CommentPage> hotwordComments(
+    String mixSongId, {
+    required String hotWord,
+    int page = 1,
+    int pageSize = 20,
+  }) => _comments.fetchHotwordComments(
+    mixSongId: mixSongId,
+    hotWord: hotWord,
+    page: page,
+    pageSize: pageSize,
+  );
+
+  @override
+  Future<List<Comment>> featuredComments({
+    required String childrenId,
+    String mixSongId = '',
+    int page = 1,
+    int pageSize = 10,
+  }) => _comments.fetchFeaturedComments(
+    childrenId: childrenId,
+    mixSongId: mixSongId,
+    page: page,
+    pageSize: pageSize,
+  );
+
+  @override
   Future<void> sendSongComment({
     required String childrenId,
     required String content,

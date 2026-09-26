@@ -105,6 +105,18 @@ class CommentRepository {
   static const String _cmtListPath = '/mcomment/v1/cmtlist';
   static const String _hottestPath = '/m.comment.service/r/v1/rank/topliked';
   static const String _floorPath = '/mcomment/v1/hot_replylist';
+  static const String _classifyPath = '/mcomment/v1/cmt_classify_list';
+  static const String _hotwordPath = '/mcomment/v1/get_hot_word';
+
+  /// 精彩评论：URL 由 `cmtlist` 响应的 `weightListFullApi` 给出，走服务名前缀写法。
+  ///
+  /// 实测：游客态返回 `status=1` 但列表为空（响应里带
+  /// `tipOfNoUseArtCmt: 该功能仅对部分用户开放喔`），所以**空就是空**，UI 不显示该区块。
+  static const String _featuredPath = '/m.comment.service/v1/weightlist';
+
+  /// 弹幕：走 `index.php`，且是**另一个评论池**（code 与评论不同）。
+  static const String _barrageR = 'comments/getCommentWithLike';
+  static const String _barrageCode = 'articulossong';
 
   /// `index.php` 是评论数**和**评论写口共用的入口，靠 `x-router` 分流。
   static const String _indexPath = '/index.php';
@@ -196,6 +208,31 @@ class CommentRepository {
           : hottest;
     }
 
+    if (sort == CommentSort.barrage) {
+      var pool = _childrenIdByMix[id] ?? '';
+      if (pool.isEmpty) {
+        // 弹幕按评论池分池，池 id 同样只能从 cmtlist 响应里取 —— 先垫一次。
+        final primer = await _requestPage(
+          path: _cmtListPath,
+          page: 1,
+          pageSize: 1,
+          business: _songBusiness(mixSongId: id),
+        );
+        pool = primer?.childrenId ?? '';
+      }
+      if (pool.isEmpty) {
+        lastError = lastError.isEmpty ? '评论池未知，无法加载弹幕' : lastError;
+        return CommentPage.empty;
+      }
+      _childrenIdByMix[id] = pool;
+      return _fetchBarrage(
+        childrenId: pool,
+        mixSongId: id,
+        page: page,
+        pageSize: pageSize,
+      );
+    }
+
     final result = await _requestPage(
       path: _cmtListPath,
       page: page,
@@ -280,6 +317,146 @@ class CommentRepository {
       return _pickNumber(body, const ['count', 'comments_num']);
     } on DioException {
       return null;
+    }
+  }
+
+  /// 分类评论（选中「歌曲相关」这类 chip 后取数）。
+  Future<CommentPage> fetchClassifyComments({
+    required String mixSongId,
+    required String typeId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    lastError = '';
+    lastSsaCode = '';
+    final id = mixSongId.trim();
+    final type = typeId.trim();
+    if (id.isEmpty || type.isEmpty) {
+      lastError = '分类参数缺失';
+      return CommentPage.empty;
+    }
+    final result = await _requestPage(
+      path: _classifyPath,
+      page: page,
+      pageSize: pageSize,
+      business: {
+        'mixsongid': _asNumber(id) ?? id,
+        'need_show_image': 1,
+        'type_id': _asNumber(type) ?? type,
+        'extdata': '0',
+        'code': _songCode,
+        // 上游：`sort` 传 2 才用 2，否则一律 1。
+        'sort_method': 1,
+      },
+    );
+    return result ?? CommentPage.empty;
+  }
+
+  /// 热词评论（点热词 chip 后取数）。
+  Future<CommentPage> fetchHotwordComments({
+    required String mixSongId,
+    required String hotWord,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    lastError = '';
+    lastSsaCode = '';
+    final id = mixSongId.trim();
+    final word = hotWord.trim();
+    if (id.isEmpty || word.isEmpty) {
+      lastError = '热词参数缺失';
+      return CommentPage.empty;
+    }
+    final result = await _requestPage(
+      path: _hotwordPath,
+      page: page,
+      pageSize: pageSize,
+      business: {
+        'mixsongid': _asNumber(id) ?? id,
+        'need_show_image': 1,
+        'hot_word': word,
+        'extdata': '0',
+        'code': _songCode,
+      },
+    );
+    return result ?? CommentPage.empty;
+  }
+
+  /// 精彩评论。**空列表是正常结果**（游客态实测拿不到，响应里带
+  /// 「该功能仅对部分用户开放」），所以 UI 拿到空就不显示这一块。
+  Future<List<Comment>> fetchFeaturedComments({
+    required String childrenId,
+    String mixSongId = '',
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    lastError = '';
+    lastSsaCode = '';
+    final pool = childrenId.trim();
+    if (pool.isEmpty) return const [];
+    final result = await _requestPage(
+      path: _featuredPath,
+      page: page,
+      pageSize: pageSize,
+      business: {
+        'childrenid': _asNumber(pool) ?? pool,
+        if (mixSongId.trim().isNotEmpty)
+          'mixsongid': _asNumber(mixSongId.trim()),
+        'code': _songCode,
+      },
+    );
+    return result?.items ?? const [];
+  }
+
+  /// 弹幕（另一个评论池）。走 `index.php` + `key`，`key` 只算 `clienttime`。
+  Future<CommentPage> _fetchBarrage({
+    required String childrenId,
+    required String mixSongId,
+    required int page,
+    required int pageSize,
+  }) async {
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+    try {
+      final body = await _postIndex(
+        query: <String, dynamic>{
+          'r': _barrageR,
+          'code': _barrageCode,
+          'childrenid': _asNumber(childrenId) ?? childrenId,
+          if (mixSongId.trim().isNotEmpty)
+            'mixsongid': _asNumber(mixSongId.trim()),
+          'p': page,
+          'pagesize': pageSize,
+          'kugouid': _kugouId(auth),
+          'ver': 6,
+          'clienttoken': auth.token,
+          'appid': int.parse(KugoSign.appId),
+          'clientver': int.parse(KugoSign.clientVer),
+          'mid': device.mid,
+          'clienttime': clienttime,
+          'key': KugoSign.signParamsKey('$clienttime'),
+          'uuid': '-',
+          'dfid': device.dfid,
+        },
+        dfid: device.dfid,
+        mid: device.mid,
+        clienttime: clienttime,
+      );
+      final status = body['status'];
+      if (!(status == 1 || status == '1' || status == true)) {
+        _mapError(body);
+        return CommentPage.empty;
+      }
+      return CommentPage(
+        items: _parseComments(body),
+        total: _pickNumber(body, const ['count', 'total']) ?? 0,
+        childrenId: _stringOf(body['childrenid']),
+      );
+    } on SourceFailure catch (e) {
+      // 读侧约定是「返回空 + lastError」，不往上抛。
+      lastError = e.message;
+      return CommentPage.empty;
     }
   }
 
@@ -675,6 +852,25 @@ class CommentRepository {
                   : null),
         ),
         maxPage: _firstInt(body['maxPage']) ?? 0,
+        // 只有 cmtlist 首屏会带这两个筛选项，其他接口拿到空数组即可。
+        classifyList: _parseFilterOptions(
+          body['classify_list'] ??
+              (body['data'] is Map
+                  ? (body['data'] as Map)['classify_list']
+                  : null),
+          idKey: 'id',
+          labelKey: 'label',
+          countKey: 'cnt',
+        ),
+        hotwordList: _parseFilterOptions(
+          body['hot_word_list'] ??
+              (body['data'] is Map
+                  ? (body['data'] as Map)['hot_word_list']
+                  : null),
+          idKey: 'content',
+          labelKey: 'content',
+          countKey: 'count',
+        ),
       );
     } on DioException catch (e) {
       final msg = e.message ?? e.toString();
@@ -757,11 +953,227 @@ class CommentRepository {
               ) ??
               0,
           location: (m['location'] ?? m['ip_location'] ?? '').toString(),
+          badges: _parseBadges(m),
+          talentIcon: _talentIcon(m),
         ),
       );
     }
     return out;
   }
+
+  /// 分类 / 热词筛选项。两个接口的键名不同（分类 `{id,label,cnt}`，热词
+  /// `{content,count}`），所以键名由调用方给。
+  static List<CommentFilterOption> _parseFilterOptions(
+    Object? raw, {
+    required String idKey,
+    required String labelKey,
+    required String countKey,
+  }) {
+    if (raw is! List) return const [];
+    final out = <CommentFilterOption>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      final id = (m[idKey] ?? '').toString().trim();
+      final label = (m[labelKey] ?? '').toString().trim();
+      if (id.isEmpty || label.isEmpty) continue;
+      out.add(
+        CommentFilterOption(
+          id: id,
+          label: label,
+          count: _firstInt(m[countKey]) ?? 0,
+        ),
+      );
+    }
+    return out;
+  }
+
+  // ── 铭牌 / 身份徽标 ────────────────────────────────────
+  //
+  // 精简移植 EchoMusic `commentVip.ts`（原作对应酷狗 Young 5.1.9 的
+  // `com.kugou.android.app.common.comment.utils.o`）。字段全在 cmtlist 单条
+  // 评论里（`vip_type` / `m_type` / `y_type` / `vipinfo` / `vinfo9` / `busi_vip`），
+  // **不需要额外的批量接口** —— EchoMusic 那个 `user_batch_union_vipinfo`
+  // 只是把 busi_vip 补全得更准，P2 先不做。
+
+  static List<CommentBadge> _parseBadges(Map<String, dynamic> m) {
+    final vipinfo = m['vipinfo'] is Map
+        ? Map<String, dynamic>.from(m['vipinfo'] as Map)
+        : const <String, dynamic>{};
+    final vinfo9 = m['vinfo9'] is Map
+        ? Map<String, dynamic>.from(m['vinfo9'] as Map)
+        : const <String, dynamic>{};
+    final vipType = _firstInt(m['vip_type']) ?? 0;
+    final mType = _firstInt(m['m_type']) ?? 0;
+    final yType = _firstInt(m['y_type']) ?? 0;
+    final userType =
+        _firstInt(vipinfo['user_type'] ?? m['vip_user_type']) ?? -1;
+    final userYType = _firstInt(vipinfo['user_y_type']) ?? -1;
+    final busi = _busiVip(m, vipinfo);
+
+    final out = <CommentBadge>[];
+    final plate = _plateId(
+      vipType: vipType,
+      mType: mType,
+      yType: yType,
+      userType: userType,
+      userYType: userYType,
+      busi: busi,
+    );
+    final music = _musicKind(mType, yType);
+    final vipKind = _vipKindName(plate, music);
+    final vipLabel = _vipLabel(vipKind);
+    if (vipKind != null && vipLabel != null) {
+      out.add(CommentBadge(kind: vipKind, label: vipLabel));
+    }
+
+    void addIdentity(Object? raw, String kind, String label) {
+      if (_flag(raw)) out.add(CommentBadge(kind: kind, label: label));
+    }
+
+    addIdentity(
+      vinfo9['student_status'] ?? m['student_status'],
+      'student',
+      '学生',
+    );
+    addIdentity(vinfo9['actor_status'] ?? m['actor_status'], 'actor', '演员');
+    addIdentity(vinfo9['biz_status'] ?? m['biz_status'], 'biz', '认证');
+    addIdentity(
+      vinfo9['tme_star_status'] ?? m['tme_star_status'],
+      'tme-star',
+      '明星',
+    );
+
+    // 认证信息（如「歌手」）；达人是头像角标，不重复成 chip。
+    final auth = (vinfo9['auth_info'] ?? m['auth_info'] ?? '')
+        .toString()
+        .trim();
+    const avatarIconLabels = {'达人', '演唱者', '歌手'};
+    if (auth.isNotEmpty &&
+        !avatarIconLabels.contains(auth) &&
+        auth != '学生' &&
+        !out.any((b) => b.label == auth)) {
+      out.add(CommentBadge(kind: 'auth', label: auth));
+    }
+    return out;
+  }
+
+  /// 头像角标：优先 `vinfo9.pic`（达人/演唱者图），只置了标志位时用官方图。
+  static String _talentIcon(Map<String, dynamic> m) {
+    final vinfo9 = m['vinfo9'] is Map
+        ? Map<String, dynamic>.from(m['vinfo9'] as Map)
+        : const <String, dynamic>{};
+    for (final candidate in [
+      vinfo9['pic'],
+      vinfo9['t_pic'],
+      vinfo9['tpic'],
+      vinfo9['t_icon'],
+      m['t_pic'],
+    ]) {
+      final url = _httpUrl(candidate);
+      if (url.isNotEmpty) return url;
+    }
+    if (_flag(vinfo9['cmt_talent_status'] ?? m['cmt_talent_status'])) {
+      // 官方达人角标（EchoMusic COMMENT_TALENT_ICON）。
+      return 'https://imge.kugou.com/commendpic/20180627/20180627153930257837.png';
+    }
+    return '';
+  }
+
+  static bool _flag(Object? value) =>
+      value == true || value == 1 || value == '1';
+
+  static String _httpUrl(Object? value) {
+    final url = (value ?? '').toString().trim();
+    if (url.isEmpty) return '';
+    if (url.startsWith('//')) return 'https:$url';
+    if (url.startsWith('http')) return url.replaceFirst('http://', 'https://');
+    return '';
+  }
+
+  static List<Map<String, dynamic>> _busiVip(
+    Map<String, dynamic> m,
+    Map<String, dynamic> vipinfo,
+  ) {
+    for (final bucket in [m['busi_vip'], m['busiVip'], vipinfo['busi_vip']]) {
+      if (bucket is List) {
+        return bucket
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    }
+    return const [];
+  }
+
+  /// `user_type` 的 bit 16 才是超级VIP标志（不是 `svip_level`）。
+  static bool _superVipBit(int type) => type >= 0 && (type & 16) > 0;
+
+  static bool _hasBusi(List<Map<String, dynamic>> busi, String productType) =>
+      busi.any(
+        (e) =>
+            _flag(e['is_vip'] ?? e['isVip']) &&
+            (e['product_type'] ?? e['productType'] ?? '')
+                    .toString()
+                    .trim()
+                    .toLowerCase() ==
+                productType,
+      );
+
+  /// 铭牌优先级：超级VIP → 概念VIP(svip) → 周卡 → 畅听 → 季卡 → 经典回退。
+  static int _plateId({
+    required int vipType,
+    required int mType,
+    required int yType,
+    required int userType,
+    required int userYType,
+    required List<Map<String, dynamic>> busi,
+  }) {
+    if (_superVipBit(userType)) return _superVipBit(userYType) ? 10 : 9;
+    if (_hasBusi(busi, 'svip')) return yType == 1 ? 8 : 7;
+    if (_hasBusi(busi, 'wvip')) return 13;
+    if (_hasBusi(busi, 'tvip')) return 11;
+    if (_hasBusi(busi, 'qvip')) return 12;
+    if (yType == 2 || yType == 3) return 6;
+    if (vipType >= 1 && vipType <= 4) return mType > 0 ? 2 : 1;
+    return vipType == 6 ? 2 : -1;
+  }
+
+  static int _musicKind(int mType, int yType) {
+    if (yType == 1 || yType == 3) return 5;
+    if (mType == 1 || mType == 2) return 3;
+    return (mType == 3 || mType == 4) ? 4 : -2;
+  }
+
+  /// 图标顺序（原作 `o.w`）；`plate=1` 没有独立图标但官方仍显示 → 归为 VIP。
+  static String? _vipKindName(int plate, int music) {
+    if (plate == 10) return 'svip-year';
+    if (plate == 9) return 'svip';
+    if (plate == 8) return 'concept-year';
+    if (plate == 7) return 'concept';
+    if (plate == 6) return 'vip-year';
+    if (music == 5) return 'music-year';
+    if (plate == 2) return 'vip';
+    if (music == 3 || music == 4) return 'music';
+    if (plate == 13) return 'wvip';
+    if (plate == 11) return 'changting';
+    if (plate == 12) return 'qvip';
+    if (plate == 1) return 'vip';
+    return null;
+  }
+
+  static String? _vipLabel(String? kind) => switch (kind) {
+    'svip' || 'svip-year' => '超级VIP',
+    'concept' || 'concept-year' => '概念VIP',
+    'wvip' => '周卡',
+    'changting' => '畅听VIP',
+    'qvip' => '季卡',
+    'vip-year' => '豪华VIP',
+    'vip' => 'VIP',
+    'music-year' => '年费音乐包',
+    'music' => '音乐包',
+    _ => null,
+  };
 
   static int _likeCount(Map<String, dynamic> item) {
     final like = item['like'];

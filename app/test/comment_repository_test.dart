@@ -72,6 +72,37 @@ const String _cmtListJson = '''
 }
 ''';
 
+/// 带筛选项 + 铭牌字段的样本（分类 id=13 / 热词「晴天」/ vip_type=1 / 学生身份）。
+const String _cmtListRichJson = '''
+{
+  "status": 1,
+  "err_code": 0,
+  "count": 100,
+  "childrenid": 20505418,
+  "maxPage": 5,
+  "classify_list": [
+    {"id": 13, "label": "歌曲相关", "icon": "http://x/y.png", "cnt": 55486},
+    {"id": 12, "label": "其他", "cnt": 3}
+  ],
+  "hot_word_list": [
+    {"content": "晴天", "count": 23477},
+    {"content": "周杰伦", "count": 100}
+  ],
+  "list": [
+    {
+      "id": 1,
+      "user_name": "VIP用户",
+      "content": "好听",
+      "vip_type": 1,
+      "m_type": 0,
+      "y_type": 0,
+      "vinfo9": {"pic": "http://imge.kugou.com/commendpic/x.png", "student_status": 1},
+      "like": {"likenum": 3}
+    }
+  ]
+}
+''';
+
 const String _topLikedJson = '''
 {
   "status": 1,
@@ -481,5 +512,102 @@ void main() {
       throwsA(isA<NotFound>()),
     );
     expect(adapter.seen, isEmpty);
+  });
+
+  // ── P2：筛选项 / 精彩评论 / 弹幕 / 铭牌 ──────────────────
+
+  test('cmtlist 解析出分类与热词筛选项', () async {
+    final adapter = _ScriptedAdapter([_cmtListRichJson]);
+    final repo = _repo(adapter);
+
+    final page = await repo.fetchSongComments(mixSongId: '32100650');
+
+    expect(page.classifyList.length, 2);
+    expect(page.classifyList.first.id, '13');
+    expect(page.classifyList.first.label, '歌曲相关');
+    expect(page.classifyList.first.count, 55486);
+    expect(page.hotwordList.length, 2);
+    expect(page.hotwordList.first.id, '晴天');
+    expect(page.hotwordList.first.count, 23477);
+  });
+
+  test('铭牌：VIP 类与身份类各自成 chip，达人角标走 vinfo9.pic', () async {
+    final adapter = _ScriptedAdapter([_cmtListRichJson]);
+    final repo = _repo(adapter);
+
+    final page = await repo.fetchSongComments(mixSongId: '32100650');
+    final c = page.items.single;
+
+    // vip_type=1 且 m_type=0 → 经典 VIP
+    expect(c.badges.map((b) => b.label), contains('VIP'));
+    // vinfo9.student_status=1 → 学生
+    expect(c.badges.map((b) => b.label), contains('学生'));
+    expect(c.talentIcon, startsWith('https://'));
+  });
+
+  test('分类评论：打 cmt_classify_list 且带 type_id / sort_method', () async {
+    final adapter = _ScriptedAdapter([_cmtListJson]);
+    final repo = _repo(adapter);
+
+    await repo.fetchClassifyComments(mixSongId: '32100650', typeId: '13');
+
+    final req = adapter.seen.single;
+    expect(req.uri.path, '/mcomment/v1/cmt_classify_list');
+    expect(req.queryParameters['type_id'], 13);
+    expect(req.queryParameters['sort_method'], 1);
+    expect(req.queryParameters['mixsongid'], 32100650);
+  });
+
+  test('热词评论：打 get_hot_word 且原样回传 hot_word', () async {
+    final adapter = _ScriptedAdapter([_cmtListJson]);
+    final repo = _repo(adapter);
+
+    await repo.fetchHotwordComments(mixSongId: '32100650', hotWord: '晴天');
+
+    final req = adapter.seen.single;
+    expect(req.uri.path, '/mcomment/v1/get_hot_word');
+    expect(req.queryParameters['hot_word'], '晴天');
+  });
+
+  test('精彩评论：打 weightlist；空列表是正常结果不报错', () async {
+    final adapter = _ScriptedAdapter([
+      '{"status":1,"err_code":0,"count":0,"childrenid":"20505418","list":""}',
+    ]);
+    final repo = _repo(adapter);
+
+    final list = await repo.fetchFeaturedComments(childrenId: '20505418');
+
+    expect(list, isEmpty);
+    expect(repo.lastError, isEmpty);
+    final req = adapter.seen.single;
+    expect(req.uri.path, '/m.comment.service/v1/weightlist');
+    expect(req.queryParameters['childrenid'], 20505418);
+  });
+
+  test('弹幕：走 index.php + code=articulossong，key 只算 clienttime', () async {
+    final adapter = _ScriptedAdapter([
+      _cmtListJson, // 先垫一次拿评论池 id
+      '{"status":1,"err_code":0,"count":83380,"childrenid":"20505418",'
+          '"list":[{"id":9,"user_name":"弹幕君","content":"点赞有特效","like":{"likenum":7}}]}',
+    ]);
+    final repo = _repo(adapter);
+
+    await repo.fetchSongComments(mixSongId: '32100650');
+    final page = await repo.fetchSongComments(
+      mixSongId: '32100650',
+      sort: CommentSort.barrage,
+    );
+
+    expect(page.items.single.user, '弹幕君');
+    expect(page.total, 83380);
+
+    final req = adapter.seen.last;
+    expect(req.uri.path, '/index.php');
+    expect(req.queryParameters['r'], 'comments/getCommentWithLike');
+    expect(req.queryParameters['code'], 'articulossong');
+    expect(req.queryParameters['childrenid'], 20505418);
+    expect(req.headers['x-router'], 'm.comment.service.kugou.com');
+    final ct = req.queryParameters['clienttime'] as int;
+    expect(req.queryParameters['key'], KugoSign.signParamsKey('$ct'));
   });
 }
