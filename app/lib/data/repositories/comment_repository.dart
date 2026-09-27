@@ -102,6 +102,16 @@ class CommentRepository {
 
   static const String _gateway = 'https://gateway.kugou.com';
   static const String _songCode = 'fc4be23b4e972707f36b8a828a93ba8a';
+
+  /// 专辑 / 歌单评论池的 `code`（与歌曲是三套独立评论池，互不相通）。
+  static const String _albumCode = '94f1792ced1df89aa68a7939eaf2efca';
+  static const String _playlistCode = 'ca53b96fe5a1d9c22d71c8f522ef7c4f';
+
+  /// 歌单 / 专辑评论走 **B 组**端点（`m.comment.service/v1/*`），
+  /// 与歌曲的 `/mcomment/v1/cmtlist`（A 组）不是一回事 —— 参数与 code 都不同。
+  static const String _resourceCmtListPath = '/m.comment.service/v1/cmtlist';
+  static const String _resourceFloorPath = '/m.comment.service/v1/hot_replylist';
+
   static const String _cmtListPath = '/mcomment/v1/cmtlist';
   static const String _hottestPath = '/m.comment.service/r/v1/rank/topliked';
   static const String _floorPath = '/mcomment/v1/hot_replylist';
@@ -247,6 +257,224 @@ class CommentRepository {
     return pageData;
   }
 
+  // ── 歌单 / 专辑评论 ────────────────────────────────────
+  //
+  // 与歌曲评论的三点差异（2026-09-27 实测）：
+  // 1. **走 B 组端点** `/m.comment.service/v1/cmtlist`，靠 `code` 区分评论池；
+  //    歌曲走的是 A 组 `/mcomment/v1/cmtlist`。
+  // 2. **入参就是资源 id 本身**（歌单 `specialid` / 专辑 `albumid`）—— 它同时
+  //    也是评论池 `childrenid`，**不需要**像歌曲那样回搜解析 mixsongid。
+  // 3. 响应**不带** `classify_list` / `hot_word_list`（实测专辑 966846、歌单 66666
+  //    均无），所以这两类评论区没有分类 / 热词 chips。
+
+  /// 歌单 / 专辑评论分页。
+  Future<CommentPage> fetchResourceComments(
+    CommentResourceKind kind, {
+    required String resourceId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    lastError = '';
+    lastSsaCode = '';
+    final id = resourceId.trim();
+    if (id.isEmpty || id == '0') {
+      lastError = '缺少资源 ID';
+      return CommentPage.empty;
+    }
+    final result = await _requestPage(
+      path: _resourceCmtListPath,
+      page: page,
+      pageSize: pageSize,
+      business: _resourceBusiness(kind, id),
+    );
+    final pageData = result ?? CommentPage.empty;
+    if (pageData.childrenId.isNotEmpty) return pageData;
+    // 评论池 id 缺失时（如该资源 0 条评论）用资源 id 兜底 —— 否则后面发评论 /
+    // 拉楼层会因为「评论池未知」直接失败。
+    return CommentPage(
+      items: pageData.items,
+      total: pageData.total,
+      childrenId: id,
+      maxPage: pageData.maxPage,
+      classifyList: pageData.classifyList,
+      hotwordList: pageData.hotwordList,
+    );
+  }
+
+  /// 歌单 / 专辑评论的楼层回复（B 组 `hot_replylist`）。
+  ///
+  /// 与歌曲楼层同一口径（`childrenid` + `tid`），只是端点和 `code` 不同。
+  Future<List<Comment>> fetchResourceFloorReplies(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String rootCommentId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    lastError = '';
+    lastSsaCode = '';
+    final pool = childrenId.trim();
+    final root = rootCommentId.trim();
+    if (pool.isEmpty || root.isEmpty) {
+      lastError = '楼层参数缺失，请刷新评论后重试';
+      return const [];
+    }
+    final pageResult = await _requestPage(
+      path: _resourceFloorPath,
+      page: page,
+      pageSize: pageSize,
+      business: {
+        'childrenid': _asNumber(pool) ?? pool,
+        'tid': _asNumber(root) ?? root,
+        'need_show_image': 1,
+        'show_classify': 1,
+        'show_hotword_list': 1,
+        'code': _resourceCode(kind),
+      },
+    );
+    return pageResult?.items ?? const [];
+  }
+
+  /// 歌单 / 专辑评论总数。入参是**资源 id**（评论数接口也吃 `childrenid` 口径）。
+  ///
+  /// 返回 null = 无数据 / 失败（UI 显示「—」）。
+  Future<int?> fetchResourceCommentCount(
+    CommentResourceKind kind,
+    String resourceId,
+  ) => _fetchCount(
+    code: _resourceCode(kind),
+    childrenId: resourceId.trim(),
+  );
+
+  /// 发歌单 / 专辑评论（写侧）。未登录 / 被风控会抛 [SourceFailure]。
+  ///
+  /// 与发歌曲评论的差异：body 里**不带** `album_audio_id`（那是歌曲口径），
+  /// `childrenname` 传的是歌单名 / 专辑名。
+  Future<void> sendResourceComment(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String content,
+    String resourceName = '',
+  }) async {
+    _requireLogin();
+    final text = _validatedContent(content);
+    final pool = childrenId.trim();
+    if (pool.isEmpty) {
+      throw const NotFound('评论池未知，请刷新评论后再试');
+    }
+
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+    final payload = jsonEncode({
+      'data': {'content': text},
+    });
+
+    final body = await _postIndex(
+      query: <String, dynamic>{
+        'r': 'commentsv3/add',
+        'code': _resourceCode(kind),
+        'childrenid': _asNumber(pool) ?? pool,
+        if (resourceName.trim().isNotEmpty)
+          'childrenname': resourceName.trim(),
+        'kugouid': _kugouId(auth),
+        'ver': 6,
+        'clienttoken': auth.token,
+        'appid': int.parse(KugoSign.appId),
+        'clientver': int.parse(KugoSign.clientVer),
+        'mid': device.mid,
+        'clienttime': clienttime,
+        'key': KugoSign.signParamsKey('$clienttime${device.mid}$payload'),
+        'uuid': '-',
+        'dfid': device.dfid,
+      },
+      body: payload,
+      dfid: device.dfid,
+      mid: device.mid,
+      clienttime: clienttime,
+    );
+    _assertWriteOk(body, what: '评论');
+  }
+
+  /// 回复歌单 / 专辑的主评论（楼层）。
+  ///
+  /// 与歌曲回复同一口径（`commentsv2/reply`，`key` 只算 `clienttime + mid`），
+  /// 只是 `code` 不同、且**不带** `mixsongid`（歌单 / 专辑没有这个语义）。
+  Future<void> sendResourceFloorReply(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String rootCommentId,
+    required String content,
+    String replyToUser = '',
+    String replyToContent = '',
+    String resourceName = '',
+  }) async {
+    _requireLogin();
+    final pool = childrenId.trim();
+    final root = rootCommentId.trim();
+    if (pool.isEmpty || root.isEmpty) {
+      throw const NotFound('楼层信息不完整，请刷新评论后再试');
+    }
+
+    var text = content.trim();
+    if (text.isEmpty) throw const UpstreamChanged('回复内容不能为空');
+    if (replyToUser.trim().isNotEmpty &&
+        replyToContent.trim().isNotEmpty &&
+        !text.contains('//@')) {
+      text = '$text//@${replyToUser.trim()}:${replyToContent.trim()}';
+    }
+    text = _validatedContent(text);
+
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+
+    final body = await _postIndex(
+      query: <String, dynamic>{
+        'r': 'commentsv2/reply',
+        'code': _resourceCode(kind),
+        'childrenid': _asNumber(pool) ?? pool,
+        if (resourceName.trim().isNotEmpty)
+          'childrenname': resourceName.trim(),
+        'kugouid': _kugouId(auth),
+        'ver': 6,
+        'clienttoken': auth.token,
+        'appid': int.parse(KugoSign.appId),
+        'clientver': int.parse(KugoSign.clientVer),
+        'mid': device.mid,
+        'clienttime': clienttime,
+        'key': KugoSign.signParamsKey('$clienttime${device.mid}'),
+        'uuid': '-',
+        'dfid': device.dfid,
+        'extdata': '0',
+        'content': text,
+        'tid': _asNumber(root) ?? root,
+        // 与歌曲一致：P1 只做「在主评论下发一条新回复」。
+        'is_t': 1,
+        'pid': 0,
+      },
+      dfid: device.dfid,
+      mid: device.mid,
+      clienttime: clienttime,
+    );
+    _assertWriteOk(body, what: '回复');
+  }
+
+  static String _resourceCode(CommentResourceKind kind) =>
+      kind == CommentResourceKind.album ? _albumCode : _playlistCode;
+
+  Map<String, dynamic> _resourceBusiness(CommentResourceKind kind, String id) => {
+    'childrenid': _asNumber(id) ?? id,
+    'need_show_image': 1,
+    // 歌单比专辑多这两个（上游 `comment_playlist.js` 约定；专辑带了也无害，
+    // 但实测歌单侧去掉它们结果不变 —— 保留是为了与上游逐字一致）。
+    if (kind == CommentResourceKind.playlist) ...{
+      'content_type': 0,
+      'tag': 5,
+    },
+    'code': _resourceCode(kind),
+  };
+
   /// 楼层回复（某条主评论下的回复）。
   ///
   /// [childrenId] 必填（评论池 id）；[rootCommentId] 是主评论的 `id`（上游 `tid`）。
@@ -286,14 +514,25 @@ class CommentRepository {
   /// 评论数。入参是**音频 hash**，返回 null = 无数据 / 失败（UI 显示「—」）。
   ///
   /// 实测：`{"<hash>": 706580}`，与列表接口的 `count` 同口径。
-  Future<int?> fetchCommentCount({required String hash}) async {
+  Future<int?> fetchCommentCount({required String hash}) =>
+      _fetchCount(code: _songCode, hash: hash.trim());
+
+  /// 评论数的实际请求：歌曲传 [hash]，歌单 / 专辑传 [childrenId]。
+  ///
+  /// 两个口径的响应形态一样 —— **以入参值本身作键**（`{"7845129": 0}`），
+  /// 所以取值时直接用那个键，不做全量扫描。
+  Future<int?> _fetchCount({
+    required String code,
+    String hash = '',
+    String childrenId = '',
+  }) async {
     lastError = '';
-    final h = hash.trim();
-    if (h.isEmpty) return null;
+    final key = hash.isNotEmpty ? hash : childrenId;
+    if (key.isEmpty) return null;
     final params = <String, dynamic>{
       'r': 'comments/getcommentsnum',
-      'code': _songCode,
-      'hash': h,
+      'code': code,
+      if (hash.isNotEmpty) 'hash': hash else 'childrenid': childrenId,
     };
     params['signature'] = KugoSign.signatureWebParams(params);
     try {
@@ -306,12 +545,11 @@ class CommentRepository {
       );
       final body = _decodeBody(res.data);
       if (body == null) return null;
-      // 正常形态是 `{"<hash>": 706580}` —— 键就是 hash 本身。
-      final byHash = _firstInt(body[h]);
-      if (byHash != null) return byHash;
+      final byKey = _firstInt(body[key]);
+      if (byKey != null) return byKey;
       final data = body['data'];
       if (data is Map) {
-        final nested = _firstInt(data[h]);
+        final nested = _firstInt(data[key]);
         if (nested != null) return nested;
       }
       return _pickNumber(body, const ['count', 'comments_num']);

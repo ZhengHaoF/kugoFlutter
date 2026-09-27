@@ -20,6 +20,19 @@ enum CommentSort {
   barrage,
 }
 
+/// 非歌曲的评论对象：歌单 / 专辑。
+///
+/// 这两者与歌曲是**三套独立评论池**（`code` 不同），走的是另一组端点
+/// （`/m.comment.service/v1/cmtlist`，不是歌曲的 `/mcomment/v1/cmtlist`），
+/// 所以不能复用歌曲那套「按 mixsongid 查」的链路。
+enum CommentResourceKind {
+  /// 歌单（酷狗 `specialid`）。
+  playlist,
+
+  /// 专辑（酷狗 `albumid`）。
+  album,
+}
+
 /// 用户名旁的铭牌 / 身份徽标（如「超级VIP」「学生」「演员」）。
 class CommentBadge {
   const CommentBadge({required this.kind, required this.label});
