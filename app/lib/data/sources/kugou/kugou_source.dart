@@ -42,7 +42,8 @@ class KugouSource
         AlbumDetailSource,
         ArtistDetailSource,
         CommentReadSource,
-        CommentWriteSource {
+        CommentWriteSource,
+        ResourceCommentSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -367,6 +368,100 @@ class KugouSource
       replyToContent: replyToContent,
       songName: track.name.trim(),
       mixSongId: _mixSongIdOf(track),
+    );
+  }
+
+  // ── 歌单 / 专辑评论 ────────────────────────────────────
+  //
+  // 与歌曲评论的两点不同：
+  // 1. **不需要解析 id**：资源 id 本身就是评论池 `childrenid`，不回搜。
+  // 2. **不需要候选回退**：歌曲要试多个 mixsongid 候选（老数据存的是 audio_id），
+  //    资源 id 是路由直接给的，不存在「形态不对」的问题。
+
+  /// 与歌曲评论共用同一个文案槽（两条链路不会并发，且指向同一个 repository）。
+  @override
+  String get resourceCommentError => lastError;
+
+  @override
+  Future<CommentPage> resourceComments(
+    CommentResourceKind kind, {
+    required String resourceId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    _commentError = '';
+    final id = resourceId.trim();
+    if (id.isEmpty || id == '0') {
+      _commentError = '缺少资源 ID';
+      return CommentPage.empty;
+    }
+    return _comments.fetchResourceComments(
+      kind,
+      resourceId: id,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<List<Comment>> resourceFloorReplies(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String rootCommentId,
+    int page = 1,
+    int pageSize = 20,
+  }) {
+    _commentError = '';
+    return _comments.fetchResourceFloorReplies(
+      kind,
+      childrenId: childrenId,
+      rootCommentId: rootCommentId,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<int?> resourceCommentCount(
+    CommentResourceKind kind,
+    String resourceId,
+  ) => _comments.fetchResourceCommentCount(kind, resourceId);
+
+  @override
+  Future<void> sendResourceComment(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String content,
+    String resourceName = '',
+  }) {
+    _commentError = '';
+    return _comments.sendResourceComment(
+      kind,
+      childrenId: childrenId,
+      content: content,
+      resourceName: resourceName,
+    );
+  }
+
+  @override
+  Future<void> sendResourceFloorReply(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String rootCommentId,
+    required String content,
+    String replyToUser = '',
+    String replyToContent = '',
+    String resourceName = '',
+  }) {
+    _commentError = '';
+    return _comments.sendResourceFloorReply(
+      kind,
+      childrenId: childrenId,
+      rootCommentId: rootCommentId,
+      content: content,
+      replyToUser: replyToUser,
+      replyToContent: replyToContent,
+      resourceName: resourceName,
     );
   }
 
