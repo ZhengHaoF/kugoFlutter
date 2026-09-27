@@ -42,6 +42,7 @@ class KugouSource
         AlbumDetailSource,
         ArtistDetailSource,
         CommentReadSource,
+        CommentExtrasSource,
         CommentWriteSource,
         ResourceCommentSource {
   KugouSource({
@@ -209,13 +210,28 @@ class KugouSource
   String get lastError =>
       _commentError.isNotEmpty ? _commentError : _comments.lastError;
 
+  /// 酷狗档位 id（与 [CommentRepository.fetchSongComments] 的 `sort` 口径一致）。
+  static const String sortAll = 'all';
+  static const String sortHottest = 'hottest';
+  static const String sortBarrage = 'barrage';
+
+  @override
+  List<({String id, String label})> get commentSortOptions => const [
+    (id: sortAll, label: '全部'),
+    (id: sortHottest, label: '最热'),
+    (id: sortBarrage, label: '弹幕'),
+  ];
+
   @override
   Future<CommentPage> songComments(
     Track track, {
     int page = 1,
     int pageSize = 20,
-    CommentSort sort = CommentSort.all,
+    String sort = '',
+    String cursor = '',
   }) async {
+    // 酷狗是页码式分页，cursor 对它无意义（忽略即可；翻页靠 page / maxPage）。
+    final effectiveSort = sort.isEmpty ? sortAll : sort;
     _commentError = '';
     final cached = _mixSongIdCache[track.identityKey] ?? '';
     if (cached.isNotEmpty) {
@@ -223,7 +239,7 @@ class KugouSource
         mixSongId: cached,
         page: page,
         pageSize: pageSize,
-        sort: sort,
+        sort: effectiveSort,
       );
     }
     // 没解析过 id 却要第 N 页：说明首屏没跑过（正常情况下不会），无可取。
@@ -246,7 +262,7 @@ class KugouSource
         mixSongId: id,
         page: page,
         pageSize: pageSize,
-        sort: sort,
+        sort: effectiveSort,
       );
       if (result.items.isNotEmpty) {
         _rememberMixSongId(track, id);

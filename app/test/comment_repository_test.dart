@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/kugo_sign.dart';
-import 'package:kugo/core/models/comment.dart';
 import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/data/repositories/comment_repository.dart';
 import 'package:kugo/data/storage/device_identity.dart';
@@ -218,7 +217,7 @@ void main() {
     await repo.fetchSongComments(mixSongId: '32100650'); // 先缓存 childrenid
     final hot = await repo.fetchSongComments(
       mixSongId: '32100650',
-      sort: CommentSort.hottest,
+      sort: CommentRepository.sortHottest,
     );
 
     expect(hot.items.single.likeCount, 122115);
@@ -234,7 +233,7 @@ void main() {
 
     final hot = await repo.fetchSongComments(
       mixSongId: '32100650',
-      sort: CommentSort.hottest,
+      sort: CommentRepository.sortHottest,
     );
 
     expect(hot.items.single.user, '热评用户');
@@ -254,7 +253,7 @@ void main() {
     await repo.fetchSongComments(mixSongId: '32100650');
     final hot = await repo.fetchSongComments(
       mixSongId: '32100650',
-      sort: CommentSort.hottest,
+      sort: CommentRepository.sortHottest,
     );
 
     expect(hot.childrenId, '20505418');
@@ -595,7 +594,7 @@ void main() {
     await repo.fetchSongComments(mixSongId: '32100650');
     final page = await repo.fetchSongComments(
       mixSongId: '32100650',
-      sort: CommentSort.barrage,
+      sort: CommentRepository.sortBarrage,
     );
 
     expect(page.items.single.user, '弹幕君');

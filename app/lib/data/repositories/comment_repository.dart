@@ -25,6 +25,14 @@ import '../storage/device_identity.dart';
 /// 2. 响应结构是**顶层平铺**（`list` / `count` / `childrenid` 都在顶层），
 ///    没有 `data` 包裹 —— 但旧版本响应有过 `data` 包裹，解析仍保留兜底。
 class CommentRepository {
+  /// 档位 id（与 `KugouSource.commentSortOptions` 一一对应）。
+  ///
+  /// 放在这里而不是让调用方写字面量，是为了让「档位字符串」只有一处定义 ——
+  /// 改档位语义时不会漏掉某一处。
+  static const String sortAll = 'all';
+  static const String sortHottest = 'hottest';
+  static const String sortBarrage = 'barrage';
+
   CommentRepository({Dio? dio}) : _dio = dio ?? _createDio() {
     if (dio == null) {
       _dio.interceptors.add(
@@ -164,11 +172,15 @@ class CommentRepository {
   }
 
   /// 歌曲评论分页。[childrenId] 会随返回值带出，供页面缓存后调 [fetchFloorReplies]。
+  ///
+  /// [sort] 是档位 id 字符串（**不是枚举** —— 档位由各源实现给出，
+  /// 见 `CommentReadSource.commentSortOptions`）。酷狗认这三个值：
+  /// `'all'`（默认）/ `'hottest'` / `'barrage'`，分别对应三套取数路径。
   Future<CommentPage> fetchSongComments({
     required String mixSongId,
     int page = 1,
     int pageSize = 20,
-    CommentSort sort = CommentSort.all,
+    String sort = sortAll,
   }) async {
     lastError = '';
     lastSsaCode = '';
@@ -178,7 +190,7 @@ class CommentRepository {
       return CommentPage.empty;
     }
 
-    if (sort == CommentSort.hottest) {
+    if (sort == sortHottest) {
       var childrenId = _childrenIdByMix[id] ?? '';
       if (childrenId.isEmpty) {
         // 最热接口只认评论池 id，而它只能从 cmtlist 响应里拿 —— 先垫一次。
@@ -218,7 +230,7 @@ class CommentRepository {
           : hottest;
     }
 
-    if (sort == CommentSort.barrage) {
+    if (sort == sortBarrage) {
       var pool = _childrenIdByMix[id] ?? '';
       if (pool.isEmpty) {
         // 弹幕按评论池分池，池 id 同样只能从 cmtlist 响应里取 —— 先垫一次。

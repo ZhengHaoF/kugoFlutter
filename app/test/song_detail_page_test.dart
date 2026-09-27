@@ -27,11 +27,20 @@ import 'fakes/fake_music_source.dart';
 ///
 /// 这正是「点 chip 后 chips 行消失、无法取消筛选」那个 bug 的成因，
 /// 所以用它来钉住「筛选项必须是页面状态」这条约束。
-class _CommentFakeSource extends FakeMusicSource implements CommentReadSource {
+class _CommentFakeSource extends FakeMusicSource
+    implements CommentReadSource, CommentExtrasSource {
   final List<String> calls = [];
 
   @override
   String lastError = '';
+
+  /// 与酷狗同构的三档（**首项即默认**）。
+  @override
+  List<({String id, String label})> get commentSortOptions => const [
+    (id: 'all', label: '全部'),
+    (id: 'hottest', label: '最热'),
+    (id: 'barrage', label: '弹幕'),
+  ];
 
   Comment _c(String id) => Comment(id: id, user: 'u', content: 'c-$id');
 
@@ -53,10 +62,11 @@ class _CommentFakeSource extends FakeMusicSource implements CommentReadSource {
     Track track, {
     int page = 1,
     int pageSize = 20,
-    CommentSort sort = CommentSort.all,
+    String sort = '',
+    String cursor = '',
   }) async {
-    calls.add('song:${sort.name}:$page');
-    if (sort != CommentSort.all) return _page('hot', withFilters: false);
+    calls.add('song:$sort:$page');
+    if (sort != 'all') return _page('hot', withFilters: false);
     return _page('all', withFilters: page == 1);
   }
 

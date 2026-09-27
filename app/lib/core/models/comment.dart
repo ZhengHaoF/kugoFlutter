@@ -4,21 +4,18 @@
 /// `core/source/capabilities.dart` 的能力接口能在不反向依赖 data 层的前提下引用。
 library;
 
-/// 评论数据源档位。
+/// 评论档位：**由各源实现给出**（选项 id + 展示名，首项即默认），见
+/// [CommentReadSource.commentSortOptions]。
 ///
-/// 这三档**不是同一个接口的参数**：
-/// - [all] / [hottest] 是 `cmtlist` 响应里 `tag[]` 给出的两个不同接口；
-/// - [barrage] 是**另一个评论池**（`code=articulossong`），与评论互不相通。
-enum CommentSort {
-  /// 全部（`/mcomment/v1/cmtlist`）。
-  all,
-
-  /// 最热（`/m.comment.service/r/v1/rank/topliked`，按点赞数）。
-  hottest,
-
-  /// 弹幕（`/index.php?r=comments/getCommentWithLike` + `code=articulossong`）。
-  barrage,
-}
+/// 早先这里是 `enum CommentSort { all, hottest, barrage }` —— 硬编码酷狗三档，
+/// 表达不了「档位由服务端给出」：网易的档位是响应 `sortTypeList` 里的
+/// 推荐 / 热度 / 时间，且**没有弹幕**。故枚举退役，改为各源自报档位、
+/// UI 只渲染并原样回传 id（与 `NewAlbumFeedSource.albumRegions` 同构）。
+///
+/// 酷狗三档的真实语义（**不是同一接口的参数**，是两套接口 + 一个独立评论池）：
+/// - `all` = `/mcomment/v1/cmtlist`
+/// - `hottest` = `/m.comment.service/r/v1/rank/topliked`（按点赞数）
+/// - `barrage` = `/index.php?r=comments/getCommentWithLike` + `code=articulossong`
 
 /// 非歌曲的评论对象：歌单 / 专辑。
 ///
@@ -110,6 +107,7 @@ class CommentPage {
     this.maxPage = 0,
     this.classifyList = const [],
     this.hotwordList = const [],
+    this.nextCursor = '',
   });
 
   final List<Comment> items;
@@ -129,6 +127,16 @@ class CommentPage {
 
   /// 热词筛选项（`hot_word_list`，仅 `cmtlist` 首屏带）。
   final List<CommentFilterOption> hotwordList;
+
+  /// 下一页游标（**对 UI 不透明**）；空串 = 没有下一页。
+  ///
+  /// 分页有两种形态，差异收在各源实现里：
+  /// - 酷狗 = **页码式**（`page` + [maxPage]），本字段恒空；
+  /// - 网易 = **游标式**，且三档 cursor 构造各不相同（推荐档是数字 offset、
+  ///   热度档是 `normalHot#<offset>`、时间档是**上一页末条的 `time`**）。
+  ///   时间档的游标依赖上一页的 items，所以只能由实现在映射时算好塞这里，
+  ///   UI 翻页时原样回传给 [CommentReadSource.songComments] 的 `cursor`。
+  final String nextCursor;
 
   static const empty = CommentPage();
 

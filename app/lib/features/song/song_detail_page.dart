@@ -67,7 +67,14 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   static const int _pageSize = 20;
 
   CommentPage _comments = CommentPage.empty;
-  CommentSort _sort = CommentSort.all;
+
+  /// 当前档位 id（**空串 = 用该源的默认档**，即 `commentSortOptions` 首项）。
+  ///
+  /// 档位**不是枚举**：酷狗是「全部 / 最热 / 弹幕」三档（弹幕其实是另一个评论池），
+  /// 网易是服务端 `sortTypeList` 给的推荐 / 热度 / 时间。UI 只存 id 并原样回传，
+  /// 不解读语义 —— 换源时旧 id 若不在新源的档位里，自动回落到默认档。
+  String _sortId = '';
+
   bool _loading = true;
   bool _loadingMore = false;
   String _error = '';
@@ -117,6 +124,29 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   CommentReadSource? get _source =>
       musicSourceRegistry?.capability<CommentReadSource>(widget.platform);
 
+  /// 列表增强能力（分类 / 热词 / 精彩评论）——**只有酷狗有**。
+  /// 网易不 implements ⇒ 这里取到 null ⇒ chips 行与精彩评论块自动不出。
+  CommentExtrasSource? get _extras =>
+      musicSourceRegistry?.capability<CommentExtrasSource>(widget.platform);
+
+  /// 该源的档位列表（无源时为空）。
+  List<({String id, String label})> _sortOptionsOf(CommentReadSource? source) =>
+      source?.commentSortOptions ?? const [];
+
+  /// 生效档位 id：当前 id 不在该源档位里（换源 / 首次）时回落到首项。
+  String _sortIdOf(CommentReadSource? source) {
+    final options = _sortOptionsOf(source);
+    if (options.isEmpty) return '';
+    return options.any((o) => o.id == _sortId) ? _sortId : options.first.id;
+  }
+
+  /// 是否在**默认档**（= 首项）。分类 / 热词筛选只在默认档生效。
+  bool _isDefaultSort(CommentReadSource? source) {
+    final options = _sortOptionsOf(source);
+    if (options.isEmpty) return true;
+    return _sortIdOf(source) == options.first.id;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -151,7 +181,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     // 点了 chip 之后走的是分类/热词接口，它不返回，所以那时**不要**覆盖，
     // chips 行才能一直留在屏幕上（否则取消入口跟着消失）。
     final refreshesFilters =
-        _sort == CommentSort.all && _classifyId.isEmpty && _hotword.isEmpty;
+        _isDefaultSort(source) && _classifyId.isEmpty && _hotword.isEmpty;
 
     final page = await _fetchPage(source, 1);
     final err = source.lastError;
@@ -182,8 +212,13 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     }
   }
 
-  /// 还有下一页？= 上一页是满页，且未到达服务端的 `maxPage`。
+  /// 还有下一页？
+  ///
+  /// 两种分页形态，差异收在各源实现里：
+  /// - **游标式**（网易）：`nextCursor` 非空即还有 —— 它算好了才给，给不出来就是没了；
+  /// - **页码式**（酷狗）：上一页是满页且未到服务端 `maxPage`。
   bool get _pageHasMore {
+    if (_comments.nextCursor.isNotEmpty) return true;
     if (!_lastPageFull) return false;
     final max = _comments.maxPage;
     return max == 0 || _loadedPage < max;
@@ -215,12 +250,12 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     });
   }
 
-  /// 按当前「档位 + 筛选」取一页。分类 / 热词只在「全部」档生效。
+  /// 按当前「档位 + 筛选」取一页。分类 / 热词只在默认档生效。
   Future<CommentPage> _fetchPage(CommentReadSource source, int page) {
     final track = _track;
-    if (_sort == CommentSort.all) {
+    if (_isDefaultSort(source)) {
       if (_hotword.isNotEmpty) {
-        return source.hotwordComments(
+        return _extras!.hotwordComments(
           track,
           hotWord: _hotword,
           page: page,
@@ -228,7 +263,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
         );
       }
       if (_classifyId.isNotEmpty) {
-        return source.classifyComments(
+        return _extras!.classifyComments(
           track,
           typeId: _classifyId,
           page: page,
@@ -240,7 +275,9 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       track,
       page: page,
       pageSize: _pageSize,
-      sort: _sort,
+      sort: _sortIdOf(source),
+      // 游标式源靠它翻页（页码式源忽略）。首页为空。
+      cursor: page > 1 ? _comments.nextCursor : '',
     );
   }
 
@@ -262,21 +299,23 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     await _loadFirst();
   }
 
-  /// 精彩评论：只在「全部」且未筛选时拉一次；空就是空（游客态拿不到），不显示区块。
+  /// 精彩评论：只在默认档且未筛选时拉一次；空就是空（游客态拿不到），不显示区块。
+  ///
+  /// 无 [CommentExtrasSource]（网易）时直接不拉 ——「精彩评论」是酷狗独有的口。
   Future<void> _loadFeatured() async {
-    final source = _source;
+    final extras = _extras;
     final pool = _comments.childrenId;
-    if (source == null || pool.isEmpty) return;
-    final list = await source.featuredComments(track: _track, childrenId: pool);
+    if (extras == null || pool.isEmpty) return;
+    final list = await extras.featuredComments(track: _track, childrenId: pool);
     if (!mounted) return;
     setState(() => _featured = list);
   }
 
-  Future<void> _switchSort(CommentSort sort) async {
-    if (sort == _sort) return;
+  Future<void> _switchSort(String id) async {
+    if (id == _sortIdOf(_source)) return;
     setState(() {
-      _sort = sort;
-      // 分类 / 热词只属于「全部」档，换档时清掉，免得标签与数据源不一致。
+      _sortId = id;
+      // 分类 / 热词只属于默认档，换档时清掉，免得标签与数据源不一致。
       _classifyId = '';
       _hotword = '';
     });
@@ -507,14 +546,15 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                   style: kugo.caption.copyWith(color: kugo.textTertiary),
                 ),
               const Spacer(),
-              _sortButton(kugo, CommentSort.hottest, '最热'),
-              _sortButton(kugo, CommentSort.all, '全部'),
-              _sortButton(kugo, CommentSort.barrage, '弹幕'),
+              // 档位由源给出（首项即默认，UI 不解读语义），酷狗三档、网易三档。
+              for (final o in _sortOptionsOf(_source))
+                _sortButton(kugo, o.id, o.label),
             ],
           ),
           const SizedBox(height: KugoSpacing.sm),
           _composerEntry(kugo),
-          if (_sort == CommentSort.all) _filterChipsRow(kugo),
+          // 分类 / 热词是酷狗独有的增强能力，无该能力（网易）时整行不出。
+          if (_extras != null && _isDefaultSort(_source)) _filterChipsRow(kugo),
           if (_featured.isNotEmpty) ...[
             const SizedBox(height: KugoSpacing.md),
             Row(
@@ -572,10 +612,10 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     );
   }
 
-  Widget _sortButton(KugoTheme kugo, CommentSort value, String label) {
-    final selected = _sort == value;
+  Widget _sortButton(KugoTheme kugo, String id, String label) {
+    final selected = _sortIdOf(_source) == id;
     return TextButton(
-      onPressed: () => _switchSort(value),
+      onPressed: () => _switchSort(id),
       style: TextButton.styleFrom(
         minimumSize: const Size(0, 30),
         padding: const EdgeInsets.symmetric(horizontal: 10),

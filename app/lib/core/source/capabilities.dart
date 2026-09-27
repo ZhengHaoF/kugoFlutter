@@ -166,7 +166,7 @@ abstract interface class QualityCatalogSource {
 /// **入参一律是 [Track]，不是平台 id**：各源自己决定拿 track 的哪个字段去查
 /// （酷狗要 `album_audio_id` 且可能需回搜解析、网易是 `R_SO_4_<songId>`），
 /// 这就是「源差异收口在实现里」——UI 不该替某个源做 id 计算。
-/// UI 只认 [Track] / [CommentSort] / [CommentPage]。
+/// UI 只认 [Track] / 档位 id 字符串 / [CommentPage]。
 abstract interface class CommentReadSource {
   /// 最近一次失败的**用户可读**原因；成功时为空串。
   ///
@@ -174,16 +174,28 @@ abstract interface class CommentReadSource {
   /// 所以原因要能从能力面上取到，UI 不必回头去碰 repository。
   String get lastError;
 
+  /// 评论档位（**首项即默认**）：`(id, label)`，UI 只按顺序渲染并原样回传 id。
+  ///
+  /// 为什么不硬编码枚举：酷狗是「两个接口 + 一个弹幕池」的路由语义，网易是
+  /// 同一接口换 `sortType`、档位由响应 `sortTypeList` 给出（推荐/热度/时间），
+  /// 枚举表达不了「档位由实现给出」。与 `NewAlbumFeedSource.albumRegions` 同构。
+  List<({String id, String label})> get commentSortOptions;
+
   /// 歌曲评论分页。
   ///
+  /// [sort] 是 [commentSortOptions] 里的 id（空串 = 用默认档）；
+  /// [cursor] 是上一次返回的 [CommentPage.nextCursor]（**不透明**，页码式源忽略它）。
+  ///
   /// 返回的 [CommentPage.childrenId] 是**该源的评论池 token**（酷狗 = `childrenid`，
-  /// 既不是歌曲 id 也不是 hash）：调 [floorReplies] / [featuredComments] /
-  /// [CommentWriteSource] 时原样回传即可，UI 不解读它的含义。
+  /// 既不是歌曲 id 也不是 hash）：调 [floorReplies] /
+  /// [CommentExtrasSource.featuredComments] / [CommentWriteSource] 时原样回传即可，
+  /// UI 不解读它的含义。
   Future<CommentPage> songComments(
     Track track, {
     int page = 1,
     int pageSize = 20,
-    CommentSort sort = CommentSort.all,
+    String sort = '',
+    String cursor = '',
   });
 
   /// 主评论下的楼层回复。[childrenId] 取自 [CommentPage.childrenId]。
@@ -197,7 +209,17 @@ abstract interface class CommentReadSource {
 
   /// 评论总数；null = 该源未提供（UI 显示「—」，**不要编数字**）。
   Future<int?> commentCount(Track track);
+}
 
+/// 评论列表的**增强能力**（分类 / 热词 / 精彩评论）——目前**只有酷狗有**。
+///
+/// 为什么单独成接口：这三项网易一个都没有（无分类、无热词、无「精彩评论」口），
+/// 若留在 [CommentReadSource] 上，网易就得写三个空实现 —— 与文件开头那句
+/// 「谁有谁 `implements`，禁止基类堆 `bool hasXxx` + 空实现」直接冲突。
+/// 拆出来后 **网易不 implements，UI 自动不出 chips 行与精彩评论块**。
+///
+/// 失败文案复用 [CommentReadSource.lastError]（酷狗侧本来就是同一份状态）。
+abstract interface class CommentExtrasSource {
   /// 分类评论。[typeId] 取自 [CommentPage.classifyList]。
   Future<CommentPage> classifyComments(
     Track track, {
@@ -214,7 +236,7 @@ abstract interface class CommentReadSource {
     int pageSize = 20,
   });
 
-  /// 精彩评论（[childrenId] 同 [floorReplies]）。
+  /// 精彩评论（[childrenId] 同 [CommentReadSource.floorReplies]）。
   /// **空列表是正常结果**（游客态拿不到），UI 据此隐藏该区块。
   Future<List<Comment>> featuredComments({
     required Track track,

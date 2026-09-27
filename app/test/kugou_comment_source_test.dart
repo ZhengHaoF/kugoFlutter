@@ -57,7 +57,7 @@ class _FakeComments implements CommentRepository {
     required String mixSongId,
     int page = 1,
     int pageSize = 20,
-    CommentSort sort = CommentSort.all,
+    String sort = CommentRepository.sortAll,
   }) async {
     askedMixSongIds.add(mixSongId);
     if (failingIds.contains(mixSongId)) {
