@@ -552,7 +552,9 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
             ],
           ),
           const SizedBox(height: KugoSpacing.sm),
-          _composerEntry(kugo),
+          // 无写侧能力（网易）时**不渲染**「说点什么…」——
+          // 渲染出来点了才 toast「不支持」是更差的做法。
+          if (_writer != null) _composerEntry(kugo),
           // 分类 / 热词是酷狗独有的增强能力，无该能力（网易）时整行不出。
           if (_extras != null && _isDefaultSort(_source)) _filterChipsRow(kugo),
           if (_featured.isNotEmpty) ...[
@@ -594,7 +596,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                 loadingFloor: _floorLoading.contains(c.id),
                 replies: _floors[c.id] ?? const [],
                 onToggleReplies: c.hasReplies ? () => _toggleFloor(c) : null,
-                onReply: () => _compose(replyTo: c),
+                onReply: _writer == null ? null : () => _compose(replyTo: c),
               ),
             if (_pageHasMore)
               TextButton(

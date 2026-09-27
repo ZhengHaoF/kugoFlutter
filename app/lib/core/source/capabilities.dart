@@ -246,7 +246,7 @@ abstract interface class CommentExtrasSource {
   });
 }
 
-/// 歌单 / 专辑评论（与歌曲评论是**三套独立评论池**）。
+/// 歌单 / 专辑评论的**读**侧（写侧另立 [ResourceCommentWriteSource]）。
 ///
 /// 入参是**资源 id**（歌单 specialid / 专辑 albumid），与 [CommentReadSource]
 /// 的 [Track] 入参不是一回事 —— 所以单独成接口，不往歌曲那条链路里塞分支。
@@ -254,11 +254,17 @@ abstract interface class CommentExtrasSource {
 /// 实现差异（酷狗）收在实现里：端点走 B 组 `/m.comment.service/v1/cmtlist`，
 /// 靠 `code` 区分歌单池 / 专辑池；网易则是 `A_PL_0_` / `R_AL_3_` 前缀的 threadId。
 /// UI 只认 [CommentResourceKind] + 资源 id。
+///
+/// 读 / 写拆开与 [CommentReadSource] / [CommentWriteSource] 同因：写侧**要登录**
+/// 且可能触发风控，而读侧游客态就能拉。网易目前只有读侧（写侧留到 N2）。
 abstract interface class ResourceCommentSource {
   /// 最近一次失败的**用户可读**原因；成功时为空串。
   String get resourceCommentError;
 
   /// 歌单 / 专辑评论分页。
+  ///
+  /// [cursor] 同 [CommentReadSource.songComments]：游标式源（网易）靠它翻页，
+  /// 页码式源（酷狗）忽略。
   ///
   /// 返回的 [CommentPage.childrenId] 是评论池 token，楼层与写侧原样回传。
   Future<CommentPage> resourceComments(
@@ -266,6 +272,7 @@ abstract interface class ResourceCommentSource {
     required String resourceId,
     int page = 1,
     int pageSize = 20,
+    String cursor = '',
   });
 
   /// 主评论下的楼层回复。[childrenId] 取自 [resourceComments] 的返回值。
@@ -283,6 +290,15 @@ abstract interface class ResourceCommentSource {
     String resourceId,
   );
 
+}
+
+/// 歌单 / 专辑评论的**写**侧：发评论 / 回复楼层。
+///
+/// 与读侧（[ResourceCommentSource]）拆开的原因同 [CommentWriteSource]：
+/// **要登录** + **可能触发风控**。目前只有酷狗实现，**网易不 implements**
+/// ⇒ 歌单 / 专辑页的「说点什么…」与「回复」入口对网易自动隐藏，
+/// 而不是渲染出来、点了才提示不支持。
+abstract interface class ResourceCommentWriteSource {
   /// 发歌单 / 专辑评论。失败抛 [SourceFailure]（与 [CommentWriteSource] 一致）。
   Future<void> sendResourceComment(
     CommentResourceKind kind, {

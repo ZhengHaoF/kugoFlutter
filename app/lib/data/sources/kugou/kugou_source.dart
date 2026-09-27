@@ -44,7 +44,8 @@ class KugouSource
         CommentReadSource,
         CommentExtrasSource,
         CommentWriteSource,
-        ResourceCommentSource {
+        ResourceCommentSource,
+        ResourceCommentWriteSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -404,6 +405,7 @@ class KugouSource
     required String resourceId,
     int page = 1,
     int pageSize = 20,
+    String cursor = '',
   }) async {
     _commentError = '';
     final id = resourceId.trim();

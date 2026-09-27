@@ -65,13 +65,21 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
   ResourceCommentSource? get _source =>
       musicSourceRegistry?.capability<ResourceCommentSource>(widget.platform);
 
+  /// 写侧另取：**没有写侧能力的源（网易）不该渲染写入口** ——
+  /// 而不是渲染出来、点了才提示「当前音源不支持评论」。
+  ResourceCommentWriteSource? get _writeSource => musicSourceRegistry
+      ?.capability<ResourceCommentWriteSource>(widget.platform);
+
   @override
   void initState() {
     super.initState();
     _loadFirst();
   }
 
+  /// 两种分页形态：**游标式**（网易，`nextCursor` 非空即还有）优先，
+  /// 否则按页码式（酷狗：满页且未到 `maxPage`）。
   bool get _pageHasMore {
+    if (_comments.nextCursor.isNotEmpty) return true;
     if (!_lastPageFull) return false;
     final max = _comments.maxPage;
     return max == 0 || _loadedPage < max;
@@ -129,6 +137,7 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
       resourceId: widget.resourceId,
       page: next,
       pageSize: _pageSize,
+      cursor: _comments.nextCursor,
     );
     if (!mounted) return;
     setState(() {
@@ -204,11 +213,9 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
       context.push('/login');
       return;
     }
-    final source = _source;
-    if (source == null) {
-      _toast('当前音源不支持评论');
-      return;
-    }
+    // 写侧能力（酷狗有、网易没有）。入口本身在 UI 上已隐藏，这里只是兜底。
+    final source = _writeSource;
+    if (source == null) return;
     final pool = _comments.childrenId;
     if (pool.isEmpty) {
       _toast('评论池未知，请刷新评论后再试');
@@ -272,7 +279,8 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
           ],
         ),
         const SizedBox(height: KugoSpacing.sm),
-        _composerEntry(kugo),
+        // 无写侧能力（网易）时**不渲染**写入口 —— 渲染出来点了才提示不支持更糟。
+        if (_writeSource != null) _composerEntry(kugo),
         const SizedBox(height: KugoSpacing.md),
         if (_loading)
           const Padding(
@@ -292,7 +300,7 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
               loadingFloor: _floorLoading.contains(c.id),
               replies: _floors[c.id] ?? const [],
               onToggleReplies: c.hasReplies ? () => _toggleFloor(c) : null,
-              onReply: () => _compose(replyTo: c),
+              onReply: _writeSource == null ? null : () => _compose(replyTo: c),
             ),
           if (_pageHasMore)
             TextButton(
