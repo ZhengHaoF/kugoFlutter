@@ -1,4 +1,5 @@
 import '../../../core/api/netease/netease_client.dart';
+import '../../../core/api/netease/netease_failures.dart';
 import '../../../core/api/netease/netease_mappers.dart';
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/catalog_models.dart';
@@ -34,6 +35,8 @@ class NeteaseSource
         UserLibrarySource,
         DeviceLoginSource,
         CommentReadSource,
+        CommentWriteSource,
+        CommentLikeSource,
         ResourceCommentSource,
         SearchHotSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
@@ -756,6 +759,87 @@ class NeteaseSource
   @override
   Future<int?> resourceCommentCount(CommentResourceKind kind, String id) async =>
       null;
+
+  // ── N2 写侧（发评论 / 回复 / 点赞） ────────────────────────
+
+  /// 网易的登录凭据是 `MUSIC_U` cookie（**不是**酷狗的 `AuthTokenHolder`）。
+  @override
+  bool get isLoggedIn => _client.hasLogin;
+
+  /// 写口的统一收口：非 200 一律抛 [SourceFailure]（写侧契约如此）。
+  Future<void> _requireOk(Future<String> Function() call) async {
+    final raw = await call();
+    final code = NeteaseClient.bodyCode(raw) ?? 0;
+    if (code == 200) return;
+    throw mapNeteaseCode(code, message: _writeFailText(code));
+  }
+
+  /// 业务码 → 用户可读文案（301 最常见：登录态失效）。
+  static String _writeFailText(int code) => switch (code) {
+        301 || 302 || 800 || 801 || 802 || 803 => '登录状态已失效，请重新登录',
+        -460 || -462 || 405 => '操作太频繁，请稍后再试',
+        403 => '没有权限执行该操作',
+        _ => '操作失败（code=$code）',
+      };
+
+  /// E3 / E4 的 threadId：优先用评论池（它对网易就是 threadId），
+  /// 没有则从 track 拼 —— 与读侧同一个口径。
+  String _writeThreadId(Track track, String childrenId) {
+    if (childrenId.isNotEmpty) return childrenId;
+    final id = _songId(track);
+    return id > 0 ? 'R_SO_4_$id' : '';
+  }
+
+  @override
+  Future<void> sendSongComment({
+    required Track track,
+    required String childrenId,
+    required String content,
+  }) async {
+    final threadId = _writeThreadId(track, childrenId);
+    if (threadId.isEmpty) throw const NotFound('歌曲 ID 未知，无法发表评论');
+    await _requireOk(
+      () => _client.commentAddRaw(threadId: threadId, content: content),
+    );
+  }
+
+  @override
+  Future<void> sendFloorReply({
+    required Track track,
+    required String childrenId,
+    required String rootCommentId,
+    required String content,
+    String replyToUser = '',
+    String replyToContent = '',
+  }) async {
+    final threadId = _writeThreadId(track, childrenId);
+    if (threadId.isEmpty) throw const NotFound('歌曲 ID 未知，无法回复');
+    // 网易靠 `commentId` 表达层级，**不拼** `//@昵称:内容` 的引用文本
+    // （那是酷狗的约定），故 [replyToUser] / [replyToContent] 在此不使用。
+    await _requireOk(
+      () => _client.commentReplyRaw(
+        threadId: threadId,
+        commentId: rootCommentId,
+        content: content,
+      ),
+    );
+  }
+
+  @override
+  Future<void> setCommentLiked({
+    required String childrenId,
+    required String commentId,
+    required bool like,
+  }) async {
+    if (childrenId.isEmpty) throw const NotFound('评论池未知，请刷新评论后再试');
+    await _requireOk(
+      () => _client.commentLikeRaw(
+        threadId: childrenId,
+        commentId: commentId,
+        like: like,
+      ),
+    );
+  }
 
   // ── N3 热搜 ─────────────────────────────────────────────
 

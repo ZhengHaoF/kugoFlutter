@@ -299,6 +299,9 @@ abstract interface class ResourceCommentSource {
 /// ⇒ 歌单 / 专辑页的「说点什么…」与「回复」入口对网易自动隐藏，
 /// 而不是渲染出来、点了才提示不支持。
 abstract interface class ResourceCommentWriteSource {
+  /// 该源当前是否已登录（同 [CommentWriteSource.isLoggedIn]：登录态判断归实现）。
+  bool get isLoggedIn;
+
   /// 发歌单 / 专辑评论。失败抛 [SourceFailure]（与 [CommentWriteSource] 一致）。
   Future<void> sendResourceComment(
     CommentResourceKind kind, {
@@ -327,6 +330,14 @@ abstract interface class ResourceCommentWriteSource {
 /// 与读侧拆开是因为写侧的两个硬约束：**要登录**、**可能触发风控（SSA）**。
 /// 失败一律抛 [SourceFailure]（与 [UserPlaylistWriteSource] 一致），UI 捕获后展示可读文案。
 abstract interface class CommentWriteSource {
+  /// 该源**当前是否已登录** —— 登录态判断也归实现，UI 不许自己判。
+  ///
+  /// 两个源的凭据完全不是一回事：酷狗是 `AuthTokenHolder` 里的 token，
+  /// 网易是 `MUSIC_U` cookie。早先 UI 统一看酷狗 token，导致**网易已扫码登录、
+  /// 酷狗没登录时照样提示「登录后才能发表评论」并跳酷狗登录页** —— 就是这个
+  /// 字段缺失造成的。
+  bool get isLoggedIn;
+
   /// 发表歌曲评论。[childrenId] 取自 [CommentPage.childrenId]；歌名由实现从
   /// [track] 取（上游 `childrenname` 用），UI 不必单独传。
   Future<void> sendSongComment({
@@ -346,6 +357,23 @@ abstract interface class CommentWriteSource {
     required String content,
     String replyToUser = '',
     String replyToContent = '',
+  });
+}
+
+/// 评论**点赞** / 取消赞 —— 目前**只有网易有**（酷狗没有这个能力）。
+///
+/// 单独成接口（而不是塞进 [CommentWriteSource]）的原因同 [CommentExtrasSource]：
+/// 酷狗没有点赞口，塞进去就得写空实现。UI 用 `registry.capability<...>()`
+/// 取不到就**不渲染赞按钮**，而不是渲染出来点了才提示不支持。
+abstract interface class CommentLikeSource {
+  /// [childrenId] 取自 [CommentPage.childrenId]（网易即 `threadId`），
+  /// [commentId] 是评论 id；[like] 为 false = 取消赞。
+  ///
+  /// 失败抛 [SourceFailure]；**UI 做乐观更新**，失败要能回滚。
+  Future<void> setCommentLiked({
+    required String childrenId,
+    required String commentId,
+    required bool like,
   });
 }
 

@@ -1085,6 +1085,45 @@ class NeteaseClient {
   Future<String> searchHotRaw() =>
       callWeApi(NeteaseEndpoints.searchHot, {'type': '1111'});
 
+  // ── N2 写侧（三个口都要登录，游客实测回 301） ────────────────
+
+  /// E3 发评论。`threadId` 形如 `R_SO_4_<songId>`。
+  Future<String> commentAddRaw({
+    required String threadId,
+    required String content,
+  }) {
+    return callWeApi(NeteaseEndpoints.commentAdd, {
+      'threadId': threadId,
+      'content': content,
+    });
+  }
+
+  /// E4 回复：`commentId` 是**被回复的评论 id**（网易靠它表达层级，
+  /// 不像酷狗要拼 `//@昵称:内容` 的引用文本）。
+  Future<String> commentReplyRaw({
+    required String threadId,
+    required String commentId,
+    required String content,
+  }) {
+    return callWeApi(NeteaseEndpoints.commentReply, {
+      'threadId': threadId,
+      'commentId': commentId,
+      'content': content,
+    });
+  }
+
+  /// E5 点赞 / 取消赞（两个路径，靠 [like] 切换）。
+  Future<String> commentLikeRaw({
+    required String threadId,
+    required String commentId,
+    bool like = true,
+  }) {
+    return callWeApi(
+      like ? NeteaseEndpoints.commentLike : NeteaseEndpoints.commentUnlike,
+      {'threadId': threadId, 'commentId': commentId},
+    );
+  }
+
   /// E2 楼层：`POST /weapi/resource/comment/floor/get`。
   ///
   /// 数据在 **`data.comments`**（不是顶层 `comments`）；`data.ownerComment`

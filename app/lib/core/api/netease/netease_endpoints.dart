@@ -87,6 +87,14 @@ abstract final class NeteaseEndpoints {
   /// N3 热搜：weapi，`type=1111`（参考 `module/search_hot.js`）。
   static const searchHot = '/weapi/search/hot';
 
+  /// N2 写侧：发评论 / 回复楼层 / 点赞（取消赞是 `/unlike`）。
+  ///
+  /// 三个口都**要登录**（游客实测回 `301`）。
+  static const commentAdd = '/weapi/resource/comments/add';
+  static const commentReply = '/weapi/resource/comments/reply';
+  static const commentLike = '/weapi/v1/comment/like';
+  static const commentUnlike = '/weapi/v1/comment/unlike';
+
   static String weapiUrl(String path, {String host = mainHost}) {
     final p = path.startsWith('/') ? path : '/$path';
     return '$host/weapi$p'.replaceFirst('/weapi/weapi', '/weapi');

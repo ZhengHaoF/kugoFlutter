@@ -933,6 +933,8 @@ Comment? mapNeteaseComment(Object? node) {
     replyCount: replyCount > 0 ? replyCount : _int(floor['replyCount']),
     location: _str(_asMap(m['ipLocation'])['location']),
     badges: _neteaseBadges(user, m),
+    // 当前用户是否已赞（酷狗不给此字段，那边恒 false）。
+    liked: m['liked'] == true,
   );
 }
 

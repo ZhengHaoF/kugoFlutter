@@ -19,6 +19,7 @@ import '../../../data/repositories/playlist_repository.dart' as playlist;
 import '../../../data/repositories/recommend_repository.dart' as rec;
 import '../../../data/repositories/search_repository.dart' as search;
 import '../../../data/repositories/user_repository.dart' as user;
+import '../../../features/auth/auth_token_holder.dart';
 import 'kugou_session.dart';
 
 /// 酷狗音源适配器：把现有 Repository 收成 [MusicSource] 能力面。
@@ -351,6 +352,10 @@ class KugouSource
       pageSize: pageSize,
     );
   }
+
+  /// 酷狗的登录凭据在 `AuthTokenHolder`（与网易的 `MUSIC_U` cookie 不是一回事）。
+  @override
+  bool get isLoggedIn => AuthTokenHolder.instance.hasToken;
 
   @override
   Future<void> sendSongComment({

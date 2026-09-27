@@ -71,6 +71,7 @@ class Comment {
     this.location = '',
     this.badges = const [],
     this.talentIcon = '',
+    this.liked = false,
   });
 
   final String id;
@@ -95,7 +96,29 @@ class Comment {
   /// 头像角标（达人 / 演唱者）URL；空 = 无。
   final String talentIcon;
 
+  /// 当前用户**是否已点赞**（网易响应 `liked`）。
+  ///
+  /// 酷狗接口不给这个字段（恒 false），所以 UI 的赞按钮要按
+  /// `CommentLikeSource` 能力有无来决定渲染（见 `capabilities.dart`）。
+  final bool liked;
+
   bool get hasReplies => replyCount > 0;
+
+  /// 点赞的乐观更新用：只改赞相关两个字段，其余原样。
+  Comment copyWith({int? likeCount, bool? liked}) => Comment(
+    id: id,
+    user: user,
+    userId: userId,
+    content: content,
+    likeCount: likeCount ?? this.likeCount,
+    avatarUrl: avatarUrl,
+    timeLabel: timeLabel,
+    replyCount: replyCount,
+    location: location,
+    badges: badges,
+    talentIcon: talentIcon,
+    liked: liked ?? this.liked,
+  );
 }
 
 /// 一页评论 + 该曲的评论池与筛选项。
