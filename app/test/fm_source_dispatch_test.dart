@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/models/fm_mode.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/music_platform.dart';
+import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/auth/auth_token_holder.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
@@ -24,10 +27,20 @@ class _NeteaseFm extends FakeMusicSource {
   int fetchCalls = 0;
   final List<int> remainSongcnts = [];
 
+  /// 非空时挂住取数（验证切源「先停后切」的加载窗口）。
+  Completer<void>? gate;
+
+  /// 非空时 `nextFmTracks` 抛出它（验证取数失败时停在新源报错）。
+  SourceFailure? failure;
+
   @override
   Future<List<Track>> nextFmTracks({int remain = 5}) async {
     fetchCalls++;
     remainSongcnts.add(remain);
+    final f = failure;
+    if (f != null) throw f;
+    final g = gate;
+    if (g != null) await g.future;
     return [
       Track(
         id: 'ncm-fm-$fetchCalls',
@@ -202,6 +215,113 @@ void main() {
     expect(container.read(playerControllerProvider).queue.length, 10);
     // 首轮要歌必须 remain=0（>4 时服务端只回会话元数据）。
     expect(sources.netease.remainSongcnts.first, 0);
+  });
+
+  testWidgets('切源先停后切：取数窗口旧队列已停，新队列到位才起播', (tester) async {
+    final sources = twoSources();
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'kugou',
+    });
+
+    await pumpPage(tester, container);
+    await startFm(tester, container);
+    // 起播后队列里全是酷狗关键词兜底的歌。
+    expect(container.read(playerControllerProvider).queue, isNotEmpty);
+    expect(
+      container.read(playerControllerProvider).queue.first.platform,
+      MusicPlatform.kugou,
+    );
+
+    // 网易取数挂住：观察切换窗口内的状态。
+    final gate = Completer<void>();
+    sources.netease.gate = gate;
+
+    await tester.tap(find.text('网易云'));
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 旧队列当场停掉并清空：不会出现「旧源的歌挂新源角标」。
+    expect(container.read(fmControllerProvider).source, MusicPlatform.netease);
+    expect(container.read(fmControllerProvider).loading, isTrue);
+    expect(container.read(playerControllerProvider).queue, isEmpty);
+    // 「接下来」面板说正在续接，不说「歌池见底了」。
+    expect(find.text('正在续接歌池…'), findsOneWidget);
+
+    // 放行取数：新队列（网易一次 1 首拼到批量）起播。
+    gate.complete();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final queue = container.read(playerControllerProvider).queue;
+    expect(queue.length, 10);
+    expect(queue.every((t) => t.platform == MusicPlatform.netease), isTrue);
+  });
+
+  testWidgets('切源取数失败：停在新源并报错，旧队列不续播', (tester) async {
+    final sources = twoSources();
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'kugou',
+    });
+
+    await pumpPage(tester, container);
+    await startFm(tester, container);
+    final oldNames = container
+        .read(playerControllerProvider)
+        .queue
+        .map((t) => t.name)
+        .toList();
+
+    sources.netease.failure = const LoginRequired('需要登录网易云账号');
+
+    await tester.tap(find.text('网易云'));
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 选择停在新源、失败原因如实报出；旧队列已停，不会「旧歌新角标」续播。
+    expect(container.read(fmControllerProvider).source, MusicPlatform.netease);
+    expect(container.read(playerControllerProvider).queue, isEmpty);
+    for (final name in oldNames.take(4)) {
+      expect(find.text(name), findsNothing);
+    }
+    expect(find.text('需要登录网易云账号'), findsOneWidget);
+  });
+
+  testWidgets('设置里停用当前会话源：先停后切换剩余源重开', (tester) async {
+    twoSources();
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou', 'netease'],
+      'settings.defaultSource': 'kugou',
+    });
+
+    await pumpPage(tester, container);
+    await startFm(tester, container);
+    expect(
+      container.read(playerControllerProvider).queue.first.platform,
+      MusicPlatform.kugou,
+    );
+
+    // 设置里停用酷狗 → 会话源不再可用，用剩余源重开（先停后切）。
+    await tester.runAsync(
+      () => container
+          .read(settingsControllerProvider.notifier)
+          .setEnabledSources(const {MusicPlatform.netease}),
+    );
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(container.read(fmControllerProvider).source, MusicPlatform.netease);
+    final queue = container.read(playerControllerProvider).queue;
+    expect(queue.length, 10);
+    expect(queue.every((t) => t.platform == MusicPlatform.netease), isTrue);
   });
 
   test('会话源落盘可读回；旧数据缺 source 时留 null（交给默认源解析）', () async {

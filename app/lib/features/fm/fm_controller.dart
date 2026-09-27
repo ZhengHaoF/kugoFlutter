@@ -209,6 +209,10 @@ class FmController extends Notifier<FmSession> {
   /// 上一次见到的播放器游标，用来判断「跨过了上一首」。
   int _lastIndex = -1;
 
+  /// 开台代次：连点切源 chip / 设置里连改源时，只认最新一次 [start] 的结果，
+  /// 早先那次取回来的歌直接丢弃（与搜索的 `_requestToken` 同一套路）。
+  int _startToken = 0;
+
   /// 防止「应用待生效轴 → 重下队列 → 游标又变 → 再应用」的自环路。
   bool _applyingPending = false;
 
@@ -281,8 +285,24 @@ class FmController extends Notifier<FmSession> {
     }
     if (state.active && !available.contains(state.source)) {
       final target = _resolveSource(available);
-      if (target != null) unawaited(start(source: target));
+      if (target != null) unawaited(_restartWithSource(target));
     }
+  }
+
+  /// 换源重开：**先停后切**。
+  ///
+  /// 旧队列必须当场停掉并清空：否则取数窗口里「当前播放 / 盘阵 / 接下来」
+  /// 还是旧源的歌，来源角标（`displaySource`）却已随 [start] 翻成新源；
+  /// 新源取数失败（如网易未登录）时更会演变成「旧源的歌挂新源角标继续播」。
+  /// 停掉后页面只留电台卡 loading，新队列到位再由 [start] 重新起播。
+  ///
+  /// 取数失败不回滚源：旧队列已停，不存在「旧歌新角标」；保留用户选中的源
+  /// + 如实报错（`gatewayError`）比静默跳回旧源更明白，电台卡播放键可重试。
+  Future<void> _restartWithSource(MusicPlatform platform) async {
+    final player = ref.read(playerControllerProvider.notifier);
+    await player.stopPlayback();
+    player.clearQueue();
+    await start(source: platform);
   }
 
   /// 本轮取数使用的音源；`null` = 没有可用源。
@@ -352,6 +372,7 @@ class FmController extends Notifier<FmSession> {
       state = const FmSession(gatewayError: '没有可用的私人 FM 音源，请到设置里开启');
       return;
     }
+    final token = ++_startToken;
     state = FmSession(
       active: true,
       source: target,
@@ -369,6 +390,8 @@ class FmController extends Notifier<FmSession> {
       await ref.read(authControllerProvider.notifier).ensureReady();
     } catch (_) {}
     final tracks = await _seed();
+    // 更新的开台已接手（连点 chip / 设置里又改源）：这次的结果作废。
+    if (token != _startToken) return;
     if (!state.active) return;
     if (tracks.isEmpty) {
       state = state.copyWith(
@@ -391,13 +414,14 @@ class FmController extends Notifier<FmSession> {
   /// 切源：立刻结束当前会话并以新源重开（一次会话不混源）。
   ///
   /// 未起播时只改「下次开台」的源，避免点一下就白跑一次取数。
+  /// 已起播时走 [_restartWithSource]（先停后切，见其注释）。
   Future<void> switchSource(MusicPlatform platform) async {
     if (platform == state.source) return;
     if (!state.active) {
       state = state.copyWith(source: platform);
       return;
     }
-    await start(source: platform);
+    await _restartWithSource(platform);
   }
 
   void _deactivate() {

@@ -317,7 +317,9 @@ class _FmPageState extends ConsumerState<FmPage>
       kugo: kugo,
       player: player,
       maxItems: _maxUpcoming,
-      appending: fm.appending,
+      // 切源是先停后切：取数窗口里队列已清空，appending 置上让面板说
+      // 「正在续接歌池…」，别说「歌池见底了」（那是在播到池尾时的文案）。
+      appending: fm.appending || fm.loading,
       onTap: (index) => playerCtl.playAtIndex(index),
     );
 
