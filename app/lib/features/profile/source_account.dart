@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/source/music_platform.dart';
@@ -48,6 +49,50 @@ Future<void> logoutSource(WidgetRef ref, MusicPlatform platform) =>
       MusicPlatform.netease =>
         ref.read(neteaseLoginControllerProvider.notifier).logout(),
     };
+
+/// 退出该源账号前的二次确认：会掉云端歌单/「我喜欢」与付费播放权限，误点代价高。
+///
+/// 「我的」/「个人中心」/「设置·账号管理」三处退出入口共用同一口径
+/// （原为设置页私有 helper，「退出登录」搬到个人中心时抽出）。
+/// 昵称取该源当前账号，匿名/未恢复时省略不显示。
+Future<bool> confirmLogoutSource(
+  BuildContext context,
+  WidgetRef ref,
+  MusicPlatform platform,
+) async {
+  final nickname = ref.read(sourceAccountProvider(platform)).nickname;
+  final who = nickname.isEmpty ? '' : '「$nickname」';
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('退出${platform.label}账号？'),
+      content: Text(
+        '退出后$who云端的歌单、「我喜欢」与付费播放权限将不可用，本机数据不受影响。',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('退出'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}
+
+/// 二次确认后退出该源账号（取消则原样不动）。见 [confirmLogoutSource]。
+Future<void> confirmAndLogoutSource(
+  BuildContext context,
+  WidgetRef ref,
+  MusicPlatform platform,
+) async {
+  if (!await confirmLogoutSource(context, ref, platform)) return;
+  await logoutSource(ref, platform);
+}
 
 /// 「我的 / 个人中心」当前查看的账号源（`null` = 跟随设置里的默认源）。
 ///

@@ -14,6 +14,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
 import '../../shared/widgets/smooth_scroll.dart';
+import '../profile/source_account.dart';
 import 'settings_controller.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -175,8 +176,15 @@ class SettingsPage extends ConsumerWidget {
                 nickname: auth.isLogged ? (auth.user?.nickname ?? '') : '',
                 guestHint: '游客模式，数据仅存本机',
                 onLogin: () => context.push('/login'),
-                onLogout:
-                    auth.isLogged ? () => _logoutKugou(context, ref) : null,
+                // 已登录才给退出口；二次确认与退出动作为公共 helper
+                // （与「个人中心」页尾入口同一口径，见 source_account.dart）。
+                onLogout: auth.isLogged
+                    ? () => confirmAndLogoutSource(
+                        context,
+                        ref,
+                        MusicPlatform.kugou,
+                      )
+                    : null,
               ),
               _AccountTile(
                 icon: Icons.cloud_outlined,
@@ -190,7 +198,11 @@ class SettingsPage extends ConsumerWidget {
                       : '/netease-login',
                 ),
                 onLogout: netease.isLogged
-                    ? () => _logoutNetease(context, ref)
+                    ? () => confirmAndLogoutSource(
+                        context,
+                        ref,
+                        MusicPlatform.netease,
+                      )
                     : null,
               ),
             ],
@@ -267,23 +279,6 @@ class SettingsPage extends ConsumerWidget {
         (p, settings.enabledSources.length > 1 || !settings.enabledSources.contains(p)),
     ];
   }
-
-  /// 退出酷狗账号。会掉云端歌单/「我喜欢」与付费播放权限，先二次确认。
-  Future<void> _logoutKugou(BuildContext context, WidgetRef ref) async {
-    final name = ref.read(authControllerProvider).user?.nickname ?? '';
-    if (!await _confirmLogout(context, MusicPlatform.kugou.label, name)) return;
-    await ref.read(authControllerProvider.notifier).logout();
-  }
-
-  /// 退出网易云账号：清内存会话 + 本地落盘（[NeteaseAuthStore]）。
-  Future<void> _logoutNetease(BuildContext context, WidgetRef ref) async {
-    final name =
-        ref.read(neteaseLoginControllerProvider).account?.nickname ?? '';
-    if (!await _confirmLogout(context, MusicPlatform.netease.label, name)) {
-      return;
-    }
-    await ref.read(neteaseLoginControllerProvider.notifier).logout();
-  }
 }
 
 /// 一个源的两级开关：父（整源）+ 子（该源支持的入口功能）。
@@ -340,33 +335,6 @@ List<Widget> _sourceSwitchTiles({
               : null,
         ),
   ];
-}
-
-/// 退出登录前的二次确认：会掉云端歌单/「我喜欢」与付费播放权限，误点代价高。
-Future<bool> _confirmLogout(
-  BuildContext context,
-  String platform,
-  String nickname,
-) async {
-  final who = nickname.isEmpty ? '' : '「$nickname」';
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text('退出$platform账号？'),
-      content: Text('退出后$who云端的歌单、「我喜欢」与付费播放权限将不可用，本机数据不受影响。'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('取消'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          child: const Text('退出'),
-        ),
-      ],
-    ),
-  );
-  return ok ?? false;
 }
 
 /// 「账号管理」里的一行：平台名 + 当前状态 + 行内显式按钮。
