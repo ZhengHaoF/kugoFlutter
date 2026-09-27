@@ -2,6 +2,7 @@ import '../../../core/api/netease/netease_client.dart';
 import '../../../core/api/netease/netease_mappers.dart';
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/catalog_models.dart';
+import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
@@ -31,7 +32,9 @@ class NeteaseSource
         UserPlaylistWriteSource,
         UserPlaylistReadSource,
         UserLibrarySource,
-        DeviceLoginSource {
+        DeviceLoginSource,
+        CommentReadSource,
+        ResourceCommentSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
 
   final NeteaseClient _client;
@@ -570,6 +573,199 @@ class NeteaseSource
     for (final t in tracks)
       if (_songId(t) > 0) _songId(t),
   ];
+
+  // ── N1 评论（读侧；写侧要登录，留到 N2） ────────────────────
+
+  /// 能力面自己的失败文案（读侧契约是「返回空 + 原因」，不抛异常）。
+  String _commentError = '';
+
+  /// 歌曲评论档位：首屏前用实测默认值，拿到响应后用服务端 `sortTypeList` 覆盖。
+  List<({String id, String label})> _songSorts = neteaseDefaultCommentSorts;
+
+  /// E1 拉一页评论的公共部分（歌曲 / 歌单 / 专辑只是 threadId 前缀不同）。
+  ///
+  /// [cursor] 是上一页服务端给的 `data.cursor`（原样回传，不自己拼）。
+  Future<CommentPage> _fetchCommentPage(
+    String threadId, {
+    required int page,
+    required int pageSize,
+    required String cursor,
+    required int sortType,
+  }) async {
+    final raw = await _client.commentListRaw(
+      threadId: threadId,
+      pageNo: page,
+      pageSize: pageSize,
+      cursor: cursor,
+      sortType: sortType,
+    );
+    return mapNeteaseComments(raw, threadId: threadId).page;
+  }
+
+  /// 档位 id → `sortType`。空串（默认档）取首项。
+  ///
+  /// 服务端给的 `1`（推荐）与发出去的 `99` 是同一个档位的两套编码，
+  /// 这里发的全是**请求侧编码**（99 / 2 / 3）。
+  int _sortTypeOf(String sort) {
+    final id = sort.isEmpty ? _songSorts.first.id : sort;
+    return int.tryParse(id) ?? 99;
+  }
+
+  /// 楼层：E2 一次给 `limit` 条。
+  ///
+  /// 网易楼层端点**没有分页参数**（`time` 游标翻页未实测），所以只取第一页 ——
+  /// 与酷狗「按 page 翻楼层」不同，这里不假装有分页。
+  Future<List<Comment>> _fetchFloor(
+    String threadId, {
+    required String rootCommentId,
+    required int pageSize,
+  }) async {
+    final raw = await _client.commentFloorRaw(
+      threadId: threadId,
+      parentCommentId: rootCommentId,
+      limit: pageSize,
+    );
+    return mapNeteaseFloorComments(raw);
+  }
+
+  @override
+  String get lastError => _commentError;
+
+  @override
+  String get resourceCommentError => _commentError;
+
+  @override
+  List<({String id, String label})> get commentSortOptions => _songSorts;
+
+  @override
+  Future<CommentPage> songComments(
+    Track track, {
+    int page = 1,
+    int pageSize = 20,
+    String sort = '',
+    String cursor = '',
+  }) async {
+    _commentError = '';
+    final id = _songId(track);
+    if (id <= 0) {
+      _commentError = '缺少歌曲 ID';
+      return CommentPage.empty;
+    }
+    try {
+      final result = mapNeteaseComments(
+        await _client.commentListRaw(
+          threadId: 'R_SO_4_$id',
+          pageNo: page,
+          pageSize: pageSize,
+          cursor: cursor,
+          sortType: _sortTypeOf(sort),
+        ),
+        threadId: 'R_SO_4_$id',
+      );
+      // 档位以服务端给的为准（首屏前用的是实测默认值）。
+      _songSorts = result.sorts;
+      return result.page;
+    } catch (_) {
+      _commentError = '评论加载失败';
+      return CommentPage.empty;
+    }
+  }
+
+  @override
+  Future<List<Comment>> floorReplies({
+    required Track track,
+    required String childrenId,
+    required String rootCommentId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    _commentError = '';
+    final threadId = childrenId.isNotEmpty ? childrenId : 'R_SO_4_${_songId(track)}';
+    try {
+      return await _fetchFloor(
+        threadId,
+        rootCommentId: rootCommentId,
+        pageSize: pageSize,
+      );
+    } catch (_) {
+      _commentError = '楼层加载失败';
+      return const [];
+    }
+  }
+
+  @override
+  Future<int?> commentCount(Track track) async => null;
+
+  @override
+  Future<CommentPage> resourceComments(
+    CommentResourceKind kind, {
+    required String resourceId,
+    int page = 1,
+    int pageSize = 20,
+    String cursor = '',
+  }) async {
+    _commentError = '';
+    final threadId = _resourceThreadId(kind, resourceId);
+    if (threadId == null) {
+      _commentError = '缺少资源 ID';
+      return CommentPage.empty;
+    }
+    try {
+      // 歌单 / 专辑档位固定用推荐档（该口没有 sort 参数的概念，
+      // 与歌曲共用同一端点，实测三档都能出，但 UI 不给档位切换）。
+      const sortType = 99;
+      return await _fetchCommentPage(
+        threadId,
+        page: page,
+        pageSize: pageSize,
+        cursor: cursor,
+        sortType: sortType,
+      );
+    } catch (_) {
+      _commentError = '评论加载失败';
+      return CommentPage.empty;
+    }
+  }
+
+  @override
+  Future<List<Comment>> resourceFloorReplies(
+    CommentResourceKind kind, {
+    required String childrenId,
+    required String rootCommentId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    _commentError = '';
+    if (childrenId.isEmpty) {
+      _commentError = '评论池未知，无法加载楼层';
+      return const [];
+    }
+    try {
+      return await _fetchFloor(
+        childrenId,
+        rootCommentId: rootCommentId,
+        pageSize: pageSize,
+      );
+    } catch (_) {
+      _commentError = '楼层加载失败';
+      return const [];
+    }
+  }
+
+  @override
+  Future<int?> resourceCommentCount(CommentResourceKind kind, String id) async =>
+      null;
+
+  /// 资源 threadId 前缀（见 `docs/网易评论接入评估.md` §1）：
+  /// 歌单 `A_PL_0_` / 专辑 `R_AL_3_`。
+  String? _resourceThreadId(CommentResourceKind kind, String resourceId) {
+    final id = int.tryParse(resourceId.trim()) ?? 0;
+    if (id <= 0) return null;
+    return switch (kind) {
+      CommentResourceKind.playlist => 'A_PL_0_$id',
+      CommentResourceKind.album => 'R_AL_3_$id',
+    };
+  }
 }
 
 /// 默认网易云音源实例（与 [neteaseClient] 共享会话）。

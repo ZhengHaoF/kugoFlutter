@@ -1051,6 +1051,53 @@ class NeteaseClient {
       'ids': '[$idsCsv]',
     });
   }
+
+  // ── N1 评论（E1 列表 / E2 楼层） ────────────────────────────
+
+  /// E1 评论列表：**eapi + `interfaceHost`**（`POST /eapi/v2/resource/comments`）。
+  ///
+  /// 两个容易踩的点：
+  /// 1. 响应是 **`data` 包裹**（老口 `/weapi/v1/resource/comments/{threadId}`
+  ///    才是顶层平铺）—— 按错的那套读会拿到「空列表」，别误判成接口不可用。
+  /// 2. `sortType=1`（推荐）**必须归一化成 `99`** 再发，服务端不认 `1`
+  ///    （参考实现 `module/comment_new.js`：`if (sortType === 1) sortType = 99`）。
+  ///
+  /// [cursor] 三档形态不同（推荐 = 数字 offset、热度 = `normalHot#<offset>`、
+  /// 时间 = **上一页末条的 `time`**），首页传空串（这里按 `0` 发）。
+  Future<String> commentListRaw({
+    required String threadId,
+    int pageNo = 1,
+    int pageSize = 20,
+    String cursor = '',
+    int sortType = 99,
+  }) {
+    return callEApi(NeteaseEndpoints.commentList, {
+      'threadId': threadId,
+      'pageNo': '$pageNo',
+      'pageSize': '$pageSize',
+      'cursor': cursor.isEmpty ? '0' : cursor,
+      'sortType': '$sortType',
+      'showInner': 'true',
+    });
+  }
+
+  /// E2 楼层：`POST /weapi/resource/comment/floor/get`。
+  ///
+  /// 数据在 **`data.comments`**（不是顶层 `comments`）；`data.ownerComment`
+  /// 是父评论本身，不必再查一次。`time=-1` 是参考实现的固定值。
+  Future<String> commentFloorRaw({
+    required String threadId,
+    required String parentCommentId,
+    int limit = 20,
+    int time = -1,
+  }) {
+    return callWeApi(NeteaseEndpoints.commentFloor, {
+      'parentCommentId': parentCommentId,
+      'threadId': threadId,
+      'time': '$time',
+      'limit': '$limit',
+    });
+  }
 }
 
 /// 默认网易云客户端（全局共享 Cookie 会话）。

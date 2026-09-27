@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../models/audio_quality.dart';
 import '../../models/catalog_models.dart';
+import '../../models/comment.dart';
 import '../../models/search_result.dart';
 import '../../models/track.dart';
 import '../../source/capabilities.dart';
@@ -811,4 +812,153 @@ int _int(Object? value) {
 String _str(Object? value) {
   final s = '${value ?? ''}'.trim();
   return s == 'null' ? '' : s;
+}
+
+// ── N1 评论（E1 列表 / E2 楼层） ──────────────────────────────
+
+/// 网易评论档位（`sortType` 值 → 展示名）。
+///
+/// 档位本该由响应的 `sortTypeList` 给出，但 [CommentReadSource.commentSortOptions]
+/// 是**同步** getter（首屏前还没请求过），故这里先给一份实测默认值，
+/// 拿到响应后用服务端档位覆盖（见 [mapNeteaseComments] 的 `sorts`）。
+///
+/// ⚠️ `sortType=1` 只是服务端给的展示序，**发出去必须转成 `99`**
+/// （`NeteaseClient.commentListRaw` 有同样一句注释）。
+const List<({String id, String label})> neteaseDefaultCommentSorts = [
+  (id: '99', label: '推荐'),
+  (id: '2', label: '最热'),
+  (id: '3', label: '最新'),
+];
+
+/// E1 评论列表 → 一页评论 + 服务端档位。
+///
+/// ⚠️ **新口是 `data` 包裹**（`data.comments` / `data.totalCount` /
+/// `data.hasMore` / `data.sortTypeList`）—— 老口才是顶层平铺，按错的那套读
+/// 会拿到「空列表」而误判成接口不可用。
+///
+/// `nextCursor` **直接取服务端的 `data.cursor`**（2026-09-27 连翻 3 页实测：
+/// 三档零重复、能收敛）。
+///
+/// ⚠️ 不要自己按 `pageNo * pageSize` 拼 offset —— 实测**响应条数不受 `pageSize`
+/// 控制**（要 20 时推荐档给 26、时间档给 18、热度档给 20），且热度档的
+/// cursor 是 `normalHot#20 → #40 → #110` 这种服务端自算的跳跃序列，
+/// 拼出来的 offset 会错位。早前文档 §3.2 那句「响应 cursor 不等于下一页要传的」
+/// 已被本次实测推翻，以代码注释为准。
+({
+  CommentPage page,
+  List<({String id, String label})> sorts,
+}) mapNeteaseComments(
+  String raw, {
+  required String threadId,
+}) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '评论');
+  final data = _asMap(root['data']);
+  final comments = data['comments'];
+
+  final items = <Comment>[];
+  if (comments is List) {
+    for (final node in comments) {
+      final c = mapNeteaseComment(node);
+      if (c != null) items.add(c);
+    }
+  }
+
+  final hasMore = data['hasMore'] == true;
+  final nextCursor = hasMore ? _str(data['cursor']) : '';
+
+  return (
+    page: CommentPage(
+      items: items,
+      total: _int(data['totalCount']),
+      // 网易的评论池就是 threadId 本身（可从 Track 重算）—— 填它是为了让
+      // 楼层 / 写侧有统一的取值路径，UI 不解读它的含义（酷狗那个是不透明 token）。
+      childrenId: threadId,
+      maxPage: 0, // 页码式字段，网易不用（分页靠 nextCursor）
+      nextCursor: nextCursor,
+    ),
+    sorts: _neteaseSorts(data['sortTypeList']),
+  );
+}
+
+/// E2 楼层：数据在 **`data.comments`**（不是顶层 `comments`）。
+///
+/// `data.ownerComment` 是父评论本身（不必再查一次），这里不返回
+/// —— 调用方（UI）手上已经有那条父评论。
+List<Comment> mapNeteaseFloorComments(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '楼层评论');
+  return _mapNodes(_asMap(root['data'])['comments'], mapNeteaseComment);
+}
+
+/// 一条评论节点 → [Comment]；`commentId` 缺失视为无效。
+Comment? mapNeteaseComment(Object? node) {
+  if (node is! Map) return null;
+  final m = Map<String, dynamic>.from(node);
+  final id = _int(m['commentId']);
+  if (id <= 0) return null;
+  final user = _asMap(m['user']);
+  final floor = _asMap(m['showFloorComment']);
+  final replyCount = _int(m['replyCount']);
+  return Comment(
+    id: '$id',
+    user: _str(user['nickname']),
+    userId: _idOrEmpty(user['userId']),
+    content: _str(m['content']),
+    likeCount: _int(m['likedCount']),
+    avatarUrl: _pic(_str(user['avatarUrl'])),
+    // `timeStr` 已经是「9分钟前」「2024-12-08」这类可读文本，不要再格式化。
+    timeLabel: _str(m['timeStr']),
+    // 楼层数：正文没给就退回 `showFloorComment.replyCount`。
+    replyCount: replyCount > 0 ? replyCount : _int(floor['replyCount']),
+    location: _str(_asMap(m['ipLocation'])['location']),
+    badges: _neteaseBadges(user, m),
+  );
+}
+
+/// 网易铭牌判定 —— **另起一套，不复用酷狗的 `_plateId` 判定链**（字段语义
+/// 完全不同：酷狗是 `vip_type`/`m_type`/`y_type` 组合，网易是
+/// `vipType` / `authStatus` / `expertTags`）。
+List<CommentBadge> _neteaseBadges(
+  Map<String, dynamic> user,
+  Map<String, dynamic> comment,
+) {
+  final out = <CommentBadge>[];
+  if (_int(user['vipType']) > 0) {
+    out.add(const CommentBadge(kind: 'vip', label: 'VIP'));
+  }
+  if (_int(user['authStatus']) > 0) {
+    out.add(const CommentBadge(kind: 'music', label: '音乐人'));
+  }
+  final expert = user['expertTags'];
+  if (expert is List && expert.isNotEmpty) {
+    out.add(CommentBadge(kind: 'expert', label: _str(expert.first)));
+  }
+  if (_int(_asMap(comment['decoration'])['repliedByAuthorCount']) > 0) {
+    out.add(const CommentBadge(kind: 'author', label: '作者回复'));
+  }
+  return out;
+}
+
+/// `sortTypeList` → 档位选项；`sortType=1` 归一化为 `99`。
+/// 服务端没给（或全无效）时回落到 [neteaseDefaultCommentSorts]。
+List<({String id, String label})> _neteaseSorts(Object? raw) {
+  if (raw is! List) return neteaseDefaultCommentSorts;
+  final out = <({String id, String label})>[];
+  for (final e in raw) {
+    if (e is! Map) continue;
+    final m = _asMap(e);
+    var type = _int(m['sortType']);
+    if (type == 1) type = 99;
+    if (type <= 0) continue;
+    final name = _str(m['sortTypeName']);
+    if (name.isEmpty) continue;
+    out.add((id: '$type', label: name));
+  }
+  return out.isEmpty ? neteaseDefaultCommentSorts : out;
+}
+
+String _idOrEmpty(Object? value) {
+  final id = _int(value);
+  return id > 0 ? '$id' : '';
 }

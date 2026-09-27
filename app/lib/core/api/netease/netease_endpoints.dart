@@ -72,6 +72,18 @@ abstract final class NeteaseEndpoints {
   /// 另注意 `initial` 需转**大写 ASCII 码**（`a` → `65`），见 `NeteaseClient._artistInitialCode`。
   static const artistList = '/api/v1/artist/list';
 
+  /// N1 评论：E1 列表 / E2 楼层。
+  ///
+  /// **E1 是 eapi + `interfaceHost` 的新口**（`/eapi/v2/resource/comments`），
+  /// 与一期验证过的 `/eapi/song/*` 同族但路径不同；这里写**不带 `/eapi` 前缀**
+  /// 的短路径，由 `NeteaseClient.callEApi` 自动补前缀。
+  /// 老口 `/weapi/v1/resource/comments/{threadId}` 是顶层平铺，**不要混用**
+  /// （两套包裹不同，按错的那套读会拿到空列表）。
+  static const commentList = '/v2/resource/comments';
+
+  /// E2 楼层：weapi（`/weapi/resource/comment/floor/get`），同样是短路径。
+  static const commentFloor = '/resource/comment/floor/get';
+
   static String weapiUrl(String path, {String host = mainHost}) {
     final p = path.startsWith('/') ? path : '/$path';
     return '$host/weapi$p'.replaceFirst('/weapi/weapi', '/weapi');
