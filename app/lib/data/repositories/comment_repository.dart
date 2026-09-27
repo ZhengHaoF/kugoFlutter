@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../core/api/network_log.dart';
 import '../../core/models/comment.dart';

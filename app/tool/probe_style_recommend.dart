@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:kugo/core/api/endpoints.dart';
-import 'package:kugo/core/api/kugo_client.dart';
-import 'package:kugo/core/api/kugo_sign.dart';
+import 'package:kugo/core/api/kugou/kugo_client.dart';
+import 'package:kugo/core/api/kugou/kugo_sign.dart';
 import 'package:kugo/core/api/mappers.dart';
 
 Future<void> main() async {

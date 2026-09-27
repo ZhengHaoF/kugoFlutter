@@ -4,9 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart'
+import '../../core/api/kugou/kugo_client.dart'
     show looksLikeUrlFilter, decodeKugoBody;
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/fm_mode.dart';

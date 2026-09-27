@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
+import '../../core/api/kugou/kugo_client.dart';
 import '../../data/repositories/search_repository.dart';
 
 enum ProbeStatus { idle, ok, fail, filtered, probing }

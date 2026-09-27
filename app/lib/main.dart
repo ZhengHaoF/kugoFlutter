@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
-import 'core/api/kugo_client.dart';
+import 'core/api/kugou/kugo_client.dart';
 import 'core/api/netease/netease_client.dart';
 import 'core/api/network_log.dart';
 import 'core/platform.dart';

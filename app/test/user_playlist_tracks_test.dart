@@ -7,8 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/data/repositories/user_repository.dart';
+import 'package:kugo/data/sources/kugou/kugou_source.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
+import 'package:kugo/features/auth/auth_token_holder.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/playlist/playlist_detail_page.dart';
 import 'package:kugo/features/profile/user_collections_controller.dart';
@@ -314,7 +317,7 @@ void main() {
   });
 
   group('PlaylistDetailPage with user cloud playlist', () {
-    testWidgets('renders tracks loaded via userRepository when opening user playlist',
+    testWidgets('loads user tracks via KugouSource (page does not touch UserRepository)',
         (tester) async {
       final dio = Dio();
       dio.httpClientAdapter = _FakeDioAdapter((options) async {
@@ -348,36 +351,25 @@ void main() {
       final repo = UserRepository(dio: dio);
       final fakePlayer = FakeAudioPlayer();
 
+      // 账号态在 Session / Source 内，页面只认 PlaylistDetailSource 契约。
+      AuthTokenHolder.instance.setSession(
+        token: testUser.token,
+        userId: testUser.userId,
+      );
+      addTearDown(AuthTokenHolder.instance.clear);
+      musicSourceRegistry = MusicSourceRegistry([KugouSource(userRepository: repo)]);
+      addTearDown(() => musicSourceRegistry = null);
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            authControllerProvider.overrideWith(() => _FakeAuthController(loggedInState)),
             playerControllerProvider.overrideWith(
               () => PlayerController(engine: fakePlayer),
-            ),
-            userCollectionsProvider.overrideWith(
-              () => UserCollectionsNotifier(
-                repository: repo,
-                initialState: UserCollectionsState(
-                  createdPlaylists: [
-                    const PlaylistBrief(
-                      id: '2',
-                      name: '我喜欢',
-                      coverUrl: '',
-                      trackCount: 969,
-                      isDefault: true,
-                      userId: '123456',
-                    )
-                  ],
-                  loaded: true,
-                ),
-              ),
             ),
           ],
           child: MaterialApp(
             home: PlaylistDetailPage(
               id: '2',
-              userRepository: repo,
               initialBrief: const PlaylistBrief(
                 id: '2',
                 name: '我喜欢',

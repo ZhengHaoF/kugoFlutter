@@ -88,10 +88,132 @@ class KugouSource
 
   // ── 详情（歌单/专辑/歌手，路由 `?src=` 按源分发到此） ────────
 
+  /// 歌单详情。账号态（用户自建/收藏）与多级 fallback 只住在这里，
+  /// 页面不得直连 `UserRepository` / `authController`（多音源方案 §11.1）。
+  ///
+  /// 取数顺序：
+  /// 1. [preferRank] → 榜单详情；
+  /// 2. brief 提示为用户单且已登录 → 用户曲目（空歌单也算命中）；
+  /// 3. 公开 special；
+  /// 4. 公开失败后再试用户曲目（type 0 → 1）；
+  /// 5. 交叉 fallback：榜单 ↔ 歌单。
   @override
   Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
-    String id,
-  ) => _playlists.fetchPlaylist(id);
+    String id, {
+    PlaylistBrief? briefHint,
+    bool preferRank = false,
+  }) async {
+    final targetId = id.trim();
+    if (targetId.isEmpty) return null;
+
+    if (preferRank) {
+      final rank = await _playlists.fetchRankDetail(targetId);
+      if (rank != null && rank.tracks.isNotEmpty) {
+        return (
+          brief: rank.brief.copyWith(isRank: true),
+          tracks: rank.tracks,
+        );
+      }
+    }
+
+    final session = kugouSession;
+    final matched = _matchUserPlaylist(briefHint, session.userId);
+    if (matched != null && session.hasToken) {
+      final listId = matched.brief.listId.isNotEmpty
+          ? matched.brief.listId
+          : targetId;
+      final userTracks = await _users.fetchUserPlaylistTracks(
+        listId: listId,
+        userId: session.userId,
+        token: session.token,
+        type: matched.isCollected ? 1 : 0,
+        page: 1,
+        pageSize: 300,
+      );
+      if (userTracks.tracks.isNotEmpty) {
+        return (
+          brief: matched.brief.copyWith(
+            id: targetId,
+            isRank: false,
+            trackCount: userTracks.tracks.length,
+          ),
+          tracks: userTracks.tracks,
+        );
+      }
+      // 用户歌单存在但为空是合法结果；有错误则继续往下走公开/交叉。
+      if (userTracks.error.isEmpty) {
+        return (
+          brief: matched.brief.copyWith(id: targetId, isRank: false),
+          tracks: const <Track>[],
+        );
+      }
+    }
+
+    final remote = await _playlists.fetchPlaylist(targetId);
+    if (remote != null && remote.tracks.isNotEmpty) {
+      return (brief: remote.brief.copyWith(isRank: false), tracks: remote.tracks);
+    }
+
+    // 公开失败后再试用户曲目（deep link 无 brief 时的兜底；先自建后收藏）。
+    if (session.hasToken && matched == null) {
+      for (final type in const [0, 1]) {
+        final userTracks = await _users.fetchUserPlaylistTracks(
+          listId: briefHint?.listId.isNotEmpty == true
+              ? briefHint!.listId
+              : targetId,
+          userId: session.userId,
+          token: session.token,
+          type: type,
+          page: 1,
+          pageSize: 300,
+        );
+        if (userTracks.tracks.isNotEmpty) {
+          final brief = briefHint ??
+              PlaylistBrief(
+                id: targetId,
+                name: '歌单',
+                coverUrl: '',
+                trackCount: userTracks.tracks.length,
+              );
+          return (
+            brief: brief.copyWith(
+              id: targetId,
+              isRank: false,
+              trackCount: userTracks.tracks.length,
+            ),
+            tracks: userTracks.tracks,
+          );
+        }
+      }
+    }
+
+    // 交叉 fallback：榜单进歌单口 / 歌单进榜单口。
+    final fallback = preferRank
+        ? await _playlists.fetchPlaylist(targetId)
+        : await _playlists.fetchRankDetail(targetId);
+    if (fallback != null && fallback.tracks.isNotEmpty) {
+      return (
+        brief: fallback.brief.copyWith(isRank: !preferRank),
+        tracks: fallback.tracks,
+      );
+    }
+    return null;
+  }
+
+  /// 从 brief 提示识别「用户自建/收藏」。账号字段只在本类内解读。
+  ({PlaylistBrief brief, bool isCollected})? _matchUserPlaylist(
+    PlaylistBrief? hint,
+    String sessionUserId,
+  ) {
+    if (hint == null) return null;
+    final isUser = hint.isDefault ||
+        hint.userId.isNotEmpty ||
+        hint.listId.isNotEmpty;
+    if (!isUser) return null;
+    final isCollected = hint.type == 1 ||
+        (hint.userId.isNotEmpty && hint.userId != sessionUserId);
+    return (brief: hint, isCollected: isCollected);
+  }
 
   @override
   Future<AlbumDetail?> fetchAlbumDetail(String albumId) =>
@@ -768,9 +890,12 @@ class KugouSource
   }
 
   @override
-  Future<List<Track>> nextFmTracks({int remain = 5}) async {
-    // 上游：remain_songcnt > 4 时服务端只回元数据，取歌需 0–4。
-    final remainClamped = remain.clamp(0, 4);
+  Future<List<Track>> nextFmTracks({
+    int unplayed = 0,
+    bool fresh = false,
+  }) async {
+    // 酷狗协议：remain_songcnt>4 时服务端只回元数据；规则只住 Source/Repository。
+    final remainClamped = fm.clampRemainSongcnt(fresh: fresh, unplayed: unplayed);
     final page = await _fm.fetch(
       mode: _fmMode,
       pool: _fmPool,

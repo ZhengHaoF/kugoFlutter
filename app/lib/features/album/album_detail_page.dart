@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/catalog_models.dart';
 import '../../core/models/comment.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../data/repositories/catalog_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
@@ -52,51 +52,33 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
       _error = '';
     });
 
-    // 网易：D3 `v1/album/{id}`，album 头 + songs 一次拿全（无分页）。
-    if (widget.platform == MusicPlatform.netease) {
-      final source = musicSourceRegistry
-          ?.capability<AlbumDetailSource>(MusicPlatform.netease);
-      if (source == null) {
-        setState(() {
-          _loading = false;
-          _error = '专辑加载失败：网易云音源不可用';
-        });
-        return;
-      }
-      try {
-        final remote = await source.fetchAlbumDetail(widget.id);
-        if (!mounted) return;
-        setState(() {
-          _album = (remote != null && remote.songs.isNotEmpty) ? remote : null;
-          _loading = false;
-          _error = remote == null || remote.songs.isEmpty
-              ? '专辑加载失败：该 ID 无公开数据'
-              : '';
-        });
-      } catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _error = '专辑加载失败：${e.toString().split('\n').first}';
-        });
-      }
-      return;
-    }
-
-    final remote = await catalogRepository.fetchAlbum(widget.id);
-    if (!mounted) return;
-    if (remote != null && remote.songs.isNotEmpty) {
+    // 页面只认契约：专辑详情按 `widget.platform` 分发到对应 Source。
+    final source = musicSourceRegistry
+        ?.capability<AlbumDetailSource>(widget.platform);
+    if (source == null) {
       setState(() {
-        _album = remote;
         _loading = false;
+        _error = '专辑加载失败：${widget.platform.label}音源不可用';
       });
       return;
     }
-    setState(() {
-      _album = null;
-      _loading = false;
-      _error = '专辑加载失败：接口不可用或无公开数据';
-    });
+    try {
+      final remote = await source.fetchAlbumDetail(widget.id);
+      if (!mounted) return;
+      setState(() {
+        _album = (remote != null && remote.songs.isNotEmpty) ? remote : null;
+        _loading = false;
+        _error = remote == null || remote.songs.isEmpty
+            ? '专辑加载失败：接口不可用或该 ID 无公开数据'
+            : '';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = '专辑加载失败：${e.toString().split('\n').first}';
+      });
+    }
   }
 
   @override

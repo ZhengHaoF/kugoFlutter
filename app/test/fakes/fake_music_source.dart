@@ -120,7 +120,11 @@ class FakeMusicSource
   }
 
   @override
-  Future<List<Track>> nextFmTracks({int remain = 5}) async => fmTracks;
+  Future<List<Track>> nextFmTracks({
+    int unplayed = 0,
+    bool fresh = false,
+  }) async =>
+      fmTracks;
 
   @override
   Future<void> reportFmFeedback(
@@ -178,6 +182,7 @@ class ScriptedFmSource extends FakeMusicSource implements HeartRadioSource {
 
   int fetchCalls = 0;
   final List<int> remainSongcnts = [];
+  final List<({int unplayed, bool fresh})> fetchParams = [];
 
   FmMode? lastMode;
   FmSongPool? lastPool;
@@ -212,9 +217,13 @@ class ScriptedFmSource extends FakeMusicSource implements HeartRadioSource {
   }
 
   @override
-  Future<List<Track>> nextFmTracks({int remain = 5}) async {
+  Future<List<Track>> nextFmTracks({
+    int unplayed = 0,
+    bool fresh = false,
+  }) async {
     fetchCalls++;
-    remainSongcnts.add(remain);
+    remainSongcnts.add(unplayed);
+    fetchParams.add((unplayed: unplayed, fresh: fresh));
     final f = serverFailure;
     if (f != null) throw f;
     return serverTracks;

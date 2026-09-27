@@ -1,5 +1,5 @@
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
+import '../../core/api/kugou/kugo_client.dart';
 import '../../core/api/mappers.dart';
 import '../../core/models/catalog_models.dart';
 import '../../core/models/track.dart';

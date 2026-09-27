@@ -6,15 +6,10 @@ import '../../core/models/comment.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
-import '../../core/source/music_source.dart' show NotFound;
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../data/repositories/playlist_repository.dart';
-import '../../data/repositories/user_repository.dart';
-import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
-import '../../features/profile/user_collections_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
@@ -42,7 +37,6 @@ class PlaylistDetailPage extends ConsumerStatefulWidget {
     this.initialBrief,
     this.isRank,
     this.platform = MusicPlatform.kugou,
-    this.userRepository,
   });
 
   final String id;
@@ -51,7 +45,6 @@ class PlaylistDetailPage extends ConsumerStatefulWidget {
 
   /// 深链平台：网易歌单/榜单共用歌单详情（G10），路由 `?src=` 分发。
   final MusicPlatform platform;
-  final UserRepository? userRepository;
 
   @override
   ConsumerState<PlaylistDetailPage> createState() =>
@@ -75,8 +68,6 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
   bool _rankPickerLoading = false;
   String _rankPickerGroup = '';
 
-  UserRepository get _userRepo => widget.userRepository ?? userRepository;
-
   bool get _isRankView => widget.isRank ?? widget.initialBrief?.isRank ?? false;
   String get _effectiveId => _activeRankId ?? widget.id;
 
@@ -99,138 +90,38 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       _error = '';
     });
 
-    // 网易：歌单/榜单共用 D2 歌单详情（G10），无酷狗那串多级 fallback。
-    if (widget.platform == MusicPlatform.netease) {
-      await _loadNetease();
+    // 页面只认契约：歌单/榜单详情、用户自建/收藏路径全在 Source 内。
+    final source = musicSourceRegistry
+        ?.capability<PlaylistDetailSource>(widget.platform);
+    if (source == null) {
+      setState(() {
+        _loading = false;
+        _error =
+            '${_isRankView ? "榜单" : "歌单"}加载失败：${widget.platform.label}音源不可用';
+      });
       return;
     }
-
-    final isRank = _isRankView;
-    final targetId = _effectiveId;
-
-    if (isRank) {
-      final rank = await playlistRepository.fetchRankDetail(targetId);
-      if (!mounted) return;
-      if (rank != null && rank.tracks.isNotEmpty) {
-        _applyLoaded(rank.brief, rank.tracks, isRank: true);
-        return;
-      }
-    } else {
-      final auth = ref.read(authControllerProvider);
-      final collections = ref.read(userCollectionsProvider);
-      final brief = widget.initialBrief ?? _brief;
-      final id = targetId;
-
-      // Check if identified as a user cloud playlist
-      PlaylistBrief? matchingCreated;
-      for (final p in collections.createdPlaylists) {
-        if (p.id == id) {
-          matchingCreated = p;
-          break;
-        }
-      }
-      PlaylistBrief? matchingCollected;
-      for (final p in collections.collectedPlaylists) {
-        if (p.id == id) {
-          matchingCollected = p;
-          break;
-        }
-      }
-      final matchedPlaylist = brief ?? matchingCreated ?? matchingCollected;
-
-      final isUserPlaylist = matchedPlaylist != null &&
-          (matchedPlaylist.isDefault ||
-              matchedPlaylist.userId.isNotEmpty ||
-              matchingCreated != null ||
-              matchingCollected != null);
-
-      if (isUserPlaylist && auth.isLogged && auth.user != null) {
-        final isCollected = matchingCollected != null ||
-            (matchedPlaylist.userId.isNotEmpty &&
-                matchedPlaylist.userId != auth.user!.userId);
-
-        final userTracksResult = await _userRepo.fetchUserPlaylistTracks(
-          listId: id,
-          userId: auth.user!.userId,
-          token: auth.user!.token,
-          type: isCollected ? 1 : 0,
-          page: 1,
-          pageSize: 300,
-        );
-        if (!mounted) return;
-        if (userTracksResult.tracks.isNotEmpty) {
-          _applyLoaded(matchedPlaylist, userTracksResult.tracks, isRank: false);
-          return;
-        } else if (userTracksResult.error.isEmpty) {
-          _applyLoaded(matchedPlaylist, const [], isRank: false);
-          return;
-        }
-      }
-
-      // Try public special playlist
-      final remote = await playlistRepository.fetchPlaylist(id);
-      if (!mounted) return;
-      if (remote != null && remote.tracks.isNotEmpty) {
-        _applyLoaded(remote.brief, remote.tracks, isRank: false);
-        return;
-      }
-
-      // Fallback: If public failed and user is logged in, attempt user playlist tracks
-      if (auth.isLogged && auth.user != null && !isUserPlaylist) {
-        final userTracksResult = await _userRepo.fetchUserPlaylistTracks(
-          listId: id,
-          userId: auth.user!.userId,
-          token: auth.user!.token,
-          type: 0,
-          page: 1,
-          pageSize: 300,
-        );
-        if (!mounted) return;
-        if (userTracksResult.tracks.isNotEmpty) {
-          final fallbackBrief = matchedPlaylist ??
-              PlaylistBrief(
-                id: id,
-                name: '歌单',
-                coverUrl: '',
-                trackCount: userTracksResult.tracks.length,
-              );
-          _applyLoaded(fallbackBrief, userTracksResult.tracks, isRank: false);
-          return;
-        }
-      }
-    }
-
-    // Fallback if preferred type failed.
-    final fallback = isRank
-        ? await playlistRepository.fetchPlaylist(targetId)
-        : await playlistRepository.fetchRankDetail(targetId);
-    if (!mounted) return;
-    if (fallback != null && fallback.tracks.isNotEmpty) {
-      _applyLoaded(fallback.brief, fallback.tracks, isRank: !isRank);
-      return;
-    }
-
-    setState(() {
-      _loading = false;
-      _error = '${isRank ? "榜单" : "歌单"}加载失败：接口不可用或该 ID 无公开数据';
-    });
-  }
-
-  /// 网易歌单/榜单详情：D2 一次拿 brief + tracks（上限 1000 首，无分页）。
-  Future<void> _loadNetease() async {
     try {
-      final source = _neteaseDetailSource();
-      if (source == null) throw const NotFound('网易云音源不可用');
-      final detail = await source.fetchPlaylistDetail(_effectiveId);
+      final detail = await source.fetchPlaylistDetail(
+        _effectiveId,
+        briefHint: widget.initialBrief ?? _brief,
+        preferRank: _isRankView,
+      );
       if (!mounted) return;
-      if (detail == null || detail.tracks.isEmpty) {
+      // null = 无数据；非 null 且 tracks 为空 = 合法的空用户歌单。
+      if (detail == null) {
         setState(() {
           _loading = false;
-          _error = '${_isRankView ? "榜单" : "歌单"}加载失败：该 ID 无公开数据';
+          _error =
+              '${_isRankView ? "榜单" : "歌单"}加载失败：接口不可用或该 ID 无公开数据';
         });
         return;
       }
-      _applyLoaded(detail.brief, detail.tracks, isRank: _isRankView);
+      _applyLoaded(
+        detail.brief,
+        detail.tracks,
+        isRank: detail.brief.isRank || _isRankView,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -239,11 +130,6 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       });
     }
   }
-
-  PlaylistDetailSource? _neteaseDetailSource() =>
-      musicSourceRegistry?.capability<PlaylistDetailSource>(
-        MusicPlatform.netease,
-      );
 
   void _applyLoaded(
     PlaylistBrief loadedBrief,
@@ -387,9 +273,8 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
         // 两源均实现 RankSource：酷狗=榜单列表接口，网易=G11 榜单列表按白名单过滤。
         final rankSource =
             musicSourceRegistry?.capability<RankSource>(widget.platform);
-        _allRanks = rankSource != null
-            ? await rankSource.rankBoards()
-            : await playlistRepository.fetchRankList();
+        _allRanks =
+            rankSource != null ? await rankSource.rankBoards() : const [];
       } catch (_) {
         _allRanks = const [];
       }

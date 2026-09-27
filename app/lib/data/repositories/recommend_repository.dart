@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/daily_recommend.dart';

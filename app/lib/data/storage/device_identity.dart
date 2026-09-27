@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 import '../../features/auth/auth_token_holder.dart';
 import '../repositories/device_repository.dart';
 

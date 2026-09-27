@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../../features/auth/auth_token_holder.dart';
-import 'network_log.dart';
+import '../../../features/auth/auth_token_holder.dart';
+import '../network_log.dart';
 
 class KugoApiException implements Exception {
   KugoApiException(this.message, {this.code, this.cause, this.filtered = false});

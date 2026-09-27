@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
+import '../../core/api/kugou/kugo_client.dart';
 import '../../core/models/track.dart';
 import '../../core/utils/krc_parser.dart';
 import '../../core/utils/lrc_parser.dart';

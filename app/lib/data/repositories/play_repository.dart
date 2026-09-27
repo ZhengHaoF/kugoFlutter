@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
-import '../../core/api/kugo_client.dart';
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';

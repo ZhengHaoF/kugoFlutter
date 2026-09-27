@@ -13,7 +13,6 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../data/repositories/fm_repository.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_token_holder.dart';
 import '../likes/likes_controller.dart';
@@ -578,14 +577,12 @@ class FmController extends Notifier<FmSession> {
     final player = ref.read(playerControllerProvider);
     final unplayed =
         (player.queue.length - player.currentIndex - 1).clamp(0, 1 << 30);
-    // remain_songcnt>4 时服务端只回会话元数据、不给歌。开新会话必须传 0，
-    // 否则会带着旧队列剩余数（如 25）去要 FM，被误判成「私人FM加载失败」。
-    final remain = clampRemainSongcnt(fresh: fresh, unplayed: unplayed);
 
     var tracks = const <Track>[];
     var failure = '';
     try {
-      tracks = await fm.nextFmTracks(remain: remain);
+      // 只报语义（剩余数 / 是否新会话）；协议参数由 Source 映射。
+      tracks = await fm.nextFmTracks(unplayed: unplayed, fresh: fresh);
       // 网易 FM 一次只回 1 首：补到目标批量，否则开场队列只有一首。
       // 酷狗一次给一整批，循环不会进入。
       var calls = 1;
@@ -594,7 +591,7 @@ class FmController extends Notifier<FmSession> {
           calls < kFmSeedBatchMaxCalls &&
           state.active &&
           state.source == platform) {
-        final more = await fm.nextFmTracks(remain: 0);
+        final more = await fm.nextFmTracks(unplayed: 0, fresh: false);
         if (more.isEmpty) break;
         tracks = [...tracks, ...more];
         calls++;

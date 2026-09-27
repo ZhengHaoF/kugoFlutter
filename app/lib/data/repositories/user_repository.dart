@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
-import '../../core/api/kugo_crypto.dart';
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugo_crypto.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';

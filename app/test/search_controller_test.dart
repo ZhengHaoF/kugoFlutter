@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugo_client.dart';
+import 'package:kugo/core/api/kugou/kugo_client.dart';
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/music_platform.dart';

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugo_client.dart';
+import '../../core/api/kugou/kugo_client.dart';
 import '../../core/api/network_log.dart';
 import '../../core/theme/kugo_theme.dart';
 import 'network_log_provider.dart';

@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../../core/api/kugo_crypto.dart';
-import '../../core/api/kugo_sign.dart';
+import '../../core/api/kugou/kugo_crypto.dart';
+import '../../core/api/kugou/kugo_sign.dart';
 
 /// Device identity returned by KuGou `POST /risk/v2/r_register_dev`.
 class DeviceRegistration {

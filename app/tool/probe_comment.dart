@@ -1,4 +1,4 @@
-import 'package:kugo/core/api/kugo_sign.dart';
+import 'package:kugo/core/api/kugou/kugo_sign.dart';
 import 'package:kugo/core/models/comment.dart';
 import 'package:kugo/data/repositories/comment_repository.dart';
 import 'package:kugo/data/repositories/search_repository.dart';

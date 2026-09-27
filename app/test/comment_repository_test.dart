@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugo_sign.dart';
+import 'package:kugo/core/api/kugou/kugo_sign.dart';
 import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/data/repositories/comment_repository.dart';
 import 'package:kugo/data/storage/device_identity.dart';

@@ -13,7 +13,11 @@ import 'music_source.dart';
 /// 私人 FM（酷狗红心 Radio / 网易私人 FM 的共同子集）。
 abstract interface class PersonalFmSource {
   /// 拉取下一批 FM 曲目。
-  Future<List<Track>> nextFmTracks({int remain = 5});
+  ///
+  /// [unplayed] 当前队列尚未播放数量；[fresh] = 开新会话。
+  /// **协议参数由实现映射**（酷狗 `remain_songcnt` 且上限 4；网易忽略）——
+  /// 调用方只报语义，不得传协议值。
+  Future<List<Track>> nextFmTracks({int unplayed = 0, bool fresh = false});
 
   /// 上报：喜欢 / 跳过 / 垃圾桶（语义由实现映射到平台参数）。
   Future<void> reportFmFeedback(Track track, {required FmFeedback feedback});
@@ -126,14 +130,26 @@ abstract interface class RecommendFeedSource {
   Future<List<PlaylistBrief>> editorialPlaylists({int pageSize = 12});
 }
 
-/// 歌单详情（非榜单；榜单走 [RankSource]）。
+/// 歌单详情（含榜单交叉 fallback；换榜列表走 [RankSource]）。
 ///
 /// 返回 null = 接口无数据（酷狗公开歌单缺失）；实现也可抛异常（网易）。
 /// 深链路由 `/playlist/:id?src=<wire>` 按源分发到此。
+///
+/// **账号态路径也归实现**：酷狗用户自建/收藏（userId + token + fileid/listid）
+/// 的识别与取曲只出现在 `KugouSource` 内，页面不得直连 `UserRepository`。
 abstract interface class PlaylistDetailSource {
+  /// 取歌单/榜单详情。
+  ///
+  /// [briefHint] 列表点击带来的 brief（识别用户单、封面兜底）；可空。
+  /// [preferRank] 榜单视图优先走榜单接口；实现内再做 榜单 ↔ 歌单 交叉 fallback。
+  ///
+  /// 返回的 [PlaylistBrief.isRank] 标明**实际取到**的数据形态
+  /// （交叉 fallback 时可能与 [preferRank] 相反）。
   Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
-    String id,
-  );
+    String id, {
+    PlaylistBrief? briefHint,
+    bool preferRank = false,
+  });
 }
 
 /// 专辑详情。深链 `/album/:id?src=<wire>` 按源分发到此。

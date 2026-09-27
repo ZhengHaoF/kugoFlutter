@@ -94,7 +94,7 @@ void main() {
 
     await _probe(
       'fm',
-      () => src.nextFmTracks(remain: 3),
+      () => src.nextFmTracks(unplayed: 3),
       (r) => 'tracks=${r.length}${r.isEmpty ? '' : ' first=${r.first.name}'}',
     );
 

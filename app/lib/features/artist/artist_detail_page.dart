@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/catalog_models.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../data/repositories/catalog_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
@@ -92,32 +92,20 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     });
   }
 
-  /// 按源取歌手头部：网易 D4（`data.artist`）；酷狗 `singer/info`。
-  Future<ArtistDetail?> _fetchDetail() {
-    if (widget.platform == MusicPlatform.netease) {
-      final source = musicSourceRegistry
-          ?.capability<ArtistDetailSource>(MusicPlatform.netease);
-      if (source == null) return Future.value(null);
-      return source.fetchArtistDetail(widget.id);
-    }
-    return catalogRepository.fetchArtist(widget.id);
+  /// 按源取歌手头部（页面只认契约，分页/字段差异收在 Source 内）。
+  Future<ArtistDetail?> _fetchDetail() async {
+    final source = musicSourceRegistry
+        ?.capability<ArtistDetailSource>(widget.platform);
+    if (source == null) return null;
+    return source.fetchArtistDetail(widget.id);
   }
 
-  /// 按源取歌手歌曲分页：网易 D6（offset 分页，`more` → hasMore）；
-  /// 酷狗 `singer/song`（page 分页）。
-  Future<ArtistSongsPage> _fetchSongsPage(int page) {
-    if (widget.platform == MusicPlatform.netease) {
-      final source = musicSourceRegistry
-          ?.capability<ArtistDetailSource>(MusicPlatform.netease);
-      if (source == null) return Future.value(const ArtistSongsPage());
-      return source.fetchArtistSongsPage(
-        widget.id,
-        page: page,
-        pageSize: 50,
-        sort: _songSort,
-      );
-    }
-    return catalogRepository.fetchArtistSongs(
+  /// 按源取歌手歌曲分页：网易 D6（offset 分页）与酷狗 page 分页由 Source 消化。
+  Future<ArtistSongsPage> _fetchSongsPage(int page) async {
+    final source = musicSourceRegistry
+        ?.capability<ArtistDetailSource>(widget.platform);
+    if (source == null) return const ArtistSongsPage();
+    return source.fetchArtistSongsPage(
       widget.id,
       page: page,
       pageSize: 50,

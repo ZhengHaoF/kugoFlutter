@@ -333,9 +333,9 @@ void main() {
       expect(r.source.searchCalls.toSet(), {'热门', '华语流行', '经典'});
     });
 
-    test('fresh fetch sends remain=0 even with a leftover queue', () async {
+    test('fresh fetch reports fresh=true even with a leftover queue', () async {
       // 源收下了但没给歌（无异常、无曲目）：以前会因 remain_songcnt=25 被写成
-      // 「私人FM加载失败」。
+      // 「私人FM加载失败」。控制器只报语义，协议 remain_songcnt 由 Source 映射为 0。
       final r = await _rig(loggedIn: true);
       addTearDown(r.container.dispose);
 
@@ -362,9 +362,9 @@ void main() {
 
       expect(r.source.fetchCalls, 1);
       expect(
-        r.source.remainSongcnts.single,
-        0,
-        reason: '开新会话必须明确要歌，不能把旧队列剩余数传上去',
+        r.source.fetchParams.single.fresh,
+        isTrue,
+        reason: '开新会话必须报 fresh=true，Source 再映射成 remain_songcnt=0',
       );
       expect(
         _fm(r.container).gatewayError,

@@ -185,13 +185,25 @@ class NeteaseSource
   // ── 详情（D2/D3/D4/D6，路由 `?src=` 按源分发到此） ────────
 
   /// D2 歌单详情。网易榜单也是歌单（G10），榜单/歌单共用本口。
+  ///
+  /// [briefHint] 网易无用户歌单登录态路径，忽略；
+  /// 榜单形态按 [preferRank] 回写 brief.isRank（与酷狗交叉 fallback 同口径）。
+  /// 空曲目视为无数据（返回 null），与酷狗「空用户歌单」区分。
   @override
   Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
-    String id,
-  ) async {
+    String id, {
+    PlaylistBrief? briefHint,
+    bool preferRank = false,
+  }) async {
     final pid = int.tryParse(id.trim()) ?? 0;
     if (pid <= 0) return null;
-    return mapNeteasePlaylistDetail(await _client.playlistDetailRaw(pid));
+    final detail = mapNeteasePlaylistDetail(await _client.playlistDetailRaw(pid));
+    if (detail == null || detail.tracks.isEmpty) return null;
+    final brief =
+        preferRank && !detail.brief.isRank
+            ? detail.brief.copyWith(isRank: true)
+            : detail.brief;
+    return (brief: brief, tracks: detail.tracks);
   }
 
   /// D3 专辑详情：`album` 头 + `songs[]`。
@@ -429,10 +441,13 @@ class NeteaseSource
 
   // ── PersonalFmSource（G4） ───────────────────────────────
 
-  /// 网易 FM 是「一次一换」：每次 `radio/get` 返回下一批（通常 1 首），
-  /// 与酷狗的 `remain` 语义不同，故不循环补足。
+  /// 网易 FM 是「一次一换」：每次 `radio/get` 返回下一批（通常 1 首）。
+  /// [unplayed] / [fresh] 为跨源语义参数，网易协议不使用。
   @override
-  Future<List<Track>> nextFmTracks({int remain = 5}) async {
+  Future<List<Track>> nextFmTracks({
+    int unplayed = 0,
+    bool fresh = false,
+  }) async {
     final raw = await _client.personalFmRaw();
     return mapNeteaseFmSongs(raw);
   }

@@ -26,6 +26,7 @@ class _NeteaseFm extends FakeMusicSource {
 
   int fetchCalls = 0;
   final List<int> remainSongcnts = [];
+  final List<({int unplayed, bool fresh})> fetchParams = [];
 
   /// 非空时挂住取数（验证切源「先停后切」的加载窗口）。
   Completer<void>? gate;
@@ -34,9 +35,13 @@ class _NeteaseFm extends FakeMusicSource {
   SourceFailure? failure;
 
   @override
-  Future<List<Track>> nextFmTracks({int remain = 5}) async {
+  Future<List<Track>> nextFmTracks({
+    int unplayed = 0,
+    bool fresh = false,
+  }) async {
     fetchCalls++;
-    remainSongcnts.add(remain);
+    remainSongcnts.add(unplayed);
+    fetchParams.add((unplayed: unplayed, fresh: fresh));
     final f = failure;
     if (f != null) throw f;
     final g = gate;
@@ -213,8 +218,8 @@ void main() {
     // 10 次调用（kFmSeedBatch / kFmSeedBatchMaxCalls），每首独立 id。
     expect(sources.netease.fetchCalls, 10);
     expect(container.read(playerControllerProvider).queue.length, 10);
-    // 首轮要歌必须 remain=0（>4 时服务端只回会话元数据）。
-    expect(sources.netease.remainSongcnts.first, 0);
+    // 首轮是新会话：只报语义 fresh=true（协议 remain_songcnt 由 Source 映射）。
+    expect(sources.netease.fetchParams.first.fresh, isTrue);
   });
 
   testWidgets('切源先停后切：取数窗口旧队列已停，新队列到位才起播', (tester) async {

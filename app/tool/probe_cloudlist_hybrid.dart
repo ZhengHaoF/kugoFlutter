@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-import '../lib/core/api/kugo_crypto.dart';
-import '../lib/core/api/kugo_sign.dart';
+import '../lib/core/api/kugou/kugo_crypto.dart';
+import '../lib/core/api/kugou/kugo_sign.dart';
 
 const token =
     '4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7';
