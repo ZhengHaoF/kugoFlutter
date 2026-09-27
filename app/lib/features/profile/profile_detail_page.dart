@@ -121,7 +121,10 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
           children: [
             _DetailHeader(
               showLogout: true,
-              onLogout: () => logoutSource(ref, accountPlatform),
+              // 页头图标 = 快捷入口；页尾 [_LogoutTile] 是显眼文字入口。
+              // 两者同一动作：二次确认后按当前账号源退出。
+              onLogout: () =>
+                  confirmAndLogoutSource(context, ref, accountPlatform),
             ),
             sourceBar(0),
             const SizedBox(height: KugoSpacing.lg),
@@ -150,6 +153,13 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
               const SizedBox(height: KugoSpacing.lg),
               _SourceAccountNotice(platform: accountPlatform),
             ],
+            const SizedBox(height: KugoSpacing.lg),
+            // 退出登录入口：从「我的」页统计卡下方拆迁到此（酷狗/网易云两源通用）。
+            // 只有登录态走得到这个布局——未登录是上面那套「请先登录」。
+            _LogoutTile(
+              onTap: () =>
+                  confirmAndLogoutSource(context, ref, accountPlatform),
+            ),
           ],
         ),
       ),
@@ -197,6 +207,30 @@ class _DetailHeader extends StatelessWidget {
               icon: const Icon(Icons.logout_rounded, size: 20),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 页尾退出入口（红字行）。登录态才走得到这个布局，未登录是「请先登录」那套。
+///
+/// 与页头图标按钮同一动作（[_DetailHeader] 的 onLogout）：公共 helper
+/// 二次确认后按当前账号源退出。图标是快捷入口，这里是不依赖 tooltip 的
+/// 显眼文字入口（原「我的」页统计卡下的红字按钮拆迁到此）。
+class _LogoutTile extends StatelessWidget {
+  const _LogoutTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return GlassSurface(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+        title: Text('退出登录', style: kugo.body.copyWith(color: Colors.redAccent)),
+        onTap: onTap,
       ),
     );
   }

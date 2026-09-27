@@ -237,19 +237,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const _Divider(),
                 ],
               ),
-              if (account.isLogged) ...[
-                const SizedBox(height: KugoSpacing.xs),
-                TextButton(
-                  onPressed: () => logoutSource(ref, accountPlatform),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(64, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: Colors.redAccent,
-                  ),
-                  child: const Text('退出登录'),
-                ),
-              ],
             ],
           ),
         ),
@@ -595,7 +582,7 @@ class _Stat extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(KugoRadius.tile),
       child: SizedBox(
-        // 有 hint 时再撑高，避免无副标题时统计区底部空一截、退出登录显得过远。
+        // 有 hint 时再撑高给「需登录」副标题留位，三个统计格高度保持一致。
         height: hint != null ? 76 : 56,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
