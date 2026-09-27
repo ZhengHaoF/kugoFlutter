@@ -557,7 +557,8 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
 
   Widget _chipRow(List<Widget> children) {
     return KugoHScroll(
-      builder: (context, controller) => SingleChildScrollView(
+      fadeEdges: false,
+      builder: (context, controller, _) => SingleChildScrollView(
         controller: controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),

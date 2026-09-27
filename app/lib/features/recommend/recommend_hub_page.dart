@@ -918,7 +918,9 @@ class _StylePanel extends StatelessWidget {
                   SizedBox(
                     height: 34,
                     child: KugoHScroll(
-                      builder: (context, controller) => ListView.separated(
+                      fadeEdges: false,
+                      builder: (context, controller, _) =>
+                          ListView.separated(
                         controller: controller,
                         scrollDirection: Axis.horizontal,
                         itemCount: groups.length,

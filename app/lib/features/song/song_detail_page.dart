@@ -742,7 +742,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     return Padding(
       padding: const EdgeInsets.only(top: KugoSpacing.sm),
       child: KugoHScroll(
-        builder: (context, controller) => SingleChildScrollView(
+        fadeEdges: false,
+        builder: (context, controller, _) => SingleChildScrollView(
           controller: controller,
           scrollDirection: Axis.horizontal,
           child: Row(children: options),

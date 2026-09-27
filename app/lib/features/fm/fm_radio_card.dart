@@ -791,12 +791,13 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
           // 尾垫让最后一盘也能滑到左缘吸附位：maxScroll = (n-1)*pitch。
           final trailing = math.max(0.0, viewportW - pitch);
           // 整块盘阵独占这片区域，鼠标滚轮上下=前后一张盘（Windows 端唯一
-          // 能不用拖拽翻盘的方式）；Scrollbar 让「右边还有盘」看得见。
+          // 能不用拖拽翻盘的方式）。raw 模式绕开 silky：它的
+          // SilkyScrollPosition 会吞掉 mouse 的 pointerScroll，_OneStepSnapPhysics
+          // 的「甩动后吸附」会断链。
           return KugoHScroll(
             controller: _scrollController,
-            wheelToHorizontal: true,
-            crossAxisMargin: 4,
-            builder: (context, controller) => NotificationListener<ScrollNotification>(
+            wheelMode: KugoHWheelMode.raw,
+            builder: (context, controller, _) => NotificationListener<ScrollNotification>(
               onNotification: _onScrollNotification,
               child: ListView.builder(
                 controller: controller,

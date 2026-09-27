@@ -456,7 +456,8 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                           SizedBox(
                             height: 36,
                             child: KugoHScroll(
-                              builder: (context, controller) =>
+                              fadeEdges: false,
+                              builder: (context, controller, _) =>
                                   ListView.separated(
                                 controller: controller,
                                 scrollDirection: Axis.horizontal,

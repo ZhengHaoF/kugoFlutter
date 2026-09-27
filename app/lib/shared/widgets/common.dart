@@ -276,7 +276,8 @@ class SourceFilterBar extends StatelessWidget {
       child: SizedBox(
         height: 32,
         child: KugoHScroll(
-          builder: (context, controller) => ListView(
+          fadeEdges: false,
+          builder: (context, controller, _) => ListView(
             controller: controller,
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding),

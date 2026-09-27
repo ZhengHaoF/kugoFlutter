@@ -263,7 +263,8 @@ class _TabBar extends StatelessWidget {
     return SizedBox(
       height: 40,
       child: KugoHScroll(
-        builder: (context, controller) => ListView(
+        fadeEdges: false,
+        builder: (context, controller, _) => ListView(
           controller: controller,
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
