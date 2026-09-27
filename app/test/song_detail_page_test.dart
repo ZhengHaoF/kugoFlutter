@@ -17,6 +17,7 @@ import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/song/song_detail_page.dart';
+import 'package:kugo/shared/widgets/comment_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
@@ -42,7 +43,8 @@ class _CommentFakeSource extends FakeMusicSource
     (id: 'barrage', label: '弹幕'),
   ];
 
-  Comment _c(String id) => Comment(id: id, user: 'u', content: 'c-$id');
+  Comment _c(String id) =>
+      Comment(id: id, user: 'u', content: 'c-$id', likeCount: 3);
 
   CommentPage _page(String tag, {required bool withFilters}) => CommentPage(
     items: [_c('$tag-1'), _c('$tag-2')],
@@ -240,5 +242,20 @@ void main() {
     await _pump(tester);
 
     expect(_artistButton(tester).onPressed, isNull);
+  });
+
+  // ── 写侧能力缺失时的隐显（N2 之后网易正是这种情况的一部分） ────
+
+  testWidgets('无点赞能力（如酷狗）：赞数是静态文字，不是可点按钮', (tester) async {
+    await _pump(tester);
+
+    // 点赞数照样显示（纯展示）……
+    expect(find.text('3'), findsWidgets);
+    // ……但整条评论里不该出现「可点的赞」——
+    // 判据：`_CommentFakeSource` 没 implements CommentLikeSource，
+    // 页面取不到能力 ⇒ onToggleLike 为 null ⇒ 不包 InkWell。
+    final tiles = tester.widgetList<CommentTile>(find.byType(CommentTile));
+    expect(tiles, isNotEmpty);
+    expect(tiles.every((t) => t.onToggleLike == null), isTrue);
   });
 }

@@ -15,6 +15,7 @@ import 'package:kugo/core/api/netease/netease_mappers.dart';
 import 'package:kugo/core/models/comment.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/music_platform.dart';
+import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/data/sources/netease/netease_source.dart';
 
 const String _listJson = '''
@@ -96,6 +97,59 @@ class _FakeNeteaseClient extends NeteaseClient {
       'time': time,
     };
     return floorRaw;
+  }
+
+  // ── 写侧 ──────────────────────────────────────────────────
+  // 默认回 `301 需登录` —— 与真机游客态实测一致（2026-09-27 探针：
+  // E3/E4/E5 三口的 body 都是 `{"code":301,...}`）。
+
+  String addRaw = '{"code":301}';
+  String replyRaw = '{"code":301}';
+  String likeRaw = '{"code":200}';
+  bool loggedIn = false;
+
+  Map<String, Object?> lastAdd = const {};
+  Map<String, Object?> lastReply = const {};
+  Map<String, Object?> lastLike = const {};
+
+  @override
+  bool get hasLogin => loggedIn;
+
+  @override
+  Future<String> commentAddRaw({
+    required String threadId,
+    required String content,
+  }) async {
+    lastAdd = {'threadId': threadId, 'content': content};
+    return addRaw;
+  }
+
+  @override
+  Future<String> commentReplyRaw({
+    required String threadId,
+    required String commentId,
+    required String content,
+  }) async {
+    lastReply = {
+      'threadId': threadId,
+      'commentId': commentId,
+      'content': content,
+    };
+    return replyRaw;
+  }
+
+  @override
+  Future<String> commentLikeRaw({
+    required String threadId,
+    required String commentId,
+    bool like = true,
+  }) async {
+    lastLike = {
+      'threadId': threadId,
+      'commentId': commentId,
+      'like': like,
+    };
+    return likeRaw;
   }
 }
 
@@ -289,6 +343,171 @@ void main() {
         rootCommentId: '1',
       );
       expect(list, isEmpty);
+    });
+  });
+
+  group('N2a 写侧', () {
+    test('登录态看 MUSIC_U cookie，不是酷狗 token', () async {
+      final client = _FakeNeteaseClient();
+      final source = NeteaseSource(client: client);
+      expect(source.isLoggedIn, isFalse);
+      client.loggedIn = true;
+      expect(source.isLoggedIn, isTrue);
+    });
+
+    test('发评论：threadId 与内容进参数', () async {
+      final client = _FakeNeteaseClient()..addRaw = '{"code":200}';
+      final source = NeteaseSource(client: client);
+      await source.sendSongComment(
+        track: _track,
+        childrenId: 'R_SO_4_2652820720',
+        content: '好听',
+      );
+      expect(client.lastAdd['threadId'], 'R_SO_4_2652820720');
+      expect(client.lastAdd['content'], '好听');
+    });
+
+    test('发评论：评论池为空时用 track 拼 threadId', () async {
+      final client = _FakeNeteaseClient()..addRaw = '{"code":200}';
+      final source = NeteaseSource(client: client);
+      await source.sendSongComment(
+        track: _track,
+        childrenId: '',
+        content: '好听',
+      );
+      expect(client.lastAdd['threadId'], 'R_SO_4_2652820720');
+    });
+
+    test('回复：commentId 传被回复的评论 id，不拼 //@ 引用文本', () async {
+      final client = _FakeNeteaseClient()..replyRaw = '{"code":200}';
+      final source = NeteaseSource(client: client);
+      await source.sendFloorReply(
+        track: _track,
+        childrenId: 'R_SO_4_2652820720',
+        rootCommentId: '7475006689',
+        content: '说得对',
+        // 网易不认这两个参数，实现应忽略（不拼进正文）。
+        replyToUser: '某人',
+        replyToContent: '原内容',
+      );
+      expect(client.lastReply['commentId'], '7475006689');
+      expect(client.lastReply['content'], '说得对');
+      expect('${client.lastReply['content']}', isNot(contains('//@')));
+    });
+
+    test('301 → LoginRequired（文案可读）', () async {
+      final source = NeteaseSource(client: _FakeNeteaseClient());
+      await expectLater(
+        source.sendSongComment(
+          track: _track,
+          childrenId: 'R_SO_4_2652820720',
+          content: 'x',
+        ),
+        throwsA(
+          isA<LoginRequired>().having(
+            (e) => e.message,
+            'message',
+            contains('登录'),
+          ),
+        ),
+      );
+    });
+
+    test('缺少歌曲 ID：抛 NotFound 而不是空实现', () async {
+      final source = NeteaseSource(client: _FakeNeteaseClient());
+      await expectLater(
+        source.sendSongComment(
+          track: const Track(
+            id: '',
+            name: 'x',
+            artist: 'y',
+            album: 'z',
+            coverUrl: '',
+            durationMs: 0,
+          ),
+          childrenId: '',
+          content: 'x',
+        ),
+        throwsA(isA<NotFound>()),
+      );
+    });
+  });
+
+  group('N2b 点赞', () {
+    test('点赞 / 取消赞走不同参数', () async {
+      final client = _FakeNeteaseClient();
+      final source = NeteaseSource(client: client);
+      await source.setCommentLiked(
+        childrenId: 'R_SO_4_2652820720',
+        commentId: '7475006689',
+        like: true,
+      );
+      expect(client.lastLike['like'], isTrue);
+      await source.setCommentLiked(
+        childrenId: 'R_SO_4_2652820720',
+        commentId: '7475006689',
+        like: false,
+      );
+      expect(client.lastLike['like'], isFalse);
+    });
+
+    test('评论池为空：抛 NotFound（UI 乐观更新会回滚）', () async {
+      final source = NeteaseSource(client: _FakeNeteaseClient());
+      await expectLater(
+        source.setCommentLiked(
+          childrenId: '',
+          commentId: '1',
+          like: true,
+        ),
+        throwsA(isA<NotFound>()),
+      );
+    });
+
+    test('301 → LoginRequired', () async {
+      final source = NeteaseSource(
+        client: _FakeNeteaseClient()..likeRaw = '{"code":301}',
+      );
+      await expectLater(
+        source.setCommentLiked(
+          childrenId: 'R_SO_4_1',
+          commentId: '1',
+          like: true,
+        ),
+        throwsA(isA<LoginRequired>()),
+      );
+    });
+  });
+
+  group('点赞字段与乐观更新', () {
+    test('liked 从响应读取（酷狗不给此字段 → 恒 false）', () {
+      final item = mapNeteaseComment({
+        'commentId': 1,
+        'content': 'c',
+        'liked': true,
+        'likedCount': 5,
+        'user': {'nickname': 'u'},
+      });
+      expect(item!.liked, isTrue);
+      expect(item.likeCount, 5);
+    });
+
+    test('copyWith 只改赞相关两字段，其余原样', () {
+      final before = mapNeteaseComment({
+        'commentId': 1,
+        'content': '原文',
+        'timeStr': '刚刚',
+        'ipLocation': {'location': '浙江'},
+        'user': {'nickname': 'u'},
+        'likedCount': 5,
+        'liked': false,
+      })!;
+      final after = before.copyWith(liked: true, likeCount: 6);
+      expect(after.liked, isTrue);
+      expect(after.likeCount, 6);
+      expect(after.content, before.content);
+      expect(after.user, before.user);
+      expect(after.timeLabel, before.timeLabel);
+      expect(after.location, before.location);
     });
   });
 }
