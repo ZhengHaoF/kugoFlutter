@@ -6,6 +6,7 @@
 > **进度**：第一轮 P0（#1–#6）已于 2026-09-26 落地，`flutter analyze` 0 issue、
 > `flutter test --no-pub` 435 全绿。第二条 P2 里的两处写死主色（#12 的 main.dart /
 > history_page）顺手一并修了。第二轮桌面感（#7–#11）与第三轮打磨仍未动。
+> 2026-09-27：#2 二次重构（滚动条 → 拖拽/滚轮/渐隐，见 §2），全量 537 测试全绿。
 
 ---
 
@@ -52,29 +53,50 @@ if (!isMainTab) return Scaffold(body: widget.child);   // 无 MiniPlayerBar，�
 而不是路由字面值——主 tab 的两个分支里所有路由都应带条，只有全屏路由
 （`/player`、`/login`）才隐藏。
 
-### 2. ✅ Windows 端八处横向列表，零滚动条（已修复）
-新增 `shared/widgets/kugo_h_scroll.dart`，已接到全部 8 处。
+### 2. ✅ Windows 端八处横向列表：滚动条 → 拖拽/滚轮/边缘渐隐（2026-09-27 重构）
+`shared/widgets/kugo_h_scroll.dart`（`KugoHScroll`，8 处横排共用，改一处全生效）。
 
-* 桌面端 `Scrollbar`（`thumbVisibility: true`）；内容不溢出时 `ScrollbarPainter._needPaint`
-  会自己跳过，不用手写溢出判断；移动端不画，触屏靠拖拽。
-* 滚轮策略分两档：`dx` 占优（触摸板横滑）一定转横向；`dy` 占优（鼠标滚轮）只有
-  `wheelToHorizontal: true` 才接管 —— 嵌在竖向页面里的筛选条/页签会把页面滚动劫走。
-  目前只有 FM 盘阵开了 `wheelToHorizontal`。
-* 位移走 `position.pointerScroll(delta)` 而不是 `animateTo`：前者 `forcePixels` 后会
-  `goBallistic`，吸附 physics 才有机会收尾（`animateTo` 会停在两盘之间）。
-`shared/widgets/common.dart:275`（被 8 个页面复用）、`search_page.dart`、
-`explore_page.dart` ×2、`discovery_page.dart`、`recommend_hub_page.dart`、
-`playlist_detail_page.dart`、`fm/fm_radio_card.dart`。
+首轮（2026-09-26）给所有横排加了常显细 Scrollbar + `wheelToHorizontal`；一天后用户
+反馈滚动条割裂卡片行，要求改成鼠标滚轮/点击滑动。本轮**推倒滚动条**，换成三件套：
 
-症状：Windows 鼠标滚轮不作用于横向 ListView，触摸板横滑之外基本没法滚。筛选条、
-搜索类型页签、黑胶盘阵都属于「看不见还有内容」的状态。
+* **去滚动条**：删 `Scrollbar`/`ScrollbarTheme`（桌面端曾 `thumbVisibility: true`）。
+  可发现性由「溢出侧边缘渐隐」补偿（`fadeEdges`，`ShaderMask` + dstIn，
+  渐隐宽度 [KugoHScroll.fadeLength]；范式同 `lyrics_view.dart`）。
+  chips/页签行显式 `fadeEdges: false`——渐隐会啃胶囊圆角，且它们很少溢出。
+* **鼠标拖拽**：框架默认 `dragDevices` **不含 mouse**（Flutter 源码
+  `scroll_configuration.dart` 的 `_kTouchLikeDeviceTypes`），桌面「按住拖动」必须
+  显式放开。`ScrollConfiguration.copyWith(dragDevices: +mouse)` **只包横排容器**，
+  不全局开（框架注释警告全局放开会毁掉文本选择）。
+* **滚轮滚横排**（`KugoHWheelMode.silky`）：包 `SilkyScroll(direction: horizontal,
+  behavior: always)`——悬停时 silky 的 hover-stack 抑制外层页面滚动，滚到边缘由
+  `forwardAlwaysMouseWheelDeltaAtEdge` 把剩余 delta 放行回页面。
+  **不能自己写 `pointerSignalResolver.register` 手搓**：外层竖向页面（
+  `smooth_scroll.dart`）的滚轮是 silky 用裸 `Listener` 接的，不参与 resolver 竞争，
+  内层注册得再干净页面也照样滚 → 双重滚动。
+* **FM 盘阵走 `KugoHWheelMode.raw`**（自研 `pointerScroll` 路径）：silky 的
+  `SilkyScrollPosition.pointerScroll` 对 mouse 事件直接吞掉，`_OneStepSnapPhysics`
+  的「甩动后吸附」会断链。且 FM 整屏独占，本来无页面劫持问题。
+* **顺带修一个双倍速 bug**：旧实现 dx（触摸板横滑）由「框架 Scrollable + 裸
+  Listener」双重处理 → 横滑速度 ×2。现在 dx 一律交给框架。
 
-建议两步：
-1. 封一个 `KugoScrollbar`（横向 thinning + hover 才显形），先补到所有横向列表和
-   桌面主列表；
-2. 更治本的做法是让横向列表响应滚轮：`Listener` 吃 `PointerScrollEvent`，
-   `scrollDelta.dy` 转成 `animateTo(offset + dy)`（桌面 `PlayerBar` 的音量控件
-   已经是这套写法，可以照抄，见 `desktop_player_bar.dart:364`）。
+**踩过的最大的坑（写组件的一定要看）**：渐隐层最初按需插入/移除 `ShaderMask`，
+插入那一刻 Flutter 把 ShaderMask 下面整棵子树（ListView + silky State +
+ScrollPosition）**卸载重挂**——滚轮 tick 一次就被 dispose、offset 归零、拖拽失效。
+修法：**包装层常驻，只让 shaderCallback 的渐变内容随状态变**。`test/
+kugo_h_scroll_test.dart` 的「渐隐层常驻：滚动连续不重置」用例钉死这条。
+
+测试（`test/kugo_h_scroll_test.dart`，6 例）：滚轮 hijack / 边缘放行 / 鼠标拖拽
+（注意 widget test 里鼠标拖拽要**分两次 move**——单次大 moveBy 过不了手势基线）/
+点击不误触 / dx 单份 / chips 行不劫持页面。
+裸写 silky 之前先读 `docs/...` 无相关记录——依据在 pub 缓存源码
+`silky_scroll-2.6.4/lib/src/`（`silky_scroll_widget.dart` 的 `_onPointerSignal`
+四步分流、`silky_scroll_state.dart` 的 hover-stack 守卫、`silky_input_handler.dart`
+的 `MouseWheelVerticalDeltaBehavior`）。
+
+调用点：`common.dart:278`（音源 chips）、`discovery_page.dart:559`、
+`song_detail_page.dart:744`、`playlist_detail_page.dart:458`、
+`search_page.dart:265`、`explore_page.dart` ×2（卡片带，`wheelMode: silky`）、
+`fm/fm_radio_card.dart:795`（`wheelMode: raw`）。
 
 ### 3. ✅ 桌面端歌词不能手动滚动（已修复）
 `shared/widgets/lyrics_view.dart`
@@ -210,7 +232,7 @@ await windowManager.waitUntilReadyToShow(
 
 **第一轮 · 可用性（半天到一天）**
 1. 迷你播放条改为按 branch 判定（#1）
-2. 横向列表加滚动条 + 滚轮转横向（#2）
+2. 横向列表交互（#2，09-27 已重构为拖拽/滚轮/渐隐，无滚动条）
 3. 歌词手动滚动宽限期（#3）
 4. Windows 窗口标题与最小尺寸（#4）
 5. 柱状图宽度封顶（#5）+ 歌手页工具栏 Flexible（#6）
