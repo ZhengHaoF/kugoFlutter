@@ -424,6 +424,15 @@ void main() {
       expect(find.text('1 小时'), findsOneWidget);
       expect(find.text('所在地区'), findsOneWidget);
 
+      // 退出登录入口（从「我的」页搬到页尾）在酷狗源同样渲染。
+      await tester.scrollUntilVisible(
+        find.text('退出登录'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('退出登录'), findsOneWidget);
+
       expect(find.text('会员状态'), findsOneWidget);
       expect(find.text('畅听会员'), findsOneWidget);
       expect(find.text('概念会员'), findsOneWidget);

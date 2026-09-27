@@ -447,7 +447,8 @@ void main() {
       expect(find.text('小明'), findsOneWidget);
       expect(find.text('黑胶会员'), findsOneWidget);
       expect(find.text('我喜欢的音乐'), findsOneWidget);
-      expect(find.text('退出登录'), findsOneWidget);
+      // 「退出登录」已从「我的」页搬到「个人中心」页尾，本页不再出现。
+      expect(find.text('退出登录'), findsNothing);
     });
 
     testWidgets('个人中心：网易侧不出酷狗等级块，未登录时提示按源区分', (tester) async {
@@ -478,6 +479,8 @@ void main() {
       expect(find.text('账号档案'), findsNothing);
       expect(find.text('会员状态'), findsNothing);
       expect(find.textContaining('暂不提供等级'), findsOneWidget);
+      // 退出登录入口在页尾红字行，两源通用（登录态才渲染）。
+      expect(find.text('退出登录'), findsOneWidget);
     });
   });
 }
