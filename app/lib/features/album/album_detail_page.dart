@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/comment.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
@@ -12,6 +13,7 @@ import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/resource_comment_section.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -227,6 +229,24 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                   },
                 );
               },
+            ),
+          // 专辑评论：只在歌曲列表加载出来后才有意义（评论区块自己管 loading）。
+          if (!_loading && songs.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  KugoSpacing.lg,
+                  KugoSpacing.xl,
+                  KugoSpacing.lg,
+                  0,
+                ),
+                child: ResourceCommentSection(
+                  platform: widget.platform,
+                  kind: CommentResourceKind.album,
+                  resourceId: widget.id,
+                  resourceName: album?.name ?? '',
+                ),
+              ),
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],

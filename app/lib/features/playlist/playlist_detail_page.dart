@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/comment.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
@@ -17,6 +18,7 @@ import '../../features/profile/user_collections_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/resource_comment_section.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/rank/rank_list_page.dart'
@@ -753,6 +755,28 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                     },
                   );
                 },
+              ),
+            // 歌单评论：搜索态下不显示（列表被过滤，插在中间会误导）。
+            // 榜单也跳过 —— 榜单是另一个入口，评论池走 specialid 不合适。
+            if (!_loading &&
+                tracks.isNotEmpty &&
+                _searchQuery.isEmpty &&
+                !isRankView)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    KugoSpacing.lg,
+                    KugoSpacing.xl,
+                    KugoSpacing.lg,
+                    0,
+                  ),
+                  child: ResourceCommentSection(
+                    platform: widget.platform,
+                    kind: CommentResourceKind.playlist,
+                    resourceId: widget.id,
+                    resourceName: _brief?.name ?? '',
+                  ),
+                ),
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 120)),
           ],
