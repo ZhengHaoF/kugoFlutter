@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+// 注意：[SearchType] 定义在 search_repository 里（历史遗留，暂不迁）。
 import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -27,7 +30,6 @@ class SearchPage extends ConsumerStatefulWidget {
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
-  final _repo = searchRepository;
   final _controller = TextEditingController();
   final _focus = FocusNode();
   final _scroll = ScrollController();
@@ -94,8 +96,20 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.dispose();
   }
 
+  /// 热搜走**能力接口**，不直连酷狗 repository —— 否则网易永远拿不到热搜词。
+  ///
+  /// 热搜是**单源**概念（没有「混排」这回事）：按当前音源筛选取，
+  /// 「全部」时退到第一个可用源（音源条的顺序即优先级）。
+  /// 该源没有此能力（如未接入的源）时给空列表，UI 自行收起区块。
   Future<void> _loadHot() async {
-    final hot = await _repo.hotKeywords();
+    final platforms =
+        ref.read(searchControllerProvider.notifier).availablePlatforms;
+    final filter = ref.read(searchControllerProvider).sourceFilter;
+    final target = filter ?? (platforms.isEmpty ? null : platforms.first);
+    final source = target == null
+        ? null
+        : musicSourceRegistry?.capability<SearchHotSource>(target);
+    final hot = source == null ? const <String>[] : await source.hotKeywords();
     if (!mounted) return;
     setState(() => _hot = hot);
   }

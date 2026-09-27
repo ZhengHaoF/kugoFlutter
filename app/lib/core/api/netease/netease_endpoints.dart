@@ -84,6 +84,9 @@ abstract final class NeteaseEndpoints {
   /// E2 楼层：weapi（`/weapi/resource/comment/floor/get`），同样是短路径。
   static const commentFloor = '/resource/comment/floor/get';
 
+  /// N3 热搜：weapi，`type=1111`（参考 `module/search_hot.js`）。
+  static const searchHot = '/weapi/search/hot';
+
   static String weapiUrl(String path, {String host = mainHost}) {
     final p = path.startsWith('/') ? path : '/$path';
     return '$host/weapi$p'.replaceFirst('/weapi/weapi', '/weapi');

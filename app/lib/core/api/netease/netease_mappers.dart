@@ -881,6 +881,26 @@ const List<({String id, String label})> neteaseDefaultCommentSorts = [
   );
 }
 
+/// N3 热搜：词在 **`result.hots[].first`** —— 网易的**第三套包裹**
+/// （列表口是 `data` 包裹、老评论口是顶层平铺、热搜是 `result.hots`），
+/// 别按惯性去 `data` 下找。
+///
+/// 实测只有 **10 条、无分页**；`second` 恒为 `1`、`third` 恒为 `null`
+/// （含义不明），**没有热度值** —— 所以只回词，不编造热度。
+List<String> mapNeteaseSearchHot(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '热搜');
+  final hots = _asMap(root['result'])['hots'];
+  if (hots is! List) return const [];
+  final out = <String>[];
+  for (final e in hots) {
+    if (e is! Map) continue;
+    final word = _str(e['first']);
+    if (word.isNotEmpty) out.add(word);
+  }
+  return out;
+}
+
 /// E2 楼层：数据在 **`data.comments`**（不是顶层 `comments`）。
 ///
 /// `data.ownerComment` 是父评论本身（不必再查一次），这里不返回

@@ -1081,6 +1081,10 @@ class NeteaseClient {
     });
   }
 
+  /// N3 热搜：`POST /weapi/search/hot`，`type=1111`（参考 `module/search_hot.js`）。
+  Future<String> searchHotRaw() =>
+      callWeApi(NeteaseEndpoints.searchHot, {'type': '1111'});
+
   /// E2 楼层：`POST /weapi/resource/comment/floor/get`。
   ///
   /// 数据在 **`data.comments`**（不是顶层 `comments`）；`data.ownerComment`

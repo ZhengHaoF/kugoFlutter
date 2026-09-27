@@ -34,7 +34,8 @@ class NeteaseSource
         UserLibrarySource,
         DeviceLoginSource,
         CommentReadSource,
-        ResourceCommentSource {
+        ResourceCommentSource,
+        SearchHotSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
 
   final NeteaseClient _client;
@@ -755,6 +756,21 @@ class NeteaseSource
   @override
   Future<int?> resourceCommentCount(CommentResourceKind kind, String id) async =>
       null;
+
+  // ── N3 热搜 ─────────────────────────────────────────────
+
+  /// 网易热搜实测**只有 10 条、无分页**，故 [count] 只是在更长时截断；
+  /// 取不到（风控 / 网络）时给空列表，UI 自行收起该区块。
+  @override
+  Future<List<String>> hotKeywords({int count = 20}) async {
+    try {
+      final words = mapNeteaseSearchHot(await _client.searchHotRaw());
+      if (count <= 0 || words.length <= count) return words;
+      return words.take(count).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
   /// 资源 threadId 前缀（见 `docs/网易评论接入评估.md` §1）：
   /// 歌单 `A_PL_0_` / 专辑 `R_AL_3_`。
