@@ -272,7 +272,8 @@ class SourceFilterBar extends StatelessWidget {
     if (platforms.length <= 1) return const SizedBox.shrink();
     final kugo = KugoTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: KugoSpacing.sm),
+      // 与「我的」页标题→筛选条间距对齐：紧贴 AppBar / TabBar 会显得挤。
+      padding: const EdgeInsets.only(top: KugoSpacing.md, bottom: KugoSpacing.sm),
       child: SizedBox(
         height: 32,
         child: KugoHScroll(

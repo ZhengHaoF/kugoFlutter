@@ -24,25 +24,36 @@ void main() {
     expect(builder, isA<DesktopPageTransitionsBuilder>());
   });
 
-  testWidgets('settled route paints without opacity or translate layer',
+  testWidgets('settled route keeps identity wrappers (no remount, no layer)',
       (tester) async {
     await pumpDesktopApp(tester);
 
     expect(find.byKey(const ValueKey('home')), findsOneWidget);
-    expect(
-      find.ancestor(
-        of: find.byKey(const ValueKey('home')),
-        matching: find.byType(Opacity),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.ancestor(
-        of: find.byKey(const ValueKey('home')),
-        matching: find.byType(Transform),
-      ),
-      findsNothing,
-    );
+    // 包装树恒定，settle 用 identity：Opacity=1 / 位移=0，不叠 layer、也不拆树重挂。
+    final opacities = tester
+        .widgetList<Opacity>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('home')),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .toList();
+    expect(opacities, isNotEmpty);
+    for (final o in opacities) {
+      expect(o.opacity, 1.0);
+    }
+    final transforms = tester
+        .widgetList<Transform>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('home')),
+            matching: find.byType(Transform),
+          ),
+        )
+        .toList();
+    for (final t in transforms) {
+      expect(t.transform.getTranslation().x, 0.0);
+      expect(t.transform.getTranslation().y, 0.0);
+    }
   });
 
   testWidgets('push fades through and drifts horizontally without scaling',
@@ -103,20 +114,19 @@ void main() {
 
     expect(find.byKey(const ValueKey('home')), findsOneWidget);
     expect(find.byKey(const ValueKey('detail')), findsNothing);
-    expect(
-      find.ancestor(
-        of: find.byKey(const ValueKey('home')),
-        matching: find.byType(Opacity),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.ancestor(
-        of: find.byKey(const ValueKey('home')),
-        matching: find.byType(Transform),
-      ),
-      findsNothing,
-    );
+    // Settled 回到 identity，包装树不拆（拆树会让子树重挂、进页末尾抖）。
+    final opacities = tester
+        .widgetList<Opacity>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('home')),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .toList();
+    expect(opacities, isNotEmpty);
+    for (final o in opacities) {
+      expect(o.opacity, 1.0);
+    }
   });
 }
 

@@ -253,8 +253,9 @@ class _RootShellState extends ConsumerState<RootShell>
 
 /// Desktop sidebar content pane: fade-in + light horizontal drift.
 ///
-/// Same contract as [_TabTransition]: never leave a lasting Transform on
-/// [child] and never change its identity — the shell navigator stays mounted.
+/// Same contract as [_TabTransition]: never change the wrapper tree shape
+/// around [child] — settle 时拆包装会让子树重挂，进页末尾抖一下。
+/// Settled 值用 identity（opacity 1 / dx 0 / Clip.none），不叠额外 layer。
 class _DesktopNavTransition extends StatelessWidget {
   const _DesktopNavTransition({
     required this.animation,
@@ -275,13 +276,15 @@ class _DesktopNavTransition extends StatelessWidget {
       animation: animation,
       builder: (context, child) {
         final t = animation.value;
-        // Settled: raw child — zero transform (pixel grid + Hero).
-        if (t >= 1.0) return child!;
+        final settled = t >= 1.0;
         final eased = Curves.easeOutCubic.transform(t.clamp(0.0, 1.0));
         // Keep a floor so the pane never flashes pure background mid-switch.
-        final opacity = (0.18 + 0.82 * eased).clamp(0.0, 1.0);
-        final dx = direction * 14.0 * (1.0 - eased);
+        final opacity = settled ? 1.0 : (0.18 + 0.82 * eased).clamp(0.0, 1.0);
+        final dx = settled ? 0.0 : direction * 14.0 * (1.0 - eased);
+        // 包装树恒定：settle 时若拆掉 ClipRect/Opacity/Transform 直接 return child，
+        // 子树会重挂，侧栏切页末尾抖一下。Clip.none 保留 FM 黑胶等溢出绘制。
         return ClipRect(
+          clipBehavior: settled ? Clip.none : Clip.hardEdge,
           child: Opacity(
             opacity: opacity,
             child: Transform.translate(
@@ -298,9 +301,9 @@ class _DesktopNavTransition extends StatelessWidget {
 
 /// Spaces-like content transition.
 ///
-/// Important: never wrap [child] in a lasting Transform/Scale and never
+/// Important: keep the wrapper tree shape constant around [child] and never
 /// change the child's GlobalKey identity — IndexedStack must stay mounted
-/// or pages end up permanently offset/clipped.
+/// or pages end up permanently offset/clipped. Settled 用 identity 值，不拆包装。
 class _TabTransition extends StatefulWidget {
   const _TabTransition({
     required this.child,
@@ -351,23 +354,21 @@ class _TabTransitionState extends State<_TabTransition>
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
-        // Settled: paint the shell as-is — zero transform (fixes page offset).
-        if (!_ctrl.isAnimating || _ctrl.value >= 1.0) {
-          return widget.child;
-        }
-
-        final t = Curves.easeOutCubic.transform(_ctrl.value);
+        final animating = _ctrl.isAnimating && _ctrl.value < 1.0;
+        final t = Curves.easeOutCubic.transform(_ctrl.value.clamp(0.0, 1.0));
         final forward = widget.index >= _fromIndex;
-        final dx = forward ? 24.0 : -24.0;
-        final opacity = (0.35 + 0.65 * t).clamp(0.0, 1.0);
-
+        final dx = animating ? (forward ? 24.0 : -24.0) * (1 - t) : 0.0;
+        final opacity = animating ? (0.35 + 0.65 * t).clamp(0.0, 1.0) : 1.0;
+        final scale = animating ? 0.98 + 0.02 * t : 1.0;
+        // 包装树恒定（同 _DesktopNavTransition）：settle 时拆包装会重挂子树、抖一下。
         return ClipRect(
-          child: FadeTransition(
-            opacity: AlwaysStoppedAnimation(opacity),
+          clipBehavior: animating ? Clip.hardEdge : Clip.none,
+          child: Opacity(
+            opacity: opacity,
             child: Transform.translate(
-              offset: Offset(dx * (1 - t), 0),
+              offset: Offset(dx, 0),
               child: Transform.scale(
-                scale: 0.98 + 0.02 * t,
+                scale: scale,
                 child: widget.child,
               ),
             ),

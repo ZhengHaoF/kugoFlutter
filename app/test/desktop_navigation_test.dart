@@ -165,14 +165,18 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         await tester.pump(const Duration(milliseconds: 50));
         expect(find.byType(DailyRecommendPage), findsOneWidget);
-        // Settled: transition wrapper unwraps so the pane paints raw.
-        expect(
-          find.ancestor(
-            of: find.byType(DailyRecommendPage),
-            matching: find.byType(Transform),
-          ),
-          findsNothing,
-        );
+        // Settled: 包装树不拆，Transform 回到 identity（拆树会重挂、进页抖一下）。
+        final transforms = tester
+            .widgetList<Transform>(
+              find.ancestor(
+                of: find.byType(DailyRecommendPage),
+                matching: find.byType(Transform),
+              ),
+            )
+            .toList();
+        for (final t in transforms) {
+          expect(t.transform.getTranslation().x, 0.0);
+        }
       },
     );
 

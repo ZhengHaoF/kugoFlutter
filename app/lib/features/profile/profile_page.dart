@@ -132,8 +132,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ),
       children: [
         Text('我的', style: kugo.greeting),
-        const SizedBox(height: KugoSpacing.md),
         // 账号源切换条：多源启用才出（账号身份按源区分，不混排）。
+        // 顶部间距由 SourceFilterBar 自带，与其它页面对齐。
         if (accountSources.length > 1) ...[
           SourceFilterBar(
             platforms: accountSources,

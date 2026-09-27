@@ -125,7 +125,8 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
 /// - push drifts +16 → 0 (enter) and 0 → -8 (cover); pop mirrors
 ///
 /// [ClipRect] keeps nested-navigator drift from painting over the desktop
-/// sidebar. Settled frames paint [child] raw (no opacity/transform layer).
+/// sidebar. Wrapper tree stays constant; settled frames use identity values
+/// (opacity 1 / dx 0 / [Clip.none]) so there is no extra layer and no remount.
 class DesktopPageTransitionsBuilder extends PageTransitionsBuilder {
   const DesktopPageTransitionsBuilder();
 
@@ -198,9 +199,13 @@ class _DesktopFadeThroughTransition extends StatelessWidget {
       builder: (context, child) {
         final opacity = (selfOpacity.value * coverOpacity.value).clamp(0.0, 1.0);
         final dx = enterDx.value + coverDx.value;
-        // Settled: paint raw child — zero transform/opacity (Hero + pixel grid).
-        if (opacity >= 1.0 && dx == 0.0) return child!;
+        // 包装树必须恒定：settle 时若直接 return child，ClipRect/Opacity/Transform
+        // 整段卸载会把路由子树重挂一次，进页末尾肉眼可见地抖一下。
+        // settle 用 Clip.none + 单位变换/全不透明，既不裁切溢出（FM 黑胶），
+        // 也不叠额外 layer（identity Transform / opacity=1 会走 paint fast path）。
+        final settled = opacity >= 1.0 && dx == 0.0;
         return ClipRect(
+          clipBehavior: settled ? Clip.none : Clip.hardEdge,
           child: Opacity(
             opacity: opacity,
             child: Transform.translate(
