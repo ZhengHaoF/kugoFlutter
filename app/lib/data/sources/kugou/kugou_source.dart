@@ -3,6 +3,7 @@ import '../../../core/models/catalog_models.dart';
 import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/fm_mode.dart';
+import '../../../core/models/mv_models.dart';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
 import '../../../core/source/capabilities.dart';
@@ -14,6 +15,7 @@ import '../../../data/repositories/comment_repository.dart' as comment;
 import '../../../data/repositories/discovery_repository.dart' as discovery;
 import '../../../data/repositories/fm_repository.dart' as fm;
 import '../../../data/repositories/lyric_repository.dart' as lyric;
+import '../../../data/repositories/mv_repository.dart' as mv;
 import '../../../data/repositories/play_repository.dart' as play;
 import '../../../data/repositories/playlist_repository.dart' as playlist;
 import '../../../data/repositories/recommend_repository.dart' as rec;
@@ -46,7 +48,9 @@ class KugouSource
         CommentExtrasSource,
         CommentWriteSource,
         ResourceCommentSource,
-        ResourceCommentWriteSource {
+        ResourceCommentWriteSource,
+        MvSearchSource,
+        MvDetailSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -58,6 +62,7 @@ class KugouSource
     catalog.CatalogRepository? catalogRepository,
     discovery.DiscoveryRepository? discoveryRepository,
     comment.CommentRepository? commentRepository,
+    mv.MvRepository? mvRepository,
   }) : _play = playRepository ?? play.playRepository,
        _lyric = lyricRepository ?? lyric.lyricRepository,
        _search = searchRepository ?? search.searchRepository,
@@ -67,7 +72,8 @@ class KugouSource
        _playlists = playlistRepository ?? playlist.playlistRepository,
        _catalog = catalogRepository ?? catalog.catalogRepository,
        _discovery = discoveryRepository ?? discovery.discoveryRepository,
-       _comments = commentRepository ?? comment.commentRepository;
+       _comments = commentRepository ?? comment.commentRepository,
+       _mv = mvRepository ?? mv.mvRepository;
 
   final play.PlayRepository _play;
   final lyric.LyricRepository _lyric;
@@ -79,6 +85,7 @@ class KugouSource
   final catalog.CatalogRepository _catalog;
   final discovery.DiscoveryRepository _discovery;
   final comment.CommentRepository _comments;
+  final mv.MvRepository _mv;
 
   FmMode _fmMode = FmMode.heart;
   FmSongPool _fmPool = FmSongPool.taste;
@@ -313,6 +320,32 @@ class KugouSource
     Track track,
   ) {
     return _play.fetchRelateGoods(track);
+  }
+
+  // ── MV ────────────────────────────────────────────────────────
+
+  @override
+  Future<SearchPageResult<MvBrief>> searchMvs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 20,
+  }) {
+    return _mv.searchMvs(keyword, page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<List<MvBrief>> songMvs(Track track) {
+    return _mv.songMvs(track);
+  }
+
+  @override
+  Future<MvDetail?> fetchMvDetail(MvBrief brief) {
+    return _mv.fetchMvDetail(brief);
+  }
+
+  @override
+  Future<MvPlayUrlResult> resolveMvPlayUrl(String hash) {
+    return _mv.resolveMvPlayUrl(hash);
   }
 
   // ── 评论（Track → 酷狗 id 的翻译都在这里，UI 不参与） ──────

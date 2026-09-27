@@ -4,10 +4,12 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audio_service_win
-  media_kit_libs_windows_audio
+  media_kit_libs_windows_video
+  media_kit_video
   screen_retriever_windows
   sqlite3_flutter_libs
   tray_manager
+  volume_controller
   window_manager
 )
 

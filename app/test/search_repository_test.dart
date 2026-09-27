@@ -253,9 +253,9 @@ void main() {
   });
 
   group('SearchType', () {
-    test('exposes the four Chinese tab labels', () {
+    test('exposes the five Chinese tab labels', () {
       expect(SearchType.values.map((e) => e.label).toList(),
-          ['歌曲', '歌单', '专辑', '歌手']);
+          ['歌曲', '歌单', '专辑', '歌手', 'MV']);
     });
   });
 

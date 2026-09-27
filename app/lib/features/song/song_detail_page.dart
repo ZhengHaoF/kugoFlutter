@@ -105,6 +105,50 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   /// 精彩评论。游客态实测拿不到（接口返回空），空就不显示这一块。
   List<Comment> _featured = const [];
 
+  /// MV 入口：有 [MvSearchSource] 能力且歌曲带 `mixSongId` 时显示。
+  /// 点击后拉关联 MV 再跳转，拉不到就提示。
+  bool _mvOpening = false;
+
+  bool get _canShowMv {
+    if (widget.platform != MusicPlatform.kugou) return false;
+    if (widget.mixSongId.trim().isEmpty) return false;
+    return requireMusicSourceRegistry.capability<MvSearchSource>(widget.platform) !=
+        null;
+  }
+
+  Future<void> _openMv() async {
+    if (_mvOpening) return;
+    final src =
+        requireMusicSourceRegistry.capability<MvSearchSource>(widget.platform);
+    if (src == null) return;
+    setState(() => _mvOpening = true);
+    try {
+      final list = await src.songMvs(_track);
+      if (!mounted) return;
+      if (list.isEmpty) {
+        _toast('这首歌暂无 MV');
+        return;
+      }
+      final mv = list.first;
+      final q = Uri(
+        path: '/mv',
+        queryParameters: {
+          'id': mv.id,
+          'hash': mv.hash,
+          'name': mv.name,
+          'artist': mv.artist,
+          'cover': mv.coverUrl,
+          'mixSongId': mv.mixSongId,
+        },
+      );
+      context.push(q.toString());
+    } catch (e) {
+      if (mounted) _toast('MV 加载失败');
+    } finally {
+      if (mounted) setState(() => _mvOpening = false);
+    }
+  }
+
   Track get _track => Track(
     id: widget.id,
     platform: widget.platform,
@@ -574,6 +618,22 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                   label: const Text('歌手'),
                 ),
               ),
+              if (_canShowMv) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _mvOpening ? null : _openMv,
+                    icon: _mvOpening
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.videocam_outlined, size: 18),
+                    label: const Text('MV'),
+                  ),
+                ),
+              ],
             ],
           ),
           if (player.current?.id == track.id)

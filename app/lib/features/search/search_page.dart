@@ -269,16 +269,18 @@ class _TabBar extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
           children: [
-            for (final type in SearchType.values) ...[
-              _TabChip(
-                label: type.label,
-                selected: type == active,
-                count: _countOf(type),
-                onTap: () => onSelect(type),
-                kugo: kugo,
-              ),
-              const SizedBox(width: KugoSpacing.sm),
-            ],
+            for (final type in SearchType.values)
+              if (type != SearchType.mv ||
+                  (musicSourceRegistry?.anyHas<MvSearchSource>() ?? false)) ...[
+                _TabChip(
+                  label: type.label,
+                  selected: type == active,
+                  count: _countOf(type),
+                  onTap: () => onSelect(type),
+                  kugo: kugo,
+                ),
+                const SizedBox(width: KugoSpacing.sm),
+              ],
           ],
         ),
       ),
@@ -476,6 +478,31 @@ class _TabResults extends ConsumerWidget {
                         a.platform == MusicPlatform.kugou
                             ? '/artist/${a.id}'
                             : '/artist/${a.id}?src=netease',
+                      ),
+            ),
+        ];
+      case SearchType.mv:
+        return [
+          for (final m in mvItemsOf(tab))
+            SearchResultRow(
+              imageSeed: m.coverUrl,
+              title: m.name,
+              subtitle: m.artist,
+              trailingLabel: m.durationLabel,
+              onTap: m.hash.isEmpty
+                  ? null
+                  : () => context.push(
+                        Uri(
+                          path: '/mv',
+                          queryParameters: {
+                            'id': m.id,
+                            'hash': m.hash,
+                            'name': m.name,
+                            'artist': m.artist,
+                            'cover': m.coverUrl,
+                            'mixSongId': m.mixSongId,
+                          },
+                        ).toString(),
                       ),
             ),
         ];

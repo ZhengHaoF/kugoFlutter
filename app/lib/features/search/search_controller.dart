@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/models/mv_models.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
@@ -234,8 +236,11 @@ class SearchController extends Notifier<SearchState> {
   }
 
   Future<void> _reloadAll() async {
+    // 注册表可能未装配（单测）；拿不到就当无 MV，不抛。
+    final mvAvailable = musicSourceRegistry?.anyHas<MvSearchSource>() ?? false;
     await Future.wait([
-      for (final type in SearchType.values) _loadPage(type, 1),
+      for (final type in SearchType.values)
+        if (type != SearchType.mv || mvAvailable) _loadPage(type, 1),
     ]);
   }
 
@@ -371,6 +376,14 @@ class SearchController extends Notifier<SearchState> {
           page: page,
           pageSize: kSearchPageSize,
         );
+      case SearchType.mv:
+        // MV 是可选能力，不在 MusicSource 基类上；两接口无继承关系，
+        // `is` 不会提升，须显式转型。
+        if (source is! MvSearchSource) {
+          return Future.value(const SearchPageResult.empty());
+        }
+        return (source as MvSearchSource)
+            .searchMvs(keyword, page: page, pageSize: kSearchPageSize);
     }
   }
 
@@ -426,6 +439,9 @@ List<Track> songItemsOf(SearchTabState tab) =>
 
 List<PlaylistBrief> playlistItemsOf(SearchTabState tab) =>
     tab.items.whereType<PlaylistBrief>().toList();
+
+List<MvBrief> mvItemsOf(SearchTabState tab) =>
+    tab.items.whereType<MvBrief>().toList();
 
 List<AlbumBrief> albumItemsOf(SearchTabState tab) =>
     tab.items.whereType<AlbumBrief>().toList();

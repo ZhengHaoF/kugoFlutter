@@ -16,13 +16,15 @@ enum SearchType {
   song,
   playlist,
   album,
-  artist;
+  artist,
+  mv;
 
   String get label => switch (this) {
         SearchType.song => '歌曲',
         SearchType.playlist => '歌单',
         SearchType.album => '专辑',
         SearchType.artist => '歌手',
+        SearchType.mv => 'MV',
       };
 }
 

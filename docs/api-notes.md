@@ -155,11 +155,64 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 | 响应列表 | `data.list` / `data.songs.list` / `special_list` 等（`extractEverydayList`） |
 | 回落 | 接口失败/未登录时仍用公开榜单+心情词歌池 |
 
+## MV / 视频（2026-09-27 探针打通）
+
+> 脚本：`dart run tool/probe_mv.dart`。对齐 KuGouMusicApi `video_url.js` / `video_detail.js` /
+> `video_privilege.js` / `kmr_audio_mv.js` / `artist_videos.js` / `search.js`。
+
+### 端点一览
+
+| 能力 | 方法 | 路径 | 路由 / 主机 | 签名 |
+| --- | --- | --- | --- | --- |
+| MV 搜索（简） | GET | `/api/v3/search/mv` | `mobilecdn.kugou.com` | 无 |
+| MV 搜索（富） | GET | `/v1/search/mv` | gateway + `x-router: complexsearch.kugou.com` | android |
+| 歌曲关联 MV | POST | `/kmr/v1/audio/mv` | gateway + `x-router: openapi.kugou.com` + **`kg-tid: 38`** | android(body) |
+| MV 详情 | POST | `/v1/video` | gateway + `x-router: kmr.service.kugou.com` | body 自带 `key=signParamsKey(clienttime)` |
+| MV 特权/清晰度 | POST | `/v1/get_video_privilege` | gateway + `x-router: media.store.kugou.com` | android(body) |
+| **MV 播放地址** | GET | `/v2/interface/index` | gateway + `x-router: trackermv.kugou.com` | **`key=signKey(hash,mid)`** + android |
+| 歌手 MV 列表 | GET | `/kmr/v1/author/videos` | `openapicdn.kugou.com` | android |
+
+### ID 映射（踩过的坑）
+
+| 字段 | 含义 | 用途 |
+| --- | --- | --- |
+| `search/mv` 简 `hash` / 富 `MvHash` | **MV 视频 hash**（清晰度无关的主 hash） | `video/url`、`video/privilege` 入参 |
+| 富搜索 `MvID` / `video_id` | MV 稳定 id | `video/detail` 的 `data[].video_id` |
+| 富搜索 `MixSongID` | 歌曲侧 `album_audio_id` | **`kmr/audio/mv` 必须用这个**；用 `AudioID` 返回 `data:[{}]` |
+| 富搜索 `AudioID` / `search/song` `mixsongid` | 另一套音频 id | 不要当 `album_audio_id` 喂给 `kmr/audio/mv` |
+| `search/song` 的 `mvhash` | **不是** MV 主 hash | 实测是 `h264.qhd_hash`（某档清晰度），勿直接当播放 hash |
+| `mkv.sd_hash` / `h264.*_hash` / `*_hash_265` | 分档清晰度 hash | 切换清晰度时用对应 hash 调 `video/url` |
+
+### 请求要点
+
+- **播放地址**（`/v2/interface/index`）：
+  - query：`cmd=123&ext=mp4&ismp3=0&type=1&pid=1&backupdomain=1&hash=<mvHash>` + 公共参数
+  - `key = md5(hash + saltKey + appid + mid + userid)`（即 `KugoSign.signKey`）
+  - `signature = signatureAndroidParams(全部 query 含 key)`
+  - 响应：`data[<hash>].downurl` + `backupdownurl[]`，**实际文件是 `.mkv`**（尽管 `ext=mp4`）
+  - 无签名裸请求 → `errcode 20006`
+- **歌曲关联 MV**（`/kmr/v1/audio/mv`）body：`{data:[{album_audio_id: MixSongID}], fields:'mkv,tags,h264,h265,authors'}`；响应 `data[0][]` 为多版本列表（`is_recommend` / `authors` / `mkv` / `h264` / `h265`）
+- **MV 详情**（`/v1/video`）body 自带鉴权字段（`appid/clientver/clienttime/mid/uuid/dfid/token/key/show_resolution/data`），query 可空也可带公共参数（A/B 两种签名都通）；`uuid = md5(dfid+mid)`，`key = signParamsKey(clienttime)`
+- **歌手 MV**：`author_id=3520`（周杰伦）、`tag_idx`：`18` 官方 / `20` 现场 / `23` 饭制 / `42419` 歌手发布 / `''` 全部
+
+### 响应字段（播放链路最小集）
+
+```
+search/mv(富) → {MvID, MvHash, MixSongID, MvName, Pic, Duration, MvHashMark}
+     ↓
+video/detail(video_id) → {video_name, h264/h265/mkv 各档 *_hash, play_times, publish_date}
+     ↓
+video/privilege(mvHash) → {privilege, level, pay_type, status}
+     ↓
+video/url(某档 hash) → {downurl, backupdownurl[], filesize}
+```
+
 ## 探测脚本
 
 ```powershell
 cd app
 dart run tool/probe_api.dart
+dart run tool/probe_mv.dart
 ```
 
 ## 下一步（可选）
@@ -168,3 +221,4 @@ dart run tool/probe_api.dart
 2. 真机网络异常场景复测（URL 过滤 / 风控 20028）
 3. 自建歌单写入接口调研（若做 CRUD）
 4. 歌词优先拉 `fmt=krc`（逐字），失败回落 `fmt=lrc`
+5. MV 落地：按上文端点写 `MvSource` capability + 播放页（取流已通）

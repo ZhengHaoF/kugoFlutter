@@ -3,6 +3,7 @@ import '../models/catalog_models.dart';
 import '../models/comment.dart';
 import '../models/daily_recommend.dart';
 import '../models/fm_mode.dart';
+import '../models/mv_models.dart';
 import '../models/search_result.dart';
 import '../models/track.dart';
 import 'music_source.dart';
@@ -508,4 +509,35 @@ class LoginAccount {
   final String nickname;
   final String avatarUrl;
   final bool isVip;
+}
+
+/// MV 搜索 + 从歌曲找关联 MV。
+///
+/// 与 [MusicSource.searchSongs] 同构：分页返回统一 Brief，`total` 可空。
+/// 入参 [Track] 而不是平台 id（同 [CommentReadSource] 的理由）。
+abstract interface class MvSearchSource {
+  /// 关键词搜 MV。
+  Future<SearchPageResult<MvBrief>> searchMvs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 20,
+  });
+
+  /// 歌曲关联的 MV 列表（多版本：官方/现场/饭制…）。
+  ///
+  /// 返回空列表 = 该曲无 MV（正常结果，UI 出空态）。
+  Future<List<MvBrief>> songMvs(Track track);
+}
+
+/// MV 详情 + 取流。UI 只认 [MvDetail] / [MvPlayUrlResult]。
+abstract interface class MvDetailSource {
+  /// 详情 + 多清晰度片源（按清到糊排序）。
+  ///
+  /// 返回 null = 接口无数据；失败抛 [SourceFailure]。
+  Future<MvDetail?> fetchMvDetail(MvBrief brief);
+
+  /// 用某档片源的 [MvPlaySource.hash] 取短时播放地址。
+  ///
+  /// [hash] 传 [MvDetail.defaultSource] 或用户选中的那档；不要传歌曲 `mvhash`。
+  Future<MvPlayUrlResult> resolveMvPlayUrl(String hash);
 }

@@ -20,6 +20,36 @@ abstract final class KugoEndpoints {
   static const searchSpecial = '/api/v3/search/special';
   static const searchAlbum = '/api/v3/search/album';
   static const searchSinger = '/api/v3/search/singer';
+  static const searchMv = '/api/v3/search/mv';
+
+  // ── MV / 视频（见 docs/api-notes.md「MV / 视频」节 + tool/probe_mv.dart） ──
+
+  /// MV 富搜索（gateway complexsearch，字段比 [searchMv] 全）。
+  /// GET gateway + `x-router: complexsearch.kugou.com`。
+  static const searchMvRich = '/v1/search/mv';
+  static const complexSearchRouter = 'complexsearch.kugou.com';
+
+  /// 歌曲关联 MV。POST gateway + `x-router: openapi.kugou.com` + `kg-tid: 38`。
+  /// body `{data:[{album_audio_id: MixSongID}], fields}` —— **id 必须是 MixSongID**。
+  static const kmrAudioMv = '/kmr/v1/audio/mv';
+  static const openApiRouter = 'openapi.kugou.com';
+
+  /// MV 详情。POST gateway + `x-router: kmr.service.kugou.com`；鉴权在 body。
+  static const videoDetail = '/v1/video';
+  static const kmrServiceRouter = 'kmr.service.kugou.com';
+
+  /// MV 特权/清晰度。POST gateway + `x-router: media.store.kugou.com`。
+  static const videoPrivilege = '/v1/get_video_privilege';
+  static const mediaStoreRouter = 'media.store.kugou.com';
+
+  /// **MV 播放地址**。GET gateway + `x-router: trackermv.kugou.com`；
+  /// `key=signKey(hash,mid)` + android signature。响应 `data[hash].downurl`。
+  static const videoUrl = '/v2/interface/index';
+  static const trackerMvRouter = 'trackermv.kugou.com';
+
+  /// 歌手 MV 列表。GET `openapicdn.kugou.com/kmr/v1/author/videos`。
+  static const openApiCdn = 'https://openapicdn.kugou.com';
+  static const artistVideos = '/kmr/v1/author/videos';
 
   /// Playlist info + tracks (no auth, public lists).
   ///

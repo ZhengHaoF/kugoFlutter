@@ -16,6 +16,7 @@ import 'features/explore/explore_page.dart';
 import 'features/fm/fm_page.dart';
 import 'features/history/history_page.dart';
 import 'features/likes/likes_page.dart';
+import 'features/mv/mv_player_page.dart';
 import 'features/player/full_player_page.dart';
 import 'features/playlist/playlist_detail_page.dart';
 import 'features/profile/profile_detail_page.dart';
@@ -81,6 +82,24 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/login',
         pageBuilder: (context, state) =>
             const MaterialPage(fullscreenDialog: true, child: LoginPage()),
+      ),
+      // MV 播放页：顶级路由（同 /song，见下方 pageKey 注释）。
+      GoRoute(
+        path: '/mv',
+        pageBuilder: (context, state) {
+          final q = state.uri.queryParameters;
+          return MaterialPage(
+            fullscreenDialog: true,
+            child: MvPlayerPage(
+              id: q['id'] ?? '',
+              hash: q['hash'] ?? '',
+              name: q['name'] ?? '',
+              artist: q['artist'] ?? '',
+              coverUrl: q['cover'] ?? '',
+              mixSongId: q['mixSongId'] ?? '',
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/netease-login',
