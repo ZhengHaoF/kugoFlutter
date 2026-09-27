@@ -19,6 +19,7 @@ class CommentTile extends StatelessWidget {
     this.replies = const [],
     this.onToggleReplies,
     this.onReply,
+    this.onToggleLike,
   });
 
   final Comment comment;
@@ -31,6 +32,12 @@ class CommentTile extends StatelessWidget {
 
   /// 非空才显示「回复」入口。
   final VoidCallback? onReply;
+
+  /// 非空才把点赞数变成**可点的赞按钮**（回传目标状态 `true` = 赞）。
+  ///
+  /// 点赞是**网易独有**能力（酷狗没有这个口），所以这里是可选的：
+  /// 不传就只渲染静态的点赞数，用户点了没反应也不会误以为坏了。
+  final ValueChanged<bool>? onToggleLike;
 
   @override
   Widget build(BuildContext context) {
@@ -115,16 +122,7 @@ class CommentTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(
-                      Icons.thumb_up_off_alt_rounded,
-                      size: 14,
-                      color: kugo.textTertiary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      formatCount(comment.likeCount),
-                      style: kugo.caption.copyWith(color: kugo.textTertiary),
-                    ),
+                    _likeControl(kugo),
                     if (comment.location.isNotEmpty) ...[
                       const SizedBox(width: 12),
                       Text(
@@ -170,6 +168,8 @@ class CommentTile extends StatelessWidget {
                     ],
                   ],
                 ),
+                // 说明：点赞数在 [onToggleLike] 为空时是纯展示（酷狗），
+                // 非空才是按钮（网易）。
                 if (expanded) ...[
                   const SizedBox(height: KugoSpacing.sm),
                   if (replies.isEmpty)
@@ -184,6 +184,35 @@ class CommentTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 点赞数：有 [onToggleLike] 才是按钮，否则纯展示。
+  Widget _likeControl(KugoTheme kugo) {
+    final liked = comment.liked;
+    final color = liked ? kugo.primary : kugo.textTertiary;
+    final icon = Icon(
+      liked ? Icons.thumb_up_rounded : Icons.thumb_up_off_alt_rounded,
+      size: 14,
+      color: color,
+    );
+    final count = Text(
+      formatCount(comment.likeCount),
+      style: kugo.caption.copyWith(color: color),
+    );
+    if (onToggleLike == null) {
+      return Row(children: [icon, const SizedBox(width: 4), count]);
+    }
+    return InkWell(
+      onTap: () => onToggleLike!(!liked),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [icon, const SizedBox(width: 4), count],
+        ),
       ),
     );
   }

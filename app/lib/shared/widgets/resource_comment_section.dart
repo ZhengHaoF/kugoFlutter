@@ -10,7 +10,6 @@ import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
-import '../../features/auth/auth_token_holder.dart';
 import 'comment_composer_sheet.dart';
 import 'comment_tile.dart';
 
@@ -69,6 +68,10 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
   /// 而不是渲染出来、点了才提示「当前音源不支持评论」。
   ResourceCommentWriteSource? get _writeSource => musicSourceRegistry
       ?.capability<ResourceCommentWriteSource>(widget.platform);
+
+  /// 点赞能力 —— 目前只有网易有；取不到就不渲染赞按钮。
+  CommentLikeSource? get _liker =>
+      musicSourceRegistry?.capability<CommentLikeSource>(widget.platform);
 
   @override
   void initState() {
@@ -198,7 +201,8 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
     });
   }
 
-  bool get _isLoggedIn => AuthTokenHolder.instance.hasToken;
+  /// 登录态**按源判断**（酷狗 token / 网易 cookie 不是一回事），同歌曲页。
+  bool get _isLoggedIn => _writeSource?.isLoggedIn ?? false;
 
   void _toast(String message) {
     if (!mounted) return;
@@ -261,6 +265,45 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
     }
   }
 
+  /// 点赞 / 取消赞：**乐观更新**，失败回滚（同歌曲页）。
+  Future<void> _toggleLike(Comment c, bool like) async {
+    final liker = _liker;
+    final pool = _comments.childrenId;
+    if (liker == null || pool.isEmpty) {
+      _toast('评论池未知，请刷新评论后再试');
+      return;
+    }
+    _applyLike(c.id, liked: like, likeCount: c.likeCount + (like ? 1 : -1));
+    try {
+      await liker.setCommentLiked(
+        childrenId: pool,
+        commentId: c.id,
+        like: like,
+      );
+    } on SourceFailure catch (e) {
+      _applyLike(c.id, liked: c.liked, likeCount: c.likeCount);
+      _toast(e.message);
+    } catch (_) {
+      _applyLike(c.id, liked: c.liked, likeCount: c.likeCount);
+      _toast('点赞失败，请稍后再试');
+    }
+  }
+
+  void _applyLike(String id, {required bool liked, required int likeCount}) {
+    setState(() {
+      _comments = CommentPage(
+        items: [
+          for (final c in _comments.items)
+            c.id == id ? c.copyWith(liked: liked, likeCount: likeCount) : c,
+        ],
+        total: _comments.total,
+        childrenId: _comments.childrenId,
+        maxPage: _comments.maxPage,
+        nextCursor: _comments.nextCursor,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
@@ -301,6 +344,9 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
               replies: _floors[c.id] ?? const [],
               onToggleReplies: c.hasReplies ? () => _toggleFloor(c) : null,
               onReply: _writeSource == null ? null : () => _compose(replyTo: c),
+              onToggleLike: _liker == null || !_isLoggedIn
+                  ? null
+                  : (like) => _toggleLike(c, like),
             ),
           if (_pageHasMore)
             TextButton(

@@ -15,7 +15,6 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
-import '../../features/auth/auth_token_holder.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/comment_composer_sheet.dart';
 import '../../shared/widgets/comment_tile.dart';
@@ -351,7 +350,15 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   CommentWriteSource? get _writer =>
       musicSourceRegistry?.capability<CommentWriteSource>(widget.platform);
 
-  bool get _isLoggedIn => AuthTokenHolder.instance.hasToken;
+  /// 点赞能力 —— **目前只有网易有**（酷狗没有这个口）。
+  /// 取不到就不渲染赞按钮，而不是渲染出来点了才提示不支持。
+  CommentLikeSource? get _liker =>
+      musicSourceRegistry?.capability<CommentLikeSource>(widget.platform);
+
+  /// 登录态**按源判断**：酷狗看 `AuthTokenHolder` 的 token，网易看 `MUSIC_U`
+  /// cookie —— 两者不是一回事。早先统一看酷狗 token，导致网易已扫码登录、
+  /// 酷狗没登录时仍提示「登录后才能发表评论」并跳酷狗登录页。
+  bool get _isLoggedIn => _writer?.isLoggedIn ?? false;
 
   void _toast(String message) {
     if (!mounted) return;
@@ -414,6 +421,48 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     } catch (e) {
       _toast('发送失败：${e.toString().split('\n').first}');
     }
+  }
+
+  /// 点赞 / 取消赞：**乐观更新**（先改本地再发请求），失败回滚。
+  Future<void> _toggleLike(Comment c, bool like) async {
+    final liker = _liker;
+    final pool = _comments.childrenId;
+    if (liker == null || pool.isEmpty) {
+      _toast('评论池未知，请刷新评论后再试');
+      return;
+    }
+    _applyLike(c.id, liked: like, likeCount: c.likeCount + (like ? 1 : -1));
+    try {
+      await liker.setCommentLiked(
+        childrenId: pool,
+        commentId: c.id,
+        like: like,
+      );
+    } on SourceFailure catch (e) {
+      _applyLike(c.id, liked: c.liked, likeCount: c.likeCount);
+      _toast(e.message);
+    } catch (_) {
+      _applyLike(c.id, liked: c.liked, likeCount: c.likeCount);
+      _toast('点赞失败，请稍后再试');
+    }
+  }
+
+  /// 就地替换一条评论的赞状态（列表不可变，故重建 [CommentPage]）。
+  void _applyLike(String id, {required bool liked, required int likeCount}) {
+    setState(() {
+      _comments = CommentPage(
+        items: [
+          for (final c in _comments.items)
+            c.id == id ? c.copyWith(liked: liked, likeCount: likeCount) : c,
+        ],
+        total: _comments.total,
+        childrenId: _comments.childrenId,
+        maxPage: _comments.maxPage,
+        nextCursor: _comments.nextCursor,
+        classifyList: _comments.classifyList,
+        hotwordList: _comments.hotwordList,
+      );
+    });
   }
 
   /// 回复成功后强制重拉该楼层 —— 楼层已缓存，仅展开不会看到新内容。
@@ -597,6 +646,10 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                 replies: _floors[c.id] ?? const [],
                 onToggleReplies: c.hasReplies ? () => _toggleFloor(c) : null,
                 onReply: _writer == null ? null : () => _compose(replyTo: c),
+                // 点赞要同时满足：源有该能力 + 已登录（未登录点了也是白点）。
+                onToggleLike: _liker == null || !_isLoggedIn
+                    ? null
+                    : (like) => _toggleLike(c, like),
               ),
             if (_pageHasMore)
               TextButton(
