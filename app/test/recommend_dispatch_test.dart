@@ -351,6 +351,61 @@ void main() {
       expect(sources.netease.rankBoardCalls, 1);
     });
 
+    testWidgets('别处切源改写默认源：首页按新源重取（标签与数据一致）', (tester) async {
+      final sources = twoSources();
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+        'settings.defaultSource': 'kugou',
+      });
+
+      await pumpPage(tester, container, explorePage());
+      expect(find.text('酷狗热歌榜'), findsOneWidget);
+      expect(sources.kugou.rankBoardCalls, 1);
+
+      // 模拟 FM / 搜索 / 榜单等页面切源：写出全局默认源
+      // （9 个切源栏调用点都走 syncDefaultSourceFromFilter）。
+      await tester.runAsync(() async {
+        container
+            .read(settingsControllerProvider.notifier)
+            .syncDefaultSourceFromFilter(MusicPlatform.netease);
+      });      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // 此前只有页头来源小字翻到新源、四排数据不刷；现在一起翻。
+      expect(find.text('来源：网易云'), findsOneWidget);
+      expect(find.text('酷狗热歌榜'), findsNothing);
+      expect(find.text('网易热歌榜'), findsOneWidget);
+      expect(find.text('网易新歌1'), findsOneWidget);
+      expect(sources.netease.rankBoardCalls, 1);
+      expect(sources.netease.newSongCalls, 1);
+      // 旧源不重复取。
+      expect(sources.kugou.rankBoardCalls, 1);
+    });
+
+    testWidgets('默认源同值写入：首页不重取', (tester) async {
+      final sources = twoSources();
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+        'settings.defaultSource': 'kugou',
+      });
+
+      await pumpPage(tester, container, explorePage());
+      expect(sources.kugou.rankBoardCalls, 1);
+
+      // 写回同一个默认源（如「切源即改默认源」里选回当前源）：解析结果没变，
+      // 不触发重取。
+      await tester.runAsync(
+        () => container
+            .read(settingsControllerProvider.notifier)
+            .setDefaultSource(MusicPlatform.kugou),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(sources.kugou.rankBoardCalls, 1);
+      expect(sources.netease.rankBoardCalls, 0);
+    });
+
     testWidgets('两源的「发现」功能都关掉：整页停用且文案归因到功能', (tester) async {
       musicSourceRegistry =
           MusicSourceRegistry([FakeMusicSource(platform: MusicPlatform.netease)]);

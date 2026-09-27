@@ -205,10 +205,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _ => '晚上好',
     };
 
-    // 设置里改动整源开关或「发现」功能开关后回到本页：可用源变了就重取（含从「无可用源」恢复）。
+    // 设置里改动整源开关 / 功能开关 / **默认源**后：解析出的源变了就重取
+    // （含从「无可用源」恢复）。defaultSource 必须听——「切源即改默认源」口径下，
+    // 别处（FM/搜索/榜单/我的…）任一处切具体源都会写它；本页没有切源栏，
+    // 不重取就会「页头来源小字已翻、四排数据还是旧源」。解析结果没变
+    // （同值写入 / 停用联动回落恰好同源）时不重取。
     ref.listen(settingsControllerProvider, (prev, next) {
       if (prev?.enabledSources == next.enabledSources &&
-          prev?.disabledFeatures == next.disabledFeatures) {
+          prev?.disabledFeatures == next.disabledFeatures &&
+          prev?.defaultSource == next.defaultSource) {
         return;
       }
       if (_resolveSource(_availableSources()) != _source) _load();
