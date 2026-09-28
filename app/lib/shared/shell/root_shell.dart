@@ -83,6 +83,7 @@ class _RootShellState extends ConsumerState<RootShell>
         _ when location.startsWith('/profile') ||
             location.startsWith('/history') ||
             location.startsWith('/likes') ||
+            location.startsWith('/cloud') ||
             location.startsWith('/settings') =>
           1,
         _ => 0,
@@ -97,9 +98,10 @@ class _RootShellState extends ConsumerState<RootShell>
         _ when location.startsWith('/fm') => 4,
         _ when location.startsWith('/profile') => 5,
         _ when location.startsWith('/likes') => 6,
-        _ when location.startsWith('/history') => 7,
-        _ when location.startsWith('/search') => 8,
-        _ when location.startsWith('/settings') => 9,
+        _ when location.startsWith('/cloud') => 7,
+        _ when location.startsWith('/history') => 8,
+        _ when location.startsWith('/search') => 9,
+        _ when location.startsWith('/settings') => 10,
         _ => 0,
       };
 
@@ -242,6 +244,7 @@ class _RootShellState extends ConsumerState<RootShell>
                     widget.location.startsWith('/fm')) {
                   context.go('/explore');
                 } else if (widget.location.startsWith('/likes') ||
+                    widget.location.startsWith('/cloud') ||
                     widget.location.startsWith('/history') ||
                     widget.location.startsWith('/settings') ||
                     widget.location.startsWith('/profile/detail')) {

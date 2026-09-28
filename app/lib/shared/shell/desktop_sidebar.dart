@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/playback_source.dart';
 import '../../core/platform.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
 
@@ -240,6 +243,18 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                       selected: widget.location.startsWith('/likes'),
                       onTap: () => widget.onNavigate('/likes'),
                     ),
+                    // 云盘是酷狗专属资产；能力不存在（如仅网易）时隐藏。
+                    if (musicSourceRegistry?.capability<CloudDiskSource>(
+                          MusicPlatform.kugou,
+                        ) !=
+                        null)
+                      _SidebarItem(
+                        icon: Icons.cloud_outlined,
+                        label: '音乐云盘',
+                        compact: compact,
+                        selected: widget.location.startsWith('/cloud'),
+                        onTap: () => widget.onNavigate('/cloud'),
+                      ),
                     _SidebarItem(
                       icon: Icons.history_rounded,
                       label: '播放历史',
