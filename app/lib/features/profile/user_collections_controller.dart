@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
 import '../../data/repositories/user_repository.dart';
 import '../auth/auth_controller.dart';
 
@@ -42,38 +43,8 @@ class UserCollectionsState {
   /// Multi-level 「我喜欢」 resolution aligned with EchoMusic `findLikedPlaylist`.
   ///
   /// Searches created + collected so a mis-bucketed default list is still found.
-  PlaylistBrief? get defaultLikedPlaylist {
-    final all = [...createdPlaylists, ...collectedPlaylists];
-    PlaylistBrief? byName(String exact) {
-      for (final p in all) {
-        if (p.name.trim() == exact) return p;
-      }
-      return null;
-    }
-
-    PlaylistBrief? byNameContains(String part) {
-      for (final p in all) {
-        if (p.name.trim().contains(part)) return p;
-      }
-      return null;
-    }
-
-    return byName('我喜欢的音乐') ??
-        byName('我喜欢') ??
-        byNameContains('喜欢') ??
-        _firstWhere(all, (p) => p.type == 1 || p.isDefault) ??
-        byName('默认收藏');
-  }
-
-  static PlaylistBrief? _firstWhere(
-    List<PlaylistBrief> items,
-    bool Function(PlaylistBrief) test,
-  ) {
-    for (final p in items) {
-      if (test(p)) return p;
-    }
-    return null;
-  }
+  PlaylistBrief? get defaultLikedPlaylist =>
+      findLikedPlaylist([...createdPlaylists, ...collectedPlaylists]);
 
   UserCollectionsState copyWith({
     bool? isLoadingPlaylists,

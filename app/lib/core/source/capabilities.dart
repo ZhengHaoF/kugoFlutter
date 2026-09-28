@@ -474,23 +474,52 @@ class UserPlaylistsPage {
   /// 是否还有下一页。
   final bool more;
 
-  /// 云端「我喜欢」歌单（`isDefault` 优先，否则按名字兜底）。
-  PlaylistBrief? get likedPlaylist {
-    final all = [...created, ...collected];
-    for (final p in all) {
-      if (p.isDefault) return p;
-    }
-    PlaylistBrief? byName(String exact) {
-      for (final p in all) {
-        if (p.name.trim() == exact) return p;
-      }
-      return null;
-    }
+  /// 云端「我喜欢」歌单（见 [findLikedPlaylist]）。
+  PlaylistBrief? get likedPlaylist => findLikedPlaylist([...created, ...collected]);
+}
 
-    return byName('我喜欢的音乐') ??
-        byName('我喜欢') ??
-        byName('默认收藏');
+/// 从用户歌单里定位云端「我喜欢」。
+///
+/// 顺序对齐 EchoMusic 的 `findLikedPlaylist`
+/// （`EchoMusic/src/renderer/stores/playlist/helpers.ts`），并补了一条酷狗
+/// 实测必需约束：
+/// 酷狗 `/v7/get_all_list` 会同时把「默认收藏」(`is_def=1`，空单) 与
+/// 「我喜欢」(`is_def=2`) 标成默认单，且前者排在前面。若直接取第一个
+/// `isDefault` 就会命中空的「默认收藏」，表现为「我的红心歌曲不见了」。
+/// 故先按名字定位，`isDefault` 兜底时排除「默认收藏」这个占位单。
+///
+/// 多级顺序：精确名 → 精确名 → 默认单（排除「默认收藏」）→ 名字含「喜欢」
+/// → 收藏/默认兜底 → 精确「默认收藏」。
+PlaylistBrief? findLikedPlaylist(Iterable<PlaylistBrief> playlists) {
+  final all = playlists.toList(growable: false);
+
+  PlaylistBrief? byName(String exact) {
+    for (final p in all) {
+      if (p.name.trim() == exact) return p;
+    }
+    return null;
   }
+
+  PlaylistBrief? byNameContains(String part) {
+    for (final p in all) {
+      if (p.name.trim().contains(part)) return p;
+    }
+    return null;
+  }
+
+  PlaylistBrief? firstWhere(bool Function(PlaylistBrief) test) {
+    for (final p in all) {
+      if (test(p)) return p;
+    }
+    return null;
+  }
+
+  return byName('我喜欢的音乐') ??
+      byName('我喜欢') ??
+      firstWhere((p) => p.isDefault && p.name.trim() != '默认收藏') ??
+      byNameContains('喜欢') ??
+      firstWhere((p) => p.type == 1 || p.isDefault) ??
+      byName('默认收藏');
 }
 
 /// 热搜词。

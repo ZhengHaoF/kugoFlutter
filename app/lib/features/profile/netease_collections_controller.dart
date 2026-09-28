@@ -27,12 +27,8 @@ class NeteaseCollectionsState {
   int get totalPlaylistsCount => created.length + collected.length;
 
   /// 云端「我喜欢的音乐」（`specialType == 5`，mapper 已打 `isDefault`）。
-  PlaylistBrief? get likedPlaylist {
-    for (final p in [...created, ...collected]) {
-      if (p.isDefault) return p;
-    }
-    return null;
-  }
+  PlaylistBrief? get likedPlaylist =>
+      findLikedPlaylist([...created, ...collected]);
 
   NeteaseCollectionsState copyWith({
     List<PlaylistBrief>? created,

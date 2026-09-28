@@ -41,23 +41,9 @@ class SourceLibraryState {
 
   int get totalPlaylistsCount => createdPlaylists.length + collectedPlaylists.length;
 
-  /// 云端「我喜欢」歌单（[UserPlaylistsPage.likedPlaylist] 口径）。
-  PlaylistBrief? get likedPlaylist {
-    final all = [...createdPlaylists, ...collectedPlaylists];
-    for (final p in all) {
-      if (p.isDefault) return p;
-    }
-    PlaylistBrief? byName(String exact) {
-      for (final p in all) {
-        if (p.name.trim() == exact) return p;
-      }
-      return null;
-    }
-
-    return byName('我喜欢的音乐') ??
-        byName('我喜欢') ??
-        byName('默认收藏');
-  }
+  /// 云端「我喜欢」歌单（与 [UserPlaylistsPage.likedPlaylist] 同一口径）。
+  PlaylistBrief? get likedPlaylist =>
+      findLikedPlaylist([...createdPlaylists, ...collectedPlaylists]);
 
   SourceLibraryState copyWith({
     List<Track>? likedTracks,
@@ -131,11 +117,15 @@ class SourceLibraryNotifier
         followedArtists: page.followedArtists,
         error: '',
       );
-      // 歌单到位后顺带补「我喜欢」（与旧链路时序一致）。
-      await loadLikedTracks();
     } catch (e) {
+      // 歌单 / 关注失败只记在 [error]（歌手·专辑 Tab 用），不阻断下面的
+      // 「我喜欢」：酷狗侧两者本就会各自重取，不能让歌单失败把红心也
+      // 悄悄变成空列表。
       state = state.copyWith(loading: false, loaded: true, error: _msg(e));
     }
+    // 「我喜欢」独立取数：成功与否都跑一次，失败会落在 `likedError`，
+    // 由歌曲 Tab 明确报错，而不是显示成「还没有红心歌曲」。
+    await loadLikedTracks(force: force);
   }
 
   /// 拉云端「我喜欢」全量曲目。
