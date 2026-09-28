@@ -386,6 +386,34 @@ void main() {
     });
   });
 
+  group('A1 搜索入参（search/get）', () {
+    test('必带 total=true（让服务端回 result.<x>Count 总数）', () {
+      final p = NeteaseClient.searchParams(
+        keyword: '邓紫棋',
+        limit: 30,
+        offset: 0,
+        type: 1,
+      );
+      expect(p['total'], 'true');
+      expect(p['s'], '邓紫棋');
+      expect(p['type'], '1');
+      expect(p['limit'], '30');
+      expect(p['offset'], '0');
+    });
+
+    test('offset / type 透传（第二页 + 专辑分类码）', () {
+      final p = NeteaseClient.searchParams(
+        keyword: '邓紫棋',
+        limit: 30,
+        offset: 30,
+        type: 10,
+      );
+      expect(p['offset'], '30');
+      expect(p['type'], '10');
+      expect(p['total'], 'true');
+    });
+  });
+
   group('G12 新碟 / G13 歌手列表映射', () {
     test('mapNeteaseNewAlbums：顶层 albums[]，节点只有 picId 时拼 CDN 封面', () {
       // 实测（2026-09-26）：新碟节点无 picUrl，只有 picId → 必须拼直链。

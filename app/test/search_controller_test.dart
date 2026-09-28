@@ -822,4 +822,51 @@ void main() {
       expect(ne.calls.where((s) => s.startsWith('ne:song:')), isEmpty);
     });
   });
+
+  group('tab count label（A 方案：标签优先显示服务端总数）', () {
+    test('total 存在时显示总数，而不是已加载的一页', () {
+      const tab = SearchTabState(
+        items: [1, 2, 3], // 占位 item，只关心长度
+        total: 480,
+        page: 1,
+      );
+      expect(searchTabCountLabel(tab), 480);
+    });
+
+    test('total 缺失（歌手口 / 混排）时回退已加载条数', () {
+      const tab = SearchTabState(items: [1], page: 1);
+      expect(searchTabCountLabel(tab), 1);
+    });
+
+    test('total 异常（<= 0）时回退已加载条数', () {
+      const tab = SearchTabState(items: [1, 2], total: 0, page: 1);
+      expect(searchTabCountLabel(tab), 2);
+    });
+
+    test('全部加载完后 total 与已加载数一致', () {
+      const tab = SearchTabState(items: [1, 2, 3], total: 3, page: 2);
+      expect(searchTabCountLabel(tab), 3);
+    });
+
+    test('单源筛选后 total 透传服务端数；混排时控制器不编造', () async {
+      final kg = _RecordingRepo(tag: 'kg:', idPrefix: 'kg-');
+      final ne = _RecordingRepo(tag: 'ne:', idPrefix: 'ne-');
+      final c = _containerFor([
+        KugouSource(searchRepository: kg),
+        _RecordingSource(MusicPlatform.netease, ne),
+      ]);
+      final n = c.read(searchControllerProvider.notifier);
+
+      await n.submit('x');
+      // 混排没有「总数」这回事。
+      expect(c.read(searchControllerProvider).activeTab.total, isNull);
+      // 未筛源时标签只能显示已加载数（两源各 30 交错）。
+      expect(searchTabCountLabel(c.read(searchControllerProvider).activeTab), 60);
+
+      await n.setSourceFilter(MusicPlatform.kugou);
+      // 单源：total = _RecordingRepo 默认报告的 90。
+      expect(c.read(searchControllerProvider).activeTab.total, 90);
+      expect(searchTabCountLabel(c.read(searchControllerProvider).activeTab), 90);
+    });
+  });
 }

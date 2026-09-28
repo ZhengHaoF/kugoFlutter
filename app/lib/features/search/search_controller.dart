@@ -436,6 +436,23 @@ final searchControllerProvider =
 List<Track> songItemsOf(SearchTabState tab) =>
     tab.items.whereType<Track>().toList();
 
+/// 搜索类型标签上的角标数字：**优先服务端报告的总数**（`total`），
+/// 取不到时回退「已加载条数」。
+///
+/// `total` 只有单源搜索、且该源这一趟报告了总数时才有：
+/// - 混排模式下没有任何单一 total（控制器 `_fetch` 恒为 null）；
+/// - 歌手类接口不报总数（酷狗 `search/singer` 实测无；网易
+///   `artistCount` 字段未实测，取不到即回退）。
+///
+/// A 方案：不动分页行为，只把标签从「已加载 30」换成「总数 N」，
+/// 避免用户误以为搜索结果只有一页（默认每页 [kSearchPageSize] 条）。
+/// total 异常（<= 0）时同样回退，不显示无意义的数字。
+int searchTabCountLabel(SearchTabState tab) {
+  final total = tab.total;
+  if (total != null && total > 0) return total;
+  return tab.items.length;
+}
+
 List<PlaylistBrief> playlistItemsOf(SearchTabState tab) =>
     tab.items.whereType<PlaylistBrief>().toList();
 

@@ -335,12 +335,14 @@ class _TabBar extends StatelessWidget {
     );
   }
 
-  /// `null` until the tab has been loaded, so an unopened tab shows no count
-  /// rather than a misleading 0.
+  /// Server total when the source reports one (single-source search);
+  /// loaded count otherwise (singer search reports no total, and
+  /// mixed-source results have no single total). `null` until the tab has
+  /// been loaded, so an unopened tab shows no count rather than a 0.
   int? _countOf(SearchType type) {
     final tab = tabs[type];
     if (tab == null || !tab.hasLoaded) return null;
-    return tab.items.length;
+    return searchTabCountLabel(tab);
   }
 }
 

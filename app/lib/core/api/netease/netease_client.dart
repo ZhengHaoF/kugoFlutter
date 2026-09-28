@@ -338,12 +338,42 @@ class NeteaseClient {
     int offset = 0,
     int type = 1,
   }) {
-    return callWeApi(NeteaseEndpoints.search, {
+    return callWeApi(
+      NeteaseEndpoints.search,
+      searchParams(
+        keyword: keyword,
+        limit: limit,
+        offset: offset,
+        type: type,
+      ),
+    );
+  }
+
+  /// A1 搜索入参：`s` / `type` / `limit` / `offset` + **`total=true`**。
+  ///
+  /// `total=true` 对齐 NeriPlayer（其 cloudsearch 调用同参）与本项目其它
+  /// weapi 列表口（歌单列表 / G12 / G13 均带），让服务端在 `result` 里回
+  /// `songCount` / `albumCount` / `artistCount` / `playlistCount` 总数，
+  /// 供搜索标签角标（A 方案）与 `hasMore` 分页使用。
+  ///
+  /// ⚠️ 本机网络 cloudsearch 实测 50000005，只能走旧口 `search/get`；
+  /// 旧口是否回 `result.<x>Count` **待真机实测**——取不到时 mapper 保守
+  /// 返回 null，UI 回退「已加载条数」，不会显示错误数字。
+  ///
+  /// 公开 static 以便单测锁死参数契约（做法同 [artistListParams]）。
+  static Map<String, dynamic> searchParams({
+    required String keyword,
+    required int limit,
+    required int offset,
+    int type = 1,
+  }) {
+    return {
       's': keyword,
       'type': type.toString(),
       'limit': limit.toString(),
       'offset': offset.toString(),
-    });
+      'total': 'true',
+    };
   }
 
   /// 探针用：逐个试搜索路径/参数，定位 50000005。
