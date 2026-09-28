@@ -8,7 +8,9 @@
 | [多音源接入方案.md](多音源接入方案.md) | 多音源契约与架构（阶段 A/B 已落地） |
 | [网易云接口文档.md](网易云接口文档.md) | 网易云接口清单与实测状态 |
 | [网易云接入排期.md](网易云接入排期.md) | 网易云接入排期与实测记录 |
+| [网易云MV接入方案.md](网易云MV接入方案.md) | 网易云 MV 协议评估 + 能力映射 + 接入排期 |
 | [哔哩哔哩接入方案.md](哔哩哔哩接入方案.md) | B 站接入架构 + 功能差异（能力映射 / 支持与不支持清单） |
+| [酷狗云盘接入方案.md](酷狗云盘接入方案.md) | 酷狗音乐云盘协议评估 + 架构映射 + 三期排期（只读/上传/回退） |
 | [app/README.md](app/README.md) | 工程运行说明 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明 |
 | [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 + Windows 系统集成 / 二期 backlog |
@@ -33,6 +35,44 @@ flutter run
 - Windows：桌面壳 + SMTC/托盘/Thumbar（含收藏）/任务栏进度；缺口见 `docs/gap-vs-echomusic.md` §三
 
 详见 [设计方案.md](设计方案.md) §14 与 [app/docs/release-signing.md](app/docs/release-signing.md)。
+
+## 参考项目 / References
+
+本项目是学习研究向的第三方客户端，接口协议与产品形态参考了以下开源项目。
+**均为「对齐接口行为 / 借鉴架构思路」，未复制其业务代码**；各自版权归其作者所有。
+
+### 协议与接口
+
+| 项目 | 用途 |
+| --- | --- |
+| [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) | 酷狗概念版接口协议（歌曲 / 榜单 / MV / 云盘 / 弹幕等 module） |
+| [Binaryify/NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi) | 网易云 weapi/eapi 接口协议（搜索 / 评论 / 专辑等） |
+| [NeteaseCloudMusicApiEnhanced/api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) | 网易云接口增强版，**MV 全链路**（详情 / 取流 / 收藏 / 榜单） |
+| [chaunsin/netease-cloud-music](https://github.com/chaunsin/netease-cloud-music) | 网易云 Golang 实现（NeriPlayer 网易云侧的协议参考） |
+| [SocialSisterYi/bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) | 哔哩哔哩 API 整理（B 站接入评估） |
+| [sansenjian/qq-music-api](https://github.com/sansenjian/qq-music-api) | QQ 音乐接口（NeriPlayer QQ 音乐侧参考） |
+
+### 产品与实现
+
+| 项目 | 用途 |
+| --- | --- |
+| [hoowhoami/EchoMusic](https://github.com/hoowhoami/EchoMusic) | 桌面端酷狗第三方客户端（产品形态 / 云盘 / MV 弹幕 / 本地服务架构） |
+| [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) | 多源 Android 播放器（网易云 / B 站 weapi 链路、扫码登录、歌词匹配） |
+| [992359133/MoeKoeMusic](https://github.com/992359133/MoeKoeMusic) | 酷狗第三方客户端（云盘码率档等字段口径对照） |
+
+### 关键代码索引
+
+| 能力 | 参考来源 |
+| --- | --- |
+| 酷狗取流 / 防盗链 | KuGouMusicApi `module/song_url.js` · EchoMusic `api/music.ts` |
+| 酷狗 MV 详情 / 取流 / 弹幕 | KuGouMusicApi `video_detail.js` / `video_url.js` / `module/_comment.js` · EchoMusic `MvDetail.vue` + `BarrageLayer.vue` |
+| 酷狗云盘 | KuGouMusicApi `user_cloud*.js` · EchoMusic `Cloud.vue` / `cloudUpload.ts` |
+| 网易 weapi/eapi 加密 | NeriPlayer `NeteaseCrypto.kt` · NeteaseCloudMusicApi `util/crypto.js` |
+| 网易 MV（详情 / 取流 / 收藏） | api-enhanced `module/mv_detail.js` / `mv_url.js` / `mv_sub.js` |
+| 网易评论 | NeteaseCloudMusicApi `module/comment_*.js` |
+| B 站搜索 / 取流 | NeriPlayer `core/api/bili/` · bilibili-API-collect |
+
+本地参考副本路径（开发机）：`D:\work\EchoMusic` · `D:\work\NeriPlayer` · `D:\work\api-enhanced`
 
 ## 合规声明
 

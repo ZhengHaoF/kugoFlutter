@@ -1,5 +1,6 @@
 import '../source/music_platform.dart';
 import 'audio_quality.dart';
+import 'cloud_models.dart';
 
 class Track {
   const Track({
@@ -22,6 +23,8 @@ class Track {
     this.recDesc = '',
     this.similarDesc = '',
     this.language = '',
+    this.cloudFileId = '',
+    this.cloudAudioSource,
   });
 
   /// 音源平台。身份键 = [identityKey]（`platform:id`）。
@@ -61,6 +64,16 @@ class Track {
 
   /// 语种标签（如 `国语` / `欧美` / `日语`；空 = 未知）。
   final String language;
+
+  /// 云盘文件 ID（上游 `kv_id`）；空 = 非云盘曲目。
+  final String cloudFileId;
+
+  /// 云盘播放源（列表项自带，或回退匹配命中后写回）。
+  final CloudAudioSource? cloudAudioSource;
+
+  /// 是否云盘曲目（有 kv_id 或显式云盘源）。
+  bool get isCloudTrack =>
+      cloudFileId.trim().isNotEmpty || cloudAudioSource != null;
 
   String get durationLabel {
     final total = Duration(milliseconds: durationMs);
@@ -104,6 +117,8 @@ class Track {
     String? recDesc,
     String? similarDesc,
     String? language,
+    String? cloudFileId,
+    CloudAudioSource? cloudAudioSource,
   }) {
     return Track(
       id: id ?? this.id,
@@ -125,6 +140,8 @@ class Track {
       recDesc: recDesc ?? this.recDesc,
       similarDesc: similarDesc ?? this.similarDesc,
       language: language ?? this.language,
+      cloudFileId: cloudFileId ?? this.cloudFileId,
+      cloudAudioSource: cloudAudioSource ?? this.cloudAudioSource,
     );
   }
 }

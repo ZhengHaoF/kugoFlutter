@@ -75,7 +75,7 @@
 | 18 | 音量/输出设备管理 | 移动端语义不同，通常不做 |
 | 19 | 听歌识曲 | 麦克风采集 + 指纹匹配，成本高 |
 | 20 | 一起听 | 需服务端房间，违背「不托管」原则 |
-| 21 | 音乐云盘 | EchoMusic 有 `Cloud.vue` + `cloudUpload.ts` |
+| 21 | 音乐云盘 | EchoMusic 有 `Cloud.vue` + `cloudUpload.ts`；接入方案见 [酷狗云盘接入方案.md](../酷狗云盘接入方案.md) |
 | 22 | 内容黑名单 | `contentBlacklist.ts`，可在 FM/推荐里屏蔽 |
 | 23 | 听歌偏好设置 | `listeningPreferences.ts`，影响推荐 |
 | 24 | 登录设备管理 | `loginDevices.ts`，查看/移除设备 |

@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
@@ -278,6 +280,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     // * 「播放历史」与用户卡「最近播放」重复，统一从统计进
                     //   /history。
                     // 将来新增入口时在此重建卡片；不要留只弹提示的假入口。
+                    if (musicSourceRegistry
+                            ?.capability<CloudDiskSource>(
+                              MusicPlatform.kugou,
+                            ) !=
+                        null) ...[
+                      GlassSurface(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: _LinkTile(
+                          icon: Icons.cloud_outlined,
+                          title: '音乐云盘',
+                          subtitle: account.isLogged
+                              ? '云端私有文件库'
+                              : '登录后查看云盘',
+                          onTap: () => context.push('/cloud'),
+                        ),
+                      ),
+                      const SizedBox(height: KugoSpacing.md),
+                    ],
                     GlassSurface(
                       key: _playlistsSectionKey,
                       padding: const EdgeInsets.all(KugoSpacing.lg),

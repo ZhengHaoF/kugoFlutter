@@ -1,6 +1,7 @@
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/barrage.dart';
 import '../../../core/models/catalog_models.dart';
+import '../../../core/models/cloud_models.dart';
 import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/fm_mode.dart';
@@ -13,6 +14,7 @@ import '../../../core/source/music_platform.dart';
 import '../../../core/source/music_source.dart';
 import '../../../core/source/quality_map.dart';
 import '../../../data/repositories/catalog_repository.dart' as catalog;
+import '../../../data/repositories/cloud_repository.dart' as cloud;
 import '../../../data/repositories/comment_repository.dart' as comment;
 import '../../../data/repositories/discovery_repository.dart' as discovery;
 import '../../../data/repositories/fm_repository.dart' as fm;
@@ -58,7 +60,9 @@ class KugouSource
         MvSearchSource,
         MvDetailSource,
         MvCollectSource,
-        MvBarrageSource {
+        MvBarrageSource,
+        CloudDiskSource,
+        CloudUploadSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -71,6 +75,7 @@ class KugouSource
     discovery.DiscoveryRepository? discoveryRepository,
     comment.CommentRepository? commentRepository,
     mv.MvRepository? mvRepository,
+    cloud.CloudRepository? cloudRepository,
   }) : _play = playRepository ?? play.playRepository,
        _lyric = lyricRepository ?? lyric.lyricRepository,
        _search = searchRepository ?? search.searchRepository,
@@ -81,7 +86,8 @@ class KugouSource
        _catalog = catalogRepository ?? catalog.catalogRepository,
        _discovery = discoveryRepository ?? discovery.discoveryRepository,
        _comments = commentRepository ?? comment.commentRepository,
-       _mv = mvRepository ?? mv.mvRepository;
+       _mv = mvRepository ?? mv.mvRepository,
+       _cloud = cloudRepository ?? cloud.cloudRepository;
 
   final play.PlayRepository _play;
   final lyric.LyricRepository _lyric;
@@ -94,6 +100,7 @@ class KugouSource
   final discovery.DiscoveryRepository _discovery;
   final comment.CommentRepository _comments;
   final mv.MvRepository _mv;
+  final cloud.CloudRepository _cloud;
 
   FmMode _fmMode = FmMode.heart;
   FmSongPool _fmPool = FmSongPool.taste;
@@ -299,6 +306,10 @@ class KugouSource
     Track track, {
     AppQuality? preferred,
   }) async {
+    // 云盘曲目走云盘取流，不进曲库 `/v5/url` 链（EchoMusic resolver 一期口径）。
+    if (track.isCloudTrack) {
+      return resolveCloudPlayUrl(track);
+    }
     final quality = preferred ?? AppQuality.sq;
     final candidates = SourceQualityMap.kugouCandidates(quality);
     final resolved = await _play.resolveUrlWithFallback(
@@ -386,6 +397,52 @@ class KugouSource
   @override
   Future<Set<String>> fetchCollectedMvIds() {
     return _mv.fetchCollectedMvIds();
+  }
+
+  // ── 音乐云盘 ──────────────────────────────────────────────────────
+
+  @override
+  bool get isCloudDiskLoggedIn => kugouSession.hasToken;
+
+  @override
+  Future<CloudDiskPage> fetchCloudDiskPage({int page = 1, int pageSize = 30}) {
+    return _cloud.fetchCloudDiskPage(page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<PlayUrlResult> resolveCloudPlayUrl(Track track) async {
+    final resolved = await _cloud.resolveCloudPlayUrl(track);
+    return PlayUrlResult(
+      url: resolved.url,
+      backupUrls: resolved.backupUrls,
+      headers: resolved.headers,
+    );
+  }
+
+  @override
+  Future<void> deleteCloudTracks(List<CloudDeleteTarget> targets) {
+    return _cloud.deleteCloudTracks(targets);
+  }
+
+  @override
+  Future<CloudUploadResult> uploadCloudFile({
+    required List<int> bytes,
+    required String title,
+    required String extendname,
+    String? authorName,
+    String? audioId,
+    String? albumAudioId,
+    void Function(int sent, int total)? onProgress,
+  }) {
+    return _cloud.uploadCloudFile(
+      bytes: bytes,
+      title: title,
+      extendname: extendname,
+      authorName: authorName,
+      audioId: audioId,
+      albumAudioId: albumAudioId,
+      onProgress: onProgress,
+    );
   }
 
   // ── MV 弹幕（评论服务链路，但按 MV hash 分池） ──────────────

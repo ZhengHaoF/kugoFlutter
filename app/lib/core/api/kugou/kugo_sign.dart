@@ -73,6 +73,14 @@ abstract final class KugoSign {
     return md5Hex('$appId$_saltSigLite$clientVer$data');
   }
 
+  /// Cloud-disk key (KuGouMusicApi `signCloudKey`).
+  /// `md5("musicclound" + hash + pid + salt)` — used by `/query_musicclound_url`.
+  static String signCloudKey(String hash, int pid) {
+    return md5Hex('musicclound$hash$pid$_saltCloudKey');
+  }
+
+  static const _saltCloudKey = 'ebd1ac3134c880bda6a2194537843caa0162e2e7';
+
   /// Default query params injected on every gateway request.
   static Map<String, dynamic> defaultParams({
     required String dfid,

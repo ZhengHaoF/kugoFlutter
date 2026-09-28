@@ -270,3 +270,344 @@ dart run tool/probe_mv.dart
   均对齐 EchoMusic（见 `core/models/barrage.dart`）。
 - 显示设置（透明度 / 字号 / 速度 / 密度 / 区域）持久化在
   `settings.mvBarrageConfig`，开关在 `settings.mvBarrageEnabled`。
+
+---
+
+## 音乐云盘（协议对照 · 待实测）
+
+> 对齐 KuGouMusicApi `module/user_cloud*.js`（2026-09 静态对照）。
+> EchoMusic 走 `/user/cloud` 等业务路由；上游真实 host 见下表。
+> 探针：`dart run tool/probe_cloud_disk.dart --suite list|url|match|del`
+> 方案：[酷狗云盘接入方案.md](../酷狗云盘接入方案.md)
+
+### 端点总览
+
+| 能力 | 方法 | 上游 | 协议 |
+| --- | --- | --- | --- |
+| 云盘列表 | POST | `https://mcloudservice.kugou.com/v1/get_list` | **AES body + RSA `p`** |
+| 云盘播放地址 | GET | `https://gateway.kugou.com/bsstrackercdngz/v2/query_musicclound_url` | Android signature |
+| 云盘删除 | POST | `https://mcloudservice.kugou.com/v1/del_files` | AES body + RSA `p` |
+| 曲库匹配（上传前） | POST | `http://kmr.service.kugou.com/v2/album_audio/audio` | JSON body，**无 signature** |
+| 上传授权 | GET | `https://gateway.kugou.com/bsstrackercdngz/v1/upload/auth` | Android signature |
+| 分片初始化 | POST | `http://bssulbig.kugou.com/v2/multipart/initiate/music` | Android signature |
+| 分片上传 | POST | `{external_host}/v3/multipart/upload` | Android signature + binary part |
+| 分片完成 | POST | `{external_host}/v3/multipart/complete` | Android signature |
+| 写入云盘 | POST | `https://mcloudservice.kugou.com/v1/add_files` | AES body + RSA `p` |
+
+### AES + RSA 信封（列表 / 删除 / 写入共用）
+
+与 `device_repository` / `mv_repository` 的 `playlistAesEncrypt` 同一套：
+
+```text
+dataMap → JSON → playlistAesEncrypt → { str: base64(ciphertext), key: 6 位小写随机 }
+body   = base64.decode(str)          // 原始密文，不是 base64 字符串
+p      = RSA_PKCS1_HEX({"aes": key, "uid": "<userid 字符串>", "token": token}).toUpperCase()
+query  = clienttime, mid, key=signParamsKey(clienttime), clientver, appid, p
+cookie = token; userid; dfid; KUGOU_API_MID; KUGOU_API_GUID; KUGOU_API_DEV
+```
+
+- `key` = `md5(appid + saltLite + clientver + clienttime)`（概念版 salt
+  `LnT6xpN3khm36zse0QzvmgTZ3waWdRSA`，即 `KugoSign.signParamsKey`）。
+- **`notSignature`**：这组接口 **不带** android `signature`。
+- 响应用同一 AES key 解密；解不出回落明文 JSON。
+- 实现：`tool/probe_cloud_disk.dart` 的 `buildMcloudEnvelope`。
+
+### 列表 `/v1/get_list`
+
+AES `dataMap`：
+
+```json
+{ "page": 1, "pagesize": 30, "getkmr": 1 }
+```
+
+鉴权只在 RSA `p` + Cookie，**body 里没有 userid/token**。
+
+响应（`status=1`）预期字段（对照 EchoMusic `mapCloudSong` / MoeKoeMusic，**待探针实测**）：
+
+| 业务 | 候选 key |
+| --- | --- |
+| 列表 | `data.list[]` 或 `data.info[]` |
+| 总数 | `data.list_count` |
+| 容量 | `data.max_size` / `data.used_size` / `data.availble_size`（注意拼写） |
+| 云盘文件 ID | `kv_id` / `kvid` / `fileid` |
+| hash | `hash` / `audio_info.hash` |
+| hash_std | `hash_std` / `audio_info.hash` |
+| 曲库 ID | `audio_id` / `audio_info.audio_id`，`album_audio_id` / `mixsongid` |
+| 标题 | `filename` / `name` / `songname` |
+| 歌手 | `author_name` / `singername` |
+| 专辑 | `album_name` / `album_info.album_name` |
+| 封面 | `album_info.sizable_cover`（`{size}` 占位）/ `authors[0].sizable_avatar` |
+| 时长 | `timelen`（毫秒）/ `duration` |
+| 码率档 | `bitrate`：`3=HQ/320` `4=SQ/flac` `5=HR`（MoeKoe 口径；EchoMusic 5=high） |
+| 大小 | `size` |
+
+### 播放地址 `/bsstrackercdngz/v2/query_musicclound_url`
+
+Android signature + 默认公共参数（dfid/mid/uuid/appid/clientver/clienttime[/token/userid]）。
+
+module 固定参数：
+
+| 参数 | 值 |
+| --- | --- |
+| `hash` | 小写 hash |
+| `pid` | `20026` |
+| `kv_id` | **固定 `2`**（module 硬编码，忽略入参 fileid） |
+| `bucket` | `musicclound` |
+| `key` | `signCloudKey(hash, 20026)` = `md5("musicclound"+hash+pid+salt)` |
+| `ssa_flag` | `is_fromtrack` |
+| `version` | `20102` |
+| `ssl` | `0` |
+| `with_res_tag` | `0` |
+
+盐值：`ebd1ac3134c880bda6a2194537843caa0162e2e7`（`KugoSign.signCloudKey`）。
+
+响应：`status=1` + `data.url` + `data.backup_url[]`（或 `backupUrl`）。
+
+### 删除 `/v1/del_files`
+
+AES `dataMap`：
+
+```json
+{ "data": [ { "kv_id": 123, "album_audio_id": 0 } ] }
+```
+
+- 入参支持 `fileids` / `fileid` / `kv_ids` / `kv_id`（逗号分隔或数组）。
+- **`album_audio_id` 必填**（缺省 0）；数字字段必须是 number。
+- 当前 module **不支持** 仅 `hashes` 删除（无 fileid 时直接报「请传入 fileid 或 kv_id」）。
+- 删除响应可能带新的 `availble_size` / `used_size` / `max_size`。
+
+### 曲库匹配 `/v2/album_audio/audio`（上传前）
+
+JSON body（无 signature，`x-router: kmr.service.kugou.com`）：
+
+```json
+{
+  "appid": 3116, "clienttime": 0, "clientver": 11440,
+  "data": [ { "hash": "<文件 MD5 或 hash_std>" } ],
+  "dfid": "-", "key": "signParamsKey(clienttime)", "mid": "...",
+  "show_privilege": 0, "show_author_alias": 0,
+  "show_rel_album_audio_info": 0, "show_remarks": 0
+}
+```
+
+→ `data[]` → 归一化出 `album_audio_id` / `audio_id` / `hash_std` / `author_name` / `audio_name`。
+
+### 上传（二期，五步）
+
+1. **授权** GET `gateway /bsstrackercdngz/v1/upload/auth`
+   - `filename` = **文件内容 MD5（小写）**
+   - `buVerifyCode` = `md5(appid + "musicclound" + "8ae10344e9738dcb")`
+   - → `data.authorization`
+2. **初始化分片** POST `bssulbig /v2/multipart/initiate/music`
+   - → `external_host` + `upload_id`；**`upload_id` 空 = 秒传**（跳过 3/4）
+3. **上传分片** POST `{external_host}/v3/multipart/upload`，**1MB/片**，binary body
+4. **完成** POST `{external_host}/v3/multipart/complete`，`md5=filename`
+5. **写入云盘** POST `mcloudservice /v1/add_files`（AES+RSA）
+
+`add_files` AES body：
+
+```json
+{
+  "data": [{
+    "name": "歌手 - 歌名.mp3",
+    "ext": "mp3",
+    "author_name": "歌手",
+    "hash": "<bss 返回的 x-bss-filename>",
+    "hash_std": "<匹配 hash_std 或文件 MD5>",
+    "audio_id": 0,
+    "bitrate": 4,
+    "album_audio_id": 0,
+    "size": 123456,
+    "timelen": 0
+  }],
+  "list_ver": 0
+}
+```
+
+限制：单文件 **100MB**；`ext` 去点小写。秒传判定：响应 `uploadInfo.upload_id` 为空。
+
+### 探针用法
+
+```powershell
+cd app
+$env:KUGO_TOKEN = '<token>'
+$env:KUGO_USERID = '<userid>'
+dart run tool/probe_cloud_disk.dart --suite list
+dart run tool/probe_cloud_disk.dart --suite url --hash <HASH>
+dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID>   # dry-run
+dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID> --confirm
+```
+
+实测后把 `list` 首条完整 JSON 贴回本节，替换「待实测」字段表。
+
+---
+
+## 网易云 MV（2026-09-28 探针打通 · A0）
+
+> 脚本：`dart run tool/probe_netease_mv.dart`
+> 对齐 api-enhanced `module/mv_*.js` / `cloudsearch.js`（type=1004）。
+> 方案见 [网易云MV接入方案.md](../网易云MV接入方案.md)。
+
+### ★ weapi 路径坑（第一轮踩过）
+
+api-enhanced / NeteaseCloudMusicApi 的 `request` 对 weapi 做
+`'/weapi/' + uri.substr(5)` —— **剥掉 `/api/`**。
+
+| module 写法 | 实际请求 | 本仓 `callWeApi` 应传 |
+| --- | --- | --- |
+| `/api/v1/mv/detail` | `/weapi/v1/mv/detail` | **`/v1/mv/detail`** |
+| `/api/song/enhance/play/mv/url` | `/weapi/song/enhance/play/mv/url` | `/song/enhance/play/mv/url` |
+| `/api/artist/mvs` | `/weapi/artist/mvs` | `/artist/mvs` |
+| `/api/cloudsearch/pc` | `/weapi/cloudsearch/pc` | `/cloudsearch/pc` |
+| `/api/mv/sub` | `/weapi/mv/sub` | `/mv/sub` |
+| `/api/cloudvideo/allvideo/sublist` | `/weapi/cloudvideo/allvideo/sublist` | `/cloudvideo/allvideo/sublist` |
+
+传 `/api/...` 会得到 **`code=404 「接口未找到！」`**（第一轮实测）。
+
+### 端点与实测字段
+
+| 端点 | 加密 | 实测 | 说明 |
+| --- | --- | --- | --- |
+| `POST /weapi/v1/mv/detail` | weapi | ✅ 免登录 | body `{id: mvid}` |
+| `POST /weapi/song/enhance/play/mv/url` | weapi | ✅ 免登录 | body `{id, r}`；`r` 会被钳到实际档 |
+| `POST /weapi/cloudsearch/pc` | weapi | ✅ 免登录 | `{s, type:1004, limit, offset}` |
+| `POST /weapi/cloudsearch/get/web` | weapi | ❌ `50000005` | **不要用**，只认 `/cloudsearch/pc` |
+| `POST /weapi/artist/mvs` | weapi | ✅ 免登录 | `{artistId, limit, offset}` |
+| `POST /weapi/cloudvideo/allvideo/sublist` | weapi | ⚠️ `301` 未登录 | 需登录态 |
+| `POST /weapi/mv/sub` / `/mv/unsub` | weapi | ⚠️ 写操作 | 需登录；`mvId` + `mvIds='["<id>"]'` |
+| `songDetail.mv` 字段 | — | ✅ | `0`=无 / `>0`=mvid（`songMvs` 1:1） |
+
+### `mv/detail` 响应（实测 2026-09-28）
+
+顶层 = `{loadingPic..., subed, mp, data, code: 200}`。
+
+`data` 字段：
+
+| 字段 | 实测值示例 | 映射 |
+| --- | --- | --- |
+| `id` | `14514682` | `MvBrief.id`（mvid） |
+| `name` | `晴天` | `MvBrief.name` |
+| `artistName` / `artists[].name` | `高伟` / `莫文蔚 / 张洪量` | `MvBrief.artist` |
+| `cover` | `http://p4.music.126.net/...jpg` | `MvBrief.coverUrl` |
+| `duration` | `192000`（毫秒） | `MvBrief.durationMs` |
+| `publishTime` | `2022-03-25` | `MvBrief.publishDate` |
+| `desc` / `briefDesc` | 文本或 null | `MvDetail.description` |
+| `playCount` / `subCount` / `commentCount` / `shareCount` | 整数 | 统计行 |
+| `commentThreadId` | `R_MV_5_14514682` | 评论线程 id |
+| `videoGroup[]` | `{id, name, type}` | 可作 tags |
+
+**★ `brs` 是 List 不是 Map，且不含 url**：
+
+```json
+"brs": [
+  { "size": 10456657.0, "br": 240, "point": 0 },
+  { "size": 20453720.0, "br": 480, "point": 0 },
+  { "size": 32049460.0, "br": 720, "point": 0 },
+  { "size": 10533121.0, "br": 1080, "point": 0 }
+]
+```
+
+只用来**枚举档位**（`br` + `size`）；播放地址一律走 `mv/url` 现取。
+方案文档 §4.2 原先假设 `brs` 是 `{r: url}` Map，**已按实测更正**。
+
+**`mp` 是特权位**（与 `data` 平级）：
+
+```json
+"mp": { "pl": 1080, "dl": 1080, "cp": 1, "st": 0, "fee": 0, "unauthorized": false }
+```
+
+`pl` = 可播最高码率，`dl` = 可下最高码率。低权限 MV 例：`5436712`（广岛之恋）`pl=480`，
+请求 `r=1080` 时 `mv/url` **只回 480**。
+
+### `mv/url` 响应（实测）
+
+```json
+{
+  "code": 200,
+  "data": {
+    "id": 14514682,
+    "url": "http://vodkgeyttp8.vod.126.net/cloudmusic/obj/core/....mp4?wsSecret=...&wsTime=...",
+    "r": 1080,
+    "size": 10533121,
+    "md5": "",
+    "code": 200,
+    "expi": 3600,
+    "fee": 0,
+    "mvFee": 0,
+    "st": 0,
+    "msg": ""
+  }
+}
+```
+
+| 要点 | 实测结论 |
+| --- | --- |
+| `data.url` | mp4 直链（`wsSecret` + `wsTime` 签名），**短时效** |
+| 时效字段名 | **`expi`（秒）**，不是 `validity`（实测 `validity` 为 null） |
+| `r` | **回显实际档**，请求 1080 但权限不足时回 480 |
+| `backupUrls` | 无（与酷狗不同，单条 url） |
+| 失败形态 | 无 url 时 `data.url` 为空 / `code != 200` |
+
+### `cloudsearch type=1004` 响应（实测）
+
+`result.mvCount` + `result.mvs[]`，列表项字段：
+
+| 字段 | 示例 | 映射 `MvBrief` |
+| --- | --- | --- |
+| `id` | `14514682` | `id` |
+| `name` | `晴天` | `name` |
+| `cover` | `http://...jpg` | `coverUrl`（★ 是 `cover`） |
+| `artistName` / `artists[].name` | `高伟` | `artist` |
+| `duration` | `192000` | `durationMs` |
+| `playCount` | `1114797` | 统计 |
+| `briefDesc` / `desc` | 可 null | — |
+| `mark` / `alias` / `transNames` | — | 可忽略 |
+
+### `artist/mvs` 响应（实测）
+
+`{mvs: [...], hasMore: true}`，列表项字段：
+
+| 字段 | 映射 |
+| --- | --- |
+| `id` / `name` | `MvBrief.id` / `name` |
+| **`imgurl`** | `coverUrl`（★ 与搜索的 `cover` **不同名**） |
+| `imgurl16v9` | 备用封面 |
+| `artistName` / `artist.name` | `artist` |
+| `duration` / `playCount` / `publishTime` | 对应字段 |
+| `subed` | 是否已收藏 |
+| `status` | 0=正常 / 1=可能不可见 |
+
+### `song.mv`（`songMvs` 1:1）
+
+实测 `songId=25906124`（不要说话）→ `mv=303284`；
+`songId=186016`（晴天）→ `mv=0`。
+
+语义确认：**`0` = 无 MV → 空列表；`>0` = mvid → 返回单元素列表**。
+不要用 `simi_mv`（相似推荐）冒充多版本。
+
+### 探针用法
+
+```powershell
+cd app
+# 免登录：详情 + 取流 + 搜索
+dart run tool/probe_netease_mv.dart
+dart run tool/probe_netease_mv.dart --mvid 14514682 --r 1080
+
+# 单项
+dart run tool/probe_netease_mv.dart --suite detail --mvid 14514682
+dart run tool/probe_netease_mv.dart --suite search --keyword 晴天
+dart run tool/probe_netease_mv.dart --suite artist --artist 6452
+dart run tool/probe_netease_mv.dart --suite songmv --song 25906124
+
+# 收藏（sublist 需登录；sub 为写操作）
+dart run tool/probe_netease_mv.dart --suite sublist
+dart run tool/probe_netease_mv.dart --suite sub --mvid 14514682 --write --collect true
+```
+
+### A0 结论（对 A1 mapper 的影响）
+
+1. `MvPlaySource` 的档位从 `brs[].br` 枚举；`hash` 存 `mvid@r`（如 `14514682@1080`）
+2. `resolveMvPlayUrl` 拆 `@` 得 mvid + r，调 `mv/url`；返回 `url` + `expi`
+3. 搜索封面 key 是 `cover`，歌手 MV 是 `imgurl` —— mapper 要**双 key 回退**
+4. `songMvs` 只做 1:1（`song.mv`）；版本切换 UI 对网易自然退化
+5. 收藏 / 收藏列表需登录；游客搜索 + 详情 + 取流可播

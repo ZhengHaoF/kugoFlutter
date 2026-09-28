@@ -147,4 +147,40 @@ abstract final class KugoEndpoints {
   static const getUnionVip = '/v1/get_union_vip';
   static const userInfoService = 'http://userinfo.user.kugou.com';
   static const getGradeInfo = '/v2/get_grade_info';
+
+  // ── 音乐云盘（KuGouMusicApi `user_cloud*.js`，见 docs/api-notes.md） ──
+
+  /// 云盘业务宿主（列表 / 删除 / 写入；AES+RSA 信封）。
+  static const mcloudService = 'https://mcloudservice.kugou.com';
+
+  /// 云盘列表。POST + AES body + RSA `p`。
+  static const cloudGetList = '/v1/get_list';
+
+  /// 云盘删除。POST + AES body + RSA `p`。
+  static const cloudDelFiles = '/v1/del_files';
+
+  /// 云盘写入（上传最后一步）。POST + AES body + RSA `p`。
+  static const cloudAddFiles = '/v1/add_files';
+
+  /// 云盘播放地址。GET gateway + android signature。
+  static const cloudMusicUrl = '/bsstrackercdngz/v2/query_musicclound_url';
+
+  /// 云盘资源 pid（播放地址固定值）。
+  static const cloudPid = 20026;
+
+  /// 云盘上传授权。GET gateway + android signature。
+  static const cloudUploadAuth = '/bsstrackercdngz/v1/upload/auth';
+
+  /// 分片上传初始化 / 上传 / 完成（host 见 `bssulbig` / `external_host`）。
+  static const bssulbig = 'http://bssulbig.kugou.com';
+  static const cloudMultipartInit = '/v2/multipart/initiate/music';
+  static const cloudMultipartUpload = '/v3/multipart/upload';
+  static const cloudMultipartComplete = '/v3/multipart/complete';
+
+  /// 曲库按 hash 匹配（上传前关联 audio_id / album_audio_id）。
+  static const kmrService = 'http://kmr.service.kugou.com';
+  static const albumAudioLookup = '/v2/album_audio/audio';
+
+  /// 云盘 bucket 名。
+  static const cloudBucket = 'musicclound';
 }

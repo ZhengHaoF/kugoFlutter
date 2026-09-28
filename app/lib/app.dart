@@ -14,6 +14,7 @@ import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
 import 'features/auth/netease_login_page.dart';
+import 'features/cloud/cloud_page.dart';
 import 'features/discovery/discovery_page.dart';
 import 'features/explore/explore_page.dart';
 import 'features/fm/fm_page.dart';
@@ -328,6 +329,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 path: '/likes',
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: LikesPage()),
+              ),
+              GoRoute(
+                path: '/cloud',
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CloudPage()),
               ),
               GoRoute(
                 path: '/settings',

@@ -1,4 +1,5 @@
 import '../models/audio_quality.dart';
+import '../models/cloud_models.dart';
 import '../models/search_result.dart';
 import '../models/track.dart';
 
@@ -821,4 +822,168 @@ PlaylistBrief mapRecommendPlaylist(Map<String, dynamic> json) {
     trackCount: count,
     playCountLabel: play > 0 ? formatCount(play) : '',
   );
+}
+
+/// 云盘列表项 → [Track]。对齐 EchoMusic `mapCloudSong` 多 key 回退。
+///
+/// 身份：`id` 优先 `kv_id`，缺失用 `hash`；`cloudFileId` 始终记 kv_id。
+/// `timelen` / `duration_128` 为**毫秒**，其余时长字段为秒。
+Track mapCloudTrack(Map<String, dynamic> json) {
+  final audioInfo = json['audio_info'] is Map
+      ? Map<String, dynamic>.from(json['audio_info'] as Map)
+      : const <String, dynamic>{};
+  final albumInfo = json['album_info'] is Map
+      ? Map<String, dynamic>.from(json['album_info'] as Map)
+      : const <String, dynamic>{};
+  final transParam = json['trans_param'] is Map
+      ? Map<String, dynamic>.from(json['trans_param'] as Map)
+      : const <String, dynamic>{};
+  final authors = json['authors'];
+  final firstAuthor = authors is List && authors.isNotEmpty && authors.first is Map
+      ? Map<String, dynamic>.from(authors.first as Map)
+      : const <String, dynamic>{};
+
+  final rawName = cleanupAudioExtension(
+    _s(
+      json['songname'],
+      _s(json['filename'], _s(json['name'], _s(audioInfo['songname'], '未知歌曲'))),
+    ),
+  );
+  var artist = cleanupAudioExtension(
+    _s(
+      json['singername'],
+      _s(
+        json['author_name'],
+        _s(json['singer'], _s(audioInfo['author_name'], '')),
+      ),
+    ),
+  );
+  if (artist.isEmpty && rawName.contains(' - ')) {
+    artist = rawName.split(' - ').first.trim();
+  }
+  if (artist.isEmpty) artist = '未知歌手';
+
+  final name = rawName.isEmpty ? '未知歌曲' : rawName;
+  final album = cleanupAudioExtension(
+    _s(
+      json['album_name'],
+      _s(json['albumname'], _s(albumInfo['album_name'], '')),
+    ),
+  );
+
+  var cover = _s(
+    json['cover'],
+    _s(
+      json['pic'],
+      _s(
+        json['img'],
+        _s(
+          json['album_sizable_cover'],
+          _s(
+            albumInfo['sizable_cover'],
+            _s(
+              transParam['union_cover'],
+              _s(albumInfo['cover'], _s(firstAuthor['sizable_avatar'], '')),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  final hash = _s(
+    json['hash'],
+    _s(audioInfo['hash'], _s(audioInfo['hash_128'], '')),
+  ).toLowerCase();
+  final hashStd = _s(
+    json['hash_std'],
+    _s(json['hashstd'], _s(audioInfo['hash_std'], _s(audioInfo['hashstd'], ''))),
+  ).toLowerCase();
+  final cloudFileId = _s(json['kv_id'], _s(json['kvid'], _s(json['cloud_file_id'])));
+  final audioId = _s(
+    json['audio_id'],
+    _s(json['audioid'], _s(audioInfo['audio_id'], _s(audioInfo['audioid'], ''))),
+  );
+  final albumAudioId = _s(
+    json['album_audio_id'],
+    _s(json['mixsongid'], _s(audioInfo['album_audio_id'], '')),
+  );
+
+  var durationMs = 0;
+  final timelen = _i2(json['timelen'], audioInfo['duration_128']);
+  if (timelen > 0) {
+    durationMs = timelen > 10000 ? timelen : timelen * 1000;
+  } else {
+    final seconds = _i2(
+      json['duration'],
+      _i2(audioInfo['duration'], _i2(json['time_length'], 0)),
+    );
+    durationMs = seconds > 10000 ? seconds : seconds * 1000;
+  }
+
+  final bitrate = _i2(json['bitrate'], audioInfo['bitrate']);
+  final size = _i2(json['size'], _i2(json['filesize'], audioInfo['size']));
+  final ext = _s(json['ext'], _s(json['extendname'], _s(audioInfo['ext'], '')))
+      .replaceFirst('.', '')
+      .toLowerCase();
+
+  final source = CloudAudioSource(
+    hash: hash,
+    cloudFileId: _normalizePositiveId(cloudFileId),
+    hashStd: hashStd,
+    audioId: _normalizePositiveId(audioId),
+    albumAudioId: _normalizePositiveId(albumAudioId),
+    bitrate: bitrate > 0 ? bitrate : null,
+    size: size > 0 ? size : null,
+    ext: ext,
+    name: name,
+  );
+
+  final id = source.hasFileId
+      ? source.cloudFileId
+      : (hash.isNotEmpty ? hash : _s(json['id'], name));
+
+  return Track(
+    id: id,
+    name: name,
+    artist: artist,
+    album: album,
+    coverUrl: normalizeCoverUrl(cover.isEmpty ? hash : cover),
+    durationMs: durationMs,
+    hash: hash,
+    albumId: _s(json['albumid'], _s(json['album_id'], _s(albumInfo['id'], ''))),
+    mixSongId: albumAudioId.isNotEmpty ? albumAudioId : _s(json['audio_id'], id),
+    quality: _cloudQualityLabel(bitrate),
+    cloudFileId: source.cloudFileId,
+    cloudAudioSource: hash.isNotEmpty ? source : null,
+  );
+}
+
+/// 云盘容量字段（上游拼写 `availble_size`）。
+CloudDiskCapacity mapCloudCapacity(Map<String, dynamic> data) {
+  return CloudDiskCapacity(
+    totalBytes: _i2(data['max_size'], data['capacity']),
+    usedBytes: _i2(data['used_size'], data['used']),
+    availableBytes: _i2(data['availble_size'], data['available']),
+  );
+}
+
+String _normalizePositiveId(String value) {
+  final text = value.trim();
+  if (!RegExp(r'^\d+$').hasMatch(text) || RegExp(r'^0+$').hasMatch(text)) return '';
+  return text;
+}
+
+/// 码率档 → 展示标签。对齐 MoeKoe：3=HQ, 4=SQ, 5=HR。
+String _cloudQualityLabel(int bitrate) {
+  switch (bitrate) {
+    case 5:
+      return 'HR';
+    case 4:
+      return 'SQ';
+    case 3:
+      return 'HQ';
+    default:
+      return 'SD';
+  }
 }

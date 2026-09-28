@@ -1,6 +1,7 @@
 import '../models/audio_quality.dart';
 import '../models/barrage.dart';
 import '../models/catalog_models.dart';
+import '../models/cloud_models.dart';
 import '../models/comment.dart';
 import '../models/daily_recommend.dart';
 import '../models/fm_mode.dart';
@@ -668,5 +669,51 @@ abstract interface class MvBarrageSource {
     required String content,
     String name = '',
     String videoId = '',
+  });
+}
+
+/// 音乐云盘（用户上传到云端的私有文件）。
+///
+/// **酷狗专属**：网易无对口，`NeteaseSource` 不 implements，UI 用
+/// `registry.capability<CloudDiskSource>()` 显隐，不写 `platform == kugou`。
+///
+/// 一期只读：列表 / 播放 / 删除。上传见二期 [CloudUploadSource]。
+/// 协议对照见 `docs/api-notes.md`「音乐云盘」节。
+abstract interface class CloudDiskSource {
+  /// 当前源是否已登录（云盘是登录态资产）。
+  bool get isCloudDiskLoggedIn;
+
+  /// 拉取云盘一页。[page] 从 1 开始。
+  ///
+  /// 未登录抛 [LoginRequired]；网络失败抛 [NetworkFailure]。
+  Future<CloudDiskPage> fetchCloudDiskPage({int page = 1, int pageSize = 30});
+
+  /// 解析云盘文件播放地址。
+  ///
+  /// [track] 须带 [Track.cloudAudioSource] 或 [Track.hash]；
+  /// 云盘页曲目直接传列表项即可。失败抛 [SourceFailure]。
+  Future<PlayUrlResult> resolveCloudPlayUrl(Track track);
+
+  /// 删除云盘文件。目标须有 `cloudFileId` 或 `hash`（见 [CloudDeleteTarget]）。
+  ///
+  /// 失败抛 [SourceFailure]；成功后调用方自行刷新列表。
+  Future<void> deleteCloudTracks(List<CloudDeleteTarget> targets);
+}
+
+/// 二期：上传到云盘。
+abstract interface class CloudUploadSource {
+  /// 上传单个文件（二进制）。
+  ///
+  /// [title] 不含扩展名；[extendname] 小写不带点。
+  /// 可选 [audioId] / [albumAudioId] 用于关联曲库（缺省时实现内部尝试匹配）。
+  /// 返回 [CloudUploadResult]；失败抛 [SourceFailure]。
+  Future<CloudUploadResult> uploadCloudFile({
+    required List<int> bytes,
+    required String title,
+    required String extendname,
+    String? authorName,
+    String? audioId,
+    String? albumAudioId,
+    void Function(int sent, int total)? onProgress,
   });
 }
