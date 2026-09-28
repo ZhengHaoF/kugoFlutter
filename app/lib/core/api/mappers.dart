@@ -38,6 +38,23 @@ String kugouCover(String? hashOrFile, {String size = '400'}) {
   return normalizeCoverUrl(_s(hashOrFile), size: size);
 }
 
+/// MV / 视频封面。与歌曲 `soft/collection` **不是同一条 CDN**。
+///
+/// 富搜索的 `Pic` 是裸文件名，正确拼法是 `imge.kugou.com/mvhdpic/{size}/{pic}`
+/// （对齐 EchoMusic `mapMvSearchItem`）。空串返回空，让 UI 走占位渐变；
+/// 不要用 hash 兜底进 soft/collection —— 未知 hash 全是 default.jpg。
+String mvCoverUrl(String raw, {String size = '400'}) {
+  var cover = raw.trim();
+  if (cover.isEmpty || cover == 'mock://cover') return '';
+  if (cover.startsWith('//')) cover = 'https:$cover';
+  cover = cover.replaceAll('{size}', size);
+  cover = cover.replaceFirst('http://', 'https://');
+  cover = cover.replaceFirst('c1.kgimg.com', 'imge.kugou.com');
+  if (cover.startsWith('https://') || cover.startsWith('http://')) return cover;
+  // 裸文件名 / 相对段 → MV 专用 CDN
+  return 'https://imge.kugou.com/mvhdpic/$size/$cover';
+}
+
 String _pickCover(Map<String, dynamic> json) {
   final trans = json['trans_param'];
   final transMap = trans is Map ? Map<String, dynamic>.from(trans) : const <String, dynamic>{};

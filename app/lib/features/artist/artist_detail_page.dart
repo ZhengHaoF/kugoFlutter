@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/catalog_models.dart';
+import '../../core/models/mv_models.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
@@ -16,6 +17,7 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class ArtistDetailPage extends ConsumerStatefulWidget {
@@ -49,6 +51,9 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
   ArtistSongSort _songSort = ArtistSongSort.hot;
   int _songFetchToken = 0;
 
+  final List<MvBrief> _mvs = [];
+  bool _loadingMvs = false;
+
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final ScrollController _scrollController = ScrollController();
@@ -68,7 +73,31 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
   }
 
   Future<void> _loadAll() async {
-    await Future.wait([_loadDetail(), _loadSongs(reset: true)]);
+    await Future.wait([
+      _loadDetail(),
+      _loadSongs(reset: true),
+      _loadMvs(),
+    ]);
+  }
+
+  /// 歌手 MV 条：有 [MvSearchSource] 能力才拉；失败静默（不挡歌曲区）。
+  Future<void> _loadMvs() async {
+    if (widget.platform != MusicPlatform.kugou) return;
+    final src = musicSourceRegistry?.capability<MvSearchSource>(widget.platform);
+    if (src == null) return;
+    setState(() => _loadingMvs = true);
+    try {
+      final page = await src.fetchArtistMvs(widget.id, pageSize: 12);
+      if (!mounted) return;
+      setState(() {
+        _mvs
+          ..clear()
+          ..addAll(page.items);
+        _loadingMvs = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMvs = false);
+    }
   }
 
   Future<void> _loadDetail() async {
@@ -218,6 +247,23 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     context.push('/player');
   }
 
+  void _openMv(MvBrief mv) {
+    if (mv.hash.isEmpty && mv.id.isEmpty) return;
+    context.push(
+      Uri(
+        path: '/mv',
+        queryParameters: {
+          'id': mv.id,
+          'hash': mv.hash,
+          'name': mv.name,
+          'artist': mv.artist,
+          'cover': mv.coverUrl,
+          'mixSongId': mv.mixSongId,
+        },
+      ).toString(),
+    );
+  }
+
   void _locateCurrent() {
     final player = ref.read(playerControllerProvider);
     final current = player.current;
@@ -313,6 +359,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
             leading: IconButton(
               onPressed: () => context.pop(),
               icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: '返回',
             ),
             backgroundColor: kugo.bg.withValues(alpha: 0.92),
             flexibleSpace: FlexibleSpaceBar(
@@ -334,6 +381,14 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
               child: _IntroSection(
                 intro: artist.intro,
                 onExpand: () => _showIntroDialog(artist.intro),
+              ),
+            ),
+          if (_mvs.isNotEmpty || _loadingMvs)
+            SliverToBoxAdapter(
+              child: _ArtistMvStrip(
+                mvs: _mvs,
+                loading: _loadingMvs,
+                onOpen: _openMv,
               ),
             ),
           SliverToBoxAdapter(
@@ -419,6 +474,131 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
+      ),
+    );
+  }
+}
+
+/// 歌手 MV 横滑条：16:9 封面 + 标题 + 时长。
+class _ArtistMvStrip extends StatelessWidget {
+  const _ArtistMvStrip({
+    required this.mvs,
+    required this.loading,
+    required this.onOpen,
+  });
+
+  final List<MvBrief> mvs;
+  final bool loading;
+  final ValueChanged<MvBrief> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading && mvs.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: KugoSpacing.md),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (mvs.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: KugoSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KugoSpacing.lg,
+              KugoSpacing.sm,
+              KugoSpacing.lg,
+              KugoSpacing.sm,
+            ),
+            child: Text('MV', style: KugoTheme.of(context).section),
+          ),
+          SizedBox(
+            height: 132,
+            child: KugoHScroll(
+              builder: (context, controller, physics) => ListView.separated(
+                controller: controller,
+                scrollDirection: Axis.horizontal,
+                physics: physics,
+                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                itemCount: mvs.length,
+                separatorBuilder: (_, _) => const SizedBox(width: KugoSpacing.md),
+                itemBuilder: (context, index) {
+                  final mv = mvs[index];
+                  return _MvCard(mv: mv, onTap: () => onOpen(mv));
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MvCard extends StatelessWidget {
+  const _MvCard({required this.mv, required this.onTap});
+
+  final MvBrief mv;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return SizedBox(
+      width: 168,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CoverBox(seed: mv.coverUrl, size: 0, radius: KugoRadius.cover),
+                  if (mv.durationLabel.isNotEmpty)
+                    Positioned(
+                      right: 6,
+                      bottom: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          mv.durationLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              mv.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: kugo.caption.copyWith(color: kugo.textPrimary),
+            ),
+          ],
+        ),
       ),
     );
   }

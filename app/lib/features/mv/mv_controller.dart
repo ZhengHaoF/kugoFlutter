@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/mv_models.dart';
+import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
@@ -18,6 +19,8 @@ class MvPlayerState {
     this.source,
     this.playUrl,
     this.error = '',
+    this.versions = const [],
+    this.versionIndex = 0,
   });
 
   final MvLoadStatus status;
@@ -29,8 +32,19 @@ class MvPlayerState {
   final MvPlayUrlResult? playUrl;
   final String error;
 
+  /// 同一歌曲的多版本 MV（官方 / 现场 / 饭制…），来自 `songMvs`。
+  /// 空 = 未拉到或单版本。
+  final List<MvBrief> versions;
+
+  /// 当前版本在 [versions] 中的下标；单版本时恒为 0。
+  final int versionIndex;
+
   bool get canPlay =>
       status == MvLoadStatus.ready && playUrl != null && playUrl!.url.isNotEmpty;
+
+  bool get hasPrevVersion => versionIndex > 0;
+  bool get hasNextVersion =>
+      versions.isNotEmpty && versionIndex < versions.length - 1;
 
   MvPlayerState copyWith({
     MvLoadStatus? status,
@@ -39,6 +53,8 @@ class MvPlayerState {
     MvPlaySource? source,
     MvPlayUrlResult? playUrl,
     String? error,
+    List<MvBrief>? versions,
+    int? versionIndex,
     bool clearPlayUrl = false,
   }) {
     return MvPlayerState(
@@ -48,6 +64,8 @@ class MvPlayerState {
       source: source ?? this.source,
       playUrl: clearPlayUrl ? null : (playUrl ?? this.playUrl),
       error: error ?? this.error,
+      versions: versions ?? this.versions,
+      versionIndex: versionIndex ?? this.versionIndex,
     );
   }
 }
@@ -63,13 +81,60 @@ class MvPlayerController extends Notifier<MvPlayerState> {
   }
 
   /// 加载详情并解析默认片源的播放地址。
+  ///
+  /// [brief.mixSongId] 非空时并行拉同曲多版本列表（失败不挡主流程）。
   Future<void> load(MvBrief brief) async {
     state = state.copyWith(
       status: MvLoadStatus.loading,
       brief: brief,
       error: '',
+      versions: const [],
+      versionIndex: 0,
       clearPlayUrl: true,
     );
+    unawaited(_loadVersions(brief));
+    await _loadDetailAndPlay(brief);
+  }
+
+  /// 拉同曲多版本；把当前 brief 对齐到列表下标。
+  Future<void> _loadVersions(MvBrief brief) async {
+    final mixSongId = brief.mixSongId.trim();
+    if (mixSongId.isEmpty) return;
+    final registry = requireMusicSourceRegistry;
+    final search = registry.capability<MvSearchSource>(brief.platform);
+    if (search == null) return;
+    try {
+      final list = await search.songMvs(
+        Track(
+          id: mixSongId,
+          name: brief.name,
+          artist: brief.artist,
+          album: '',
+          coverUrl: brief.coverUrl,
+          durationMs: brief.durationMs,
+          mixSongId: mixSongId,
+          platform: brief.platform,
+        ),
+      );
+      if (list.isEmpty) return;
+      // 若主流程已换歌，丢弃本次结果。
+      final current = state.brief;
+      if (current == null ||
+          (current.id != brief.id && current.hash != brief.hash)) {
+        return;
+      }
+      var idx = list.indexWhere((v) =>
+          (brief.id.isNotEmpty && v.id == brief.id) ||
+          (brief.hash.isNotEmpty && v.hash == brief.hash));
+      if (idx < 0) idx = 0;
+      state = state.copyWith(versions: list, versionIndex: idx);
+    } catch (_) {
+      // 多版本是增强能力，失败静默。
+    }
+  }
+
+  /// 详情 + 默认片源取流。不清 versions。
+  Future<void> _loadDetailAndPlay(MvBrief brief) async {
     final registry = requireMusicSourceRegistry;
     final src = registry.capability<MvDetailSource>(brief.platform);
     if (src == null) {
@@ -81,8 +146,7 @@ class MvPlayerController extends Notifier<MvPlayerState> {
     }
     try {
       final detail = await src.fetchMvDetail(brief);
-      final effective = detail ??
-          MvDetail(brief: brief, sources: const []);
+      final effective = detail ?? MvDetail(brief: brief, sources: const []);
       final source = effective.defaultSource ??
           (brief.hash.isNotEmpty
               ? MvPlaySource(hash: brief.hash, label: '默认')
@@ -111,6 +175,22 @@ class MvPlayerController extends Notifier<MvPlayerState> {
         error: e.toString().split('\n').first,
       );
     }
+  }
+
+  /// 切到同曲的另一版本（官方 / 现场 / 饭制…）。
+  Future<void> selectVersion(int index) async {
+    final versions = state.versions;
+    if (index < 0 || index >= versions.length) return;
+    if (index == state.versionIndex && state.canPlay) return;
+    final next = versions[index];
+    state = state.copyWith(
+      status: MvLoadStatus.loading,
+      brief: next,
+      versionIndex: index,
+      error: '',
+      clearPlayUrl: true,
+    );
+    await _loadDetailAndPlay(next);
   }
 
   /// 切换清晰度 / 编码档位。

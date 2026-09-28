@@ -9,13 +9,15 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugo_crypto.dart';
 import '../../core/api/kugou/kugo_sign.dart';
-import '../../core/api/mappers.dart' show normalizeCoverUrl, formatCount;
+import '../../core/api/mappers.dart' show formatCount, mvCoverUrl;
 import '../../core/models/mv_models.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
@@ -118,6 +120,51 @@ class MvRepository {
     final total = (body['data'] is Map)
         ? ((body['data'] as Map)['total'] as num?)?.toInt()
         : null;
+    return SearchPageResult(items: items, total: total);
+  }
+
+  // ── 歌手 MV ───────────────────────────────────────────────────
+
+  /// `GET /kmr/v1/author/videos`（openapicdn，android 签名）。
+  ///
+  /// [tag]：`''` 全部 / `18` 官方 / `20` 现场 / `23` 饭制 / `42419` 歌手发布。
+  Future<SearchPageResult<MvBrief>> fetchArtistMvs(
+    String authorId, {
+    int page = 1,
+    int pageSize = 30,
+    String tag = '',
+  }) async {
+    final id = authorId.trim();
+    if (id.isEmpty) return const SearchPageResult(items: [], total: 0);
+    final query = await _defaultQuery()
+      ..addAll({
+        'author_id': id,
+        'is_fanmade': '',
+        'tag_idx': tag,
+        'page': page,
+        'pagesize': pageSize,
+      });
+    query['signature'] = KugoSign.signatureAndroidParams(query);
+
+    final body = await _signedGet(
+      KugoEndpoints.artistVideos,
+      query: query,
+      baseUrl: KugoEndpoints.openApiCdn,
+    );
+    final data = body['data'];
+    List rows = const [];
+    int? total;
+    if (data is Map) {
+      rows = (data['info'] as List? ?? data['lists'] as List? ?? const []);
+      total = int.tryParse('${data['total'] ?? data['count'] ?? ''}');
+    } else if (data is List) {
+      rows = data;
+    }
+    final items = rows
+        .whereType<Map>()
+        .map((e) => _mapKmrItem(Map<String, dynamic>.from(e)))
+        .where((m) => m.hash.isNotEmpty || m.id.isNotEmpty || m.name.isNotEmpty)
+        .toList();
     return SearchPageResult(items: items, total: total);
   }
 
@@ -251,6 +298,154 @@ class MvRepository {
     );
   }
 
+  // ── 收藏 ──────────────────────────────────────────────────────
+
+  /// 收藏 / 取消收藏 MV。对齐 KuGouMusicApi `mv_collect.js` / `mv_collect_del.js`。
+  ///
+  /// [videoId] 必须是 **数字 video_id**（[normalizeMvCollectId]），不是 hash。
+  Future<void> setMvCollected(String videoId, {required bool collected}) async {
+    final id = normalizeMvCollectId(videoId);
+    if (id.isEmpty) {
+      throw const NotFound('无效的 MV ID');
+    }
+    final auth = AuthTokenHolder.instance;
+    if (!auth.hasToken) {
+      throw const LoginRequired('请先登录');
+    }
+    final device = await DeviceIdentity.ensure();
+    final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final uid = int.tryParse(auth.userId) ?? 0;
+    final aes = KugoCrypto.playlistAesEncrypt(
+      jsonEncode({
+        'ctype': 2,
+        'data': [
+          {'obj_id': int.tryParse(id) ?? id},
+        ],
+      }),
+    );
+    final p = KugoCrypto
+        .rsaEncryptPkcs1(jsonEncode({'aes': aes.key, 'uid': uid, 'token': auth.token}))
+        .toUpperCase();
+
+    final query = <String, dynamic>{
+      'clienttime': clienttime,
+      'mid': device.mid,
+      'key': KugoSign.signParamsKey('$clienttime'),
+      'dfid': device.dfid,
+      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugoSign.appId),
+      'p': p,
+    };
+
+    try {
+      final res = await _dio.post<List<int>>(
+        '${KugoEndpoints.collectService}'
+        '${collected ? KugoEndpoints.mvCollect : KugoEndpoints.mvCollectDel}',
+        queryParameters: query,
+        data: Uint8List.fromList(base64.decode(aes.str)),
+        options: Options(
+          headers: {
+            'User-Agent': KugoSign.userAgent,
+            'KG-THash': '${DateTime.now().millisecondsSinceEpoch & 0xfffffff}',
+            'Content-Type': 'application/json',
+            'Cookie': [
+              'token=${auth.token}',
+              'userid=${auth.userId}',
+              if (auth.t1.isNotEmpty) 't1=${auth.t1}',
+              'dfid=${device.dfid}',
+              'KUGOU_API_MID=${device.mid}',
+              'KUGOU_API_GUID=${device.guid}',
+            ].join(';'),
+          },
+          responseType: ResponseType.bytes,
+          validateStatus: (c) => c != null && c >= 200 && c < 500,
+        ),
+      );
+      final body = _decodeCollectResponse(res.data, aes.key);
+      _assertCollectOk(body);
+    } on SourceFailure {
+      rethrow;
+    } on DioException catch (e) {
+      throw NetworkFailure(e.message ?? '网络错误');
+    }
+  }
+
+  /// 拉取已收藏的 MV video_id 集合（分页扫完）。
+  ///
+  /// 对齐 KuGouMusicApi `user_video_collect.js` →
+  /// `POST /collectservice/v2/collect_list_mixvideo`。
+  Future<Set<String>> fetchCollectedMvIds({
+    int pageSize = 30,
+  }) async {
+    final auth = AuthTokenHolder.instance;
+    if (!auth.hasToken) {
+      throw const LoginRequired('请先登录');
+    }
+    final ids = <String>{};
+    for (var page = 1; page <= 50; page++) {
+      final body = <String, dynamic>{
+        'userid': auth.userId,
+        'token': auth.token,
+        'page': page,
+        'pagesize': pageSize,
+      };
+      final bodyJson = jsonEncode(body);
+      final query = await _defaultQuery()
+        ..addAll({'plat': 1});
+      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+
+      final res = await _signedPost(
+        KugoEndpoints.userVideoCollect,
+        query: query,
+        body: body,
+        baseUrl: KugoEndpoints.gateway,
+      );
+      final data = res['data'];
+      final info = (data is Map)
+          ? (data['info'] as List? ?? const [])
+          : (res['info'] as List? ?? const []);
+      if (info.isEmpty) break;
+      var before = ids.length;
+      for (final item in info) {
+        if (item is! Map) continue;
+        final id = normalizeMvCollectId(item['video_id'] ?? item['id']);
+        if (id.isNotEmpty) ids.add(id);
+      }
+      final total = (data is Map)
+          ? int.tryParse('${data['ctotal'] ?? data['total'] ?? ''}')
+          : null;
+      if (total != null && total >= 0 && ids.length >= total) break;
+      if (ids.length == before && info.length < pageSize) break;
+      if (info.length < pageSize) break;
+    }
+    return ids;
+  }
+
+  Map<String, dynamic> _decodeCollectResponse(List<int>? bytes, String key) {
+    if (bytes == null || bytes.isEmpty) return const {};
+    final raw = utf8.decode(bytes, allowMalformed: true);
+    final decrypted = KugoCrypto.playlistAesDecrypt(base64.encode(bytes), key);
+    for (final candidate in [decrypted, raw]) {
+      if (candidate == null || candidate.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(candidate);
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+    return const {};
+  }
+
+  void _assertCollectOk(Map<String, dynamic> body) {
+    final status = body['status'];
+    final code = int.tryParse(
+      '${body['error_code'] ?? body['err_code'] ?? body['errcode'] ?? ''}',
+    );
+    final ok = status == 1 || status == '1' || status == true;
+    if (ok && (code == null || code == 0)) return;
+    final msg = '${body['msg'] ?? body['message'] ?? ''}';
+    throw UpstreamChanged(msg.isNotEmpty ? msg : 'MV 收藏操作失败');
+  }
+
   // ── mapper ────────────────────────────────────────────────────
 
   MvBrief _mapSimpleSearchItem(Map<String, dynamic> m) {
@@ -262,7 +457,8 @@ class MvRepository {
       id: '',
       hash: hash,
       name: name,
-      coverUrl: normalizeCoverUrl(picRaw.isEmpty ? hash : picRaw),
+      // 空就空：不要用 hash 兜底进 soft/collection（会全变成 default.jpg）。
+      coverUrl: mvCoverUrl(picRaw),
       artist: '${m['singername'] ?? ''}',
       durationMs: durationSec * 1000,
       publishDate: '${m['publishdate'] ?? ''}',
@@ -286,7 +482,7 @@ class MvRepository {
       id: id,
       hash: hash,
       name: '${m['MvName'] ?? m['FileName'] ?? ''}',
-      coverUrl: normalizeCoverUrl(picRaw.isEmpty ? hash : picRaw),
+      coverUrl: mvCoverUrl(picRaw),
       artist: singers.isEmpty ? '${m['SingerName'] ?? ''}' : singers.join(' / '),
       artistId: singerId,
       durationMs: durationSec * 1000,
@@ -317,7 +513,7 @@ class MvRepository {
       id: '${m['video_id'] ?? m['id'] ?? ''}',
       hash: hash,
       name: '${m['video_name'] ?? m['name'] ?? ''}',
-      coverUrl: normalizeCoverUrl(thumbRaw.isEmpty ? hash : thumbRaw),
+      coverUrl: mvCoverUrl(thumbRaw),
       artist: authors.isEmpty ? '${m['user_name'] ?? ''}' : authors.join(' / '),
       durationMs: durationMs,
       publishDate: '${m['publish_date'] ?? ''}',
@@ -329,14 +525,23 @@ class MvRepository {
   MvDetail _mapDetail(Map<String, dynamic> m, MvBrief brief) {
     final sources = _extractSources(m);
     sources.sort((a, b) => b.isClearerThan(a) ? 1 : (a.isClearerThan(b) ? -1 : 0));
-    final playTimes = int.tryParse('${m['play_times'] ?? m['playTimes'] ?? 0}') ?? 0;
+    final playTimes = int.tryParse('${m['play_times'] ?? m['playTimes'] ?? m['hit'] ?? 0}') ?? 0;
     final downloads = int.tryParse('${m['download_total'] ?? 0}') ?? 0;
+    final collections = int.tryParse('${m['collection_total'] ?? 0}') ?? 0;
     final authors = <String>[
       if ('${m['author_name'] ?? ''}'.isNotEmpty) '${m['author_name']}',
       ...brief.artist.split(' / ').where((s) => s.isNotEmpty),
     ];
     final name = '${m['video_name'] ?? brief.name}';
-    final coverRaw = '${m['hdpic'] ?? m['thumb'] ?? brief.coverUrl}';
+    final coverRaw = '${m['hdpic'] ?? m['thumb'] ?? ''}';
+    final cover = coverRaw.trim().isNotEmpty
+        ? mvCoverUrl(coverRaw)
+        : brief.coverUrl; // 已是 mv 归一化后的 URL，别再包一层
+    // duration 可能是秒或毫秒：>10000 视作毫秒。
+    final durationRaw = int.tryParse('${m['duration'] ?? m['timelength'] ?? 0}') ?? 0;
+    final durationMs = durationRaw > 10000 ? durationRaw : durationRaw * 1000;
+    final publish = '${m['publish_time'] ?? m['publish_date'] ?? brief.publishDate}';
+    final description = '${m['desc'] ?? m['topic'] ?? m['remark'] ?? m['intro'] ?? ''}';
     return MvDetail(
       brief: MvBrief(
         id: brief.id.isEmpty ? '${m['video_id'] ?? ''}' : brief.id,
@@ -344,19 +549,20 @@ class MvRepository {
             ? ('${m['sd_hash'] ?? m['hash'] ?? ''}').toLowerCase()
             : brief.hash,
         name: name,
-        coverUrl: normalizeCoverUrl(coverRaw),
+        coverUrl: cover,
         artist: authors.isNotEmpty ? authors.first : brief.artist,
         artistId: brief.artistId,
-        durationMs: brief.durationMs,
-        publishDate: '${m['publish_date'] ?? brief.publishDate}',
+        durationMs: durationMs > 0 ? durationMs : brief.durationMs,
+        publishDate: publish,
         qualityMark: brief.qualityMark,
-        mixSongId: '${m['audio_id'] ?? brief.mixSongId}',
+        mixSongId: '${m['album_audio_id'] ?? m['audio_id'] ?? brief.mixSongId}',
         audioHash: '${m['audio_hash'] ?? ''}'.toLowerCase(),
       ),
       sources: sources,
-      description: '${m['topic'] ?? m['remark'] ?? m['intro'] ?? ''}',
+      description: description,
       playCountLabel: playTimes > 0 ? formatCount(playTimes) : '',
       downloadCountLabel: downloads > 0 ? formatCount(downloads) : '',
+      collectionCountLabel: collections > 0 ? formatCount(collections) : '',
       authors: authors.toSet().toList(),
     );
   }

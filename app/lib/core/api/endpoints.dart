@@ -51,6 +51,15 @@ abstract final class KugoEndpoints {
   static const openApiCdn = 'https://openapicdn.kugou.com';
   static const artistVideos = '/kmr/v1/author/videos';
 
+  /// MV 收藏（KuGouMusicApi `mv_collect.js` / `mv_collect_del.js` /
+  /// `user_video_collect.js`）。ctype=2；obj_id = **video_id**（数字）。
+  static const collectService = 'https://collectservice.kugou.com';
+  static const mvCollect = '/v1/collect';
+  static const mvCollectDel = '/v1/cancel_collect';
+
+  /// 已收藏 MV 列表。POST gateway + path（encryptType=android）。
+  static const userVideoCollect = '/collectservice/v2/collect_list_mixvideo';
+
   /// Playlist info + tracks (no auth, public lists).
   ///
   /// Network note (2026-09): `playlist/info` and `playlist/songs` return

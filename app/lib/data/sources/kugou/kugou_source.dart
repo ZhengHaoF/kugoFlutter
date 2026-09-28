@@ -55,7 +55,8 @@ class KugouSource
         ResourceCommentSource,
         ResourceCommentWriteSource,
         MvSearchSource,
-        MvDetailSource {
+        MvDetailSource,
+        MvCollectSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -344,13 +345,45 @@ class KugouSource
   }
 
   @override
+  Future<SearchPageResult<MvBrief>> fetchArtistMvs(
+    String authorId, {
+    int page = 1,
+    int pageSize = 30,
+    String tag = '',
+  }) {
+    return _mv.fetchArtistMvs(
+      authorId,
+      page: page,
+      pageSize: pageSize,
+      tag: tag,
+    );
+  }
+
+  @override
   Future<MvDetail?> fetchMvDetail(MvBrief brief) {
     return _mv.fetchMvDetail(brief);
   }
 
   @override
-  Future<MvPlayUrlResult> resolveMvPlayUrl(String hash) {
-    return _mv.resolveMvPlayUrl(hash);
+  Future<MvPlayUrlResult> resolveMvPlayUrl(String hash) async {
+    final resolved = await _mv.resolveMvPlayUrl(hash);
+    // 与音频同源防盗链头；trackermv 校验 UA/Referer 时缺头会黑屏或 403。
+    return MvPlayUrlResult(
+      url: resolved.url,
+      backupUrls: resolved.backupUrls,
+      headers: playbackHeaders,
+      filesize: resolved.filesize,
+    );
+  }
+
+  @override
+  Future<void> setMvCollected(String videoId, {required bool collected}) {
+    return _mv.setMvCollected(videoId, collected: collected);
+  }
+
+  @override
+  Future<Set<String>> fetchCollectedMvIds() {
+    return _mv.fetchCollectedMvIds();
   }
 
   // ── 评论（Track → 酷狗 id 的翻译都在这里，UI 不参与） ──────

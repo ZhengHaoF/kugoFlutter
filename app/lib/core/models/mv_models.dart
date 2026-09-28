@@ -6,6 +6,23 @@ library;
 
 import '../source/music_platform.dart';
 
+/// MV 收藏 ID 归一化。
+///
+/// 播放 hash、歌曲 album_audio_id **不能**当收藏 ID；只接受正整数 video_id
+/// （对齐 EchoMusic `normalizeVideoId`）。非法返回空串。
+///
+/// 上限取 JS `Number.MAX_SAFE_INTEGER`（2^53-1）：上游 id 体系按 JS 数字
+/// 处理，超界值在服务端会丢精度，必须拒绝。
+String normalizeMvCollectId(Object? value) {
+  final text = '$value'.trim();
+  if (text.isEmpty) return '';
+  if (!RegExp(r'^\d+$').hasMatch(text)) return '';
+  final id = int.tryParse(text);
+  if (id == null || id <= 0) return '';
+  if (id > 0x1FFFFFFFFFFFFF) return ''; // 2^53-1
+  return '$id';
+}
+
 /// MV 列表/搜索摘要。
 class MvBrief {
   const MvBrief({
@@ -94,6 +111,7 @@ class MvDetail {
     this.description = '',
     this.playCountLabel = '',
     this.downloadCountLabel = '',
+    this.collectionCountLabel = '',
     this.authors = const [],
   });
 
@@ -105,6 +123,7 @@ class MvDetail {
   final String description;
   final String playCountLabel;
   final String downloadCountLabel;
+  final String collectionCountLabel;
 
   /// 作者/歌手名列表（展示用）。
   final List<String> authors;

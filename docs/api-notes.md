@@ -222,3 +222,19 @@ dart run tool/probe_mv.dart
 3. 自建歌单写入接口调研（若做 CRUD）
 4. 歌词优先拉 `fmt=krc`（逐字），失败回落 `fmt=lrc`
 5. MV 落地：按上文端点写 `MvSource` capability + 播放页（取流已通）
+
+---
+
+## MV 收藏（2026-09-28 接入）
+
+对齐 KuGouMusicApi `mv_collect.js` / `mv_collect_del.js` / `user_video_collect.js`。
+
+| 能力 | 方法 | 路径 | Host | 鉴权 |
+| --- | --- | --- | --- | --- |
+| 收藏 | POST | `/v1/collect` | `collectservice.kugou.com` | body AES(`{ctype:2,data:[{obj_id}]}`) + `p=rsa(aes key,uid,token)`；**notSignature** |
+| 取消收藏 | POST | `/v1/cancel_collect` | 同上 | 同上 |
+| 已收藏列表 | POST | `/collectservice/v2/collect_list_mixvideo` | gateway | android 签名；body `{userid,token,page,pagesize}` |
+
+- **obj_id = 数字 `video_id`**（`normalizeMvCollectId`），不是播放 hash / MixSongID / album_audio_id
+- 上限 `Number.MAX_SAFE_INTEGER`（2^53-1），超界拒绝（上游 JS 丢精度）
+- 响应用同一 `playlistAesEncrypt` 的 key 解密；解不出时回落明文 JSON

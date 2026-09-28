@@ -606,6 +606,14 @@ abstract interface class MvSearchSource {
   ///
   /// 返回空列表 = 该曲无 MV（正常结果，UI 出空态）。
   Future<List<MvBrief>> songMvs(Track track);
+
+  /// 歌手 MV 列表。[tag] 见实现注释（`''` 全部 / `18` 官方…）。
+  Future<SearchPageResult<MvBrief>> fetchArtistMvs(
+    String authorId, {
+    int page = 1,
+    int pageSize = 30,
+    String tag = '',
+  });
 }
 
 /// MV 详情 + 取流。UI 只认 [MvDetail] / [MvPlayUrlResult]。
@@ -619,4 +627,10 @@ abstract interface class MvDetailSource {
   ///
   /// [hash] 传 [MvDetail.defaultSource] 或用户选中的那档；不要传歌曲 `mvhash`。
   Future<MvPlayUrlResult> resolveMvPlayUrl(String hash);
+}
+
+/// MV 收藏（登录态）。id 必须是数字 video_id（[normalizeMvCollectId]）。
+abstract interface class MvCollectSource {
+  Future<void> setMvCollected(String videoId, {required bool collected});
+  Future<Set<String>> fetchCollectedMvIds();
 }
