@@ -13,6 +13,23 @@ import 'track.dart';
 
 export 'track.dart' show PlaylistBrief;
 
+/// The search tabs (song / playlist / album / artist / mv).
+enum SearchType {
+  song,
+  playlist,
+  album,
+  artist,
+  mv;
+
+  String get label => switch (this) {
+        SearchType.song => '歌曲',
+        SearchType.playlist => '歌单',
+        SearchType.album => '专辑',
+        SearchType.artist => '歌手',
+        SearchType.mv => 'MV',
+      };
+}
+
 /// One page of results for a single search tab.
 class SearchPageResult<T> {
   const SearchPageResult({

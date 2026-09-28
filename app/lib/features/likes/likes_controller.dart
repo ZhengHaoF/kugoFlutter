@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
-import '../../data/repositories/user_repository.dart';
-import '../auth/auth_controller.dart';
-import '../profile/user_collections_controller.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/registry.dart';
 
+/// 本地红心缓存（离线可用）。云端同步一律经 [UserLikedWriteSource]。
 class LikesNotifier extends Notifier<List<Track>> {
   static const _kKey = 'likes.v1';
   SharedPreferences? _prefs;
@@ -44,13 +44,10 @@ class LikesNotifier extends Notifier<List<Track>> {
 
   Future<void> like(Track track) async {
     await likeLocal(track);
-    await _syncAddToCloud(track);
+    await _syncCloud(track, liked: true);
   }
 
-  /// 只写本地「我喜欢」，不碰云端曲库。
-  ///
-  /// 曲库写口未接的源（网易）走这里：收藏只在本地生效，避免把别源曲目
-  /// 写进酷狗歌单。
+  /// 只写本地「我喜欢」，不碰云端曲库（无登录 / 无写能力时用）。
   Future<void> likeLocal(Track track) async {
     if (isLiked(track.id)) return;
     state = [track, ...state];
@@ -62,15 +59,15 @@ class LikesNotifier extends Notifier<List<Track>> {
     state = state.where((t) => t.id != id).toList();
     await _persist();
     if (track != null) {
-      await _syncRemoveFromCloud(track);
+      await _syncCloud(track, liked: false);
     }
   }
 
-  /// Removes by track so cloud fileid is available even when only cloud has it.
+  /// Removes by track so cloud identity is available even when only cloud has it.
   Future<void> removeTrack(Track track) async {
     state = state.where((t) => t.id != track.id).toList();
     await _persist();
-    await _syncRemoveFromCloud(track);
+    await _syncCloud(track, liked: false);
   }
 
   /// Merges cloud favorite tracks into the local heart set (offline cache).
@@ -83,42 +80,17 @@ class LikesNotifier extends Notifier<List<Track>> {
     unawaited(_persist());
   }
 
-  ({String listId, String userId, String token})? _cloudContext() {
-    final auth = ref.read(authControllerProvider);
-    final user = auth.user;
-    if (!auth.isLogged || user == null) return null;
-    final liked = ref.read(userCollectionsProvider).defaultLikedPlaylist;
-    if (liked == null) return null;
-    final listId = liked.listId.isNotEmpty ? liked.listId : liked.id;
-    if (listId.isEmpty) return null;
-    return (listId: listId, userId: user.userId, token: user.token);
-  }
-
-  Future<void> _syncAddToCloud(Track track) async {
-    final ctx = _cloudContext();
-    if (ctx == null) return;
-    await userRepository.addPlaylistTrack(
-      listId: ctx.listId,
-      userId: ctx.userId,
-      token: ctx.token,
-      name: track.name,
-      hash: track.hash,
-      albumId: track.albumId,
-      mixSongId: track.mixSongId,
-    );
-  }
-
-  Future<void> _syncRemoveFromCloud(Track track) async {
-    final ctx = _cloudContext();
-    if (ctx == null) return;
-    final fileId = track.mixSongId.isNotEmpty ? track.mixSongId : track.id;
-    if (fileId.isEmpty) return;
-    await userRepository.deletePlaylistTracks(
-      listId: ctx.listId,
-      userId: ctx.userId,
-      token: ctx.token,
-      fileIds: [fileId],
-    );
+  /// 云端红心：按 `track.platform` 取 [UserLikedWriteSource]。
+  /// 未登录 / 无写能力时静默跳过（本地红心仍生效）。
+  Future<void> _syncCloud(Track track, {required bool liked}) async {
+    final src = musicSourceRegistry
+        ?.capability<UserLikedWriteSource>(track.platform);
+    if (src == null || !src.isLoggedIn) return;
+    try {
+      await src.setTrackLiked(track, liked: liked);
+    } catch (_) {
+      // 写失败不回滚本地红心：离线/风控时保底可听可标。
+    }
   }
 
   Future<void> _persist() async {

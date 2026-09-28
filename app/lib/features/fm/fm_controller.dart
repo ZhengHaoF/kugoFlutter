@@ -509,15 +509,9 @@ class FmController extends Notifier<FmSession> {
   Future<void> like() async {
     final track = ref.read(playerControllerProvider).current;
     if (track == null) return;
-    // 喜欢不打断收听：只是收藏，红心由调用方给反馈。
-    final likes = ref.read(likesProvider.notifier);
-    // 网易曲库写口未接（F4 未实测）：只在本地「我喜欢」生效，
-    // 绝不把网易曲目写进酷狗歌单（那会污染曲库）。
-    if (_sessionSource == MusicPlatform.kugou) {
-      await likes.like(track);
-    } else {
-      await likes.likeLocal(track);
-    }
+    // 喜欢不打断收听：本地红心 + 按 track.platform 同步云端
+    // （[UserLikedWriteSource]；无写能力/未登录时只落本地）。
+    await ref.read(likesProvider.notifier).like(track);
   }
 
   // ------------------------------------------------------------------ 取歌/续流

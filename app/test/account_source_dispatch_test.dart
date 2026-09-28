@@ -311,19 +311,27 @@ void main() {
       required String defaultSource,
       FakeUserPlaylistReadSource? playlists,
       FakeDeviceLoginSource? login,
+      UserPlaylistsPage? libraryPage,
     }) {
       SharedPreferences.setMockInitialValues({
         'settings.enabledSources': enabledSources,
         'settings.defaultSource': defaultSource,
       });
-      musicSourceRegistry = MusicSourceRegistry([
-        FakeMusicSource(platform: MusicPlatform.kugou),
-        FakeMusicSource(platform: MusicPlatform.netease),
-      ]);
+      final kugou = FakeMusicSource(platform: MusicPlatform.kugou);
+      final netease = FakeMusicSource(platform: MusicPlatform.netease)
+        ..libraryPage = libraryPage ??
+            (playlists != null
+                ? UserPlaylistsPage(
+                    created: playlists.page.created,
+                    collected: playlists.page.collected,
+                  )
+                : const UserPlaylistsPage());
+      if (playlists?.error != null) {
+        netease.libraryError = playlists!.error;
+      }
+      musicSourceRegistry = MusicSourceRegistry([kugou, netease]);
       final container = ProviderContainer(
         overrides: [
-          neteaseCollectionsSourceProvider
-              .overrideWithValue(playlists ?? FakeUserPlaylistReadSource()),
           neteaseLoginSourceProvider
               .overrideWithValue(login ?? FakeDeviceLoginSource()),
         ],
@@ -439,6 +447,7 @@ void main() {
         enabledSources: ['kugou', 'netease'],
         defaultSource: 'netease',
         playlists: playlists,
+        libraryPage: playlists.page,
         login: login,
       );
 

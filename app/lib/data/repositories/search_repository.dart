@@ -7,26 +7,7 @@ import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
 
 export '../../core/models/search_result.dart'
-    show AlbumBrief, ArtistBrief, SearchPageResult;
-
-/// The four search tabs. Each maps to its own kugou endpoint — these are
-/// *not* one endpoint behind a `type` parameter (verified against the live
-/// API: `showtype` is a correction toggle, not a type switch).
-enum SearchType {
-  song,
-  playlist,
-  album,
-  artist,
-  mv;
-
-  String get label => switch (this) {
-        SearchType.song => '歌曲',
-        SearchType.playlist => '歌单',
-        SearchType.album => '专辑',
-        SearchType.artist => '歌手',
-        SearchType.mv => 'MV',
-      };
-}
+    show AlbumBrief, ArtistBrief, SearchPageResult, SearchType;
 
 class SearchRepository {
   SearchRepository({KugoClient? client}) : _client = client ?? kugoClient;

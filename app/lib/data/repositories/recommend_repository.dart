@@ -8,52 +8,16 @@ import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/daily_recommend.dart';
+import '../../core/models/style_recommend.dart';
 import '../../core/models/track.dart';
 import '../../data/storage/device_identity.dart';
 import '../../features/auth/auth_token_holder.dart';
 import 'playlist_repository.dart';
 import 'search_repository.dart';
 
-// 兼容旧引用：模型已上移 core/models（capabilities 契约需要引用它）。
+// 兼容旧引用：模型已上移 core（capabilities 契约需要引用它）。
 export '../../core/models/daily_recommend.dart';
-
-/// One style tag under a group tab (EchoMusic `tag_info[].child[]`).
-class StyleTag {
-  const StyleTag({
-    required this.id,
-    required this.name,
-    this.isDefault = false,
-  });
-
-  final String id;
-  final String name;
-  final bool isDefault;
-}
-
-/// Style recommend tag group (EchoMusic `tag_info[]`).
-class StyleTagGroup {
-  const StyleTagGroup({required this.name, required this.child});
-
-  final String name;
-  final List<StyleTag> child;
-}
-
-/// Style-recommend section payload for the hub page.
-class StyleRecommendResult {
-  const StyleRecommendResult({
-    this.tracks = const [],
-    this.groups = const [],
-    this.error = '',
-    this.needLogin = false,
-  });
-
-  final List<Track> tracks;
-  final List<StyleTagGroup> groups;
-  final String error;
-  final bool needLogin;
-
-  bool get isEmpty => tracks.isEmpty && groups.isEmpty;
-}
+export '../../core/models/style_recommend.dart';
 
 /// Playlist section result used by the recommend hub.
 class RecommendPlaylistsSection {

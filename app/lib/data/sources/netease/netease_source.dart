@@ -31,6 +31,7 @@ class NeteaseSource
         AlbumDetailSource,
         ArtistDetailSource,
         UserPlaylistWriteSource,
+        UserLikedWriteSource,
         UserPlaylistReadSource,
         UserLibrarySource,
         DeviceLoginSource,
@@ -543,6 +544,18 @@ class NeteaseSource
       );
     }
     return out;
+  }
+
+  // ── UserLikedWriteSource（F4，需登录） ────────────────────
+
+  @override
+  Future<void> setTrackLiked(Track track, {required bool liked}) async {
+    final songId = _songId(track);
+    if (songId <= 0) throw const NotFound('曲目 id 无效');
+    throwIfNeteaseWriteFailed(
+      await _client.likeSongRaw(songId, like: liked),
+      liked ? '红心' : '取消红心',
+    );
   }
 
   // ── DeviceLoginSource（E2/E3 扫码登录） ───────────────────

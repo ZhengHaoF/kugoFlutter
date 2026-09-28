@@ -110,8 +110,10 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   bool _mvOpening = false;
 
   bool get _canShowMv {
-    if (widget.platform != MusicPlatform.kugou) return false;
-    if (widget.mixSongId.trim().isEmpty) return false;
+    // 只认能力：有 [MvSearchSource] 且歌曲带可寻址 id 即可，不写死平台。
+    if (widget.mixSongId.trim().isEmpty && widget.id.trim().isEmpty) {
+      return false;
+    }
     return requireMusicSourceRegistry.capability<MvSearchSource>(widget.platform) !=
         null;
   }

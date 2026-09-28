@@ -5,6 +5,7 @@ import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/fm_mode.dart';
 import '../../../core/models/mv_models.dart';
 import '../../../core/models/search_result.dart';
+import '../../../core/models/style_recommend.dart';
 import '../../../core/models/track.dart';
 import '../../../core/source/capabilities.dart';
 import '../../../core/source/music_platform.dart';
@@ -32,6 +33,9 @@ class KugouSource
         PersonalFmSource,
         HeartRadioSource,
         UserPlaylistWriteSource,
+        UserLibrarySource,
+        UserLikedWriteSource,
+        UserPlaylistReadSource,
         QualityCatalogSource,
         DailyRecommendSource,
         RankSource,
@@ -40,6 +44,7 @@ class KugouSource
         NewAlbumFeedSource,
         ArtistListSource,
         RecommendFeedSource,
+        StyleStreamSource,
         SearchHotSource,
         PlaylistDetailSource,
         AlbumDetailSource,
@@ -917,6 +922,15 @@ class KugouSource
     return result.playlists;
   }
 
+  /// 复用 `everyday_style_recommend`（风格歌曲流）。
+  @override
+  Future<StyleRecommendResult> fetchStyleRecommend({
+    String tagIds = '',
+    int limit = 30,
+  }) {
+    return _rec.fetchStyleRecommend(tagids: tagIds, limit: limit);
+  }
+
   @override
   Future<List<String>> hotKeywords({int count = 20}) {
     return _search.hotKeywords(count: count);
@@ -1003,6 +1017,106 @@ class KugouSource
     );
     if (!result.ok) {
       throw mapKugouFailure(result.error);
+    }
+  }
+
+  // ── UserPlaylistReadSource / UserLibrarySource / UserLikedWriteSource ──
+
+  /// 用户资料库：歌单 + 收藏专辑 + 关注歌手一次给全。
+  @override
+  Future<UserPlaylistsPage> userPlaylists({
+    int offset = 0,
+    int limit = 1000,
+  }) async {
+    final session = kugouSession;
+    if (!session.hasToken) {
+      throw const LoginRequired('酷狗未登录，无法读取云端资料库');
+    }
+    final res = await _users.fetchUserPlaylists(
+      userId: session.userId,
+      token: session.token,
+    );
+    if (res.error.isNotEmpty) {
+      throw mapKugouFailure(res.error);
+    }
+    final follow = await _users.fetchUserFollow(
+      userId: session.userId,
+      token: session.token,
+    );
+    return UserPlaylistsPage(
+      created: res.created,
+      collected: res.collected,
+      favoritedAlbums: res.albums,
+      followedArtists: follow.singers,
+    );
+  }
+
+  /// 云端「我喜欢」：定位默认喜欢单后分页拉全量（单页上限约 300）。
+  @override
+  Future<List<Track>> likedTracks() async {
+    final session = kugouSession;
+    if (!session.hasToken) {
+      throw const LoginRequired('酷狗未登录，无法读取「我喜欢」');
+    }
+    final page = await userPlaylists();
+    final liked = page.likedPlaylist;
+    if (liked == null) {
+      throw const NotFound('未找到云端「我喜欢」歌单');
+    }
+    final listId = liked.listId.isNotEmpty ? liked.listId : liked.id;
+    if (listId.isEmpty) {
+      throw const NotFound('云端「我喜欢」歌单缺少 listId');
+    }
+    final all = <Track>[];
+    var pageNo = 1;
+    const pageSize = 300;
+    var total = 0;
+    while (pageNo <= 30) {
+      final res = await _users.fetchUserPlaylistTracks(
+        listId: listId,
+        userId: session.userId,
+        token: session.token,
+        type: 0,
+        page: pageNo,
+        pageSize: pageSize,
+      );
+      if (res.error.isNotEmpty) {
+        if (all.isEmpty) throw mapKugouFailure(res.error);
+        break;
+      }
+      all.addAll(res.tracks);
+      total = res.total > 0 ? res.total : all.length;
+      if (res.tracks.isEmpty ||
+          res.tracks.length < pageSize ||
+          all.length >= total) {
+        break;
+      }
+      pageNo++;
+    }
+    return all;
+  }
+
+  /// 红心写口：写进云端默认喜欢单（fileid = mixSongId）。
+  /// 登录态与 [CommentWriteSource.isLoggedIn] 共用同一实现。
+  @override
+  Future<void> setTrackLiked(Track track, {required bool liked}) async {
+    final session = kugouSession;
+    if (!session.hasToken) {
+      throw const LoginRequired('酷狗未登录，无法同步红心');
+    }
+    final page = await userPlaylists();
+    final target = page.likedPlaylist;
+    if (target == null) {
+      throw const NotFound('未找到云端「我喜欢」歌单');
+    }
+    final listId = target.listId.isNotEmpty ? target.listId : target.id;
+    if (listId.isEmpty) {
+      throw const NotFound('云端「我喜欢」歌单缺少 listId');
+    }
+    if (liked) {
+      await addPlaylistTracks(playlistId: listId, tracks: [track]);
+    } else {
+      await removePlaylistTracks(playlistId: listId, tracks: [track]);
     }
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/catalog_models.dart';
+import '../../core/models/style_recommend.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
@@ -12,7 +13,8 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
-import '../../data/repositories/recommend_repository.dart';
+import '../../data/repositories/recommend_repository.dart'
+    show RecommendRepository;
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -102,8 +104,9 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
     return available.contains(preferred) ? preferred : available.first;
   }
 
-  /// 「风格」是否退化为歌单形态：只有酷狗有风格歌曲流专属链路。
-  bool get _styleAsPlaylists => _source != MusicPlatform.kugou;
+  /// 「风格」是否退化为歌单形态：有 [StyleStreamSource] 走歌曲流，否则走风格歌单。
+  bool get _styleAsPlaylists =>
+      _capability<StyleStreamSource>(_source) == null;
 
   String _errorText(Object e, String fallback) =>
       e is SourceFailure && e.message.isNotEmpty ? e.message : fallback;
@@ -144,14 +147,15 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
   }
 
   Future<void> _loadKugouStyle({bool useSelectedTags = false}) async {
-    if (_source != MusicPlatform.kugou) return;
+    final styleSrc = _capability<StyleStreamSource>(_source);
+    if (styleSrc == null) return;
     final requestId = ++_styleRequestId;
     setState(() {
       _style = _Sec(loading: true);
     });
     final tagids =
         useSelectedTags ? _selectedTagIds.join(',') : '';
-    final result = await recommendRepository.fetchStyleRecommend(tagids: tagids);
+    final result = await styleSrc.fetchStyleRecommend(tagIds: tagids);
     if (!mounted || requestId != _styleRequestId) return;
     setState(() {
       _style = _Sec(
@@ -385,8 +389,8 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
       );
     }
 
-    // 只有酷狗有「风格歌曲流」；其余源这一块退化为「风格歌单」。
-    final styleAsPlaylists = active != MusicPlatform.kugou;
+    // 有「风格歌曲流」能力的源走歌曲流；其余退化为「风格歌单」。
+    final styleAsPlaylists = _capability<StyleStreamSource>(active) == null;
 
     return Scaffold(
       appBar: AppBar(

@@ -17,7 +17,10 @@ class FakeMusicSource
         QualityCatalogSource,
         PersonalFmSource,
         DailyRecommendSource,
-        SearchHotSource {
+        SearchHotSource,
+        UserPlaylistReadSource,
+        UserLibrarySource,
+        UserLikedWriteSource {
   FakeMusicSource({this.platform = MusicPlatform.kugou});
 
   @override
@@ -49,6 +52,38 @@ class FakeMusicSource
   DailyRecommendResult dailyResult = const DailyRecommendResult(tracks: []);
 
   int resolveCalls = 0;
+
+  // ── 用户资料库（[UserPlaylistReadSource] / [UserLibrarySource]） ──
+  UserPlaylistsPage libraryPage = const UserPlaylistsPage();
+  List<Track> liked = const [];
+  Object? libraryError;
+  bool loggedIn = true;
+  final List<({Track track, bool liked})> likedWrites = [];
+
+  @override
+  Future<UserPlaylistsPage> userPlaylists({
+    int offset = 0,
+    int limit = 1000,
+  }) async {
+    final e = libraryError;
+    if (e != null) throw e;
+    return libraryPage;
+  }
+
+  @override
+  Future<List<Track>> likedTracks() async {
+    final e = libraryError;
+    if (e != null) throw e;
+    return liked;
+  }
+
+  @override
+  bool get isLoggedIn => loggedIn;
+
+  @override
+  Future<void> setTrackLiked(Track track, {required bool liked}) async {
+    likedWrites.add((track: track, liked: liked));
+  }
 
   String keyOf(Track t) => t.identityKey;
 

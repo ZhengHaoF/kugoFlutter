@@ -10,7 +10,6 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../data/repositories/search_repository.dart';
 import '../settings/settings_controller.dart';
 
 /// Page size used by every tab; also the unit the sources paginate by.

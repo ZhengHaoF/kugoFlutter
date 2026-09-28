@@ -8,7 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/music_platform.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/core/theme/hero_tags.dart';
 import 'package:kugo/data/repositories/user_repository.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
@@ -17,10 +19,27 @@ import 'package:kugo/features/likes/likes_page.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/profile/profile_detail_page.dart';
 import 'package:kugo/features/profile/profile_page.dart';
-import 'package:kugo/features/profile/user_collections_controller.dart';
 import 'package:kugo/features/profile/user_profile_detail.dart';
 import 'package:kugo/features/settings/settings_controller.dart';
 import 'fakes/fake_audio_player.dart';
+import 'fakes/fake_music_source.dart';
+
+/// 往 registry 注入离线资料库数据（新链路：UI 只认 [UserPlaylistReadSource]）。
+void seedLibrary({
+  UserPlaylistsPage? kugouPage,
+  List<Track>? kugouLiked,
+  UserPlaylistsPage? neteasePage,
+  List<Track>? neteaseLiked,
+}) {
+  musicSourceRegistry = MusicSourceRegistry([
+    FakeMusicSource(platform: MusicPlatform.kugou)
+      ..libraryPage = kugouPage ?? const UserPlaylistsPage()
+      ..liked = kugouLiked ?? const [],
+    FakeMusicSource(platform: MusicPlatform.netease)
+      ..libraryPage = neteasePage ?? const UserPlaylistsPage()
+      ..liked = neteaseLiked ?? const [],
+  ]);
+}
 
 /// 固定 settings 的替身（照 lyrics_view_test 的做法），避免测试里碰 prefs。
 class _FixedSettings extends SettingsController {
@@ -192,25 +211,28 @@ void main() {
   group('ProfilePage User Playlists Tabs', () {
     testWidgets('shows playlists when logged in with collections', (tester) async {
       final engine = FakeAudioPlayer();
-      const seededState = UserCollectionsState(
-        createdPlaylists: [
-          PlaylistBrief(
-            id: 'p1',
-            name: '我的私人珍藏',
-            coverUrl: '',
-            trackCount: 22,
-          ),
-        ],
-        collectedPlaylists: [
-          PlaylistBrief(
-            id: 'p2',
-            name: '经典摇滚精选',
-            coverUrl: '',
-            creator: '摇滚迷',
-            trackCount: 50,
-          ),
-        ],
-        loaded: true,
+      seedLibrary(
+        kugouPage: UserPlaylistsPage(
+          created: [
+            PlaylistBrief(
+              id: 'p1',
+              name: '我的私人珍藏',
+              coverUrl: '',
+              trackCount: 22,
+              platform: MusicPlatform.kugou,
+            ),
+          ],
+          collected: [
+            PlaylistBrief(
+              id: 'p2',
+              name: '经典摇滚精选',
+              coverUrl: '',
+              creator: '摇滚迷',
+              trackCount: 50,
+              platform: MusicPlatform.kugou,
+            ),
+          ],
+        ),
       );
 
       final container = ProviderContainer(
@@ -221,9 +243,6 @@ void main() {
           authControllerProvider.overrideWith(
             () => _FakeAuthController(loggedInState),
           ),
-          userCollectionsProvider.overrideWith(() {
-            return UserCollectionsNotifier(initialState: seededState);
-          }),
         ],
       );
       addTearDown(container.dispose);
@@ -267,24 +286,27 @@ void main() {
 
     testWidgets('shows dedicated covers for 我喜欢 and 默认收藏', (tester) async {
       final engine = FakeAudioPlayer();
-      const seededState = UserCollectionsState(
-        createdPlaylists: [
-          PlaylistBrief(
-            id: '1',
-            name: '默认收藏',
-            coverUrl: '',
-            isDefault: true,
-            trackCount: 0,
-          ),
-          PlaylistBrief(
-            id: '2',
-            name: '我喜欢',
-            coverUrl: '',
-            isDefault: true,
-            trackCount: 969,
-          ),
-        ],
-        loaded: true,
+      seedLibrary(
+        kugouPage: UserPlaylistsPage(
+          created: [
+            PlaylistBrief(
+              id: '1',
+              name: '默认收藏',
+              coverUrl: '',
+              isDefault: true,
+              trackCount: 0,
+              platform: MusicPlatform.kugou,
+            ),
+            PlaylistBrief(
+              id: '2',
+              name: '我喜欢',
+              coverUrl: '',
+              isDefault: true,
+              trackCount: 969,
+              platform: MusicPlatform.kugou,
+            ),
+          ],
+        ),
       );
 
       final container = ProviderContainer(
@@ -295,9 +317,6 @@ void main() {
           authControllerProvider.overrideWith(
             () => _FakeAuthController(loggedInState),
           ),
-          userCollectionsProvider.overrideWith(() {
-            return UserCollectionsNotifier(initialState: seededState);
-          }),
         ],
       );
       addTearDown(container.dispose);
@@ -378,11 +397,6 @@ void main() {
               AuthState(status: LoginStatus.logged, user: richUser),
             ),
           ),
-          userCollectionsProvider.overrideWith(() {
-            return UserCollectionsNotifier(
-              initialState: const UserCollectionsState(loaded: true),
-            );
-          }),
         ],
       );
       addTearDown(container.dispose);
@@ -485,40 +499,52 @@ void main() {
         coverUrl: '',
         durationMs: 240000,
         hash: 'h_s1',
+        platform: MusicPlatform.kugou,
       );
-      const seededState = UserCollectionsState(
-        cloudFavoriteTracks: [likedTrack],
-        followedSingers: [
-          ArtistBrief(
-            id: 'a1',
-            name: '周杰伦',
-            sourceDesc: '华语流行天王',
-            songCount: 380,
-          ),
-          ArtistBrief(
-            id: 'a2',
-            name: '林俊杰',
-            sourceDesc: '金曲歌王',
-            songCount: 260,
-          ),
-        ],
-        favoritedAlbums: [
-          AlbumBrief(
-            id: 'alb1',
-            name: '范特西',
-            coverUrl: '',
-            artist: '周杰伦',
-            trackCount: 10,
-          ),
-          AlbumBrief(
-            id: 'alb2',
-            name: '江南',
-            coverUrl: '',
-            artist: '林俊杰',
-            trackCount: 12,
-          ),
-        ],
-        loaded: true,
+      seedLibrary(
+        kugouLiked: [likedTrack],
+        kugouPage: UserPlaylistsPage(
+          created: [
+            PlaylistBrief(
+              id: 'liked',
+              name: '我喜欢',
+              coverUrl: '',
+              isDefault: true,
+              trackCount: 1,
+              platform: MusicPlatform.kugou,
+            ),
+          ],
+          followedArtists: [
+            ArtistBrief(
+              id: 'a1',
+              name: '周杰伦',
+              sourceDesc: '华语流行天王',
+              songCount: 380,
+            ),
+            ArtistBrief(
+              id: 'a2',
+              name: '林俊杰',
+              sourceDesc: '金曲歌王',
+              songCount: 260,
+            ),
+          ],
+          favoritedAlbums: [
+            AlbumBrief(
+              id: 'alb1',
+              name: '范特西',
+              coverUrl: '',
+              artist: '周杰伦',
+              trackCount: 10,
+            ),
+            AlbumBrief(
+              id: 'alb2',
+              name: '江南',
+              coverUrl: '',
+              artist: '林俊杰',
+              trackCount: 12,
+            ),
+          ],
+        ),
       );
 
       final container = ProviderContainer(
@@ -529,9 +555,6 @@ void main() {
           authControllerProvider.overrideWith(
             () => _FakeAuthController(loggedInState),
           ),
-          userCollectionsProvider.overrideWith(() {
-            return UserCollectionsNotifier(initialState: seededState);
-          }),
         ],
       );
       addTearDown(container.dispose);
@@ -546,6 +569,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // 让 sourceLibrary 从 registry 拉完。
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
 
       // Tab 1: 歌曲 (1)
       expect(find.text('歌曲 (1)'), findsOneWidget);

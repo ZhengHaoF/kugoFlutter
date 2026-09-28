@@ -5,6 +5,7 @@ import '../models/daily_recommend.dart';
 import '../models/fm_mode.dart';
 import '../models/mv_models.dart';
 import '../models/search_result.dart';
+import '../models/style_recommend.dart';
 import '../models/track.dart';
 import 'music_source.dart';
 
@@ -129,6 +130,18 @@ abstract interface class RecommendFeedSource {
 
   /// 编辑精选（人工精选歌单）。
   Future<List<PlaylistBrief>> editorialPlaylists({int pageSize = 12});
+}
+
+/// 酷狗「风格推荐」歌曲流（`everyday_style_recommend`）。
+///
+/// 无此能力的源把「风格」退化为 [PlaylistCatalogSource] 风格歌单——
+/// UI 用 `capability<StyleStreamSource>()` 判形态，不写 `platform == kugou`。
+abstract interface class StyleStreamSource {
+  /// 风格标签 + 歌曲。[tagIds] 为各源原生标签 id 逗号串，空串 = 默认推荐。
+  Future<StyleRecommendResult> fetchStyleRecommend({
+    String tagIds = '',
+    int limit = 30,
+  });
 }
 
 /// 歌单详情（含榜单交叉 fallback；换榜列表走 [RankSource]）。
@@ -409,27 +422,40 @@ abstract interface class UserPlaylistWriteSource {
 
 /// 用户云端「我喜欢」（红心）曲库。
 ///
-/// 酷狗侧仍走既有 `userCollectionsProvider`（旧链路，带 fileid 写操作）；
-/// 网易侧由本能力提供，UI 用 `registry.capability<UserLibrarySource>()` 取。
+/// 两源都经本能力取数，UI 用 `registry.capability<UserLibrarySource>()`，
+/// 不再区分 `userCollectionsProvider` / `neteaseLikesProvider` 双栈。
 abstract interface class UserLibrarySource {
   /// 拉取云端「我喜欢」全部曲目（翻页/分批由实现内部处理）。
   Future<List<Track>> likedTracks();
 }
 
-/// 用户云端歌单**读取**（自建 / 收藏，不含曲目）。
+/// 用户云端「我喜欢」写操作（红心 / 取消红心）。
 ///
-/// 酷狗侧仍走既有 `user_repository` 链路（带 fileid 等酷狗口径）；
-/// 网易侧由本能力提供，UI 用 `registry.capability<UserPlaylistReadSource>()` 取。
+/// 与 [UserPlaylistWriteSource] 分开：红心是平台语义（网易 F4 likeSong /
+/// 酷狗写默认喜欢单），不是任意歌单加曲。UI 红心只调本接口。
+abstract interface class UserLikedWriteSource {
+  /// 该源当前是否已登录（登录态判断归实现）。
+  bool get isLoggedIn;
+
+  /// 设置红心状态。失败抛 [SourceFailure]。
+  Future<void> setTrackLiked(Track track, {required bool liked});
+}
+
+/// 用户云端歌单**读取**（自建 / 收藏 / 收藏专辑 / 关注歌手）。
+///
+/// 两源都经本能力取数；没有的字段返回空列表（网易暂无专辑收藏/关注歌手）。
 abstract interface class UserPlaylistReadSource {
   /// 拉取用户歌单（一次给全量；`more` 为真表示还有下一页）。
   Future<UserPlaylistsPage> userPlaylists({int offset = 0, int limit = 1000});
 }
 
-/// 用户歌单读取结果。
+/// 用户资料库读取结果（歌单 + 收藏专辑 + 关注歌手）。
 class UserPlaylistsPage {
   const UserPlaylistsPage({
     this.created = const [],
     this.collected = const [],
+    this.favoritedAlbums = const [],
+    this.followedArtists = const [],
     this.more = false,
   });
 
@@ -439,8 +465,32 @@ class UserPlaylistsPage {
   /// 收藏（他人歌单）。
   final List<PlaylistBrief> collected;
 
+  /// 收藏专辑（酷狗 `source==2`；网易暂无则空）。
+  final List<AlbumBrief> favoritedAlbums;
+
+  /// 关注歌手（酷狗 follow；网易暂无则空）。
+  final List<ArtistBrief> followedArtists;
+
   /// 是否还有下一页。
   final bool more;
+
+  /// 云端「我喜欢」歌单（`isDefault` 优先，否则按名字兜底）。
+  PlaylistBrief? get likedPlaylist {
+    final all = [...created, ...collected];
+    for (final p in all) {
+      if (p.isDefault) return p;
+    }
+    PlaylistBrief? byName(String exact) {
+      for (final p in all) {
+        if (p.name.trim() == exact) return p;
+      }
+      return null;
+    }
+
+    return byName('我喜欢的音乐') ??
+        byName('我喜欢') ??
+        byName('默认收藏');
+  }
 }
 
 /// 热搜词。

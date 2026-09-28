@@ -8,10 +8,9 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../features/auth/auth_controller.dart';
-import '../../features/auth/netease_login_controller.dart';
 import '../../features/player/player_controller.dart';
-import '../../features/profile/user_collections_controller.dart';
+import '../../features/profile/source_account.dart';
+import '../../features/profile/source_library_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../shared/widgets/async_body.dart';
@@ -19,7 +18,6 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart' show CoverHero;
 import '../../shared/widgets/removable_row.dart';
 import 'likes_controller.dart';
-import 'netease_likes_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 enum LikesSortType {
@@ -126,16 +124,37 @@ class _LikesPageState extends ConsumerState<LikesPage>
     // Actively pull cloud collections when the page opens (EchoMusic onMounted).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final auth = ref.read(authControllerProvider);
-      if (!auth.isLogged) return;
-      final collections = ref.read(userCollectionsProvider);
-      if (!collections.loaded) {
-        ref.read(userCollectionsProvider.notifier).loadAll();
-      } else if (collections.cloudFavoriteTracks.isEmpty &&
-          collections.favoriteTracksError.isEmpty) {
-        ref.read(userCollectionsProvider.notifier).loadFavoriteTracks();
+      final lib = ref.read(mergedSourceLibraryProvider(_sourceFilter));
+      if (!lib.loaded) {
+        _loadLibrary();
+      } else if (lib.likedTracks.isEmpty && lib.likedError.isEmpty) {
+        _loadLiked();
       }
     });
+  }
+
+  Future<void> _loadLibrary() async {
+    if (_sourceFilter != null) {
+      await ref
+          .read(sourceLibraryProvider(_sourceFilter!).notifier)
+          .loadPlaylists();
+    } else {
+      for (final p in _registeredPlatforms()) {
+        await ref.read(sourceLibraryProvider(p).notifier).loadPlaylists();
+      }
+    }
+  }
+
+  Future<void> _loadLiked() async {
+    if (_sourceFilter != null) {
+      await ref
+          .read(sourceLibraryProvider(_sourceFilter!).notifier)
+          .loadLikedTracks();
+    } else {
+      for (final p in _registeredPlatforms()) {
+        await ref.read(sourceLibraryProvider(p).notifier).loadLikedTracks();
+      }
+    }
   }
 
   /// 已注册且**启用**的音源（源筛选条用）。设置里的整源开关在此过滤。
@@ -206,12 +225,12 @@ class _LikesPageState extends ConsumerState<LikesPage>
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
-    final auth = ref.watch(authControllerProvider);
-    final collections = ref.watch(userCollectionsProvider);
     final localLikes = ref.watch(likesProvider);
     final player = ref.watch(playerControllerProvider);
-    final neteaseAuth = ref.watch(neteaseLoginControllerProvider);
-    final neteaseLikes = ref.watch(neteaseLikesProvider);
+    final library = ref.watch(mergedSourceLibraryProvider(_sourceFilter));
+    final MusicPlatform accountPlatform =
+        _sourceFilter ?? ref.watch(effectiveAccountSourceProvider);
+    final accountLogged = isSourceLoggedIn(accountPlatform);
     // 整源开关变化时同步「歌手/专辑」Tab 的有无（用户在设置里关掉酷狗）。
     _syncTabController(
       ref
@@ -221,30 +240,23 @@ class _LikesPageState extends ConsumerState<LikesPage>
     );
 
     // Keep local heart cache in sync with cloud favorites.
-    if (auth.isLogged && collections.cloudFavoriteTracks.isNotEmpty) {
+    if (accountLogged && library.likedTracks.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ref
-            .read(likesProvider.notifier)
-            .absorbCloudTracks(collections.cloudFavoriteTracks);
+        ref.read(likesProvider.notifier).absorbCloudTracks(library.likedTracks);
       });
     }
 
     // 登录后只认云端「我喜欢」；本地红心仅作离线缓存/红心态，不拼进列表。
-    final List<Track> kugouTracks =
-        auth.isLogged ? collections.cloudFavoriteTracks : localLikes;
-    final List<Track> neteaseTracks = neteaseLikes.tracks;
-
-    // 源筛选：`null` = 全部（酷狗在前、网易云在后；不做跨源同曲合并）。
-    final List<Track> songsSource = switch (_sourceFilter) {
-      MusicPlatform.kugou => kugouTracks,
-      MusicPlatform.netease => neteaseTracks,
-      null => [...kugouTracks, ...neteaseTracks],
-    };
+    final List<Track> songsSource = accountLogged
+        ? library.likedTracks
+        : (_sourceFilter == null
+            ? [...localLikes, ...library.likedTracks]
+            : localLikes.where((t) => t.platform == _sourceFilter).toList());
 
     final displayedSongs = _applyFilterAndSort(songsSource);
-    final displayedSingers = _filterSingers(collections.followedSingers);
-    final displayedAlbums = _filterAlbums(collections.favoritedAlbums);
+    final displayedSingers = _filterSingers(library.followedArtists);
+    final displayedAlbums = _filterAlbums(library.favoritedAlbums);
 
     final platforms = _registeredPlatforms();
 
@@ -255,22 +267,12 @@ class _LikesPageState extends ConsumerState<LikesPage>
     }
 
     // 云端 trackCount 可能先于列表到达；取两者较大值，避免「900 进、300 显示」。
-    var songsCount = 0;
-    if (_sourceFilter != MusicPlatform.netease) {
-      songsCount += [
-        kugouTracks.length,
-        if (auth.isLogged) collections.defaultLikedPlaylist?.trackCount ?? 0,
-      ].reduce((a, b) => a > b ? a : b);
-    }
-    if (_sourceFilter != MusicPlatform.kugou) {
-      songsCount += neteaseTracks.length;
-    }
+    var songsCount = [
+      songsSource.length,
+      if (accountLogged) library.likedPlaylist?.trackCount ?? 0,
+    ].reduce((a, b) => a > b ? a : b);
 
-    final bool songsBusy = switch (_sourceFilter) {
-      MusicPlatform.kugou => collections.isLoadingFavoriteTracks,
-      MusicPlatform.netease => neteaseLikes.loading,
-      null => collections.isLoadingFavoriteTracks || neteaseLikes.loading,
-    };
+    final bool songsBusy = library.loadingLiked;
 
     return Scaffold(
       appBar: AppBar(
@@ -317,7 +319,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
             },
           ),
           if (_tabController.index == 0) ...[
-            if (auth.isLogged || neteaseAuth.isLogged)
+            if (accountLogged)
               IconButton(
                 icon: songsBusy
                     ? const SizedBox(
@@ -337,9 +339,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
               }),
             ),
           ]
-          else if (_tabController.index == 1 && auth.isLogged)
+          else if (_tabController.index == 1 && accountLogged)
             IconButton(
-              icon: collections.isLoadingFollow
+              icon: library.loading
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -347,15 +349,15 @@ class _LikesPageState extends ConsumerState<LikesPage>
                     )
                   : const Icon(Icons.refresh_rounded),
               tooltip: '刷新关注歌手',
-              onPressed: collections.isLoadingFollow
+              onPressed: library.loading
                   ? null
                   : () => ref
-                      .read(userCollectionsProvider.notifier)
-                      .loadFollow(),
+                      .read(sourceLibraryProvider(MusicPlatform.kugou).notifier)
+                      .loadPlaylists(force: true),
             )
-          else if (_tabController.index == 2 && auth.isLogged)
+          else if (_tabController.index == 2 && accountLogged)
             IconButton(
-              icon: collections.isLoadingPlaylists
+              icon: library.loading
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -363,11 +365,11 @@ class _LikesPageState extends ConsumerState<LikesPage>
                     )
                   : const Icon(Icons.refresh_rounded),
               tooltip: '刷新收藏专辑',
-              onPressed: collections.isLoadingPlaylists
+              onPressed: library.loading
                   ? null
                   : () => ref
-                      .read(userCollectionsProvider.notifier)
-                      .loadPlaylists(),
+                      .read(sourceLibraryProvider(MusicPlatform.kugou).notifier)
+                      .loadPlaylists(force: true),
             ),
         ],
         bottom: PreferredSize(
@@ -383,8 +385,8 @@ class _LikesPageState extends ConsumerState<LikesPage>
               // 这两个 Tab 只反映酷狗账号的云收藏，酷狗源关闭时没有可看的
               // 内容，整块隐藏而不是摆两个永远为 0 的空 Tab。
               if (_kugouCollectionsTab) ...[
-                Tab(text: '歌手 (${collections.followedSingers.length})'),
-                Tab(text: '专辑 (${collections.favoritedAlbums.length})'),
+                Tab(text: '歌手 (${library.followedArtists.length})'),
+                Tab(text: '专辑 (${library.favoritedAlbums.length})'),
               ],
             ],
           ),
@@ -396,10 +398,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
           // Tab 1: 歌曲（源筛选条 + 列表）
           _buildSongsTab(
             kugo: kugo,
-            auth: auth,
-            collections: collections,
-            neteaseAuth: neteaseAuth,
-            neteaseLikes: neteaseLikes,
+            library: library,
+            accountLogged: accountLogged,
+            accountPlatform: accountPlatform,
             displayed: displayedSongs,
             totalCount: songsSource.length,
             player: player,
@@ -408,19 +409,19 @@ class _LikesPageState extends ConsumerState<LikesPage>
           // Tab 2/3: 歌手 / 专辑（酷狗账号口径，酷狗源关闭时随 Tab 一起隐藏）
           if (_kugouCollectionsTab) ...[
             _buildSingersTab(
-              auth: auth,
+              authLogged: accountLogged,
               singers: displayedSingers,
-              totalCount: collections.followedSingers.length,
-              isLoading: collections.isLoadingFollow && !collections.loaded,
-              error: collections.followError,
+              totalCount: library.followedArtists.length,
+              isLoading: library.loading && !library.loaded,
+              error: library.error,
               kugo: kugo,
             ),
             _buildAlbumsTab(
-              auth: auth,
+              authLogged: accountLogged,
               albums: displayedAlbums,
-              totalCount: collections.favoritedAlbums.length,
-              isLoading: collections.isLoadingPlaylists && !collections.loaded,
-              error: collections.playlistsError,
+              totalCount: library.favoritedAlbums.length,
+              isLoading: library.loading && !library.loaded,
+              error: library.error,
               kugo: kugo,
             ),
           ],
@@ -431,19 +432,16 @@ class _LikesPageState extends ConsumerState<LikesPage>
 
   /// 刷新当前源筛选下的「我喜欢」。
   Future<void> _refreshSongs() async {
-    final collections = ref.read(userCollectionsProvider.notifier);
-    final netease = ref.read(neteaseLikesProvider.notifier);
-    switch (_sourceFilter) {
-      case MusicPlatform.kugou:
-        await collections.loadFavoriteTracks(force: true);
-      case MusicPlatform.netease:
-        await netease.load(force: true);
-      case null:
-        await Future.wait([
-          collections.loadFavoriteTracks(force: true),
-          netease.load(force: true),
-        ]);
+    if (_sourceFilter != null) {
+      await ref
+          .read(sourceLibraryProvider(_sourceFilter!).notifier)
+          .loadLikedTracks(force: true);
+      return;
     }
+    await Future.wait([
+      for (final p in _registeredPlatforms())
+        ref.read(sourceLibraryProvider(p).notifier).loadLikedTracks(force: true),
+    ]);
   }
 
   Widget _buildSongsTab({
@@ -451,27 +449,22 @@ class _LikesPageState extends ConsumerState<LikesPage>
     required int totalCount,
     required PlayerState player,
     required KugoTheme kugo,
-    required AuthState auth,
-    required UserCollectionsState collections,
-    required NeteaseLoginState neteaseAuth,
-    required NeteaseLikesState neteaseLikes,
+    required SourceLibraryState library,
+    required bool accountLogged,
+    required MusicPlatform accountPlatform,
     required List<MusicPlatform> platforms,
   }) {
-    // 选中网易云但未扫码：给登录引导，而不是一个看不懂的空列表。
-    if (_sourceFilter == MusicPlatform.netease && !neteaseAuth.isLogged) {
+    // 选中某源但未登录：给登录引导，而不是一个看不懂的空列表。
+    if (_sourceFilter != null && !accountLogged) {
       return _loginPrompt(
         kugo: kugo,
         icon: Icons.cloud_outlined,
-        message: '扫码登录网易云后，即可同步云端「我喜欢」',
-        route: '/netease-login',
+        message: '登录${accountPlatform.label}后，即可同步云端「我喜欢」',
+        route: loginRouteFor(accountPlatform),
       );
     }
 
-    final bool isLoading = switch (_sourceFilter) {
-      MusicPlatform.kugou => collections.isLoadingFavoriteTracks,
-      MusicPlatform.netease => neteaseLikes.loading,
-      null => collections.isLoadingFavoriteTracks || neteaseLikes.loading,
-    };
+    final bool isLoading = library.loadingLiked;
     if (isLoading && totalCount == 0) {
       return const AsyncBody(
         loading: true,
@@ -481,25 +474,18 @@ class _LikesPageState extends ConsumerState<LikesPage>
       );
     }
 
-    final String error = switch (_sourceFilter) {
-      MusicPlatform.kugou =>
-        auth.isLogged ? collections.favoriteTracksError : '',
-      MusicPlatform.netease => neteaseLikes.error,
-      null =>
-        auth.isLogged ? collections.favoriteTracksError : neteaseLikes.error,
-    };
+    final String error = library.likedError;
 
     if (totalCount == 0) {
-      // 未登录酷狗时「重试」应当是去登录，而不是空转一次请求。
-      final VoidCallback onRetry =
-          !auth.isLogged && _sourceFilter != MusicPlatform.netease
-              ? () => context.push('/login')
-              : _refreshSongs;
+      // 未登录时「重试」应当是去登录，而不是空转一次请求。
+      final VoidCallback onRetry = !accountLogged
+          ? () => context.push(loginRouteFor(accountPlatform))
+          : _refreshSongs;
       return AsyncBody(
         loading: false,
         hasError: error.isNotEmpty,
         isEmpty: true,
-        emptyMessage: error.isNotEmpty ? error : _songsEmptyMessage(auth),
+        emptyMessage: error.isNotEmpty ? error : _songsEmptyMessage(accountLogged),
         errorMessage: error.isEmpty ? '加载失败' : error,
         onRetry: onRetry,
         child: const SizedBox.shrink(),
@@ -643,13 +629,13 @@ class _LikesPageState extends ConsumerState<LikesPage>
     );
   }
 
-  String _songsEmptyMessage(AuthState auth) {
+  String _songsEmptyMessage(bool accountLogged) {
     switch (_sourceFilter) {
       case MusicPlatform.netease:
         return '网易云「我喜欢」还没有红心歌曲\n在网易云点 ♥ 即可同步到此处';
       case MusicPlatform.kugou:
       case null:
-        return !auth.isLogged
+        return !accountLogged
             ? '登录酷狗账号后，即可同步云端「我喜欢」'
             : '还没有红心歌曲\n播放时点 ♥ 即可收藏到云端';
     }
@@ -691,14 +677,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
   }
 
   Widget _buildSingersTab({
-    required AuthState auth,
+    required bool authLogged,
     required List<ArtistBrief> singers,
     required int totalCount,
     required bool isLoading,
     required String error,
     required KugoTheme kugo,
   }) {
-    if (!auth.isLogged) {
+    if (!authLogged) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(KugoSpacing.xl),
@@ -738,8 +724,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
         isEmpty: true,
         emptyMessage: error.isNotEmpty ? error : '暂无关注的歌手\n搜索歌手并点击关注即可在此查看',
         errorMessage: error.isEmpty ? '加载失败' : error,
-        onRetry: () =>
-            ref.read(userCollectionsProvider.notifier).loadFollow(),
+        onRetry: () => ref
+            .read(sourceLibraryProvider(MusicPlatform.kugou).notifier)
+            .loadPlaylists(force: true),
         child: const SizedBox.shrink(),
       );
     }
@@ -816,14 +803,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
   }
 
   Widget _buildAlbumsTab({
-    required AuthState auth,
+    required bool authLogged,
     required List<AlbumBrief> albums,
     required int totalCount,
     required bool isLoading,
     required String error,
     required KugoTheme kugo,
   }) {
-    if (!auth.isLogged) {
+    if (!authLogged) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(KugoSpacing.xl),
@@ -863,8 +850,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
         isEmpty: true,
         emptyMessage: error.isNotEmpty ? error : '暂无收藏的专辑\n在专辑详情中点击收藏即可在此查看',
         errorMessage: error.isEmpty ? '加载失败' : error,
-        onRetry: () =>
-            ref.read(userCollectionsProvider.notifier).loadPlaylists(),
+        onRetry: () => ref
+            .read(sourceLibraryProvider(MusicPlatform.kugou).notifier)
+            .loadPlaylists(force: true),
         child: const SizedBox.shrink(),
       );
     }
