@@ -8,6 +8,7 @@
 | [多音源接入方案.md](多音源接入方案.md) | 多音源契约与架构（阶段 A/B 已落地） |
 | [网易云接口文档.md](网易云接口文档.md) | 网易云接口清单与实测状态 |
 | [网易云接入排期.md](网易云接入排期.md) | 网易云接入排期与实测记录 |
+| [哔哩哔哩接入方案.md](哔哩哔哩接入方案.md) | B 站接入架构 + 功能差异（能力映射 / 支持与不支持清单） |
 | [app/README.md](app/README.md) | 工程运行说明 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明 |
 | [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 + Windows 系统集成 / 二期 backlog |
