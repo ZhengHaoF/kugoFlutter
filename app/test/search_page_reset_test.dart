@@ -19,10 +19,10 @@ void main() {
     final router = GoRouter(
       initialLocation: '/search',
       routes: [
-        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        GoRoute(path: '/search', builder: (_, _) => const SearchPage()),
         GoRoute(
           path: '/other',
-          builder: (_, __) => const Scaffold(body: Text('other')),
+          builder: (_, _) => const Scaffold(body: Text('other')),
         ),
       ],
     );
