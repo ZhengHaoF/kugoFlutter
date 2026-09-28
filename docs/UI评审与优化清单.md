@@ -171,7 +171,9 @@ await windowManager.waitUntilReadyToShow(
 `core/theme/responsive.dart`：`DesktopContentConstraint.list(960)` /
 `.reading(720)` / `.form(800)` 三档 named constructor。
 
-套用：历史 / 我喜欢 / 搜索 → list；歌曲详情 / 个人中心 → reading；设置 → form。
+套用：历史 / 我喜欢 / 搜索 → list；歌曲详情 → reading；设置 → form。
+个人中心原为 reading(720)，因用户反馈「不满屏」改为满宽，与「我的」页一致
+（2026-09-28 二次调整，`features/profile/profile_detail_page.dart` 去掉限宽）。
 歌单 / 专辑 / 歌手详情保持浏览型满宽（封面头图 + 曲目列，收窄反而空）。
 全项目 `DesktopContentConstraint` 仅 `features/settings/settings_page.dart:32` 一处
 （`maxWidth: 800`）。

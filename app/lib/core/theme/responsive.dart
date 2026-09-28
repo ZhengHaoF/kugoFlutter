@@ -139,7 +139,7 @@ class DesktopContentConstraint extends StatelessWidget {
     this.padding = EdgeInsets.zero,
   }) : maxWidth = kDesktopListWidth;
 
-  /// 阅读型：歌曲详情 / 个人中心 —— 720。
+  /// 阅读型：歌曲详情 —— 720。
   const DesktopContentConstraint.reading({
     super.key,
     required this.child,
