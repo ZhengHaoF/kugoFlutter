@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -62,12 +63,20 @@ class DesktopShell with WindowListener {
       const WindowOptions(
         title: 'kugo',
         minimumSize: Size(900, 640),
+        titleBarStyle: TitleBarStyle.hidden,
+        windowButtonVisibility: false,
       ),
     );
     // 始终拦截原生关闭：关到托盘或真正退出都由我们决定，
     // 避免 win32 SetQuitOnClose 在 hide 前把进程带走。
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
+
+    // Mica 材质（Win11）延后到首帧之后再上：
+    // 1) 不和 waitUntilReadyToShow / 托盘初始化抢 HWND 消息；
+    // 2) 失败只丢掉毛玻璃，绝不拖垮启动。Win10/第三方 DWM 回落 acrylic，
+    //    再不行就保持默认底。
+    unawaited(_applyWindowEffect());
 
     final tray = DesktopTray(
       onShowWindow: showWindow,
@@ -99,6 +108,31 @@ class DesktopShell with WindowListener {
         _pushProgress(force: true);
       }
     });
+  }
+
+  /// 窗口材质：Win11 Mica → Win10 Acrylic → 默认底。每步都吞异常。
+  Future<void> _applyWindowEffect() async {
+    // 等一帧，确保 waitUntilReadyToShow 的 HWND 消息先走完。
+    await Future<void>.delayed(Duration.zero);
+    if (!isWindowsPlatform) return;
+    final dark = _container.read(settingsControllerProvider).materialThemeMode !=
+        ThemeMode.light;
+    try {
+      await Window.initialize();
+    } catch (_) {
+      return;
+    }
+    for (final effect in const [WindowEffect.mica, WindowEffect.acrylic]) {
+      try {
+        await Window.setEffect(effect: effect, dark: dark);
+        return;
+      } catch (_) {
+        // 试下一档。
+      }
+    }
+    try {
+      await Window.setEffect(effect: WindowEffect.disabled);
+    } catch (_) {}
   }
 
   void _wireTaskbar() {

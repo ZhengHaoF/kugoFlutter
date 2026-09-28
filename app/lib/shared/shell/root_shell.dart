@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:window_manager/window_manager.dart' show windowManager;
 
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
@@ -11,6 +15,7 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/desktop_player_bar.dart';
 import '../../shared/widgets/mini_player_bar.dart';
 import 'desktop_sidebar.dart';
+import 'desktop_title_bar.dart';
 
 class _TogglePlayIntent extends Intent {
   const _TogglePlayIntent();
@@ -22,6 +27,30 @@ class _SeekForwardIntent extends Intent {
 
 class _SeekBackwardIntent extends Intent {
   const _SeekBackwardIntent();
+}
+
+class _NextTrackIntent extends Intent {
+  const _NextTrackIntent();
+}
+
+class _PrevTrackIntent extends Intent {
+  const _PrevTrackIntent();
+}
+
+class _OpenSearchIntent extends Intent {
+  const _OpenSearchIntent();
+}
+
+class _CloseOrBackIntent extends Intent {
+  const _CloseOrBackIntent();
+}
+
+class _NextTabIntent extends Intent {
+  const _NextTabIntent();
+}
+
+class _PrevTabIntent extends Intent {
+  const _PrevTabIntent();
 }
 
 /// Bottom tabs with macOS Dock-style icon magnify/bounce and a light
@@ -140,6 +169,21 @@ class _RootShellState extends ConsumerState<RootShell>
           SingleActivator(LogicalKeyboardKey.space): _TogglePlayIntent(),
           SingleActivator(LogicalKeyboardKey.arrowRight): _SeekForwardIntent(),
           SingleActivator(LogicalKeyboardKey.arrowLeft): _SeekBackwardIntent(),
+          // J/K 上下首（vim 习惯）；N/P 兜底。
+          SingleActivator(LogicalKeyboardKey.keyJ): _NextTrackIntent(),
+          SingleActivator(LogicalKeyboardKey.keyK): _PrevTrackIntent(),
+          SingleActivator(LogicalKeyboardKey.keyN): _NextTrackIntent(),
+          SingleActivator(LogicalKeyboardKey.keyP): _PrevTrackIntent(),
+          // / 或 Ctrl+F 聚焦搜索。
+          SingleActivator(LogicalKeyboardKey.slash): _OpenSearchIntent(),
+          SingleActivator(LogicalKeyboardKey.keyF, control: true):
+              _OpenSearchIntent(),
+          SingleActivator(LogicalKeyboardKey.escape): _CloseOrBackIntent(),
+          // Ctrl+←/→ 切主 tab。
+          SingleActivator(LogicalKeyboardKey.arrowRight, control: true):
+              _NextTabIntent(),
+          SingleActivator(LogicalKeyboardKey.arrowLeft, control: true):
+              _PrevTabIntent(),
         },
         child: Actions(
           actions: <Type, Action<Intent>>{
@@ -161,6 +205,67 @@ class _RootShellState extends ConsumerState<RootShell>
                 return null;
               },
             ),
+            _NextTrackIntent: CallbackAction<_NextTrackIntent>(
+              onInvoke: (_) {
+                unawaited(
+                  ref.read(playerControllerProvider.notifier).next(),
+                );
+                return null;
+              },
+            ),
+            _PrevTrackIntent: CallbackAction<_PrevTrackIntent>(
+              onInvoke: (_) {
+                unawaited(
+                  ref.read(playerControllerProvider.notifier).previous(),
+                );
+                return null;
+              },
+            ),
+            _OpenSearchIntent: CallbackAction<_OpenSearchIntent>(
+              onInvoke: (_) {
+                if (!widget.location.startsWith('/search')) {
+                  context.push('/search');
+                }
+                return null;
+              },
+            ),
+            _CloseOrBackIntent: CallbackAction<_CloseOrBackIntent>(
+              onInvoke: (_) {
+                // 弹层/路由能 pop 就 pop；否则退回上一个主 tab 入口。
+                if (context.canPop()) {
+                  context.pop();
+                } else if (widget.location.startsWith('/search') ||
+                    widget.location.startsWith('/discovery') ||
+                    widget.location.startsWith('/daily') ||
+                    widget.location.startsWith('/ranks') ||
+                    widget.location.startsWith('/rank/') ||
+                    widget.location.startsWith('/fm')) {
+                  context.go('/explore');
+                } else if (widget.location.startsWith('/likes') ||
+                    widget.location.startsWith('/history') ||
+                    widget.location.startsWith('/settings') ||
+                    widget.location.startsWith('/profile/detail')) {
+                  context.go('/profile');
+                }
+                return null;
+              },
+            ),
+            _NextTabIntent: CallbackAction<_NextTabIntent>(
+              onInvoke: (_) {
+                final next =
+                    _indexOf(widget.location) == 0 ? '/profile' : '/explore';
+                if (widget.location != next) _desktopNavigate(next);
+                return null;
+              },
+            ),
+            _PrevTabIntent: CallbackAction<_PrevTabIntent>(
+              onInvoke: (_) {
+                final prev =
+                    _indexOf(widget.location) == 0 ? '/profile' : '/explore';
+                if (widget.location != prev) _desktopNavigate(prev);
+                return null;
+              },
+            ),
           },
           child: Focus(
             autofocus: true,
@@ -168,6 +273,12 @@ class _RootShellState extends ConsumerState<RootShell>
               backgroundColor: kugo.bg,
               body: Column(
                 children: [
+                  DesktopTitleBar(
+                    onClose: () async {
+                      // 与托盘关闭同一链路：拦原生 close，交给 shell 决定。
+                      await windowManager.close();
+                    },
+                  ),
                   Expanded(
                     child: Row(
                       children: [

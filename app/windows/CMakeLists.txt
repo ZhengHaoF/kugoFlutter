@@ -93,9 +93,11 @@ endif()
 set(BUILD_BUNDLE_DIR "$<TARGET_FILE_DIR:${BINARY_NAME}>")
 # Make the "install" step default, as it's required to run.
 set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
-endif()
+# 始终 FORCE 成「跟 exe 同目录」。若沿用 CMake Windows 默认的
+# `C:/Program Files/<name>`，INSTALL 步骤会因无管理员权限而 MSB3073。
+# 不要加 CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT 判断：缓存里一旦
+# 已是 Program Files，该条件为假，FORCE 永远不生效。
+set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "Flutter bundle next to exe" FORCE)
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
