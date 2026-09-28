@@ -48,3 +48,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/tray_icon.ico
+  fonts:
+    - family: MiSans
+      fonts:
+        - asset: assets/fonts/MiSans-Regular.ttf

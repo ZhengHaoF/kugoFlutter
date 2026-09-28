@@ -1,26 +1,25 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform.dart';
 import 'kugo_tokens.dart';
 
-/// UI font family for the current platform.
+/// UI font family — bundled MiSans (Regular).
 ///
-/// Windows ships 微软雅黑; other platforms keep Flutter/Material defaults so
-/// Android is not forced into a missing family name.
-String? get kugoFontFamily {
-  if (kIsWeb) return null;
-  if (Platform.isWindows) return 'Microsoft YaHei';
-  return null;
-}
+/// Declared under `flutter/fonts` in pubspec.yaml so every platform gets the
+/// same face. Only Regular is shipped; heavier [FontWeight]s are synthesized.
+String? get kugoFontFamily => 'MiSans';
 
-/// Latin-first fallbacks when a glyph is missing from [kugoFontFamily].
-List<String>? get kugoFontFamilyFallback =>
-    kugoFontFamily == null ? null : const ['Segoe UI', 'Microsoft YaHei UI'];
+/// System faces tried when [kugoFontFamily] lacks a glyph (rare CJK, emoji…).
+List<String>? get kugoFontFamilyFallback => const [
+  'Segoe UI',
+  'Microsoft YaHei',
+  'Microsoft YaHei UI',
+  'Roboto',
+  'Noto Sans CJK SC',
+  'Noto Sans SC',
+];
 
 /// ThemeExtension — idiomatic `KugoTheme.of(context)` access.
 ///
