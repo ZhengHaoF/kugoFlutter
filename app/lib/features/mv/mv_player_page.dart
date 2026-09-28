@@ -7,10 +7,16 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../core/models/mv_models.dart';
+import '../../core/source/capabilities.dart';
+import '../../core/source/music_platform.dart';
+import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/common.dart' show showKugoBottomSheet;
 import '../player/player_controller.dart';
+import '../settings/settings_controller.dart';
+import 'mv_barrage_controls.dart';
+import 'mv_barrage_layer.dart';
 import 'mv_collection_controller.dart';
 import 'mv_controller.dart';
 
@@ -71,6 +77,10 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
   int _resumeMs = 0;
 
   Map<String, String> _httpHeaders = const {};
+
+  /// 弹幕层句柄：发送成功后把自己发的弹幕立即放出来。
+  final GlobalKey<MvBarrageLayerState> _barrageKey =
+      GlobalKey<MvBarrageLayerState>();
 
   @override
   void initState() {
@@ -316,6 +326,13 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
       }
     });
 
+    final settings = ref.watch(settingsControllerProvider);
+    final barrageHash = _barrageHashOf(state, widget.hash);
+    final barragePlatform = _barragePlatformOf(state);
+    final barrageSource = barrageHash.isEmpty
+        ? null
+        : musicSourceRegistry?.capability<MvBarrageSource>(barragePlatform);
+
     final kugo = KugoTheme.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
@@ -339,6 +356,23 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
               )
             else
               _CoverPlaceholder(coverUrl: state.brief?.coverUrl ?? widget.coverUrl),
+
+            // 弹幕飞层：叠在视频上、指针穿透；播放暂停时自动暂停。
+            if (barrageSource != null)
+              Positioned.fill(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _playing,
+                  builder: (context, playing, child) => MvBarrageLayer(
+                    key: _barrageKey,
+                    hash: barrageHash,
+                    name: state.brief?.name ?? widget.name,
+                    platform: barragePlatform,
+                    enabled: settings.mvBarrageEnabled,
+                    playing: playing,
+                    config: settings.mvBarrageConfig,
+                  ),
+                ),
+              ),
 
             // 顶部栏
             AnimatedOpacity(
@@ -374,6 +408,22 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                               ),
                             ),
                           ),
+                          if (barrageSource != null)
+                            MvBarrageButton(
+                              hash: barrageHash,
+                              name: state.brief?.name ?? widget.name,
+                              platform: barragePlatform,
+                              enabled: settings.mvBarrageEnabled,
+                              config: settings.mvBarrageConfig,
+                              onEnabledChanged: (v) => ref
+                                  .read(settingsControllerProvider.notifier)
+                                  .setMvBarrageEnabled(v),
+                              onConfigChanged: (cfg, {required persist}) => ref
+                                  .read(settingsControllerProvider.notifier)
+                                  .setMvBarrageConfig(cfg, persist: persist),
+                              onSent: (text) =>
+                                  _barrageKey.currentState?.showOwn(text),
+                            ),
                           if (state.detail != null &&
                               state.detail!.sources.length > 1)
                             _QualityButton(
@@ -590,6 +640,17 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+
+  /// 弹幕分池用的 MV 主 hash：优先当前版本 hash，其次当前片源 hash。
+  /// 与 EchoMusic `meta?.hash || currentSourceHash` 同序。
+  static String _barrageHashOf(MvPlayerState state, String fallback) {
+    final briefHash = state.brief?.hash.trim() ?? '';
+    if (briefHash.isNotEmpty) return briefHash;
+    return state.source?.hash.trim() ?? fallback.trim();
+  }
+
+  static MusicPlatform _barragePlatformOf(MvPlayerState state) =>
+      state.brief?.platform ?? MusicPlatform.kugou;
 
   void _openDetailSheet(MvPlayerState state) {
     final detail = state.detail;

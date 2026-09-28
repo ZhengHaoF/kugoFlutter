@@ -238,3 +238,35 @@ dart run tool/probe_mv.dart
 - **obj_id = 数字 `video_id`**（`normalizeMvCollectId`），不是播放 hash / MixSongID / album_audio_id
 - 上限 `Number.MAX_SAFE_INTEGER`（2^53-1），超界拒绝（上游 JS 丢精度）
 - 响应用同一 `playlistAesEncrypt` 的 key 解密；解不出时回落明文 JSON
+
+---
+
+## MV 弹幕（2026-09-28 接入）
+
+> 对齐 KuGouMusicApi `module/_comment.js` 的 `buildVideoBarrageListConfig` /
+> `buildVideoBarrageSendConfig` 与 `module/video_barrage.js` / `video_barrage_send.js`；
+> EchoMusic MV 页（`MvDetail.vue` + `BarrageLayer.vue`）同源。
+> 实现：`comment_repository.dart` 的 `fetchMvBarrage` / `sendMvBarrage`；
+> 能力面 `MvBarrageSource`；飞层 `features/mv/mv_barrage_layer.dart`。
+
+| 能力 | 方法 | 路径 | 路由头 | 鉴权 |
+| --- | --- | --- | --- | --- |
+| MV 弹幕列表 | **GET** | `/index.php` | `x-router: m.comment.service.kugou.com` | `key=signParamsKey(clienttime)`；**无 signature** |
+| MV 弹幕发送 | **GET** | `/index.php` | 同上 | 正文在 query；**无 key / clienttime** |
+
+- **视频弹幕 = 另一个评论池**，`code = db3664c219a6e350b00ab08d7f723a79`
+  （歌曲弹幕是 `articulossong`，歌曲评论是 `fc4be23b…`，三池互不相通）。
+- 列表 query：`r=comments/getCommentWithLike` + `code` + `extdata=<MV hash>`
+  （或 `childrenid=<video_id>`）+ `p` / `pagesize` + 公共鉴权
+  （`kugouid`/`ver=6`/`clienttoken`/`appid`/`clientver`/`mid`/`clienttime`/`key`/`uuid`/`dfid`）。
+- 响应顶层平铺：`status` + `childrenid`（即 **video_id**）+ `list[{content, user_id}]`。
+  `childrenid` 存下来，发送时复用。
+- 发送 query：`r=comments/addcomment` + `code` + `childrenid=<video_id>` +
+  `childrenname` + `ver=1.02` + `content` + `pid` + `clientver`/`mid`/`clienttoken`/`kugouid`/`appid`。
+- **只给 hash 时**：先按 `extdata=hash` 拉一页（`pagesize=1`），从 `childrenid`
+  解析出 video_id 再发。首次解析结果按 hash 缓存（`_videoPoolByHash`）。
+- 正文上限 **100 字**（`kBarrageMaxLength`，EchoMusic `BARRAGE_MAX_LENGTH`）；
+  池上限 100 条、4 条轨道、基准速度 100px/s、密度间隔 4500/2800/1400ms
+  均对齐 EchoMusic（见 `core/models/barrage.dart`）。
+- 显示设置（透明度 / 字号 / 速度 / 密度 / 区域）持久化在
+  `settings.mvBarrageConfig`，开关在 `settings.mvBarrageEnabled`。

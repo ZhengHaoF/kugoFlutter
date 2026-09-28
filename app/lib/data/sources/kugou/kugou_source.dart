@@ -1,4 +1,5 @@
 import '../../../core/models/audio_quality.dart';
+import '../../../core/models/barrage.dart';
 import '../../../core/models/catalog_models.dart';
 import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
@@ -56,7 +57,8 @@ class KugouSource
         ResourceCommentWriteSource,
         MvSearchSource,
         MvDetailSource,
-        MvCollectSource {
+        MvCollectSource,
+        MvBarrageSource {
   KugouSource({
     play.PlayRepository? playRepository,
     lyric.LyricRepository? lyricRepository,
@@ -384,6 +386,35 @@ class KugouSource
   @override
   Future<Set<String>> fetchCollectedMvIds() {
     return _mv.fetchCollectedMvIds();
+  }
+
+  // ── MV 弹幕（评论服务链路，但按 MV hash 分池） ──────────────
+
+  @override
+  String get barrageError => _comments.barrageError;
+
+  @override
+  Future<List<BarrageItem>> fetchMvBarrage(
+    String hash, {
+    int page = 1,
+    int pageSize = kBarrageLimit,
+  }) {
+    return _comments.fetchMvBarrage(hash: hash, page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<void> sendMvBarrage({
+    required String hash,
+    required String content,
+    String name = '',
+    String videoId = '',
+  }) {
+    return _comments.sendMvBarrage(
+      hash: hash,
+      content: content,
+      name: name,
+      videoId: videoId,
+    );
   }
 
   // ── 评论（Track → 酷狗 id 的翻译都在这里，UI 不参与） ──────

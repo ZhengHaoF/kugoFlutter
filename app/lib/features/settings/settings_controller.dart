@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/cache/cover_cache.dart';
 import '../../core/models/audio_quality.dart';
+import '../../core/models/barrage.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../data/storage/queue_store.dart';
@@ -58,6 +59,8 @@ class AppSettings {
     this.lyricFontScale = 1,
     this.lyricSpacingScale = 1,
     this.mediaLyricSubtitle = false,
+    this.mvBarrageEnabled = false,
+    this.mvBarrageConfig = BarrageConfig.defaults,
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
@@ -90,6 +93,13 @@ class AppSettings {
 
   /// System media (lock screen / Bluetooth) subtitle shows `artist · lyric`.
   final bool mediaLyricSubtitle;
+
+  /// MV 弹幕总开关（对齐 EchoMusic `mvBarrageEnabled`）。默认关。
+  final bool mvBarrageEnabled;
+
+  /// MV 弹幕显示配置（透明度 / 字号 / 速度 / 区域 / 密度）。
+  final BarrageConfig mvBarrageConfig;
+
   final AppThemeMode themeMode;
 
   /// Desktop only: what the window close button does (ask / tray / quit).
@@ -180,6 +190,8 @@ class AppSettings {
     double? lyricFontScale,
     double? lyricSpacingScale,
     bool? mediaLyricSubtitle,
+    bool? mvBarrageEnabled,
+    BarrageConfig? mvBarrageConfig,
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
@@ -197,6 +209,8 @@ class AppSettings {
       lyricFontScale: lyricFontScale ?? this.lyricFontScale,
       lyricSpacingScale: lyricSpacingScale ?? this.lyricSpacingScale,
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
+      mvBarrageEnabled: mvBarrageEnabled ?? this.mvBarrageEnabled,
+      mvBarrageConfig: mvBarrageConfig ?? this.mvBarrageConfig,
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
@@ -217,6 +231,8 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kLyricFontScale = 'settings.lyricFontScale';
   static const _kLyricSpacingScale = 'settings.lyricSpacingScale';
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
+  static const _kMvBarrageEnabled = 'settings.mvBarrageEnabled';
+  static const _kMvBarrageConfig = 'settings.mvBarrageConfig';
   static const _kThemeMode = 'settings.themeMode';
   static const _kCloseBehavior = 'settings.closeBehavior';
 
@@ -273,6 +289,10 @@ class SettingsController extends Notifier<AppSettings> {
           kLyricSpacingScaleMax,
         ),
         mediaLyricSubtitle: prefs.getBool(_kMediaLyric) ?? false,
+        mvBarrageEnabled: prefs.getBool(_kMvBarrageEnabled) ?? false,
+        mvBarrageConfig: BarrageConfig.decode(
+          prefs.getString(_kMvBarrageConfig),
+        ),
         themeMode: AppThemeMode.values.firstWhere(
           (e) => e.name == themeName,
           orElse: () => AppThemeMode.light,
@@ -398,6 +418,23 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setMediaLyricSubtitle(bool v) async {
     state = state.copyWith(mediaLyricSubtitle: v);
     await _save(_kMediaLyric, v);
+  }
+
+  Future<void> setMvBarrageEnabled(bool v) async {
+    state = state.copyWith(mvBarrageEnabled: v);
+    await _save(_kMvBarrageEnabled, v);
+  }
+
+  /// MV 弹幕配置。拖动滑块时传 `persist: false` 只改内存态做即时预览，
+  /// 松手（`onChangeEnd`）再落盘 —— 语义同 [setLyricFontScale]。
+  Future<void> setMvBarrageConfig(
+    BarrageConfig v, {
+    bool persist = true,
+  }) async {
+    final next = v.normalized();
+    if (next.encode() == state.mvBarrageConfig.encode()) return;
+    state = state.copyWith(mvBarrageConfig: next);
+    if (persist) await _save(_kMvBarrageConfig, next.encode());
   }
 
   Future<void> setCloseBehavior(CloseBehavior v) async {

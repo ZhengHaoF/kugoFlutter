@@ -1,4 +1,5 @@
 import '../models/audio_quality.dart';
+import '../models/barrage.dart';
 import '../models/catalog_models.dart';
 import '../models/comment.dart';
 import '../models/daily_recommend.dart';
@@ -633,4 +634,39 @@ abstract interface class MvDetailSource {
 abstract interface class MvCollectSource {
   Future<void> setMvCollected(String videoId, {required bool collected});
   Future<Set<String>> fetchCollectedMvIds();
+}
+
+/// MV 弹幕（读 + 写）。
+///
+/// 与歌曲评论里的「弹幕档位」**不是一回事**：那是评论列表的一个排序池，
+/// 这里是叠在视频上的飞行弹幕层，按 **MV 主 hash** 分池
+/// （对齐 EchoMusic MvDetail 的 `/video/barrage`）。
+///
+/// 只有实现了本能力的源才出弹幕开关与渲染层；未实现的源（如网易）
+/// UI 自动隐藏入口，而不是渲染出来点了才提示不支持。
+abstract interface class MvBarrageSource {
+  /// 最近一次拉取失败的**用户可读**原因；成功时为空串（读侧不抛异常）。
+  String get barrageError;
+
+  /// 拉取某 MV 的弹幕（按 [hash] 分池）。
+  ///
+  /// 返回空列表 = 暂无弹幕 / 失败（失败原因见 [barrageError]），
+  /// 对 UI 都是「空态」，不区分。
+  Future<List<BarrageItem>> fetchMvBarrage(
+    String hash, {
+    int page = 1,
+    int pageSize = 100,
+  });
+
+  /// 发送一条弹幕（登录态）。
+  ///
+  /// 只给 [hash] 时由实现先解析弹幕池（上游只认 video_id）；已知 [videoId]
+  /// 可直接传入省一次请求。[name] 即 `childrenname`（MV 标题）。
+  /// 失败抛 [SourceFailure]。
+  Future<void> sendMvBarrage({
+    required String hash,
+    required String content,
+    String name = '',
+    String videoId = '',
+  });
 }

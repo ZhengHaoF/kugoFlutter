@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../core/api/network_log.dart';
+import '../../core/models/barrage.dart';
 import '../../core/models/comment.dart';
 import '../../core/source/music_source.dart';
 import '../../features/auth/auth_token_holder.dart';
@@ -136,6 +137,14 @@ class CommentRepository {
   static const String _barrageR = 'comments/getCommentWithLike';
   static const String _barrageCode = 'articulossong';
 
+  /// MV 视频弹幕：同一 `getCommentWithLike` 取数口，但**又是另一个池**
+  /// （`code` 与歌曲弹幕不同，且没有 `mixsongid` 语义，按 `extdata` = MV hash
+  /// 解析池）。发送走 `comments/addcomment`（GET，正文在 query）。
+  /// 对齐 KuGouMusicApi `module/_comment.js` 的 `buildVideoBarrageListConfig`
+  /// / `buildVideoBarrageSendConfig`。
+  static const String _videoBarrageCode = 'db3664c219a6e350b00ab08d7f723a79';
+  static const String _videoBarrageSendR = 'comments/addcomment';
+
   /// `index.php` 是评论数**和**评论写口共用的入口，靠 `x-router` 分流。
   static const String _indexPath = '/index.php';
 
@@ -156,8 +165,15 @@ class CommentRepository {
   /// 最近一次响应的 `ssa-code`（风控事件 id）。
   String lastSsaCode = '';
 
+  /// MV 弹幕最近一次失败的**用户可读**原因（成功为空）。与 [lastError] 分开，
+  /// 避免弹幕失败污染评论区的错误文案（两者可能同时在页面上）。
+  String barrageError = '';
+
   /// mixsongid → childrenid（评论池）。同曲切换排序/翻页都要复用。
   final Map<String, String> _childrenIdByMix = {};
+
+  /// MV 主 hash → 弹幕池 childrenid（video_id）。发送时先解析、后复用。
+  final Map<String, String> _videoPoolByHash = {};
 
   static Dio _createDio() {
     return Dio(
@@ -710,6 +726,156 @@ class CommentRepository {
     }
   }
 
+  // ── MV 视频弹幕 ────────────────────────────────────────
+  //
+  // 复用 `index.php` + `x-router: m.comment.service.kugou.com`，但三点与歌曲不同：
+  //  · 读 / 写都走 **GET**（正文放 query），不是 POST；
+  //  · 弹幕池由 `extdata`(MV hash) 解析，响应 `childrenid` 即 video_id；
+  //  · 发送不带 `clienttime` / `key`（上游 `buildVideoBarrageSendConfig` 如此）。
+  //
+  // 对齐 KuGouMusicApi `module/_comment.js`；EchoMusic MV 页同源。
+
+  /// 拉取 MV 弹幕（对齐 `buildVideoBarrageListConfig`）。失败返回空 + [barrageError]。
+  Future<List<BarrageItem>> fetchMvBarrage({
+    required String hash,
+    int page = 1,
+    int pageSize = kBarrageLimit,
+  }) async {
+    barrageError = '';
+    final mvHash = hash.trim().toLowerCase();
+    if (mvHash.isEmpty) {
+      barrageError = '缺少 MV hash，无法加载弹幕';
+      return const [];
+    }
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+    try {
+      final body = await _indexGet(
+        query: <String, dynamic>{
+          'r': _barrageR,
+          'code': _videoBarrageCode,
+          'extdata': mvHash,
+          'p': page,
+          'pagesize': pageSize,
+          'kugouid': _kugouId(auth),
+          'ver': 6,
+          'clienttoken': auth.token,
+          'appid': int.parse(KugoSign.appId),
+          'clientver': int.parse(KugoSign.clientVer),
+          'mid': device.mid,
+          'clienttime': clienttime,
+          'key': KugoSign.signParamsKey('$clienttime'),
+          'uuid': '-',
+          'dfid': device.dfid,
+        },
+        dfid: device.dfid,
+        mid: device.mid,
+        clienttime: clienttime,
+      );
+      final status = body['status'];
+      if (!(status == 1 || status == '1' || status == true)) {
+        _mapError(body);
+        barrageError = lastError;
+        return const [];
+      }
+      // 响应 `childrenid` 即 MV 的 video_id，存下来供发送复用。
+      final pool = _stringOf(body['childrenid']);
+      if (pool.isNotEmpty) _videoPoolByHash[mvHash] = pool;
+      return _parseBarrage(body);
+    } on SourceFailure catch (e) {
+      // 读侧约定是「返回空 + 原因」，不往上抛。
+      barrageError = e.message;
+      return const [];
+    }
+  }
+
+  /// 发送 MV 弹幕（对齐 `buildVideoBarrageSendConfig`）。未登录 / 被风控抛 [SourceFailure]。
+  Future<void> sendMvBarrage({
+    required String hash,
+    required String content,
+    String name = '',
+    String videoId = '',
+  }) async {
+    _requireLogin();
+    final text = _validatedBarrageContent(content);
+    final mvHash = hash.trim().toLowerCase();
+
+    var pool = videoId.trim();
+    if (pool.isEmpty) {
+      if (mvHash.isEmpty) throw const NotFound('缺少 MV hash，无法发送弹幕');
+      pool = _videoPoolByHash[mvHash] ?? '';
+      if (pool.isEmpty) {
+        // 上游只认 video_id：先按 hash 捞一页，从响应 `childrenid` 拿池 id。
+        await fetchMvBarrage(hash: mvHash, page: 1, pageSize: 1);
+        pool = _videoPoolByHash[mvHash] ?? '';
+      }
+      if (pool.isEmpty) {
+        throw NotFound(barrageError.isEmpty ? '无法解析该 MV 的弹幕池' : barrageError);
+      }
+    }
+
+    final device = await DeviceIdentity.ensure();
+    final auth = AuthTokenHolder.instance;
+    final clienttime = _nowSeconds();
+    final body = await _indexGet(
+      query: <String, dynamic>{
+        'r': _videoBarrageSendR,
+        'code': _videoBarrageCode,
+        'childrenid': _asNumber(pool) ?? pool,
+        if (name.trim().isNotEmpty) 'childrenname': name.trim(),
+        'ver': '1.02',
+        'content': text,
+        'pid': 0,
+        'clientver': int.parse(KugoSign.clientVer),
+        'mid': device.mid,
+        'clienttoken': auth.token,
+        'kugouid': _kugouId(auth),
+        'appid': int.parse(KugoSign.appId),
+      },
+      dfid: device.dfid,
+      mid: device.mid,
+      clienttime: clienttime,
+    );
+    _assertWriteOk(body, what: '弹幕');
+  }
+
+  /// MV 弹幕解析：只要 `content` + `user_id`，不建完整 [Comment]。
+  List<BarrageItem> _parseBarrage(Map<String, dynamic> body) {
+    final data = body['data'] is Map
+        ? Map<String, dynamic>.from(body['data'] as Map)
+        : body;
+    final list = data['list'] ?? body['list'] ?? data['info'] ?? body['info'];
+    if (list is! List) return const [];
+    final out = <BarrageItem>[];
+    for (final item in list) {
+      if (item is! Map) continue;
+      final text = (item['content'] ?? item['comment'] ?? item['body'] ?? '')
+          .toString()
+          .trim();
+      if (text.isEmpty) continue;
+      out.add(
+        BarrageItem(
+          text: text,
+          userId: normalizeBarrageUserId(
+            item['user_id'] ?? item['userid'] ?? item['uid'],
+          ),
+        ),
+      );
+      if (out.length == kBarrageLimit) break;
+    }
+    return out;
+  }
+
+  static String _validatedBarrageContent(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) throw const UpstreamChanged('弹幕内容不能为空');
+    if (text.runes.length > kBarrageMaxLength) {
+      throw UpstreamChanged('弹幕最多 $kBarrageMaxLength 字，请精简后再发');
+    }
+    return text;
+  }
+
   // ── 写侧（发评论 / 回复楼层） ────────────────────────────
   //
   // 走 `index.php` + `x-router: m.comment.service.kugou.com`：这条链路
@@ -840,6 +1006,38 @@ class CommentRepository {
     required String mid,
     required int clienttime,
     String? body,
+  }) =>
+      _indexRequest(
+        get: false,
+        query: query,
+        dfid: dfid,
+        mid: mid,
+        clienttime: clienttime,
+        body: body,
+      );
+
+  /// MV 弹幕读 / 写共用通道（`index.php` + `x-router`，**GET**，无 `signature`）。
+  Future<Map<String, dynamic>> _indexGet({
+    required Map<String, dynamic> query,
+    required String dfid,
+    required String mid,
+    required int clienttime,
+  }) =>
+      _indexRequest(
+        get: true,
+        query: query,
+        dfid: dfid,
+        mid: mid,
+        clienttime: clienttime,
+      );
+
+  Future<Map<String, dynamic>> _indexRequest({
+    required bool get,
+    required Map<String, dynamic> query,
+    required String dfid,
+    required String mid,
+    required int clienttime,
+    String? body,
   }) async {
     final auth = AuthTokenHolder.instance;
     final cookieParts = <String>[
@@ -851,22 +1049,29 @@ class CommentRepository {
     ];
     final Response<dynamic> res;
     try {
-      res = await _dio.post<dynamic>(
-        '$_gateway$_indexPath',
-        queryParameters: query,
-        data: body ?? '',
-        options: Options(
-          headers: {
-            'User-Agent': KugoSign.userAgent,
-            'Content-Type': 'application/json; charset=UTF-8',
-            'x-router': _commentRouter,
-            'dfid': dfid,
-            'mid': mid,
-            'clienttime': '$clienttime',
-            'Cookie': cookieParts.join(';'),
-          },
-        ),
+      final options = Options(
+        headers: {
+          'User-Agent': KugoSign.userAgent,
+          'Content-Type': 'application/json; charset=UTF-8',
+          'x-router': _commentRouter,
+          'dfid': dfid,
+          'mid': mid,
+          'clienttime': '$clienttime',
+          'Cookie': cookieParts.join(';'),
+        },
       );
+      res = get
+          ? await _dio.get<dynamic>(
+              '$_gateway$_indexPath',
+              queryParameters: query,
+              options: options,
+            )
+          : await _dio.post<dynamic>(
+              '$_gateway$_indexPath',
+              queryParameters: query,
+              data: body ?? '',
+              options: options,
+            );
     } on DioException catch (e) {
       final msg = e.message ?? '';
       throw NetworkFailure(
