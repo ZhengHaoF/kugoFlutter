@@ -218,6 +218,8 @@ class _KugoHScrollState extends State<KugoHScroll> {
     if (widget.draggable) {
       desktop = ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(
+          // copyWith 的 scrollbars 默认 true，会把关掉的滚动条包回来。
+          scrollbars: false,
           dragDevices: _kDragDevicesWithMouse,
         ),
         child: desktop,
@@ -238,6 +240,9 @@ class _KugoHScrollState extends State<KugoHScroll> {
   /// 结果插入的那一刻 Flutter 把它下面整棵子树（ListView + silky State +
   /// ScrollPosition）卸载重挂——滚轮 tick 一次就被 dispose、offset 归零、
   /// 拖拽失效。现在树形恒定，只有 shaderCallback 的返回值随状态变。
+  ///
+  /// 渐隐贴住**本组件左右缘**（也就是内容区缘），不要在内侧再套一层
+  /// 外边距把它顶进去——那样会像一块浮在卡片上的白遮罩。
   Widget _buildFade(Widget child) {
     if (!widget.fadeEdges) return child;
     return ShaderMask(

@@ -14,6 +14,7 @@ import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/comment_composer_sheet.dart';
@@ -98,7 +99,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   /// **必须独立于 `_comments` 存**：分类/热词接口**不返回**筛选项，若直接读
   /// `_comments.classifyList`，点一下 chip 就会整页替换 `_comments` → 选项变空
   /// → chips 行整行消失 → 那个 chip 再也点不到，于是无法取消筛选
-  /// （只能退出重进）。见 `docs/评论接入评估.md` §14。
+  /// （只能退出重进）。
   List<CommentFilterOption> _classifyOptions = const [];
   List<CommentFilterOption> _hotwordOptions = const [];
 
@@ -537,7 +538,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('歌曲详情')),
-      body: SmoothListView(
+      body: DesktopContentConstraint.reading(
+        child: SmoothListView(
         padding: const EdgeInsets.fromLTRB(
           KugoSpacing.lg,
           KugoSpacing.md,
@@ -725,6 +727,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               ),
           ],
         ],
+      ),
       ),
     );
   }

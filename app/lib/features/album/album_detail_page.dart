@@ -97,6 +97,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
             leading: IconButton(
               onPressed: () => context.pop(),
               icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: '返回',
             ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(

@@ -353,36 +353,45 @@ class _FmPageState extends ConsumerState<FmPage>
                     else
                       const SizedBox(width: 12),
                     const SizedBox(width: KugoSpacing.xs),
-                    Flexible(
-                      child: Text(
-                        '私人 FM',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: kugo.section.copyWith(fontSize: 19),
+                    // 标题 + LIVE 作为一整组放进 Expanded，吃掉行里的剩余宽度。
+                    // 旧写法是 Flexible(标题) + Spacer：两者各占 flex:1 分自由
+                    // 空间，但 loose 的 Flexible 只用了很小一部分，剩下的在行尾
+                    // 变成死空间，把右侧开关顶离右缘 ~310px（既不贴右也不居中）。
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '私人 FM',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: kugo.section.copyWith(fontSize: 19),
+                            ),
+                          ),
+                          if (fmActive) ...[
+                            const SizedBox(width: KugoSpacing.sm),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: kugo.primary.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'LIVE',
+                                style: TextStyle(
+                                  color: kugo.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (fmActive) ...[
-                      const SizedBox(width: KugoSpacing.sm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: kugo.primary.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'LIVE',
-                          style: TextStyle(
-                            color: kugo.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
                     poolSwitch,
                   ],
                 ),

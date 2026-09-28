@@ -12,6 +12,7 @@ import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_clickable.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankCardSurface, rankHeroFlightShuttle;
@@ -452,10 +453,12 @@ class _RankStrip extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final count = ranks.length;
-        final available = constraints.maxWidth - KugoSpacing.lg * 2;
+        // 版心只留左边距；右侧留给渐隐贴边。
+        final available = constraints.maxWidth - KugoSpacing.lg;
 
         var cardWidth = _baseCardWidth;
         var side = KugoSpacing.lg;
+        var rightPad = 0.0;
         if (desktop && count > 0) {
           final fit = fitStripRow(
             available: available,
@@ -465,10 +468,17 @@ class _RankStrip extends StatelessWidget {
             gap: _gap,
           );
           cardWidth = fit.width;
-          // 卡片被 [_maxCardWidth] 封顶时一行铺不满，居中免得一侧挂空白。
+          // 卡片被 [_maxCardWidth] 封顶时一行铺不满：两侧对称居中。
+          // 一行放得下/放不下都**不能**只加左边距——那会在右侧留一条白，
+          // 渐隐看起来就像浮在卡片上的遮罩。
           final rowWidth =
               fit.visible * cardWidth + _gap * (fit.visible - 1);
-          side += (available - rowWidth).clamp(0.0, double.infinity) / 2;
+          final leftover =
+              (available - rowWidth).clamp(0.0, double.infinity) / 2;
+          if (leftover > 0.5) {
+            side += leftover;
+            rightPad = leftover;
+          }
         }
 
         return SizedBox(
@@ -481,7 +491,7 @@ class _RankStrip extends StatelessWidget {
               controller: controller,
               scrollDirection: Axis.horizontal,
               physics: physics,
-              padding: EdgeInsets.symmetric(horizontal: side),
+              padding: EdgeInsets.only(left: side, right: rightPad),
               itemCount: count,
               separatorBuilder: (_, _) => const SizedBox(width: _gap),
               itemBuilder: (context, index) {
@@ -511,8 +521,9 @@ class _RankingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 宽度由 [_RankStrip] 按可用空间给出，这里只负责视觉。
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.card),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(KugoRadius.card),
         child: Hero(
@@ -555,10 +566,11 @@ class _PlaylistStrip extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final count = playlists.length;
-        final available = constraints.maxWidth - KugoSpacing.lg * 2;
+        final available = constraints.maxWidth - KugoSpacing.lg;
 
         var cardWidth = _baseCardWidth;
         var side = KugoSpacing.lg;
+        var rightPad = 0.0;
         if (desktop && count > 0) {
           final fit = fitStripRow(
             available: available,
@@ -571,7 +583,12 @@ class _PlaylistStrip extends StatelessWidget {
           if (fit.visible > 1) {
             final rowWidth =
                 fit.visible * cardWidth + _gap * (fit.visible - 1);
-            side += (available - rowWidth).clamp(0.0, double.infinity) / 2;
+            final leftover =
+                (available - rowWidth).clamp(0.0, double.infinity) / 2;
+            if (leftover > 0.5) {
+              side += leftover;
+              rightPad = leftover;
+            }
           }
         }
 
@@ -584,7 +601,7 @@ class _PlaylistStrip extends StatelessWidget {
               controller: controller,
               scrollDirection: Axis.horizontal,
               physics: physics,
-              padding: EdgeInsets.symmetric(horizontal: side),
+              padding: EdgeInsets.only(left: side, right: rightPad),
               itemCount: count,
               separatorBuilder: (_, _) => const SizedBox(width: _gap),
               itemBuilder: (context, index) {

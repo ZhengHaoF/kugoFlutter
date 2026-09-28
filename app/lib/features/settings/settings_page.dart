@@ -30,8 +30,7 @@ class SettingsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
-      body: DesktopContentConstraint(
-        maxWidth: 800,
+      body: DesktopContentConstraint.form(
         // 桌面滚轮平滑：与发现页 / 我的 / 历史等页同源（SilkyScroll）。
         // 原来是裸 ListView，桌面滚轮会显得「一格一格跳」。
         child: SmoothListView(

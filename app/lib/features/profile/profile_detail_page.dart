@@ -111,7 +111,8 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
     return Scaffold(
       backgroundColor: kugo.bg,
       body: SafeArea(
-        child: SmoothListView(
+        child: DesktopContentConstraint.reading(
+          child: SmoothListView(
           padding: EdgeInsets.fromLTRB(
             KugoSpacing.lg,
             KugoSpacing.md,
@@ -161,6 +162,7 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
                   confirmAndLogoutSource(context, ref, accountPlatform),
             ),
           ],
+        ),
         ),
       ),
     );

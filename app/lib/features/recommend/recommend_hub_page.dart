@@ -19,6 +19,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_clickable.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -777,7 +778,7 @@ class _FeatureCard extends StatelessWidget {
     return Material(
       color: kugo.surface,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+      child: KugoClickable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(

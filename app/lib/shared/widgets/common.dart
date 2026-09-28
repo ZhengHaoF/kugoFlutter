@@ -10,6 +10,7 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
+import 'kugo_clickable.dart';
 import 'cover_box.dart';
 import 'kugo_h_scroll.dart';
 
@@ -322,8 +323,9 @@ class _SourceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.chip),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -409,7 +411,7 @@ class TrackTile extends StatelessWidget {
       color: isPlaying ? kugo.primary : kugo.textPrimary,
     );
 
-    return InkWell(
+    return KugoClickable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(KugoRadius.tile),
       child: Padding(
@@ -561,8 +563,9 @@ class PlaylistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.card),
       child: SizedBox(
         width: width,
         child: Column(
@@ -714,7 +717,7 @@ class SearchResultRow extends StatelessWidget {
           )
         : cover;
 
-    return InkWell(
+    return KugoClickable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(KugoRadius.tile),
       child: Padding(

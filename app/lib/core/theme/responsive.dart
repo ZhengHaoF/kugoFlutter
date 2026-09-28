@@ -114,6 +114,15 @@ int coverGridColumnCount(
   return cols.clamp(minColumns, maxColumns);
 }
 
+/// Content-width tiers for wide layouts.
+///
+/// Browse grids stay full-bleed (column count absorbs width). List pages cap
+/// at [kDesktopListWidth] so name/time columns don't sit two metres apart.
+/// Reading pages cap tighter at [kDesktopReadingWidth].
+const double kDesktopListWidth = 960;
+const double kDesktopReadingWidth = 720;
+const double kDesktopFormWidth = 800;
+
 /// Centers and limits content width on wide screens to prevent stretched, empty layouts.
 class DesktopContentConstraint extends StatelessWidget {
   const DesktopContentConstraint({
@@ -122,6 +131,27 @@ class DesktopContentConstraint extends StatelessWidget {
     this.maxWidth = 1120.0,
     this.padding = EdgeInsets.zero,
   });
+
+  /// 列表型：搜索结果 / 播放历史 / 我喜欢 / 歌单曲目 —— 960。
+  const DesktopContentConstraint.list({
+    super.key,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  }) : maxWidth = kDesktopListWidth;
+
+  /// 阅读型：歌曲详情 / 个人中心 —— 720。
+  const DesktopContentConstraint.reading({
+    super.key,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  }) : maxWidth = kDesktopReadingWidth;
+
+  /// 表单型：设置页 —— 800。
+  const DesktopContentConstraint.form({
+    super.key,
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  }) : maxWidth = kDesktopFormWidth;
 
   final Widget child;
   final double maxWidth;

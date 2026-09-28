@@ -1,4 +1,7 @@
+import 'package:flutter/gestures.dart'
+    show MultitouchDragStrategy, PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -29,6 +32,48 @@ import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_page.dart';
 import 'features/song/song_detail_page.dart';
 import 'shared/shell/root_shell.dart';
+
+/// 桌面端不画 Material 滚动条：滚轮/拖拽已经够用，竖条会占掉内容右缘，
+/// 还把横排的边缘渐隐顶到里面去。
+///
+/// **必须同时压住 `copyWith`**：框架 `ScrollBehavior.copyWith` 的
+/// `scrollbars` 参数默认是 `true`，谁在子树里 `copyWith(dragDevices: …)`
+/// 都会把关掉的滚动条重新包回来（`_WrappedScrollBehavior` 见 true 就调
+/// delegate.buildScrollbar）。
+class _NoScrollbarScrollBehavior extends ScrollBehavior {
+  const _NoScrollbarScrollBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) =>
+      child;
+
+  @override
+  ScrollBehavior copyWith({
+    bool? scrollbars,
+    bool? overscroll,
+    Set<PointerDeviceKind>? dragDevices,
+    MultitouchDragStrategy? multitouchDragStrategy,
+    Set<LogicalKeyboardKey>? pointerAxisModifiers,
+    ScrollPhysics? physics,
+    TargetPlatform? platform,
+    ScrollViewKeyboardDismissBehavior? keyboardDismissBehavior,
+  }) {
+    return super.copyWith(
+      scrollbars: false,
+      overscroll: overscroll,
+      dragDevices: dragDevices,
+      multitouchDragStrategy: multitouchDragStrategy,
+      pointerAxisModifiers: pointerAxisModifiers,
+      physics: physics,
+      platform: platform,
+      keyboardDismissBehavior: keyboardDismissBehavior,
+    );
+  }
+}
 
 /// Center scale + fade for lyrics route; Hero still runs on cover tags.
 Widget _lyricsRouteTransition(
@@ -312,12 +357,20 @@ class KugoApp extends ConsumerWidget {
       themeMode: mode,
       theme: buildKugoTheme(Brightness.light),
       darkTheme: buildKugoTheme(Brightness.dark),
+      scrollBehavior: isDesktopPlatform
+          ? const _NoScrollbarScrollBehavior()
+          : null,
       routerConfig: router,
       builder: (context, child) {
         // Status/navigation bars follow the resolved theme, not the OS setting.
         applyKugoSystemUi(Theme.of(context).brightness);
         final content = child ?? const SizedBox.shrink();
         if (isDesktopPlatform) {
+          // 桌面端**必须**挡住 Flutter 语义树进 Windows 无障碍桥：
+          // 打开后高频 hover/列表/动画会把 ui::AXTree 更新打崩
+          // （accessibility_bridge.cc “will not be in the tree and is not the
+          // new root”），随后 Lost connection / 闪退。这不是可读性取舍，
+          // 是 Win32 embedder 的稳定边界——要屏幕阅读器得先修桥再放开。
           return ExcludeSemantics(child: content);
         }
         return content;

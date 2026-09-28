@@ -443,6 +443,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
               leading: IconButton(
                 onPressed: () => context.pop(),
                 icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: '返回',
               ),
               actions: [
                 if (isRankView)

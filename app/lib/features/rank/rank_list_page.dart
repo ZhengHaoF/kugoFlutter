@@ -13,6 +13,7 @@ import '../../core/theme/responsive.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_clickable.dart';
 
 import 'rank_hero.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -230,8 +231,9 @@ class _RankGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
     final desktop = isDesktopView(context);
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

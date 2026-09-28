@@ -9,6 +9,7 @@ import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/kugo_clickable.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 
 /// 私人 FM 的视觉件：电台卡 / 黑胶舞台 / 信息 chip / 来源标注 / 胶囊开关。
@@ -1262,8 +1263,9 @@ class _CardAction extends StatelessWidget {
       opacity: enabled ? 1 : 0.4,
       child: Tooltip(
         message: tooltip,
-        child: GestureDetector(
+        child: KugoClickable(
           onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(size / 2),
           child: Container(
             width: size,
             height: size,

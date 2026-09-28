@@ -17,6 +17,7 @@ import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_clickable.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -1051,8 +1052,9 @@ class _AlbumGridCard extends StatelessWidget {
       if (album.publishDate.isNotEmpty) album.publishDate,
       if (album.trackCount > 0) '${album.trackCount}首',
     ].join(' · ');
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1096,8 +1098,9 @@ class _ArtistGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const labelH = 18.0;
     const gap = 6.0;
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: LayoutBuilder(
         builder: (context, constraints) {
           // 圆直径取 min(宽, 高-名字行)，保证名字永远放得下、圆也不会被拉高。

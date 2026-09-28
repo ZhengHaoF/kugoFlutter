@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../data/storage/kugo_db.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/player/player_controller.dart';
@@ -233,9 +234,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           ],
         ],
       ),
-      body: _loading
-          ? const SkeletonList()
-          : Column(
+      body: DesktopContentConstraint.list(
+        child: _loading
+            ? const SkeletonList()
+            : Column(
               children: [
                 // Tab selector
                 Padding(
@@ -280,6 +282,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
               ],
             ),
+      ),
     );
   }
 

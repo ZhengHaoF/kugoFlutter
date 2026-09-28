@@ -8,12 +8,14 @@ import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 // 注意：[SearchType] 定义在 search_repository 里（历史遗留，暂不迁）。
 import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/kugo_clickable.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import 'search_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -42,9 +44,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     _loadHot();
     _scroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // 新挂载的页面，输入框必然是空的（旧的 TextEditingController 已随
+      // 上一个 State 销毁），所以搜索控制器里残留的结果都是上一次访问的：
+      // 清掉它们，别让用户看到「空输入框 + 旧结果」。深链 `?q=` 随后会重新
+      // 提交，不受影响。
+      _resetStaleSearch();
       _applyDefaultSource();
       _handleInitialQuery();
     });
+  }
+
+  /// 输入框为空时清空上一次的搜索结果。本次访问已输入的关键词不受影响。
+  void _resetStaleSearch() {
+    if (_controller.text.trim().isNotEmpty) return;
+    ref.read(searchControllerProvider.notifier).reset();
   }
 
   /// 设置里的「默认源」→ 音源筛选初始值（只影响本次会话的初值）。
@@ -143,7 +157,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('搜索')),
-      body: Column(
+      body: DesktopContentConstraint.list(
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -229,6 +244,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ],
         ],
       ),
+      ),
     );
   }
 
@@ -313,8 +329,9 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return KugoClickable(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(KugoRadius.chip),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 14),

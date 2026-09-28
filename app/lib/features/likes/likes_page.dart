@@ -8,6 +8,7 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/profile/source_account.dart';
 import '../../features/profile/source_library_controller.dart';
@@ -392,7 +393,8 @@ class _LikesPageState extends ConsumerState<LikesPage>
           ),
         ),
       ),
-      body: TabBarView(
+      body: DesktopContentConstraint.list(
+        child: TabBarView(
         controller: _tabController,
         children: [
           // Tab 1: 歌曲（源筛选条 + 列表）
@@ -426,6 +428,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
             ),
           ],
         ],
+        ),
       ),
     );
   }
