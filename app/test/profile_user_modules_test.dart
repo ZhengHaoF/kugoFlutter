@@ -179,10 +179,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 真实入口仍在。页尾的「关于」也在同一屏内 → 证明整页确已布局，
-      // 下面的 findsNothing 不是「没滚到」导致的假通过。
+      // 默认页签「歌单」：真实入口仍在。
       expect(find.text('我的歌单'), findsOneWidget);
-      expect(find.text('设置'), findsOneWidget);
+
+      // 切到「设置」页签，页尾的「关于」也要渲染到底 —— 证明整页确已布局，
+      // 下面的 findsNothing 不是「没切到」导致的假通过。
+      await tester.tap(find.text('设置'));
+      await tester.pumpAndSettle();
+      expect(find.text('更多设置'), findsOneWidget);
       expect(find.text('关于'), findsOneWidget);
 
       // 「本地音乐」/「下载管理」是只弹「开发中」的假入口，已明确砍掉。

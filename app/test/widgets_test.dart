@@ -91,6 +91,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // 快捷设置从「我的」页搬到「设置」页签里，先切过去。
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+
     // The link tiles sit below the fold in the default 800x600 test viewport.
     Future<void> revealTile(String label) async {
       await tester.scrollUntilVisible(

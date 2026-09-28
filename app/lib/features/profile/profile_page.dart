@@ -33,16 +33,25 @@ class ProfilePage extends ConsumerStatefulWidget {
   ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends ConsumerState<ProfilePage> {
+class _ProfilePageState extends ConsumerState<ProfilePage>
+    with SingleTickerProviderStateMixin {
   /// Distinct tracks in local play history. `null` until the DB answers, so the
   /// tile can render a placeholder instead of a wrong `0`.
   int? _historyCount;
   int _selectedPlaylistTab = 0;
   final GlobalKey _playlistsSectionKey = GlobalKey();
 
+  /// 页签：0 = 歌单，1 = 设置。
+  ///
+  /// 页头对齐「探索发现」：顶部居中页面标题 + 下面一条页签栏，内容按页签
+  /// 拆开，不再是一长条向下滚的卡片。
+  static const _tabs = ['歌单', '设置'];
+  late final TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _tabs.length, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authControllerProvider.notifier).refreshProfile();
       _loadHistoryCount();
@@ -50,6 +59,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final platform = ref.read(effectiveAccountSourceProvider);
       ref.read(sourceLibraryProvider(platform).notifier).loadPlaylists();
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadHistoryCount() async {
@@ -105,271 +120,341 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             : '${library.totalPlaylistsCount}');
     final playlistStatHint = !account.isLogged ? '需登录' : null;
 
-    return SmoothListView(
-      padding: EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.xl,
-        KugoSpacing.lg,
-        isDesktop ? 48 : 140,
-      ),
-      children: [
-        Text('我的', style: kugo.greeting),
-        // 账号源切换条：多源启用才出（账号身份按源区分，不混排）。
-        // 顶部间距由 SourceFilterBar 自带，与其它页面对齐。
-        if (accountSources.length > 1) ...[
-          SourceFilterBar(
-            platforms: accountSources,
-            selected: accountPlatform,
-            showAll: false,
-            horizontalPadding: 0,
-            onSelect: (p) {
-              // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
-              ref
-                  .read(settingsControllerProvider.notifier)
-                  .syncDefaultSourceFromFilter(p);
-              if (p != null) ref.read(accountSourceProvider.notifier).state = p;
-            },
-          ),
-          const SizedBox(height: KugoSpacing.sm),
-        ],
-        GlassSurface(
-          padding: const EdgeInsets.all(KugoSpacing.lg),
-          child: Column(
-            children: [
-              // 紧凑用户入口 → 独立「个人中心」页（对齐 Echo 的 Profile 内容页）。
-              InkWell(
-                borderRadius: BorderRadius.circular(KugoRadius.tile),
-                onTap: () => context.push('/profile/detail'),
-                child: Row(
-                  children: [
-                    CoverBox(
-                      seed: avatarUrl.isNotEmpty ? avatarUrl : 'avatar-guest',
-                      size: 56,
-                      radius: 999,
-                      child: avatarUrl.isNotEmpty
-                          ? null
-                          : const Icon(
-                              Icons.person_rounded,
-                              color: Colors.white70,
-                              size: 28,
-                            ),
+    return Scaffold(
+      // 页头对齐「探索发现」：顶部居中页面标题，下面一条页签栏。
+      appBar: AppBar(title: const Text('我的')),
+      body: Column(
+        children: [
+          // 账号源切换条：多源启用才出（账号身份按源区分，不混排）。
+          // 顶部间距由 SourceFilterBar 自带，与其它页面对齐。
+          if (accountSources.length > 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+              child: SourceFilterBar(
+                platforms: accountSources,
+                selected: accountPlatform,
+                showAll: false,
+                horizontalPadding: 0,
+                onSelect: (p) {
+                  // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+                  ref
+                      .read(settingsControllerProvider.notifier)
+                      .syncDefaultSourceFromFilter(p);
+                  if (p != null) {
+                    ref.read(accountSourceProvider.notifier).state = p;
+                  }
+                },
+              ),
+            ),
+          // 身份卡常驻：切到「设置」页签也不该丢掉账号身份与乐库统计。
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KugoSpacing.lg,
+              KugoSpacing.sm,
+              KugoSpacing.lg,
+              KugoSpacing.md,
+            ),
+            child: GlassSurface(
+              padding: const EdgeInsets.all(KugoSpacing.lg),
+              child: Column(
+                children: [
+                  // 紧凑用户入口 → 独立「个人中心」页（对齐 Echo 的 Profile 内容页）。
+                  InkWell(
+                    borderRadius: BorderRadius.circular(KugoRadius.tile),
+                    onTap: () => context.push('/profile/detail'),
+                    child: Row(
+                      children: [
+                        CoverBox(
+                          seed: avatarUrl.isNotEmpty
+                              ? avatarUrl
+                              : 'avatar-guest',
+                          size: 56,
+                          radius: 999,
+                          child: avatarUrl.isNotEmpty
+                              ? null
+                              : const Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white70,
+                                  size: 28,
+                                ),
+                        ),
+                        const SizedBox(width: KugoSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(displayName, style: kugo.title),
+                              const SizedBox(height: 4),
+                              Text(
+                                displaySub,
+                                style: kugo.caption.copyWith(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: kugo.textSecondary,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: KugoSpacing.md),
-                    Expanded(
+                  ),
+                  const SizedBox(height: KugoSpacing.lg),
+                  Row(
+                    children: [
+                      const _Divider(),
+                      Expanded(
+                        child: _Stat(
+                          label: '我喜欢',
+                          value: '$realLikesCount',
+                          onTap: () => context.push('/likes'),
+                        ),
+                      ),
+                      const _Divider(),
+                      Expanded(
+                        child: _Stat(
+                          label: '最近播放',
+                          value: _historyCount == null ? '—' : '$_historyCount',
+                          onTap: () => context.push('/history'),
+                        ),
+                      ),
+                      const _Divider(),
+                      Expanded(
+                        child: _Stat(
+                          label: '歌单',
+                          value: playlistStatValue,
+                          hint: playlistStatHint,
+                          // 歌单在第一个页签里：先切页签（切回来时卡片就在
+                          // 顶部，无需滚动）；已在歌单页签才滚到卡片。
+                          onTap: () {
+                            if (!account.isLogged) {
+                              context.push(loginRouteFor(accountPlatform));
+                              return;
+                            }
+                            if (_tabController.index != 0) {
+                              _tabController.animateTo(0);
+                              return;
+                            }
+                            final ctx = _playlistsSectionKey.currentContext;
+                            if (ctx != null) {
+                              Scrollable.ensureVisible(
+                                ctx,
+                                duration: const Duration(milliseconds: 350),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      const _Divider(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 与「探索发现」同一套页签样式：左对齐、可横向滚。
+          TabBar(
+            controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [for (final t in _tabs) Tab(text: t)],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                SmoothListView(
+                  padding: EdgeInsets.fromLTRB(
+                    KugoSpacing.lg,
+                    KugoSpacing.md,
+                    KugoSpacing.lg,
+                    isDesktop ? 48 : 140,
+                  ),
+                  children: [
+                    // 用户卡与「我的歌单」之间不再放入口卡片：
+                    // * 「本地音乐」/「下载管理」两个占位入口已砍掉（旧版只弹
+                    //   「开发中」提示，无真实能力）；
+                    // * 「播放历史」与用户卡「最近播放」重复，统一从统计进
+                    //   /history。
+                    // 将来新增入口时在此重建卡片；不要留只弹提示的假入口。
+                    GlassSurface(
+                      key: _playlistsSectionKey,
+                      padding: const EdgeInsets.all(KugoSpacing.lg),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(displayName, style: kugo.title),
-                          const SizedBox(height: 4),
-                          Text(
-                            displaySub,
-                            style: kugo.caption.copyWith(fontSize: 12),
+                          Row(
+                            children: [
+                              Text(
+                                '我的歌单',
+                                style: kugo.section.copyWith(fontSize: 16),
+                              ),
+                              const Spacer(),
+                              if (account.isLogged)
+                                IconButton(
+                                  icon: library.loading
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.refresh_rounded,
+                                          size: 20,
+                                        ),
+                                  tooltip: '刷新歌单',
+                                  onPressed: library.loading
+                                      ? null
+                                      : () => ref
+                                          .read(sourceLibraryProvider(
+                                                  accountPlatform)
+                                              .notifier)
+                                          .loadPlaylists(force: true),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: KugoSpacing.md),
+                          if (!account.isLogged) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: KugoSpacing.md,
+                                vertical: KugoSpacing.lg,
+                              ),
+                              decoration: BoxDecoration(
+                                color: kugo.surfaceElevated.withValues(
+                                  alpha: 0.4,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  KugoRadius.tile,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.queue_music_rounded,
+                                    size: 38,
+                                    color: kugo.textSecondary.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
+                                  const SizedBox(height: KugoSpacing.sm),
+                                  Text(
+                                    '登录${accountPlatform.label}账号后，即可同步自建与收藏歌单',
+                                    style: kugo.caption.copyWith(fontSize: 13),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: KugoSpacing.md),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    onPressed: () => context.push(
+                                      loginRouteFor(accountPlatform),
+                                    ),
+                                    child: const Text('立即登录'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Center(
+                              child: SegmentedButton<int>(
+                                segments: [
+                                  ButtonSegment<int>(
+                                    value: 0,
+                                    label: Text(
+                                      '自建 (${library.createdPlaylists.length})',
+                                    ),
+                                  ),
+                                  ButtonSegment<int>(
+                                    value: 1,
+                                    label: Text(
+                                      '收藏 (${library.collectedPlaylists.length})',
+                                    ),
+                                  ),
+                                ],
+                                selected: {_selectedPlaylistTab},
+                                onSelectionChanged: (set) => setState(
+                                  () => _selectedPlaylistTab = set.first,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: KugoSpacing.md),
+                            ..._buildPlaylistList(
+                              _selectedPlaylistTab == 0
+                                  ? library.createdPlaylists
+                                  : library.collectedPlaylists,
+                              isCreatedTab: _selectedPlaylistTab == 0,
+                              isLoading: library.loading && !library.loaded,
+                              error: library.error,
+                              kugo: kugo,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                SmoothListView(
+                  padding: EdgeInsets.fromLTRB(
+                    KugoSpacing.lg,
+                    KugoSpacing.md,
+                    KugoSpacing.lg,
+                    isDesktop ? 48 : 140,
+                  ),
+                  children: [
+                    GlassSurface(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        children: [
+                          _LinkTile(
+                            icon: Icons.settings_outlined,
+                            title: '更多设置',
+                            onTap: () => context.push('/settings'),
+                          ),
+                          // Theme-colored tiles must not be const — Flutter skips
+                          // rebuild when the const instance is identical after a
+                          // theme switch.
+                          _LinkTile(
+                            icon: Icons.timer_outlined,
+                            title: '定时停止',
+                            subtitle: sleepLabel,
+                            onTap: () => _showSleepSheet(context),
+                          ),
+                          _LinkTile(
+                            icon: Icons.music_note_rounded,
+                            title: '音质设置',
+                            subtitle: settings.qualityLabel,
+                            onTap: () => _showQualitySheet(context),
+                          ),
+                          _LinkTile(
+                            icon: Icons.palette_outlined,
+                            title: '主题外观',
+                            subtitle: settings.themeModeLabel,
+                            onTap: () => _showThemeSheet(context),
+                          ),
+                          _LinkTile(
+                            icon: Icons.info_outline_rounded,
+                            title: '关于',
+                            onTap: () => _showAboutSheet(context),
                           ),
                         ],
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: kugo.textSecondary,
-                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: KugoSpacing.lg),
-              Row(
-                children: [
-                  const _Divider(),
-                  Expanded(
-                    child: _Stat(
-                      label: '我喜欢',
-                      value: '$realLikesCount',
-                      onTap: () => context.push('/likes'),
-                    ),
-                  ),
-                  const _Divider(),
-                  Expanded(
-                    child: _Stat(
-                      label: '最近播放',
-                      value: _historyCount == null ? '—' : '$_historyCount',
-                      onTap: () => context.push('/history'),
-                    ),
-                  ),
-                  const _Divider(),
-                  Expanded(
-                    child: _Stat(
-                      label: '歌单',
-                      value: playlistStatValue,
-                      hint: playlistStatHint,
-                      onTap: () {
-                        if (!account.isLogged) {
-                          context.push(loginRouteFor(accountPlatform));
-                        } else {
-                          final ctx = _playlistsSectionKey.currentContext;
-                          if (ctx != null) {
-                            Scrollable.ensureVisible(
-                              ctx,
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeInOut,
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                  const _Divider(),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: KugoSpacing.lg),
-        // 用户卡与「我的歌单」之间不再放入口卡片：
-        // * 「本地音乐」/「下载管理」两个占位入口已砍掉（旧版只弹「开发中」提示，无真实能力）；
-        // * 「播放历史」与用户卡「最近播放」重复，统一从统计进 /history。
-        // 将来新增入口时在此重建卡片；不要留只弹提示的假入口。
-        GlassSurface(
-          key: _playlistsSectionKey,
-          padding: const EdgeInsets.all(KugoSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    '我的歌单',
-                    style: kugo.section.copyWith(fontSize: 16),
-                  ),
-                  const Spacer(),
-                  if (account.isLogged)
-                    IconButton(
-                      icon: library.loading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.refresh_rounded, size: 20),
-                      tooltip: '刷新歌单',
-                      onPressed: library.loading
-                          ? null
-                          : () => ref
-                              .read(sourceLibraryProvider(accountPlatform)
-                                  .notifier)
-                              .loadPlaylists(force: true),
-                    ),
-                ],
-              ),
-              const SizedBox(height: KugoSpacing.md),
-              if (!account.isLogged) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: KugoSpacing.md,
-                    vertical: KugoSpacing.lg,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kugo.surfaceElevated.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(KugoRadius.tile),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.queue_music_rounded,
-                        size: 38,
-                        color: kugo.textSecondary.withValues(alpha: 0.7),
-                      ),
-                      const SizedBox(height: KugoSpacing.sm),
-                      Text(
-                        '登录${accountPlatform.label}账号后，即可同步自建与收藏歌单',
-                        style: kugo.caption.copyWith(fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: KugoSpacing.md),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 8,
-                          ),
-                        ),
-                        onPressed: () =>
-                            context.push(loginRouteFor(accountPlatform)),
-                        child: const Text('立即登录'),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                Center(
-                  child: SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment<int>(
-                        value: 0,
-                        label: Text('自建 (${library.createdPlaylists.length})'),
-                      ),
-                      ButtonSegment<int>(
-                        value: 1,
-                        label: Text('收藏 (${library.collectedPlaylists.length})'),
-                      ),
-                    ],
-                    selected: {_selectedPlaylistTab},
-                    onSelectionChanged: (set) =>
-                        setState(() => _selectedPlaylistTab = set.first),
-                  ),
-                ),
-                const SizedBox(height: KugoSpacing.md),
-                ..._buildPlaylistList(
-                  _selectedPlaylistTab == 0
-                      ? library.createdPlaylists
-                      : library.collectedPlaylists,
-                  isCreatedTab: _selectedPlaylistTab == 0,
-                  isLoading: library.loading && !library.loaded,
-                  error: library.error,
-                  kugo: kugo,
-                ),
               ],
-            ],
+            ),
           ),
-        ),
-        const SizedBox(height: KugoSpacing.lg),
-        GlassSurface(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            children: [
-              _LinkTile(
-                icon: Icons.settings_outlined,
-                title: '设置',
-                onTap: () => context.push('/settings'),
-              ),
-              // Theme-colored tiles must not be const — Flutter skips rebuild
-              // when the const instance is identical after a theme switch.
-              _LinkTile(
-                icon: Icons.timer_outlined,
-                title: '定时停止',
-                subtitle: sleepLabel,
-                onTap: () => _showSleepSheet(context),
-              ),
-              _LinkTile(
-                icon: Icons.music_note_rounded,
-                title: '音质设置',
-                subtitle: settings.qualityLabel,
-                onTap: () => _showQualitySheet(context),
-              ),
-              _LinkTile(
-                icon: Icons.palette_outlined,
-                title: '主题外观',
-                subtitle: settings.themeModeLabel,
-                onTap: () => _showThemeSheet(context),
-              ),
-              _LinkTile(
-                icon: Icons.info_outline_rounded,
-                title: '关于',
-                onTap: () => _showAboutSheet(context),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

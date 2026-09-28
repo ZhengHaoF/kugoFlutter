@@ -339,7 +339,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('默认收藏'), findsOneWidget);
-      expect(find.text('我喜欢'), findsOneWidget);
+      // 「我喜欢」出现两次：身份卡里的统计标签 + 歌单名本身。
+      expect(find.text('我喜欢'), findsNWidgets(2));
       expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
       expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
 
