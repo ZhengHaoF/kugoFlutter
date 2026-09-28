@@ -9,6 +9,7 @@ import '../../core/models/audio_quality.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../data/storage/queue_store.dart';
+import '../search/search_history_controller.dart';
 
 export '../../core/models/audio_quality.dart' show AppQuality, AppQualityX;
 
@@ -474,7 +475,7 @@ class SettingsController extends Notifier<AppSettings> {
     } catch (_) {}
   }
 
-  /// Clear cover disk/memory cache + play history. Returns a status label.
+  /// Clear cover disk/memory cache + play & search history. Returns a status label.
   Future<String> clearImageAndHistoryCache() async {
     await CoverCache.instance.clear();
     PaintingBinding.instance.imageCache.clear();
@@ -483,7 +484,10 @@ class SettingsController extends Notifier<AppSettings> {
       final store = await QueueStore.open();
       await store.clearAll();
     } catch (_) {}
-    return '已清理图片缓存与播放历史';
+    try {
+      await ref.read(searchHistoryProvider.notifier).clear();
+    } catch (_) {}
+    return '已清理图片缓存、播放与搜索历史';
   }
 
   Future<void> _save(String key, Object value) async {

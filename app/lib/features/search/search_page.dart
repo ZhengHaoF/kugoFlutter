@@ -18,6 +18,7 @@ import '../../shared/widgets/common.dart';
 import '../../shared/widgets/kugo_clickable.dart';
 import '../../shared/widgets/kugo_h_scroll.dart';
 import 'search_controller.dart';
+import 'search_history_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// Multi-type search: songs / playlists / albums / artists.
@@ -132,7 +133,34 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final kw = keyword.trim();
     if (kw.isEmpty) return;
     _focus.unfocus();
+    // 提交即记录（不依赖搜索结果成败）。三条入口——手动输入、热搜点击、
+    // 深链 ?q=——都汇集到这里。
+    await ref.read(searchHistoryProvider.notifier).record(kw);
     await ref.read(searchControllerProvider.notifier).submit(kw);
+  }
+
+  /// 「清空搜索历史」需二次确认；与输入框 X（只 reset 当前结果）是两回事。
+  Future<void> _confirmClearHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清空搜索历史'),
+        content: const Text('确定要清空全部搜索历史吗？此操作无法撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('清空'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(searchHistoryProvider.notifier).clear();
   }
 
   void _onScroll() {
@@ -206,12 +234,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
           if (!state.searched)
             Expanded(
-              child: _HotKeywords(
+              child: _DiscoveryView(
+                history: ref.watch(searchHistoryProvider),
                 hot: _hot,
                 onTap: (kw) {
                   _controller.text = kw;
                   _submit(kw);
                 },
+                onRemoveHistory: (kw) =>
+                    ref.read(searchHistoryProvider.notifier).remove(kw),
+                onClearHistory: _confirmClearHistory,
               ),
             )
           else ...[
@@ -564,11 +596,21 @@ class _Footer extends StatelessWidget {
   }
 }
 
-class _HotKeywords extends StatelessWidget {
-  const _HotKeywords({required this.hot, required this.onTap});
+/// 未搜索时的落地视图：搜索历史（有则显示，可单删/清空）+ 热门搜索。
+class _DiscoveryView extends StatelessWidget {
+  const _DiscoveryView({
+    required this.history,
+    required this.hot,
+    required this.onTap,
+    required this.onRemoveHistory,
+    required this.onClearHistory,
+  });
 
+  final List<String> history;
   final List<String> hot;
   final ValueChanged<String> onTap;
+  final ValueChanged<String> onRemoveHistory;
+  final VoidCallback onClearHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -579,6 +621,43 @@ class _HotKeywords extends StatelessWidget {
     return SmoothListView(
       padding: const EdgeInsets.all(KugoSpacing.lg),
       children: [
+        if (history.isNotEmpty) ...[
+          Row(
+            children: [
+              Text('搜索历史', style: kugo.section.copyWith(fontSize: 16)),
+              const Spacer(),
+              TextButton(
+                onPressed: onClearHistory,
+                child: Text(
+                  '清空',
+                  style: kugo.caption.copyWith(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: KugoSpacing.sm),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final kw in history)
+                InputChip(
+                  label: Text(kw),
+                  backgroundColor: kugo.surface,
+                  labelStyle: kugo.caption.copyWith(fontSize: 13),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(KugoRadius.chip),
+                  ),
+                  deleteIconColor: kugo.textSecondary,
+                  deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                  onPressed: () => onTap(kw),
+                  onDeleted: () => onRemoveHistory(kw),
+                ),
+            ],
+          ),
+          const SizedBox(height: KugoSpacing.lg),
+        ],
         Text(
           '热门搜索',
           style: kugo.section.copyWith(fontSize: 16),

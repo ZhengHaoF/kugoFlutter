@@ -232,7 +232,7 @@ class SettingsPage extends ConsumerWidget {
                   Icons.cleaning_services_outlined,
                   color: kugo.textSecondary,
                 ),
-                title: Text('清理图片缓存与播放历史', style: kugo.body),
+                title: Text('清理图片缓存与播放、搜索历史', style: kugo.body),
                 subtitle: Text(
                   '不影响登录与我喜欢；队列本地副本会一并清空',
                   style: kugo.caption,
