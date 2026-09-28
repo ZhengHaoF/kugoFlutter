@@ -7,6 +7,7 @@ import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
+import 'mv_entry.dart';
 
 /// MV 页加载状态。
 enum MvLoadStatus { idle, loading, ready, error }
@@ -100,11 +101,10 @@ class MvPlayerController extends Notifier<MvPlayerState> {
   Future<void> _loadVersions(MvBrief brief) async {
     final mixSongId = brief.mixSongId.trim();
     if (mixSongId.isEmpty) return;
-    final registry = requireMusicSourceRegistry;
-    final search = registry.capability<MvSearchSource>(brief.platform);
-    if (search == null) return;
     try {
-      final list = await search.songMvs(
+      // 与列表 / 播放栏入口共用 [`loadSongMvs`] 的内存缓存，
+      // 从入口点进来时不再重复打 `/kmr/v1/audio/mv`。
+      final list = await loadSongMvs(
         Track(
           id: mixSongId,
           name: brief.name,

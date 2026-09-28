@@ -16,6 +16,7 @@ import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/lyrics_view.dart';
 import '../../core/models/playback_source.dart';
 import '../fm/fm_controller.dart';
+import '../mv/mv_entry.dart';
 import 'fm_controls.dart';
 import '../../shared/widgets/lyric_display_sheet.dart';
 import '../../shared/widgets/quality_sheet.dart';
@@ -121,6 +122,8 @@ class FullPlayerPage extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Text('正在播放', style: kugo.section),
                             const Spacer(),
+                            // 播放 MV（这首歌有 MV 时露出）
+                            MvEntryButton(track: track, size: 20),
                             IconButton(
                               onPressed: () => _openSongDetail(context, track),
                               tooltip: '歌曲详情',

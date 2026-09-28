@@ -8,6 +8,7 @@ import '../../core/models/playback_source.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/fm/fm_controller.dart';
 import '../../features/likes/likes_controller.dart';
+import '../../features/mv/mv_entry.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
 import 'cover_box.dart';
@@ -167,6 +168,9 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // 播放 MV（这首歌有 MV 时露出）
+                      MvEntryButton(track: track, size: 20),
                       const SizedBox(width: 8),
                       // 喜欢按钮
                       LikeButton(

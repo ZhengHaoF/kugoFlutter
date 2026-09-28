@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,6 +11,7 @@ import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
+import '../../features/mv/mv_entry.dart';
 import 'kugo_clickable.dart';
 import 'cover_box.dart';
 import 'kugo_h_scroll.dart';
@@ -368,6 +370,7 @@ class TrackTile extends StatelessWidget {
     this.index,
     this.showAlbum = false,
     this.showSource = false,
+    this.showMv = true,
   });
 
   final Track track;
@@ -382,6 +385,12 @@ class TrackTile extends StatelessWidget {
 
   /// 展示音源来源角标（多源混排搜索结果用）。
   final bool showSource;
+
+  /// 这首「可能」有 MV 时，在时长前露一个 MV 入口（桌面悬停显现）。
+  ///
+  /// 默认开：内容列表（歌单/搜索/专辑/歌手/收藏/历史/推荐）都能一键进 MV，
+  /// 能力/`mixSongId` 不满足时按钮自身不占位。个别不想显示的页面传 `false`。
+  final bool showMv;
 
   /// Catalog quality chip for lists: highest known tag, hide plain SD/SQ-default.
   static String? _listQualityBadge(Track track) {
@@ -405,7 +414,11 @@ class TrackTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => _HoverScope(
+    builder: (context, hovered) => _buildRow(context, hovered),
+  );
+
+  Widget _buildRow(BuildContext context, bool hovered) {
     final kugo = KugoTheme.of(context);
     final titleStyle = kugo.body.copyWith(
       color: isPlaying ? kugo.primary : kugo.textPrimary,
@@ -513,6 +526,18 @@ class TrackTile extends StatelessWidget {
                 ),
               ),
             ],
+            if (showMv && canOpenMv(track)) ...[
+              const SizedBox(width: KugoSpacing.xs),
+              // 桌面端跟随整行 hover 显现（对齐 EchoMusic），移动端常驻。
+              IgnorePointer(
+                ignoring: isDesktopView(context) && !hovered,
+                child: AnimatedOpacity(
+                  opacity: !isDesktopView(context) || hovered ? 1 : 0,
+                  duration: const Duration(milliseconds: 140),
+                  child: MvEntryButton(track: track, size: 18),
+                ),
+              ),
+            ],
             if (trailing != null)
               trailing!
             else if (showAlbum) ...[
@@ -539,6 +564,36 @@ class TrackTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HoverScope extends StatefulWidget {
+  const _HoverScope({required this.builder});
+
+  final Widget Function(BuildContext context, bool hovered) builder;
+
+  @override
+  State<_HoverScope> createState() => _HoverScopeState();
+}
+
+class _HoverScopeState extends State<_HoverScope> {
+  bool _hovered = false;
+
+  void _handleEnter(PointerEnterEvent _) {
+    if (_hovered) return;
+    setState(() => _hovered = true);
+  }
+
+  void _handleExit(PointerExitEvent _) {
+    if (!_hovered || !mounted) return;
+    setState(() => _hovered = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    onEnter: _handleEnter,
+    onExit: _handleExit,
+    child: widget.builder(context, _hovered),
+  );
 }
 
 class PlaylistCard extends StatelessWidget {

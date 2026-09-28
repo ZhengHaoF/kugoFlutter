@@ -17,6 +17,7 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
 import '../../features/player/player_controller.dart';
+import '../mv/mv_entry.dart';
 import '../../shared/widgets/comment_composer_sheet.dart';
 import '../../shared/widgets/comment_tile.dart';
 import '../../shared/widgets/common.dart';
@@ -107,46 +108,18 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   List<Comment> _featured = const [];
 
   /// MV 入口：有 [MvSearchSource] 能力且歌曲带 `mixSongId` 时显示。
-  /// 点击后拉关联 MV 再跳转，拉不到就提示。
+  /// 点击后经共享 [`openMvForTrack`] 拉关联 MV 再跳转（带缓存），拉不到就提示。
   bool _mvOpening = false;
 
-  bool get _canShowMv {
-    // 只认能力：有 [MvSearchSource] 且歌曲带可寻址 id 即可，不写死平台。
-    if (widget.mixSongId.trim().isEmpty && widget.id.trim().isEmpty) {
-      return false;
-    }
-    return requireMusicSourceRegistry.capability<MvSearchSource>(widget.platform) !=
-        null;
-  }
+  /// 与列表/播放栏同一判据（`mixSongId` + 能力），不再用 `id` 兜底 ——
+  /// `songMvs` 只认 `mixSongId`，用 `id` 判会漏出点开必空转的假入口。
+  bool get _canShowMv => canOpenMv(_track);
 
   Future<void> _openMv() async {
     if (_mvOpening) return;
-    final src =
-        requireMusicSourceRegistry.capability<MvSearchSource>(widget.platform);
-    if (src == null) return;
     setState(() => _mvOpening = true);
     try {
-      final list = await src.songMvs(_track);
-      if (!mounted) return;
-      if (list.isEmpty) {
-        _toast('这首歌暂无 MV');
-        return;
-      }
-      final mv = list.first;
-      final q = Uri(
-        path: '/mv',
-        queryParameters: {
-          'id': mv.id,
-          'hash': mv.hash,
-          'name': mv.name,
-          'artist': mv.artist,
-          'cover': mv.coverUrl,
-          'mixSongId': mv.mixSongId,
-        },
-      );
-      context.push(q.toString());
-    } catch (e) {
-      if (mounted) _toast('MV 加载失败');
+      await openMvForTrack(context, _track);
     } finally {
       if (mounted) setState(() => _mvOpening = false);
     }
