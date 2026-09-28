@@ -7,6 +7,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../core/models/mv_models.dart';
+import '../../core/platform.dart' show isWindowsPlatform;
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
@@ -52,8 +53,9 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
   bool _controlsVisible = true;
   bool _started = false;
 
-  /// 硬解优先；出画失败（宽高始终为 0）时降级软解重建。
-  bool _hwAccel = true;
+  /// Windows 硬解经常「有声有进度无画」且 width/height 照样上报，
+  /// 软解回退判据踩空；直接默认软解。其它平台仍硬解优先。
+  bool _hwAccel = !isWindowsPlatform;
   bool _swFallbackTried = false;
   StreamSubscription<int?>? _widthSub;
   StreamSubscription<int?>? _heightSub;
@@ -128,8 +130,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
     return VideoController(
       p,
       configuration: VideoControllerConfiguration(
-        // Windows 硬解失败时 libmpv 只出声不出画；软解作回退。
-        // 不传 hwdec → 各平台默认（Win 为 auto）；仅回退时强制 no。
+        // Windows 默认软解（见 _hwAccel）；其它平台硬解，失败再降级。
         enableHardwareAcceleration: _hwAccel,
         hwdec: _hwAccel ? null : 'no',
       ),
@@ -196,20 +197,31 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
 
   String _lastMediaUrl = '';
 
+  /// 当前已成功 open 的版本标识（`id|hash`），用于区分「切清晰度」与「换版本」。
+  /// `selectVersion` / `selectSource` 都会先 `clearPlayUrl`，`prev.playUrl` 拿不到
+  /// 旧值，不能靠它判断。
+  String _openedBriefKey = '';
+
+  static String _briefKeyOf(MvBrief? brief) =>
+      brief == null ? '' : '${brief.id}|${brief.hash}';
+
   /// [resume] 为 true 时用 [_resumeMs] 续播（切清晰度路径）。
   Future<void> _openFromState(MvPlayerState state, {required bool resume}) async {
     final play = state.playUrl;
     if (play == null || play.allUrls.isEmpty) return;
     final headers = play.headers;
+    final url = play.url;
+    // 同一地址已在播 / 正在 open：跳过（load 路径 listener 与 bootstrap 会各触发一次）。
+    if (_started && url == _lastMediaUrl) return;
     _httpHeaders = headers;
-    _lastMediaUrl = play.url;
+    _lastMediaUrl = url;
     _ensurePlayer();
     if (mounted) setState(() {});
-    if (!resume && _started) return;
     _started = true;
     final seekTo = resume ? _resumeMs : 0;
     _lastEngineError = '';
     if (resume) _resumeMs = 0;
+    _openedBriefKey = _briefKeyOf(state.brief);
 
     // 依次尝试：主地址（带防盗链头）→ 主地址（裸）→ 备用地址。
     // EchoMusic 网页端是裸 URL 直出，说明头不是必须；但带上更稳。
@@ -315,10 +327,13 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(mvPlayerProvider);
-    // 取流成功后打开播放器（覆盖加载完成、切清晰度两条路径）。
+    // 取流成功后打开播放器（覆盖加载完成、切清晰度、换版本三条路径）。
+    // 版本切换会 clearPlayUrl，prev.playUrl 为空，不能拿它判断「是否在切清晰度」；
+    // 改看已 open 的版本标识是否变化。
     ref.listen(mvPlayerProvider, (prev, next) {
       if (next.canPlay && next.playUrl?.url != prev?.playUrl?.url) {
-        final switching = prev?.playUrl?.url.isNotEmpty ?? false;
+        final switching = _briefKeyOf(next.brief) == _openedBriefKey &&
+            next.playUrl?.url.isNotEmpty == true;
         if (switching) {
           _resumeMs = _positionMs.value;
         }
@@ -468,7 +483,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                 child: CircularProgressIndicator(color: Colors.white70),
               )
             else if (state.status == MvLoadStatus.error ||
-                (_lastEngineError.isNotEmpty && !_playing.value && !_started))
+                (_lastEngineError.isNotEmpty && !_playing.value && _started))
               _ErrorOverlay(
                 message: state.status == MvLoadStatus.error
                     ? state.error
@@ -477,7 +492,8 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                   _lastEngineError = '';
                   _started = false;
                   _swFallbackTried = false;
-                  _hwAccel = true;
+                  // 恢复平台默认，而不是一律硬解（Windows 默认软解）。
+                  _hwAccel = !isWindowsPlatform;
                   unawaited(
                     ref.read(mvPlayerProvider.notifier).load(state.brief ??
                         MvBrief(
@@ -597,7 +613,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                                 ),
                               ),
                               if (state.versions.length > 1)
-                                _VersionSwitcher(
+                                _VersionPickerButton(
                                   state: state,
                                   onSelect: (i) => ref
                                       .read(mvPlayerProvider.notifier)
@@ -681,40 +697,248 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
   }
 }
 
-/// 同曲多版本切换：上一版 / 「1/N」/ 下一版。
-class _VersionSwitcher extends StatelessWidget {
-  const _VersionSwitcher({required this.state, required this.onSelect});
+/// 同曲多版本切换：点「其他版本」弹出版本列表。
+class _VersionPickerButton extends StatelessWidget {
+  const _VersionPickerButton({required this.state, required this.onSelect});
 
   final MvPlayerState state;
   final ValueChanged<int> onSelect;
 
+  Future<void> _openList(BuildContext context) async {
+    final selected = await showKugoBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _VersionListSheet(
+        versions: state.versions,
+        currentIndex: state.versionIndex,
+      ),
+    );
+    if (selected == null || selected == state.versionIndex) return;
+    onSelect(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final label = '${state.versionIndex + 1}/${state.versions.length}';
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          tooltip: '上一版本',
-          onPressed:
-              state.hasPrevVersion ? () => onSelect(state.versionIndex - 1) : null,
-          icon: const Icon(Icons.chevron_left, color: Colors.white70, size: 22),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+    return TextButton.icon(
+      onPressed: () => _openList(context),
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white70,
+        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xs),
+        minimumSize: const Size(0, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: const Icon(Icons.chevron_right, size: 18, color: Colors.white54),
+      iconAlignment: IconAlignment.end,
+      label: Text(
+        '其他版本 ${state.versions.length}',
+        style: const TextStyle(color: Colors.white70, fontSize: 12),
+      ),
+    );
+  }
+}
+
+/// 版本列表弹层：两行信息 + 角标，当前项打勾。
+class _VersionListSheet extends StatelessWidget {
+  const _VersionListSheet({
+    required this.versions,
+    required this.currentIndex,
+  });
+
+  final List<MvBrief> versions;
+  final int currentIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KugoSpacing.xl,
+              KugoSpacing.md,
+              KugoSpacing.xl,
+              KugoSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Text('其他版本', style: kugo.section),
+                const Spacer(),
+                Text(
+                  '${versions.length} 个',
+                  style: kugo.caption.copyWith(color: kugo.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(bottom: KugoSpacing.lg),
+              itemCount: versions.length,
+              itemBuilder: (context, index) {
+                final v = versions[index];
+                final selected = index == currentIndex;
+                return _VersionTile(
+                  version: v,
+                  selected: selected,
+                  onTap: () => Navigator.of(context).pop(index),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 版本列表行：封面 + 标题（UP 名）+ 副标题（作者 · 时长 · 清晰度 · 日期）+ 角标。
+class _VersionTile extends StatelessWidget {
+  const _VersionTile({
+    required this.version,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MvBrief version;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    final titleColor = selected ? kugo.primary : kugo.textPrimary;
+    final meta = <String>[
+      if (version.artist.trim().isNotEmpty &&
+          version.artist.trim() != version.displayTitle)
+        version.artist.trim(),
+      if (version.name.trim().isNotEmpty &&
+          version.name.trim() != version.displayTitle)
+        version.name.trim(),
+      if (version.durationMs > 0) version.durationLabel,
+      if (version.qualityMark.isNotEmpty) version.qualityMark,
+      if (version.publishDate.trim().isNotEmpty)
+        version.publishDate.trim().split(' ').first,
+    ];
+    return Material(
+      color: selected
+          ? kugo.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KugoSpacing.lg,
+            vertical: KugoSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(KugoRadius.chip),
+                child: SizedBox(
+                  width: 80,
+                  height: 48,
+                  child: version.coverUrl.isEmpty
+                      ? ColoredBox(
+                          color: kugo.primary.withValues(alpha: 0.15),
+                          child: const Icon(
+                            Icons.music_video,
+                            size: 20,
+                            color: Colors.white54,
+                          ),
+                        )
+                      : Image.network(
+                          version.coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => ColoredBox(
+                            color: kugo.primary.withValues(alpha: 0.15),
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: KugoSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      version.displayTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: kugo.body.copyWith(
+                        color: titleColor,
+                        fontWeight: selected ? FontWeight.w600 : null,
+                      ),
+                    ),
+                    if (meta.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        meta.join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: kugo.caption.copyWith(color: kugo.textSecondary),
+                      ),
+                    ],
+                    if (version.isRecommend || version.tags.isNotEmpty) ...[
+                      const SizedBox(height: KugoSpacing.xs),
+                      Wrap(
+                        spacing: KugoSpacing.xs,
+                        runSpacing: KugoSpacing.xs,
+                        children: [
+                          if (version.isRecommend)
+                            _VersionChip(
+                              label: '官方推荐',
+                              color: kugo.primary,
+                            ),
+                          for (final tag in version.tags.take(2))
+                            _VersionChip(label: tag, color: kugo.textSecondary),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: KugoSpacing.sm),
+              if (selected)
+                Icon(Icons.check_circle, size: 18, color: kugo.primary)
+              else
+                const SizedBox(width: 18),
+            ],
+          ),
         ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
+      ),
+    );
+  }
+}
+
+class _VersionChip extends StatelessWidget {
+  const _VersionChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          height: 1.3,
         ),
-        IconButton(
-          tooltip: '下一版本',
-          onPressed:
-              state.hasNextVersion ? () => onSelect(state.versionIndex + 1) : null,
-          icon: const Icon(Icons.chevron_right, color: Colors.white70, size: 22),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-        ),
-      ],
+      ),
     );
   }
 }

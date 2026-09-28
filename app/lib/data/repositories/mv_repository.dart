@@ -496,6 +496,7 @@ class MvRepository {
   MvBrief _mapKmrItem(Map<String, dynamic> m) {
     final mkv = m['mkv'] is Map ? Map<String, dynamic>.from(m['mkv'] as Map) : const <String, dynamic>{};
     final h264 = m['h264'] is Map ? Map<String, dynamic>.from(m['h264'] as Map) : const <String, dynamic>{};
+    final h265 = m['h265'] is Map ? Map<String, dynamic>.from(m['h265'] as Map) : const <String, dynamic>{};
     final hash = ('${mkv['sd_hash'] ?? h264['sd_hash'] ?? m['hash'] ?? ''}')
         .trim()
         .toLowerCase();
@@ -509,17 +510,58 @@ class MvRepository {
         .map((e) => '${e['author_name'] ?? e['name'] ?? ''}')
         .where((s) => s.isNotEmpty)
         .toList();
+    final tags = (m['tags'] is List)
+        ? (m['tags'] as List)
+            .map((e) => e is Map ? '${e['name'] ?? e['tag_name'] ?? ''}' : '$e')
+            .where((s) => s.trim().isNotEmpty)
+            .map((s) => s.trim())
+            .toList()
+        : const <String>[];
     return MvBrief(
       id: '${m['video_id'] ?? m['id'] ?? ''}',
       hash: hash,
       name: '${m['video_name'] ?? m['name'] ?? ''}',
       coverUrl: mvCoverUrl(thumbRaw),
       artist: authors.isEmpty ? '${m['user_name'] ?? ''}' : authors.join(' / '),
+      userName: '${m['user_name'] ?? ''}',
       durationMs: durationMs,
       publishDate: '${m['publish_date'] ?? ''}',
+      qualityMark: _qualityMarkOf(mkv, h264, h265, m),
       mixSongId: '${m['album_audio_id'] ?? m['audio_id'] ?? ''}',
       audioHash: '${m['audio_hash'] ?? ''}'.toLowerCase(),
+      tags: tags,
+      isRecommend: m['is_recommend'] == 1 ||
+          m['is_recommend'] == true ||
+          m['is_recommend'] == '1',
     );
+  }
+
+  /// 从嵌套 / 扁平 hash 里推最高清晰度标签；有 `quality_*` 标注时优先。
+  String _qualityMarkOf(
+    Map<String, dynamic> mkv,
+    Map<String, dynamic> h264,
+    Map<String, dynamic> h265,
+    Map<String, dynamic> m,
+  ) {
+    final marked = '${m['quality'] ?? m['quality_mark'] ?? m['MvHashMark'] ?? ''}';
+    if (marked.isNotEmpty) return marked;
+    const order = [
+      ('fhd_hash', '1080P'),
+      ('hd_hash', '720P'),
+      ('qhd_hash', '540P'),
+      ('sd_hash', '432P'),
+      ('ld_hash', '270P'),
+    ];
+    for (final src in [mkv, h264, h265]) {
+      for (final (key, label) in order) {
+        if ('${src[key] ?? ''}'.trim().isNotEmpty) return label;
+      }
+    }
+    // 扁平形态：video/detail 风格的 fhd_hash 等直接挂在顶层。
+    for (final (key, label) in order) {
+      if ('${m[key] ?? ''}'.trim().isNotEmpty) return label;
+    }
+    return '';
   }
 
   MvDetail _mapDetail(Map<String, dynamic> m, MvBrief brief) {

@@ -32,11 +32,14 @@ class MvBrief {
     required this.coverUrl,
     this.artist = '',
     this.artistId = '',
+    this.userName = '',
     this.durationMs = 0,
     this.publishDate = '',
     this.qualityMark = '',
     this.mixSongId = '',
     this.audioHash = '',
+    this.tags = const [],
+    this.isRecommend = false,
     this.platform = MusicPlatform.kugou,
   });
 
@@ -49,6 +52,9 @@ class MvBrief {
   final String coverUrl;
   final String artist;
   final String artistId;
+
+  /// 发布者 / UP 主名（酷狗 `user_name`）。列表行标题优先用它（A 方案）。
+  final String userName;
   final int durationMs;
   final String publishDate;
 
@@ -61,6 +67,12 @@ class MvBrief {
   /// 关联音频 hash（可空）。
   final String audioHash;
 
+  /// 版本标签（翻唱 / 现场 / 官方…），来自 `tags` 字段。
+  final List<String> tags;
+
+  /// 酷狗 `is_recommend`：官方推荐位。
+  final bool isRecommend;
+
   final MusicPlatform platform;
 
   String get durationLabel {
@@ -68,6 +80,13 @@ class MvBrief {
     final m = total.inMinutes.toString().padLeft(2, '0');
     final s = (total.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  /// 列表行主标题：优先 UP 名，空则回落 `video_name` / artist。
+  String get displayTitle {
+    if (userName.trim().isNotEmpty) return userName.trim();
+    if (name.trim().isNotEmpty) return name.trim();
+    return artist.trim();
   }
 }
 
