@@ -473,4 +473,85 @@ void main() {
       expect(mapNeteaseArtistList('{"code":200}'), isEmpty);
     });
   });
+
+  group('A1-MV 详情 / 取流（mvid@r）', () {
+    // 形态对齐 2026-09-28 A0 探针实测（docs/api-notes.md「网易云 MV」）。
+    test('mapNeteaseMvDetail：brs 为 List 枚举档位，hash=mvid@br，mp.pl 封顶', () {
+      const raw = '''
+      {"code":200,"subed":false,
+       "mp":{"pl":720,"dl":720,"fee":0,"st":0,"unauthorized":false},
+       "data":{"id":14514682,"name":"晴天","artistId":33612502,
+        "artistName":"高伟","cover":"http://p4.music.126.net/x.jpg",
+        "duration":192000,"publishTime":"2022-03-25",
+        "desc":"《和光》","briefDesc":"",
+        "playCount":1114797,"subCount":234,"commentCount":142,
+        "brs":[{"size":10456657.0,"br":240,"point":0},
+               {"size":20453720.0,"br":480,"point":0},
+               {"size":32049460.0,"br":720,"point":0},
+               {"size":10533121.0,"br":1080,"point":0}],
+        "artists":[{"id":33612502,"name":"高伟"}]}}
+      ''';
+      final d = mapNeteaseMvDetail(raw);
+      expect(d.brief.id, '14514682');
+      expect(d.brief.name, '晴天');
+      expect(d.brief.artist, '高伟');
+      expect(d.brief.durationMs, 192000);
+      expect(d.brief.publishDate, '2022-03-25');
+      expect(d.description, '《和光》');
+      expect(d.playCountLabel, isNotEmpty);
+      // mp.pl=720 封顶：1080 档被滤掉
+      expect(d.sources.map((s) => s.height), [720, 480, 240]);
+      expect(d.sources.first.hash, '14514682@720');
+      expect(d.sources.first.label, '720P');
+      expect(d.defaultSource!.hash, '14514682@720');
+    });
+
+    test('mapNeteaseMvDetail：brs 缺失时兜底单档（mp.pl 或 1080）', () {
+      const raw = '''
+      {"code":200,"mp":{"pl":0},"data":{"id":1,"name":"x","brs":[]}}
+      ''';
+      final d = mapNeteaseMvDetail(raw);
+      expect(d.sources, hasLength(1));
+      expect(d.sources.single.hash, '1@1080');
+    });
+
+    test('mapNeteaseMvDetail：无 data 抛 NotFound', () {
+      expect(
+        () => mapNeteaseMvDetail('{"code":200}'),
+        throwsA(isA<NotFound>()),
+      );
+    });
+
+    test('mapNeteaseMvUrl：data.url → MvPlayUrlResult；空 url 抛 NotFound', () {
+      const ok = '''
+      {"code":200,"data":{"id":14514682,
+       "url":"http://vod.xx/cloudmusic/obj/a.mp4?wsSecret=x&wsTime=1",
+       "r":1080,"size":10533121,"code":200,"expi":3600}}
+      ''';
+      final r = mapNeteaseMvUrl(ok);
+      expect(r.url, contains('a.mp4'));
+      expect(r.filesize, 10533121);
+      expect(r.backupUrls, isEmpty);
+      expect(r.headers, isEmpty);
+
+      expect(
+        () => mapNeteaseMvUrl('{"code":200,"data":{"id":1,"url":null,"code":200}}'),
+        throwsA(isA<NotFound>()),
+      );
+    });
+
+    test('mapNeteaseMvUrl：code=301 → LoginRequired', () {
+      expect(
+        () => mapNeteaseMvUrl('{"code":301}'),
+        throwsA(isA<LoginRequired>()),
+      );
+    });
+
+    test('parseNeteaseMvSourceHash：mvid@r 拆分；无 @ 时 r 默认 1080', () {
+      expect(parseNeteaseMvSourceHash('14514682@720').mvid, '14514682');
+      expect(parseNeteaseMvSourceHash('14514682@720').r, 720);
+      expect(parseNeteaseMvSourceHash('14514682').mvid, '14514682');
+      expect(parseNeteaseMvSourceHash('14514682').r, 1080);
+    });
+  });
 }

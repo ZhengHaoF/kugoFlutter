@@ -87,6 +87,15 @@ abstract final class NeteaseEndpoints {
   /// N3 热搜：weapi，`type=1111`（参考 `module/search_hot.js`）。
   static const searchHot = '/weapi/search/hot';
 
+  /// A1-MV 详情 / 取流（对齐 api-enhanced `module/mv_detail.js` / `mv_url.js`）。
+  ///
+  /// ★ weapi 路径坑：其 request 做 `'/weapi/' + uri.substr(5)` 剥掉 `/api/`，
+  /// module 写 `/api/v1/mv/detail` 实际打 `/weapi/v1/mv/detail`。
+  /// 这里直接写**已剥前缀**的路径，由 [NeteaseClient.callWeApi] 补 `/weapi`。
+  /// 传 `/api/...` 会得到 `code=404 「接口未找到！」`（2026-09-28 实测）。
+  static const mvDetail = '/v1/mv/detail';
+  static const mvUrl = '/song/enhance/play/mv/url';
+
   /// N2 写侧：发评论 / 回复楼层 / 点赞（取消赞是 `/unlike`）。
   ///
   /// 三个口都**要登录**（游客实测回 `301`）。

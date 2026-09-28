@@ -1082,6 +1082,26 @@ class NeteaseClient {
     });
   }
 
+  // ── A1-MV 详情 / 取流 ─────────────────────────────────────
+
+  /// MV 详情（`/weapi/v1/mv/detail`）。`id` 传 **mvid**。
+  ///
+  /// 响应 `data.brs` 是 **List**（`[{size, br, point}]`）不含 url，
+  /// 只枚举档位；播放地址一律走 [mvUrlRaw]。`mp.pl`/`mp.dl` 是
+  /// 可播/可下最高码率（低权限会被钳档）。
+  Future<String> mvDetailRaw(String mvid) {
+    return callWeApi(NeteaseEndpoints.mvDetail, {'id': mvid});
+  }
+
+  /// MV 取流（`/weapi/song/enhance/play/mv/url`）。
+  ///
+  /// [r] 为清晰度（240/480/720/1080），**服务端会钳到实际档**
+  /// （低权限请求 1080 可能只回 480）。响应 `data.url` 为 mp4 直链，
+  /// 时效见 `data.expi`（秒，实测 3600）。
+  Future<String> mvUrlRaw(String mvid, {int r = 1080}) {
+    return callWeApi(NeteaseEndpoints.mvUrl, {'id': mvid, 'r': r});
+  }
+
   // ── N1 评论（E1 列表 / E2 楼层） ────────────────────────────
 
   /// E1 评论列表：**eapi + `interfaceHost`**（`POST /eapi/v2/resource/comments`）。

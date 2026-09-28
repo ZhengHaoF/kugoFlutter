@@ -5,6 +5,7 @@ import '../../../core/models/audio_quality.dart';
 import '../../../core/models/catalog_models.dart';
 import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
+import '../../../core/models/mv_models.dart';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
 import '../../../core/source/capabilities.dart';
@@ -39,7 +40,8 @@ class NeteaseSource
         CommentWriteSource,
         CommentLikeSource,
         ResourceCommentSource,
-        SearchHotSource {
+        SearchHotSource,
+        MvDetailSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
 
   final NeteaseClient _client;
@@ -893,6 +895,34 @@ class NeteaseSource
       CommentResourceKind.playlist => 'A_PL_0_$id',
       CommentResourceKind.album => 'R_AL_3_$id',
     };
+  }
+
+  // ── A1-MV 详情 / 取流 ─────────────────────────────────────
+
+  /// MV 详情 + 多档片源。`brief.id` 必须是 **mvid**（数字）。
+  ///
+  /// 档位从 `data.brs[].br` 枚举（`mp.pl` 封顶），每档
+  /// [MvPlaySource.hash] 编码为 `mvid@r` —— 酷狗 hash 无 `@`，空间不冲突。
+  @override
+  Future<MvDetail?> fetchMvDetail(MvBrief brief) async {
+    final mvid = brief.id.trim();
+    if (mvid.isEmpty || int.tryParse(mvid) == null) return null;
+    final raw = await _client.mvDetailRaw(mvid);
+    return mapNeteaseMvDetail(raw, fallbackBrief: brief);
+  }
+
+  /// 取流：`hash` 形如 `mvid@r`（见 [parseNeteaseMvSourceHash]）。
+  ///
+  /// 网易直链**无防盗链头**（带 `wsSecret`/`wsTime` 签名），故 headers 为空；
+  /// 时效约 `expi` 秒，跨会话不要缓存 url。
+  @override
+  Future<MvPlayUrlResult> resolveMvPlayUrl(String hash) async {
+    final parsed = parseNeteaseMvSourceHash(hash);
+    if (parsed.mvid.isEmpty || int.tryParse(parsed.mvid) == null) {
+      throw const NotFound('无效的 MV 来源标识');
+    }
+    final raw = await _client.mvUrlRaw(parsed.mvid, r: parsed.r);
+    return mapNeteaseMvUrl(raw);
   }
 }
 

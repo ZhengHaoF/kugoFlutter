@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../models/audio_quality.dart';
 import '../../models/catalog_models.dart';
 import '../../models/comment.dart';
+import '../../models/mv_models.dart';
 import '../../models/search_result.dart';
 import '../../models/track.dart';
 import '../../source/capabilities.dart';
@@ -542,6 +543,150 @@ AppQuality? neteaseLevelToQuality(String level) => switch (level
   'lossless' || 'jyeffect' || 'sky' => AppQuality.sq,
   'hires' || 'jymaster' => AppQuality.hiRes,
   _ => AudioQualityUtil.parseQualityToken(level),
+};
+
+// ── A1-MV 详情 / 取流 ─────────────────────────────────────
+//
+// 实测依据：docs/api-notes.md「网易云 MV」节（2026-09-28 A0 探针）。
+// hash 语义：`mvid@r`（如 `14514682@1080`），与酷狗 hash（无 `@`）不冲突。
+
+/// MV 详情：`data` + 平级 `mp`（特权）→ [MvDetail]。
+///
+/// `data.brs` 实测是 **List**（`[{size, br, point}]`）**不含 url**，
+/// 只枚举档位；每档的 [MvPlaySource.hash] 存 `mvid@br`，取流时拆用。
+/// `mp.pl` = 可播最高码率，档位以 `brs[].br` 为准并用 `mp.pl` 封顶。
+MvDetail mapNeteaseMvDetail(String raw, {MvBrief? fallbackBrief}) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, 'MV 详情');
+  final data = _asMap(root['data']);
+  final id = _int(data['id']);
+  if (id <= 0) {
+    throw const NotFound('MV 详情为空');
+  }
+
+  final artists = <String>{
+    if (_str(data['artistName']).isNotEmpty) _str(data['artistName']),
+    ..._mapNodes(data['artists'], (node) {
+      final m = _asMap(node);
+      final name = _str(m['name'] ?? m['artistName']);
+      return name.isEmpty ? null : name;
+    }),
+  }.toList();
+
+  final brief = MvBrief(
+    id: '$id',
+    hash: '$id', // 网易主键是 mvid；hash 字段兼容统一模型
+    name: _str(data['name']),
+    coverUrl: _pic(_str(data['cover'] ?? data['imgurl'])),
+    artist: artists.join(' / '),
+    artistId: '${_int(data['artistId'])}',
+    userName: _str(data['artistName']),
+    durationMs: _int(data['duration']),
+    publishDate: _str(data['publishTime']).isNotEmpty
+        ? _str(data['publishTime'])
+        : _dateLabel(_int(data['publishTime'])),
+    mixSongId: fallbackBrief?.mixSongId ?? '',
+  );
+
+  // 档位：brs[] 的 br，按 mp.pl 封顶后从清到糊排。
+  final mp = _asMap(root['mp']);
+  final maxBr = _int(mp['pl']) > 0 ? _int(mp['pl']) : 1080;
+  final sources = <MvPlaySource>[];
+  final brs = data['brs'];
+  if (brs is List) {
+    for (final node in brs) {
+      final m = _asMap(node);
+      final br = _int(m['br']);
+      if (br <= 0 || br > maxBr) continue;
+      sources.add(
+        MvPlaySource(
+          hash: _mvSourceHash('$id', br),
+          label: _mvBrLabel(br),
+          codec: 'h264',
+          height: br,
+          filesize: _int(m['size']),
+          bitrate: br * 1000,
+        ),
+      );
+    }
+  }
+  sources.sort((a, b) => b.isClearerThan(a) ? 1 : -1);
+  if (sources.isEmpty) {
+    // brs 缺失时兜底单档（仍走 mv/url，r 取 mp.pl 或 1080）。
+    final br = maxBr > 0 ? maxBr : 1080;
+    sources.add(
+      MvPlaySource(
+        hash: _mvSourceHash('$id', br),
+        label: _mvBrLabel(br),
+        codec: 'h264',
+        height: br,
+      ),
+    );
+  }
+
+  final desc = _str(data['desc']).isNotEmpty
+      ? _str(data['desc'])
+      : _str(data['briefDesc']);
+  return MvDetail(
+    brief: brief,
+    sources: sources,
+    description: desc,
+    playCountLabel: _int(data['playCount']) > 0
+        ? _countLabel(_int(data['playCount']))
+        : '',
+    collectionCountLabel: _int(data['subCount']) > 0
+        ? _countLabel(_int(data['subCount']))
+        : '',
+    authors: artists,
+  );
+}
+
+/// MV 取流：`data.url` → [MvPlayUrlResult]。
+///
+/// 实测：`r` 会被服务端钳到实际档（低权限 1080 可能只回 480）；
+/// 时效字段是 **`expi`（秒）**，不是 `validity`。无 backupUrls。
+MvPlayUrlResult mapNeteaseMvUrl(
+  String raw, {
+  Map<String, String> headers = const {},
+}) {
+  final root = _decode(raw);
+  final code = _int(root['code']);
+  if (code == 301) throw const LoginRequired('网易云会话失效 code=301');
+  if (code != 200) throw mapNeteaseCode(code, message: 'MV 取流 code=$code');
+
+  final data = _asMap(root['data']);
+  final url = _str(data['url']);
+  final dataCode = _int(data['code']);
+  if (url.isEmpty || url == 'null') {
+    if (dataCode != 0 && dataCode != 200) {
+      throw mapNeteaseCode(dataCode, message: 'MV 取流 data.code=$dataCode');
+    }
+    throw const NotFound('MV 播放地址为空');
+  }
+  return MvPlayUrlResult(
+    url: url,
+    headers: headers,
+    filesize: _int(data['size']),
+  );
+}
+
+/// `MvPlaySource.hash` 编码：`mvid@r`。酷狗 hash 是 `[0-9a-f]{32}`，无 `@`。
+String _mvSourceHash(String mvid, int r) => '$mvid@$r';
+
+/// 拆 `mvid@r`；无 `@` 时整体当 mvid、r 取默认 1080。
+({String mvid, int r}) parseNeteaseMvSourceHash(String hash) {
+  final i = hash.indexOf('@');
+  if (i < 0) return (mvid: hash.trim(), r: 1080);
+  final mvid = hash.substring(0, i).trim();
+  final r = int.tryParse(hash.substring(i + 1).trim()) ?? 1080;
+  return (mvid: mvid, r: r);
+}
+
+String _mvBrLabel(int br) => switch (br) {
+  >= 1080 => '${br}P',
+  >= 720 => '${br}P',
+  >= 480 => '${br}P',
+  _ => '${br}P',
 };
 
 // ── C1 歌词 ─────────────────────────────────────────────────
