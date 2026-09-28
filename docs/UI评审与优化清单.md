@@ -101,8 +101,19 @@ kugo_h_scroll_test.dart` 的「渐隐层常驻：滚动连续不重置」用例�
 
 调用点：`common.dart:278`（音源 chips）、`discovery_page.dart:559`、
 `song_detail_page.dart:744`、`playlist_detail_page.dart:458`、
-`search_page.dart:265`、`explore_page.dart` ×2（卡片带，`wheelMode: silky`）、
+`search_page.dart:265`、`explore_page.dart` ×2（卡片带）、
 `fm/fm_radio_card.dart:795`（`wheelMode: raw`）。
+
+**2026-09-28 修正（实测推翻「滚轮滚横排」这一条）**：发现页两条卡片带原先传
+`KugoHWheelMode.silky`，即 `mouseWheelVerticalDeltaBehavior.always`——竖向滚轮被
+横排劫持，必须先把横排滚到边缘，剩余 delta 才放行回页面。用户反馈「往下滚到横排
+又变横向滚动，体验很差」。横排嵌在竖滚页面里**不该劫持竖向滚轮**：框架默认
+（`scrollable.dart` 横向只认 dx）和 silky 默认（`forwardToVerticalAncestorOrSelf`）
+本来都不劫持，这是当初对包默认值的显式覆盖。两条卡片带已回退为默认 `none`：
+滚轮归页面，横滚走 **Shift+滚轮**（框架 `pointerAxisModifiers` 白送）/ 触控板两指
+横滑 / 鼠标按住拖拽，可发现性仍由边缘渐隐兜底。`KugoHWheelMode.silky` 仅保留给
+FM 等整屏独占场景（那里没有"滚轮被吃掉过不去"的陷阱）。组件与
+`kugo_h_scroll_test.dart` 不变，本次只改调用点。
 
 ### 3. ✅ 桌面端歌词不能手动滚动（已修复）
 `shared/widgets/lyrics_view.dart`
@@ -264,7 +275,7 @@ await windowManager.waitUntilReadyToShow(
 
 **第一轮 · 可用性（半天到一天）**
 1. 迷你播放条改为按 branch 判定（#1）
-2. 横向列表交互（#2，09-27 已重构为拖拽/滚轮/渐隐，无滚动条）
+2. 横向列表交互（#2，09-27 重构为拖拽/Shift+滚轮/渐隐，无滚动条；09-28 卡片带回退不再劫持竖向滚轮）
 3. 歌词手动滚动宽限期（#3）
 4. Windows 窗口标题与最小尺寸（#4）
 5. 柱状图宽度封顶（#5）+ 歌手页工具栏 Flexible（#6）

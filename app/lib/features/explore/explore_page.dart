@@ -485,7 +485,8 @@ class _RankStrip extends StatelessWidget {
           // 卡片等比缩放，高度跟着走，封面裁切与文字比例保持不变。
           height: cardWidth / _aspectRatio,
           child: KugoHScroll(
-            wheelMode: KugoHWheelMode.silky,
+            // 不劫持竖向滚轮：横排嵌在竖滚页面里，滚轮应归页面（框架默认）。
+            // 横滚走 Shift+滚轮 / 触控板两指横滑 / 鼠标按住拖拽。
             builder: (context, controller, physics) => ListView.separated(
               key: const ValueKey('explore_rank_strip'),
               controller: controller,
@@ -595,7 +596,8 @@ class _PlaylistStrip extends StatelessWidget {
         return SizedBox(
           height: cardWidth + _belowCover,
           child: KugoHScroll(
-            wheelMode: KugoHWheelMode.silky,
+            // 不劫持竖向滚轮：横排嵌在竖滚页面里，滚轮应归页面（框架默认）。
+            // 横滚走 Shift+滚轮 / 触控板两指横滑 / 鼠标按住拖拽。
             builder: (context, controller, physics) => ListView.separated(
               key: const ValueKey('explore_playlist_strip'),
               controller: controller,
