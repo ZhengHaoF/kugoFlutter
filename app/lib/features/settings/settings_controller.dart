@@ -106,6 +106,9 @@ class AppSettings {
   /// 只影响「新内容的入口」：搜索混排、源筛选条、默认源选择器与
   /// 单源功能页（FM/榜单/日推/发现）的空态。已在播放队列中的曲目
   /// 不受影响（播放器按曲目平台取源，不经此开关）。
+  ///
+  /// **网易云需登录才生效**：未登录时它不在此集合里（[SettingsController.setNeteaseAccess]），
+  /// 避免「没登录却在各页出网易云」。其余源不受此约束。
   final Set<MusicPlatform> enabledSources;
 
   /// 被**关闭**的「源 × 功能」子开关（[SourceFeature.tokenFor] 的集合）。
@@ -452,6 +455,27 @@ class SettingsController extends Notifier<AppSettings> {
       // 默认源可能被联动修正，两个 key 要一起写。
       await prefs.setString(_kDefaultSource, state.defaultSource.wireName);
     } catch (_) {}
+  }
+
+  /// 网易云音源需登录才生效：把网易云按登录态并入（登录成功）/移出（退出登录）
+  /// 启用集。移出后集空时回落酷狗（[setEnabledSources] 拒绝空集），停用默认源
+  /// 时的回退也由它统一处理。
+  ///
+  /// **启动时只在 `logged == false` 方向调用**（见 `main.dart`）：已登录时不动
+  /// 启用集，免得覆盖用户在登录态下对网易云的**手动停用**——只有「登录事件」
+  /// （扫码确认）才会重新并入。状态本就一致时静默返回，不写盘。
+  Future<void> setNeteaseAccess(bool logged) async {
+    const netease = MusicPlatform.netease;
+    final has = state.enabledSources.contains(netease);
+    if (logged == has) return;
+    final next = {...state.enabledSources};
+    if (logged) {
+      next.add(netease);
+    } else {
+      next.remove(netease);
+      if (next.isEmpty) next.add(MusicPlatform.kugou);
+    }
+    await setEnabledSources(next);
   }
 
   /// 「源 × 功能」子开关。与整源开关不同，**允许全关**（父开关关闭时子项

@@ -157,15 +157,16 @@ class SettingsPage extends ConsumerWidget {
                 onTap: () => showDefaultSourcePicker(context, ref),
               ),
               // 两级开关：整源（父）→ 该源的入口功能（子）。只列已注册的源；
-              // 最后一个源不可关（至少保留一个）。关掉父开关时子项置灰但**保留
-              // 取值**，重新开启即恢复。
-              for (final p in _enabledPlatformRows(settings))
+              // 最后一个源不可关（至少保留一个）；网易云需登录才可启用（未登录
+              // 置灰）。关掉父开关时子项置灰但**保留取值**，重新开启即恢复。
+              for (final p in _enabledPlatformRows(settings, netease.isLogged))
                 ..._sourceSwitchTiles(
                   settings: settings,
                   controller: controller,
                   kugo: kugo,
                   platform: p.$1,
                   canToggle: p.$2,
+                  locked: p.$3,
                 ),
               // 酷狗 / 网易云各一行。两个源的登录态互不影响（可只登其一），
               // 但同一源只保留一个当前账号——再登即顶替，故按钮是「切换账号」。
@@ -266,16 +267,25 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  /// 整源开关的行数据：`(平台, 是否可关闭)`。
+  /// 整源开关的行数据：`(平台, 是否可关闭, 是否被登录门槛锁住)`。
   ///
   /// 只列 registry 里已注册的源（没注册的源开关无意义）；enabledSources
   /// 里只剩它自己时禁止关闭——空集合会让 App 没有任何可用音源。
-  List<(MusicPlatform, bool)> _enabledPlatformRows(AppSettings settings) {
+  /// 网易云需登录才可启用：未登录时该行置灰（见 [SettingsController.setNeteaseAccess]）。
+  List<(MusicPlatform, bool, bool)> _enabledPlatformRows(
+    AppSettings settings,
+    bool neteaseLogged,
+  ) {
     final registered = musicSourceRegistry?.platforms.toList() ??
         const [MusicPlatform.kugou];
     return [
       for (final p in registered)
-        (p, settings.enabledSources.length > 1 || !settings.enabledSources.contains(p)),
+        (
+          p,
+          settings.enabledSources.length > 1 ||
+              !settings.enabledSources.contains(p),
+          p == MusicPlatform.netease && !neteaseLogged,
+        ),
     ];
   }
 }
@@ -285,25 +295,31 @@ class SettingsPage extends ConsumerWidget {
 /// 子项只列该源**真的具备能力**的功能——列了也只能点出空态，是假入口。
 /// 父开关关闭时子项传 `onChanged: null`，由 Flutter 自带置灰效果；取值
 /// **不重置**（`disabledFeatures` 保持原样），重新开启父开关即恢复原配置。
+///
+/// [locked]：该源被登录门槛锁住（当前只有网易云）。未登录时父开关显示为关、
+/// 置灰、副标题提示登录，即便 `enabledSources` 里还残留它也不显示为开。
 List<Widget> _sourceSwitchTiles({
   required AppSettings settings,
   required SettingsController controller,
   required KugoTheme kugo,
   required MusicPlatform platform,
   required bool canToggle,
+  required bool locked,
 }) {
-  final enabled = settings.enabledSources.contains(platform);
+  final enabled = settings.enabledSources.contains(platform) && !locked;
   final registry = musicSourceRegistry;
   return [
     SwitchListTile(
       secondary: Icon(Icons.power_settings_new, color: kugo.textSecondary),
       title: Text('启用${platform.label}音源', style: kugo.body),
       subtitle: Text(
-        canToggle ? '关闭后搜索与功能页不再使用该源' : '最后一个音源，至少保留一个',
+        locked
+            ? '登录${platform.label}后可启用'
+            : (canToggle ? '关闭后搜索与功能页不再使用该源' : '最后一个音源，至少保留一个'),
         style: kugo.caption,
       ),
       value: enabled,
-      onChanged: canToggle
+      onChanged: (canToggle && !locked)
           ? (v) => controller.setEnabledSources(
                 v
                     ? {...settings.enabledSources, platform}
@@ -323,9 +339,11 @@ List<Widget> _sourceSwitchTiles({
           contentPadding: const EdgeInsets.only(left: 44, right: 16),
           title: Text(f.label, style: kugo.body),
           subtitle: Text(
-            enabled
-                ? '关闭后该源不再出现在「${f.label}」入口'
-                : '${platform.label}音源已关闭，此项暂时不生效',
+            locked
+                ? '登录${platform.label}后可启用'
+                : (enabled
+                    ? '关闭后该源不再出现在「${f.label}」入口'
+                    : '${platform.label}音源已关闭，此项暂时不生效'),
             style: kugo.caption,
           ),
           value: settings.isFeatureOn(platform, f),

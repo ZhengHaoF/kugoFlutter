@@ -56,7 +56,16 @@ Future<void> main() async {
   await container.read(authControllerProvider.notifier).ensureReady();
 
   // 网易云登录态：把上次落盘的 cookie 灌回共享客户端，否则重启即掉登录。
-  await NeteaseAuthStore.restoreInto(neteaseClient);
+  final neteaseLogged = await NeteaseAuthStore.restoreInto(neteaseClient);
+
+  // 网易云音源需登录才生效：未登录时把它从启用集清掉（旧数据 / 默认全集都可能
+  // 带着它）。已登录方向**不动**——保留用户在登录态下对网易云的手动停用；
+  // 只有「登录事件」才会重新并入（见 NeteaseLoginController._onConfirmed）。
+  if (!neteaseLogged) {
+    await container
+        .read(settingsControllerProvider.notifier)
+        .setNeteaseAccess(false);
+  }
 
   // 系统媒体会话：移动端/macOS 走 audio_service 原生实现，Windows 走
   // audio_service_win（SMTC / 媒体键 / 系统媒体卡）。Linux 仍无实现。

@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/api/netease/netease_client.dart';
 import 'package:kugo/core/api/netease/netease_mappers.dart';
 import 'package:kugo/core/source/capabilities.dart';
+import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/data/sources/netease/netease_source.dart';
 import 'package:kugo/data/storage/netease_auth_store.dart';
 import 'package:kugo/features/auth/netease_login_controller.dart';
+import 'package:kugo/features/settings/settings_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_device_login_source.dart';
@@ -218,6 +220,57 @@ void main() {
       await notifier.logout();
       expect(container.read(neteaseLoginControllerProvider).isLogged, isFalse);
       expect(fake.logoutCalls, 1);
+    });
+
+    test('登录成功自动并入网易云音源', () async {
+      SharedPreferences.setMockInitialValues({
+        'settings.enabledSources': ['kugou'],
+      });
+      addTearDown(() => SharedPreferences.setMockInitialValues({}));
+      final fake = FakeDeviceLoginSource()
+        ..script.add(LoginQrStatus.confirmed)
+        ..account = const LoginAccount(userId: '42', nickname: '小明');
+      final container = makeContainer(fake);
+      await container.read(settingsControllerProvider.notifier).ensureRestored();
+      expect(
+        container.read(settingsControllerProvider).enabledSources,
+        {MusicPlatform.kugou},
+      );
+
+      await container.read(neteaseLoginControllerProvider.notifier).startQr();
+      await waitFor(
+        () => container
+            .read(settingsControllerProvider)
+            .enabledSources
+            .contains(MusicPlatform.netease),
+      );
+
+      expect(
+        container.read(settingsControllerProvider).enabledSources,
+        {MusicPlatform.kugou, MusicPlatform.netease},
+      );
+    });
+
+    test('退出登录自动移出网易云音源并回落默认源', () async {
+      SharedPreferences.setMockInitialValues({
+        'settings.enabledSources': ['kugou', 'netease'],
+        'settings.defaultSource': 'netease',
+      });
+      addTearDown(() => SharedPreferences.setMockInitialValues({}));
+      final fake = FakeDeviceLoginSource()
+        ..account = const LoginAccount(userId: '7', nickname: '已登录');
+      final container = makeContainer(fake);
+      await container.read(settingsControllerProvider.notifier).ensureRestored();
+      await container
+          .read(neteaseLoginControllerProvider.notifier)
+          .refreshAccount();
+      expect(container.read(neteaseLoginControllerProvider).isLogged, isTrue);
+
+      await container.read(neteaseLoginControllerProvider.notifier).logout();
+
+      final s = container.read(settingsControllerProvider);
+      expect(s.enabledSources, {MusicPlatform.kugou});
+      expect(s.defaultSource, MusicPlatform.kugou);
     });
   });
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/features.dart';
 import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/data/sources/sources.dart';
+import 'package:kugo/features/auth/netease_login_controller.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
 import 'package:kugo/features/rank/rank_list_page.dart';
 import 'package:kugo/features/search/search_controller.dart';
@@ -12,14 +14,19 @@ import 'package:kugo/features/settings/settings_page.dart';
 import 'package:kugo/shared/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fakes/fake_device_login_source.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // 两级开关要按「源 × 功能」判定能力，必须用真源（fake 源只有酷狗那套）。
-  Future<ProviderContainer> restored(Map<String, Object> prefs) async {
+  Future<ProviderContainer> restored(
+    Map<String, Object> prefs, {
+    List<Override> overrides = const [],
+  }) async {
     SharedPreferences.setMockInitialValues(prefs);
     registerDefaultMusicSources();
-    final container = ProviderContainer();
+    final container = ProviderContainer(overrides: overrides);
     addTearDown(container.dispose);
     await container.read(settingsControllerProvider.notifier).ensureRestored();
     return container;
@@ -229,7 +236,16 @@ void main() {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
       });
-      final c = await restored({});
+      // 登录门槛：网易云需登录才可启用，整源开关才可点——用假登录源模拟已登录。
+      final c = await restored(
+        {},
+        overrides: [
+          neteaseLoginSourceProvider.overrideWithValue(
+            FakeDeviceLoginSource()
+              ..account = const LoginAccount(userId: '7', nickname: '已登录'),
+          ),
+        ],
+      );
 
       await tester.pumpWidget(
         UncontrolledProviderScope(

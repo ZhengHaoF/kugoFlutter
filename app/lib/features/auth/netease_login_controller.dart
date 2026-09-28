@@ -6,6 +6,7 @@ import '../../core/api/netease/netease_client.dart';
 import '../../core/source/capabilities.dart';
 import '../../data/sources/netease/netease_source.dart';
 import '../../data/storage/netease_auth_store.dart';
+import '../settings/settings_controller.dart';
 
 /// 网易扫码登录的二维码阶段（与酷狗 [QrPhase] 分开，避免两套登录串状态）。
 enum NeteaseQrPhase { idle, loading, waiting, scanned, expired, success, error }
@@ -134,6 +135,12 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
       account: account,
       errorMessage: account == null ? '登录态确认失败，请重试' : '',
     );
+    // 登录成功：网易云音源需登录才生效，扫码确认后自动并入启用集。
+    if (account != null) {
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .setNeteaseAccess(true);
+    }
   }
 
   /// 读取当前登录账号（启动恢复后 / 进入设置页时调用）。
@@ -159,6 +166,8 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
     await _source.logout();
     await NeteaseAuthStore.clear();
     state = const NeteaseLoginState();
+    // 退出登录：网易云音源随登录态失效，移出启用集（含默认源回退）。
+    await ref.read(settingsControllerProvider.notifier).setNeteaseAccess(false);
   }
 
   void _stopPolling() {
