@@ -7,6 +7,12 @@
 > `flutter test --no-pub` 435 全绿。第二条 P2 里的两处写死主色（#12 的 main.dart /
 > history_page）顺手一并修了。第二轮桌面感（#7–#11）与第三轮打磨仍未动。
 > 2026-09-27：#2 二次重构（滚动条 → 拖拽/滚轮/渐隐，见 §2），全量 537 测试全绿。
+> 2026-09-28：对照代码补记 —— P3「TabController 逐帧 setState」其实已修
+> （见 §5），清单原先漏记；同轮其余 P3/P2 项状态属实。
+> 2026-09-28：第二轮桌面感 #7–#11 已落地（见 §3），`flutter analyze` 0 issue、
+> `flutter test --no-pub` 551 全绿。第三轮 P2/P3 剩余项仍未动。
+> 同日真机闪退：去掉 ExcludeSemantics 触发 Windows AXTree 崩溃，已恢复并
+> 记入 §3 #9；Mica 改为延后 + 多档回落。详见各条「踩坑」。
 
 ---
 
@@ -147,7 +153,15 @@ await windowManager.waitUntilReadyToShow(
 
 ## 三、P1 · 桌面端「像不像桌面软件」
 
-### 7. 内容限宽只有设置页做了
+> **2026-09-28 第二轮落地**：#7–#11 全部完成。`flutter analyze` 0 issue、
+> 551 测试全绿。实现摘要见各条「✅」后的新说明。
+
+### 7. ✅ 内容限宽档位化（2026-09-28）
+`core/theme/responsive.dart`：`DesktopContentConstraint.list(960)` /
+`.reading(720)` / `.form(800)` 三档 named constructor。
+
+套用：历史 / 我喜欢 / 搜索 → list；歌曲详情 / 个人中心 → reading；设置 → form。
+歌单 / 专辑 / 歌手详情保持浏览型满宽（封面头图 + 曲目列，收窄反而空）。
 全项目 `DesktopContentConstraint` 仅 `features/settings/settings_page.dart:32` 一处
 （`maxWidth: 800`）。
 
@@ -157,39 +171,55 @@ await windowManager.waitUntilReadyToShow(
 建议：定一套内容宽度档位（浏览型不限宽 / 列表型 960 / 阅读型 720），按页面类型套，
 并在 `responsive.dart` 里补相应 named constructor。
 
-### 8. 悬停态、光标、tooltip 没成体系
-现状：同为卡片，`recommend_hub_page.dart:772` 用 `InkWell`（有系统光标），
-`discovery_page.dart:1049`、`rank_list_page.dart:233`、`fm_radio_card.dart:1256` 用
-`GestureDetector`（无光标、无 hover）；同为返回按钮，
-`playlist_detail_page.dart:548` 没 tooltip，`profile_detail_page.dart:182` 有。
+### 8. ✅ 悬停态、光标、tooltip 成体系（2026-09-28）
+`shared/widgets/kugo_clickable.dart`：
+- **`KugoClickable`**：MouseRegion + 手型光标 + AnimatedContainer hover 底纹
+  （与侧栏同一套黑洗，浅/深各一档 alpha）。
+- **`KugoIconButton`**：强制 tooltip 的 Material 图标钮。
+- **`KugoIconAction`**：非 Material 工具条小钮（hover 圆角洗 + tooltip）。
 
-建议：封 `KugoClickable`（内部 MouseRegion + 手型光标 + `AnimatedContainer` hover 底纹）
-和 `KugoIconButton`（强制 tooltip），然后把上述散点统一换掉。这是本轮性价比最高的一项。
+已替换：`PlaylistCard`/`TrackTile`/`SearchResultRow`（common）、榜单卡、
+发现页专辑/歌手卡、推荐枢纽入口卡、FM 卡内圆钮、搜索 tab 芯片、源筛选芯片、
+探索排行卡；歌单/专辑/歌手返回钮补 tooltip。
 
-### 9. 键盘可达性只有三个快捷键
-`root_shell.dart:138` 只绑了空格（播放/暂停）与左右方向键（±5s）。
+### 9. ✅ 键盘可达性补全（2026-09-28）
+`root_shell.dart` 桌面 Shortcuts：
+- 空格 播放/暂停；←/→ ±5s（原有）
+- `J`/`N` 下一首，`K`/`P` 上一首
+- `/` 或 `Ctrl+F` 进搜索
+- `Esc` pop / 回主 tab
+- `Ctrl+←/→` 切主 tab
 
-建议补：`/` 或 Ctrl+F 聚焦搜索、Esc 关闭弹层/退出歌词、`J/K` 上下首、
-`Ctrl+←/→` 切 tab；并把 `app.dart:279` 桌面端 `ExcludeSemantics` 去掉或缩小到 sidecar 范围——
-现在整个 Flutter 语义树被摘掉，屏幕阅读器完全读不到内容。
+`app.dart` **保留**桌面端 `ExcludeSemantics`（见下方「踩坑」）。
 
-### 10. 标题栏与主题割裂
-标题栏由 Win32 绘制，颜色跟随**系统**主题而不是应用主题。用户「跟随系统」模式下还好，
-一旦在应用内锁定深色、系统是浅色，就出现深内容套白标题栏。
+> **踩坑（2026-09-28 装完立刻闪退）**：#9 原计划去掉整树 `ExcludeSemantics`
+> 以恢复屏幕阅读器。装到 Windows 真机后高频触发
+> `accessibility_bridge.cc Failed to update ui::AXTree … will not be in the
+> tree and is not the new root`，随后 `Lost connection to device` 闪退。
+> Win32 embedder 的 AXTree 更新跟不上 Flutter 语义树的高频变化（hover /
+> 列表 / 动画），不是可读性取舍问题，是稳定边界。**已恢复 ExcludeSemantics**；
+> 要开屏幕阅读器须先修桥（或只对 sidecar 范围开语义）。
 
-建议二选一：
-- 保守：`windowManager.setTitle('kugo')` + 接受系统标题栏，至少标题不再为空；
-- 激进：`setTitleBarStyle(TitleBarStyle.hidden)` 后自绘标题栏行（侧栏顶部 logo 那块
-  已经有位置），在 Widows 11 上用 `flutter_acrylic`/`WindowEffect` 做 Mica 背景——
-  网易云音乐 PC、Spotify 都是这条路线。
+### 10. ✅ 标题栏自绘 + Mica（2026-09-28，激进方案）
+- `WindowOptions(titleBarStyle: hidden, windowButtonVisibility: false)`
+- `shared/shell/desktop_title_bar.dart`：36px 自绘条（拖拽 / 双击最大化 /
+  最小化 / 最大化 / 关闭），关闭仍走 `setPreventClose` → 托盘链路。
+- `flutter_acrylic` + `WindowEffect.mica`（Win11）；初始化失败静默回落默认背景。
+  主题切换时 `dark` 参数跟 `settings.materialThemeMode`。
 
-### 11. 侧栏细节
+### 11. ✅ 侧栏细节（2026-09-28）
 `shared/shell/desktop_sidebar.dart`
-- 宽度写死 220、不可折叠；建议加「图标模式」（宽 64）。
-- 文案写死「概念版 · Windows」（`:83`）—— `isDesktopView` 是按宽度判定的，
-  macOS/Linux 混进去会显示错；改成平台动态取值。
-- 选中态用 `Border(left: 3px)`（`:269`）会挤占内容，选中项标题比未选中右移 3px，
-  视觉上有轻微抖动；改用左侧独立的指示条（Positioned 绝对定位）。
+- 可折叠「图标模式」宽 64（顶栏折叠钮），展开 220。
+- 副标题按平台取值（Windows/macOS/Linux），不再写死 Windows。
+- 选中指示条改为 `Positioned` 绝对定位 3px 竖条，不再 `Border(left:)` 挤内容。
+
+> **踩坑（折叠态布局雪崩）**：折叠分支曾在 `Row` 里写
+> `SizedBox(width: double.infinity)` 想居中图标——`Row` 主轴非紧约束，
+> 直接 `BoxConstraints forces an infinite width`，整棵侧栏 layout 失败并
+> 连环 `RenderBox was not laid out`。另外 64px 里塞「logo+文案+按钮」必然
+> Flex overflow。修法：折叠态不要 Row，`Center + Icon`；顶栏折叠态只留
+> logo + 小按钮；外层再包一层 `SizedBox(width:)` 钉死宽度。
+> 回归：`test/desktop_sidebar_collapse_test.dart`（展开/折叠/再展开）。
 
 ---
 
@@ -213,8 +243,10 @@ await windowManager.waitUntilReadyToShow(
 - **骨架屏每行一个 AnimationController**（`async_body.dart:76-81`）：6 行 6 个常驻
   ticker，且三个详情页首屏各挂一份。改成一个 controller + 相位偏移。
 - **TabController 逐帧 setState**（`discovery_page.dart:104`、`likes_page.dart:84`）：
-  滑动过程中整页重建，同时 `TabBarView` 的 children 是一次性构建而非 builder，
-  切页时五个网格全量重建。改成 `children` → builder + 只 watch 索引。
+  ✅ **前半已修**（2026-09-28 补记）：`likes_page._onTabChanged` 与
+  `discovery_page._handleTabTick` 都改成「索引真变才 `setState`」，滑动 offset
+  每帧不再整页重建。**后半仍在**：`TabBarView` 的 children 仍是一次性构建而非
+  builder，切页时五个网格全量重建。改成 `children` → builder + 只 watch 索引。
 - **FM 页动画不休眠**（`fm_page.dart:52-59`）：18s 旋转 + 1.1s 频谱 `repeat()`，
   被 `/player` 完全盖住后仍在跑；频谱还每帧重建 Row。加 `TickerMode`/可见性判断。
 - **队列弹层全量构建**（`queue_sheet.dart:52`）：`shrinkWrap: true` 的 ListView
@@ -237,10 +269,10 @@ await windowManager.waitUntilReadyToShow(
 4. Windows 窗口标题与最小尺寸（#4）
 5. 柱状图宽度封顶（#5）+ 歌手页工具栏 Flexible（#6）
 
-**第二轮 · 桌面感（两到三天）**
+**第二轮 · 桌面感（两到三天）** ✅ 2026-09-28 完成
 6. 内容宽度档位化（#7）
 7. `KugoClickable` / `KugoIconButton` 统一 hover+tooltip（#8）
-8. 快捷键补全 + 去掉桌面端 ExcludeSemantics（#9）
+8. 快捷键补全（#9；ExcludeSemantics 因 AXTree 闪退保留，见 §3）
 9. 标题栏方案落地（#10）+ 侧栏折叠/指示条/文案（#11）
 
 **第三轮 · 打磨（按需）**

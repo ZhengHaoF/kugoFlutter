@@ -10,8 +10,7 @@
 | [网易云接入排期.md](网易云接入排期.md) | 网易云接入排期与实测记录 |
 | [app/README.md](app/README.md) | 工程运行说明 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明 |
-| [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 / 二期 backlog |
-| [docs/windows-gap-vs-echomusic.md](docs/windows-gap-vs-echomusic.md) | Windows 系统集成差距 |
+| [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 + Windows 系统集成 / 二期 backlog |
 | [docs/personal-fm-vs-echomusic.md](docs/personal-fm-vs-echomusic.md) | 私人 FM 现状与差距 |
 | [docs/design/](docs/design/) | 视觉稿 |
 
@@ -30,7 +29,7 @@ flutter run
 - M4：正式签名 Release APK 可侧载；性能在模拟器主观验收；analyze 零问题
 - M5 酷狗音源抽象：已完成（`MusicSource` / `KugouSource` / `platform:id` 身份；Player 全走 Source）
 - 歌词：LRC 逐行 + **KRC 逐字**（卡拉 OK 着色）+ 译文/音译副行
-- Windows：桌面壳 + SMTC/托盘/Thumbar（含收藏）/任务栏进度；缺口见 `docs/windows-gap-vs-echomusic.md`
+- Windows：桌面壳 + SMTC/托盘/Thumbar（含收藏）/任务栏进度；缺口见 `docs/gap-vs-echomusic.md` §三
 
 详见 [设计方案.md](设计方案.md) §14 与 [app/docs/release-signing.md](app/docs/release-signing.md)。
 
