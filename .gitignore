@@ -9,6 +9,7 @@ app/.metadata
 app/.idea/
 app/*.iml
 app/android/.gradle/
+app/android/build/
 app/android/local.properties
 app/android/app/.cxx/
 app/**/GeneratedPluginRegistrant.*
