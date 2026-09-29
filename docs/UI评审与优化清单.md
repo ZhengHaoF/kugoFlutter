@@ -167,22 +167,25 @@ await windowManager.waitUntilReadyToShow(
 > **2026-09-28 第二轮落地**：#7–#11 全部完成。`flutter analyze` 0 issue、
 > 551 测试全绿。实现摘要见各条「✅」后的新说明。
 
-### 7. ✅ 内容限宽档位化（2026-09-28）
-`core/theme/responsive.dart`：`DesktopContentConstraint.list(960)` /
-`.reading(720)` / `.form(800)` 三档 named constructor。
+### 7. ✅ 内容限宽档位化（2026-09-28；09-29 收敛为「内容页满宽」）
+`core/theme/responsive.dart`：`DesktopContentConstraint` 现有 `.reading(720)` /
+`.form(800)` 两档 named constructor。
 
-套用：历史 / 我喜欢 / 搜索 → list；歌曲详情 → reading；设置 → form。
-个人中心原为 reading(720)，因用户反馈「不满屏」改为满宽，与「我的」页一致
-（2026-09-28 二次调整，`features/profile/profile_detail_page.dart` 去掉限宽）。
-歌单 / 专辑 / 歌手详情保持浏览型满宽（封面头图 + 曲目列，收窄反而空）。
-全项目 `DesktopContentConstraint` 仅 `features/settings/settings_page.dart:32` 一处
-（`maxWidth: 800`）。
+**现行约定：内容页一律满宽。**「我的 / 个人中心 / 播放历史 / 我喜欢 / 搜索」之间
+会互相跳转，左右边缘必须落在同一条线上——只要其中一部分限宽、另一部分满宽，切页
+时左边缘就会横跳（1264 窗口下满宽卡片 1012px vs 限宽 960px，两侧各差 ~42px），
+看起来「没对齐」。只留两类例外收边：**阅读型 720**（歌曲详情，正文一行太长没法读）
+与**表单型 800**（设置，控件不该拉到屏幕两端）。歌单 / 专辑 / 歌手详情本就是浏览型
+满宽（封面头图 + 曲目列，收窄反而空）。
 
-症状：搜索结果、播放历史、我喜欢、歌曲详情在 2560px 上一路铺到屏幕两端，
-歌名和时长相距两米；而设置页是窄条——同一应用两种宽屏观感。
-
-建议：定一套内容宽度档位（浏览型不限宽 / 列表型 960 / 阅读型 720），按页面类型套，
-并在 `responsive.dart` 里补相应 named constructor。
+沿革：
+- 09-28：个人中心原为 reading(720)，因「不满屏」反馈改为满宽
+  （`features/profile/profile_detail_page.dart` 去掉限宽）。
+- 09-29：播放历史去掉 list(960)（与个人中心并排时两侧各多出 ~42px 留白、像
+  「缩进去没对齐」），我喜欢 / 搜索随即一并去掉。`DesktopContentConstraint.list`
+  与 `kDesktopListWidth` **已删除**——无人使用，留着下一个人会照旧加回来。
+- 原「列表型 960」的依据是「2560px 上歌名和时长相距两米」；现在改为内容页满宽，
+  超长行是已知取舍。要收回限宽必须整组页面一起定，别再单点限宽造成横跳。
 
 ### 8. ✅ 悬停态、光标、tooltip 成体系（2026-09-28）
 `shared/widgets/kugo_clickable.dart`：

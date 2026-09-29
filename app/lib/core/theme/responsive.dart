@@ -116,14 +116,19 @@ int coverGridColumnCount(
 
 /// Content-width tiers for wide layouts.
 ///
-/// Browse grids stay full-bleed (column count absorbs width). List pages cap
-/// at [kDesktopListWidth] so name/time columns don't sit two metres apart.
-/// Reading pages cap tighter at [kDesktopReadingWidth].
-const double kDesktopListWidth = 960;
+/// 内容页**一律满宽**：「我的」/「个人中心」/「播放历史」/「我喜欢」/「搜索」
+/// 之间会互相跳转，左右边缘必须落在同一条线上——给其中一部分限宽、另一部分
+/// 满宽，切页时左边缘会横跳，看起来「没对齐」（见
+/// `docs/UI评审与优化清单.md` §7）。所以这里只剩两类真正需要收边的例外：
+/// 阅读型 [kDesktopReadingWidth] 与表单型 [kDesktopFormWidth]。
+///
+/// 需要「列表限宽」那档（原 960）时不要凭记忆加回来——先确认它不会跟内容页
+/// 的左边缘约定打架。
 const double kDesktopReadingWidth = 720;
 const double kDesktopFormWidth = 800;
 
-/// Centers and limits content width on wide screens to prevent stretched, empty layouts.
+/// Centers and limits content width on wide screens to prevent stretched, empty
+/// layouts. 只给「阅读型 / 表单型」页面用；内容页（列表 / 卡片库）不禁宽。
 class DesktopContentConstraint extends StatelessWidget {
   const DesktopContentConstraint({
     super.key,
@@ -131,13 +136,6 @@ class DesktopContentConstraint extends StatelessWidget {
     this.maxWidth = 1120.0,
     this.padding = EdgeInsets.zero,
   });
-
-  /// 列表型：搜索结果 / 播放历史 / 我喜欢 / 歌单曲目 —— 960。
-  const DesktopContentConstraint.list({
-    super.key,
-    required this.child,
-    this.padding = EdgeInsets.zero,
-  }) : maxWidth = kDesktopListWidth;
 
   /// 阅读型：歌曲详情 —— 720。
   const DesktopContentConstraint.reading({

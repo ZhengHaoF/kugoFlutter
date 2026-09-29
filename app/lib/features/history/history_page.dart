@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/responsive.dart';
 import '../../data/storage/kugo_db.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/player/player_controller.dart';
@@ -234,10 +233,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           ],
         ],
       ),
-      body: DesktopContentConstraint.list(
-        child: _loading
-            ? const SkeletonList()
-            : Column(
+      // 满宽：与「我的」/「个人中心」同宽（原 DesktopContentConstraint.list
+      // 把内容限到 960 居中，比个人中心两侧各多出 ~42px 空白，视觉上没对齐）。
+      body: _loading
+          ? const SkeletonList()
+          : Column(
               children: [
                 // Tab selector
                 Padding(
@@ -282,7 +282,6 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
               ],
             ),
-      ),
     );
   }
 

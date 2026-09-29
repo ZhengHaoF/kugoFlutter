@@ -8,7 +8,6 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/profile/source_account.dart';
 import '../../features/profile/source_library_controller.dart';
@@ -393,8 +392,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
           ),
         ),
       ),
-      body: DesktopContentConstraint.list(
-        child: TabBarView(
+      // 满宽：内容页统一不限宽，左右边缘与「我的」/「个人中心」/「播放历史」
+      // 对齐（见 responsive.dart 的内容宽度约定）。
+      body: TabBarView(
         controller: _tabController,
         children: [
           // Tab 1: 歌曲（源筛选条 + 列表）
@@ -428,7 +428,6 @@ class _LikesPageState extends ConsumerState<LikesPage>
             ),
           ],
         ],
-        ),
       ),
     );
   }

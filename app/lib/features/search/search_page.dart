@@ -8,7 +8,6 @@ import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/responsive.dart';
 // 注意：[SearchType] 定义在 search_repository 里（历史遗留，暂不迁）。
 import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
@@ -185,8 +184,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('搜索')),
-      body: DesktopContentConstraint.list(
-        child: Column(
+      // 满宽：内容页统一不限宽，与「我的」/「个人中心」/「播放历史」/「我喜欢」
+      // 左边缘对齐（见 responsive.dart 的内容宽度约定）。
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -275,7 +275,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             ),
           ],
         ],
-      ),
       ),
     );
   }
