@@ -103,7 +103,10 @@ class SettingsPage extends ConsumerWidget {
                 SwitchListTile(
                   title: Text('显示桌面歌词', style: kugo.body),
                   subtitle: Text(
-                    '独立悬浮窗显示当前歌词，可置顶、锁定穿透',
+                    kAutoRestoreDesktopLyric
+                        ? '独立悬浮窗显示当前歌词，可置顶、锁定穿透'
+                        : '独立悬浮窗显示当前歌词。实验功能：开启后主窗口会失去响应，'
+                            '且不会开机自启，谨慎开启（排查见 桌面歌词接入方案.md §12）',
                     style: kugo.caption,
                   ),
                   value: settings.desktopLyricEnabled,

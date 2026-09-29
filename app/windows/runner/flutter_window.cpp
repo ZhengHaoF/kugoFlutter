@@ -82,7 +82,10 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  RegisterDesktopLyricHost(flutter_controller_.get());
+  // 注意：主窗**不要**注册 DesktopLyricHost。它会 SetWindowLongPtr 接管
+  // WNDPROC 做热区 hit-test，主窗没人调这个通道，白白把主窗消息链套一层，
+  // 且一旦被误调 setIgnoreMouseEvents 会把主窗点穿（假死）。
+  // 只有 desktop_multi_window 子窗需要，见下方 CreatedCallback。
 
   // desktop_multi_window：每个子窗口拥有独立 Flutter 引擎，需在其创建时
   // 为子引擎注册全部插件（方法通道不能跨引擎共享）。

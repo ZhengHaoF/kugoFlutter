@@ -16,6 +16,12 @@ void lyricLog(String msg) {
   debugPrint('[desktop_lyric] $msg');
 }
 
+/// 启动时是否自动恢复上次开着的桌面歌词窗。
+///
+/// Windows 上必须为 false：歌词窗（dmw 子窗）会让主窗假死，自动恢复等于启动
+/// 即死。见 桌面歌词接入方案.md §12。
+const bool kAutoRestoreDesktopLyric = false;
+
 /// 主窗侧桌面歌词桥：组装 snapshot、管子窗生命周期、收歌词窗命令。
 ///
 /// 对齐 EchoMusic 主进程职责：唯一 snapshot / 切歌 revision / 回传命令执行。
@@ -88,8 +94,20 @@ class DesktopLyricBridge {
     });
 
     // 开机自启（上次开着）：延迟一拍等主窗就绪。
-    if (_settings.desktopLyricEnabled) {
+    //
+    // ⚠️ 2026-09-30 停用自动恢复：dmw 子窗一出现就会踩坏主窗引擎的 task
+    // runner（`Failed to post message to main thread`），主窗随即假死；而
+    // `desktopLyricEnabled` 一旦为 true，每次启动都会在 800ms 后自动开窗，
+    // 等于**启动即死**——连 flutter run 都连不上（报 Error connecting to the
+    // service protocol）。详见 桌面歌词接入方案.md §12。
+    // 等桌面歌词在 Windows 上稳定后把 kAutoRestoreDesktopLyric 改回 true。
+    if (_settings.desktopLyricEnabled && kAutoRestoreDesktopLyric) {
       unawaited(Future<void>.delayed(const Duration(milliseconds: 800), open));
+    } else if (_settings.desktopLyricEnabled) {
+      // 清掉上次残留的开启态，否则设置页显示「已开启」而窗口其实没开。
+      unawaited(_container
+          .read(settingsControllerProvider.notifier)
+          .setDesktopLyricEnabled(false));
     }
   }
 
@@ -103,24 +121,28 @@ class DesktopLyricBridge {
     switch (call.method) {
       case DesktopLyricCommand.ready:
         _lyricsDirty = true;
-        await _pushSnapshot(forceLyrics: true);
+        // 不要在这里 await push：同通道嵌套 invokeMethod（ready → snapshot）
+        // 在 Windows 多引擎下会堵死 platform 线程，表现为开词后假死。
+        unawaited(_pushSnapshot(forceLyrics: true));
         return 'ok';
       case DesktopLyricCommand.playPause:
         _player.togglePlay();
         return 'ok';
       case DesktopLyricCommand.next:
-        await _player.next();
+        // 切歌可能做网络解析，别堵在通道 handler 里。
+        unawaited(_player.next());
         return 'ok';
       case DesktopLyricCommand.previous:
-        await _player.previous();
+        unawaited(_player.previous());
         return 'ok';
       case DesktopLyricCommand.close:
         unawaited(close());
         return 'ok';
       case DesktopLyricCommand.toggleLock:
-        await _container
+        // 立刻回包；设置写入与 snapshot 由 listener 异步推。
+        unawaited(_container
             .read(settingsControllerProvider.notifier)
-            .setDesktopLyricLocked(!_settings.desktopLyricLocked);
+            .setDesktopLyricLocked(!_settings.desktopLyricLocked));
         return 'ok';
       case DesktopLyricCommand.bounds:
         final b = DesktopLyricBounds.fromWire(call.arguments);
@@ -171,12 +193,8 @@ class DesktopLyricBridge {
           keep = c;
         } else {
           try {
-            await c.invokeMethod('close');
-          } catch (_) {
-            try {
-              await c.hide();
-            } catch (_) {}
-          }
+            await c.hide();
+          } catch (_) {}
         }
       }
       if (keep != null) {
@@ -219,10 +237,10 @@ class DesktopLyricBridge {
     final win = _window;
     _window = null;
     _windowOpen = false;
+    // 走歌词通道让子窗自毁。WindowController.invokeMethod('close') 打的是
+    // mixin.one/window_controller/*，子窗从未 setWindowMethodHandler，只会 hide 残留。
     try {
-      if (win != null) {
-        await win.invokeMethod('close');
-      }
+      await _channel.invokeMethod('close');
     } catch (_) {
       try {
         await win?.hide();
