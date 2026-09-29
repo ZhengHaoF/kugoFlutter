@@ -35,6 +35,8 @@ dependencies:
   window_manager: ^0.5.0
   flutter_acrylic: ^1.1.4
   file_picker: ^8.1.6
+  wakelock_plus: ^1.5.2
+  floating: ^6.0.0
 
 dev_dependencies:
   flutter_test:

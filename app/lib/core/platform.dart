@@ -11,6 +11,9 @@ bool get isDesktopPlatform =>
 /// Windows-only desktop shell extras (taskbar Thumbar / progress).
 bool get isWindowsPlatform => !kIsWeb && Platform.isWindows;
 
+/// Android runtime detection — mobile-only integrations (PiP 等).
+bool get isAndroidPlatform => !kIsWeb && Platform.isAndroid;
+
 /// Whether the platform has an implementation for the system media session
 /// (notification / lock screen / Bluetooth AVRCP / Windows SMTC).
 ///

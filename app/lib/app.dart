@@ -20,6 +20,7 @@ import 'features/explore/explore_page.dart';
 import 'features/fm/fm_page.dart';
 import 'features/history/history_page.dart';
 import 'features/likes/likes_page.dart';
+import 'features/mv/mv_mini_window.dart';
 import 'features/mv/mv_player_page.dart';
 import 'features/player/full_player_page.dart';
 import 'features/playlist/playlist_detail_page.dart';
@@ -49,8 +50,7 @@ class _NoScrollbarScrollBehavior extends ScrollBehavior {
     BuildContext context,
     Widget child,
     ScrollableDetails details,
-  ) =>
-      child;
+  ) => child;
 
   @override
   ScrollBehavior copyWith({
@@ -371,15 +371,22 @@ class KugoApp extends ConsumerWidget {
         // Status/navigation bars follow the resolved theme, not the OS setting.
         applyKugoSystemUi(Theme.of(context).brightness);
         final content = child ?? const SizedBox.shrink();
+        // MV 浮动小窗叠在所有路由之上（引擎未活时自身零尺寸、不挡交互）。
+        final stack = Stack(
+          children: [
+            Positioned.fill(child: content),
+            const Positioned.fill(child: MvMiniWindow()),
+          ],
+        );
         if (isDesktopPlatform) {
           // 桌面端**必须**挡住 Flutter 语义树进 Windows 无障碍桥：
           // 打开后高频 hover/列表/动画会把 ui::AXTree 更新打崩
           // （accessibility_bridge.cc “will not be in the tree and is not the
           // new root”），随后 Lost connection / 闪退。这不是可读性取舍，
           // 是 Win32 embedder 的稳定边界——要屏幕阅读器得先修桥再放开。
-          return ExcludeSemantics(child: content);
+          return ExcludeSemantics(child: stack);
         }
-        return content;
+        return stack;
       },
     );
   }
