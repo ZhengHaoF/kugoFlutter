@@ -63,12 +63,20 @@ class DesktopLyricController extends ChangeNotifier {
   }
 
   Future<dynamic> _onMainCall(MethodCall call) async {
-    if (call.method != 'snapshot') return null;
-    final snap = DesktopLyricSnapshot.fromWire(call.arguments);
-    final lyricsOmitted =
-        (call.arguments as Map?)?['lyricsOmitted'] == true;
-    _applySnap(snap, lyricsOmitted: lyricsOmitted);
-    return 'ok';
+    switch (call.method) {
+      case 'snapshot':
+        final snap = DesktopLyricSnapshot.fromWire(call.arguments);
+        final lyricsOmitted =
+            (call.arguments as Map?)?['lyricsOmitted'] == true;
+        _applySnap(snap, lyricsOmitted: lyricsOmitted);
+        return 'ok';
+      case 'close':
+        // 主窗 close() 下发：自毁本窗，避免只 hide 留下僵尸引擎。
+        unawaited(destroyDesktopLyricWindow());
+        return 'ok';
+      default:
+        return null;
+    }
   }
 
   void _applySnap(DesktopLyricSnapshot snap, {required bool lyricsOmitted}) {

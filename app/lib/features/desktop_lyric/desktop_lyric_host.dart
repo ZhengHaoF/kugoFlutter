@@ -42,6 +42,23 @@ class DesktopLyricHost {
   static Future<void> setIgnoreMouseEvents(bool ignore) =>
       _channel.invokeMethod('setIgnoreMouseEvents', {'ignore': ignore});
 
+  /// 设置可点击热区（逻辑像素，Flutter 坐标）；热区外 WM_NCHITTEST 穿透。
+  ///
+  /// [passthrough] 为 true 时非热区不收鼠标（歌词窗默认）；
+  /// 为 false 时整窗收鼠标（调试）。
+  static Future<void> setHitRegions(
+    List<({double x, double y, double width, double height})> regions, {
+    bool passthrough = true,
+  }) {
+    return _channel.invokeMethod('setHitRegions', {
+      'passthrough': passthrough,
+      'regions': [
+        for (final r in regions)
+          {'x': r.x, 'y': r.y, 'width': r.width, 'height': r.height},
+      ],
+    });
+  }
+
   static Future<void> startDragging() => _channel.invokeMethod('startDragging');
 
   static Future<void> show({bool inactive = true}) =>
@@ -51,4 +68,13 @@ class DesktopLyricHost {
 
   static Future<void> setTransparentBg() =>
       _channel.invokeMethod('setTransparentBg');
+
+  /// 光标屏幕逻辑坐标（用于 hover 穿透时判断是否还在热区内）。
+  static Future<({double x, double y})> getCursorPos() async {
+    final m = await _channel.invokeMethod<Map>('getCursorPos');
+    return (
+      x: (m?['x'] as num?)?.toDouble() ?? 0,
+      y: (m?['y'] as num?)?.toDouble() ?? 0,
+    );
+  }
 }
