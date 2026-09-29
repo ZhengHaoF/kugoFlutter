@@ -429,17 +429,6 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                     color: kugo.textSecondary,
                   ),
                 ),
-
-                // 歌词视图切换
-                IconButton(
-                  tooltip: '展开全屏歌词',
-                  onPressed: () => context.push('/player'),
-                  icon: Icon(
-                    Icons.lyrics_outlined,
-                    size: 20,
-                    color: kugo.textSecondary,
-                  ),
-                ),
               ],
             ),
           ),
