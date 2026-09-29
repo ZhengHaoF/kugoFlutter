@@ -14,6 +14,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
 import '../../shared/widgets/smooth_scroll.dart';
+import '../desktop_lyric/desktop_lyric_bridge.dart';
 import '../profile/source_account.dart';
 import 'settings_controller.dart';
 
@@ -93,6 +94,40 @@ class SettingsPage extends ConsumerWidget {
                     value: settings.taskbarProgress,
                     onChanged: controller.setTaskbarProgress,
                   ),
+              ],
+            ),
+          if (isDesktopPlatform)
+            _Section(
+              title: '桌面歌词',
+              children: [
+                SwitchListTile(
+                  title: Text('显示桌面歌词', style: kugo.body),
+                  subtitle: Text(
+                    '独立悬浮窗显示当前歌词，可置顶、锁定穿透',
+                    style: kugo.caption,
+                  ),
+                  value: settings.desktopLyricEnabled,
+                  onChanged: (v) {
+                    // 经 Bridge 真正开/关窗口；成功后 Bridge 回写设置。
+                    final bridge = ref.read(desktopLyricBridgeProvider);
+                    if (v) {
+                      bridge.open();
+                    } else {
+                      bridge.close();
+                    }
+                  },
+                ),
+                SwitchListTile(
+                  title: Text('锁定歌词窗', style: kugo.body),
+                  subtitle: Text(
+                    '点击穿透到下层应用，避免挡住操作',
+                    style: kugo.caption,
+                  ),
+                  value: settings.desktopLyricLocked,
+                  onChanged: settings.desktopLyricEnabled
+                      ? controller.setDesktopLyricLocked
+                      : null,
+                ),
               ],
             ),
           _Section(

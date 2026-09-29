@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
@@ -15,6 +16,8 @@ import 'data/storage/netease_auth_store.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/fm/fm_controller.dart';
 import 'features/debug/network_log_provider.dart';
+import 'features/desktop_lyric/desktop_lyric_protocol.dart';
+import 'features/desktop_lyric/lyric_window/lyric_window_app.dart';
 import 'features/player/audio_service_handler.dart';
 import 'features/player/player_controller.dart';
 import 'features/settings/settings_controller.dart';
@@ -22,6 +25,16 @@ import 'shared/tray/desktop_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── 桌面歌词子窗口分流：只承载歌词 UI，不做音频/托盘/数据源初始化 ──
+  if (isDesktopPlatform) {
+    final self = await WindowController.fromCurrentEngine();
+    if (self.arguments == kDesktopLyricWindowArg) {
+      runApp(const DesktopLyricApp());
+      return;
+    }
+  }
+
   registerDefaultMusicSources();
   // 桌面端音频后端是 media_kit（libmpv），必须先初始化。
   // 移动端不加载 libmpv，不能调 —— 见 features/player/audio_engine.dart。

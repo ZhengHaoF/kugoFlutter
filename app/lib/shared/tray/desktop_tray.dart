@@ -6,7 +6,7 @@ import 'package:tray_manager/tray_manager.dart';
 
 import '../../features/player/player_controller.dart';
 
-/// 托盘命令 — 与 EchoMusic `TrayCommand` 对齐（去掉桌面歌词相关项）。
+/// 托盘命令 — 与 EchoMusic `TrayCommand` 对齐。
 enum TrayCommand {
   showWindow,
   togglePlayback,
@@ -15,6 +15,7 @@ enum TrayCommand {
   setMode,
   volumeUp,
   volumeDown,
+  toggleDesktopLyric,
   quit,
 }
 
@@ -78,6 +79,7 @@ class DesktopTray with TrayListener implements TrayPort {
     required this.onNext,
     required this.onSetMode,
     required this.onVolumeDelta,
+    required this.onToggleDesktopLyric,
     required this.onQuit,
   });
 
@@ -89,9 +91,11 @@ class DesktopTray with TrayListener implements TrayPort {
 
   /// [delta] 为音量增量（0–1 量纲，如 ±0.05）。
   final FutureOr<void> Function(double delta) onVolumeDelta;
+  final FutureOr<void> Function() onToggleDesktopLyric;
   final FutureOr<void> Function() onQuit;
 
   TrayPlaybackSnapshot _snapshot = const TrayPlaybackSnapshot();
+  bool _desktopLyricOn = false;
   bool _ready = false;
 
   @override
@@ -107,6 +111,14 @@ class DesktopTray with TrayListener implements TrayPort {
   @override
   Future<void> syncPlayback(TrayPlaybackSnapshot snapshot) async {
     _snapshot = snapshot;
+    if (!_ready) return;
+    await _rebuildMenu();
+  }
+
+  /// 同步「桌面歌词」勾选态（设置页 / 歌词窗关闭时都会走到这里）。
+  Future<void> setDesktopLyricEnabled(bool enabled) async {
+    if (_desktopLyricOn == enabled) return;
+    _desktopLyricOn = enabled;
     if (!_ready) return;
     await _rebuildMenu();
   }
@@ -156,6 +168,8 @@ class DesktopTray with TrayListener implements TrayPort {
         unawaited(Future(() => onVolumeDelta(0.05)));
       case 'volume_down':
         unawaited(Future(() => onVolumeDelta(-0.05)));
+      case 'desktop_lyric':
+        unawaited(Future(() => onToggleDesktopLyric()));
       case 'quit':
         unawaited(Future(() => onQuit()));
     }
@@ -200,6 +214,13 @@ class DesktopTray with TrayListener implements TrayPort {
           MenuItem(key: 'volume_label', label: '音量 $volumePct%', disabled: true),
           MenuItem(key: 'volume_up', label: '增大音量'),
           MenuItem(key: 'volume_down', label: '减小音量'),
+          MenuItem.separator(),
+          MenuItem(
+            key: 'desktop_lyric',
+            label: '桌面歌词',
+            type: 'checkbox',
+            checked: _desktopLyricOn,
+          ),
           MenuItem.separator(),
           MenuItem(key: 'quit', label: '退出'),
         ],

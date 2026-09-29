@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../core/app_navigator.dart';
 import '../../core/platform.dart';
+import '../../features/desktop_lyric/desktop_lyric_bridge.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -78,6 +79,10 @@ class DesktopShell with WindowListener {
     //    再不行就保持默认底。
     unawaited(_applyWindowEffect());
 
+    // 桌面歌词桥：snapshot 推送 / 子窗生命周期 / 命令回传。
+    // 若上次开着（desktopLyricEnabled），bridge._start 会自动恢复，无需再拉。
+    final lyricBridge = await DesktopLyricBridge.boot(_container);
+
     final tray = DesktopTray(
       onShowWindow: showWindow,
       onTogglePlayback: () => _player.togglePlay(),
@@ -88,10 +93,12 @@ class DesktopShell with WindowListener {
         final next = (_playerState.volume + delta).clamp(0.0, 1.0);
         _player.setVolume(next);
       },
+      onToggleDesktopLyric: () => lyricBridge.toggle(),
       onQuit: quit,
     );
     _tray = tray;
     await tray.init();
+    await tray.setDesktopLyricEnabled(lyricBridge.isOpen);
     _syncTray();
     _wireTaskbar();
 
@@ -106,6 +113,9 @@ class DesktopShell with WindowListener {
         _lastProgressMode = 'none';
         _lastProgressPermille = -1;
         _pushProgress(force: true);
+      }
+      if (prev?.desktopLyricEnabled != next.desktopLyricEnabled) {
+        unawaited(tray.setDesktopLyricEnabled(next.desktopLyricEnabled));
       }
     });
   }

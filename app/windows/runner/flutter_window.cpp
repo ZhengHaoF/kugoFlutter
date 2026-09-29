@@ -1,13 +1,18 @@
 #include "flutter_window.h"
 
 #include <cwchar>
+#include <map>
 #include <optional>
 
+#include "desktop_lyric_host.h"
+#include "desktop_multi_window/desktop_multi_window_plugin.h"
 #include "flutter/generated_plugin_registrant.h"
 
 namespace {
 
-WNDPROC g_original_flutter_view_proc = nullptr;
+// 每个 Flutter view（主窗 / desktop_multi_window 子窗）各自保存原 WndProc。
+// 不能共用一个全局：子窗替换后会把主窗的 original 顶掉，消息会串窗。
+std::map<HWND, WNDPROC> g_flutter_view_procs;
 
 LRESULT CALLBACK FilterAccessibilityWndProc(HWND hwnd, UINT message,
                                             WPARAM wparam, LPARAM lparam) {
@@ -17,11 +22,23 @@ LRESULT CALLBACK FilterAccessibilityWndProc(HWND hwnd, UINT message,
   if (message == WM_GETOBJECT) {
     return DefWindowProc(hwnd, message, wparam, lparam);
   }
-  if (g_original_flutter_view_proc) {
-    return CallWindowProc(g_original_flutter_view_proc, hwnd, message, wparam,
-                          lparam);
+  auto it = g_flutter_view_procs.find(hwnd);
+  if (it != g_flutter_view_procs.end() && it->second != nullptr) {
+    return CallWindowProc(it->second, hwnd, message, wparam, lparam);
   }
   return DefWindowProc(hwnd, message, wparam, lparam);
+}
+
+// 给 Flutter view 装上 WM_GETOBJECT 过滤（主窗与 desktop_multi_window 子窗共用）。
+void InstallAccessibilityFilter(HWND flutter_view) {
+  if (flutter_view == nullptr ||
+      g_flutter_view_procs.count(flutter_view) != 0) {
+    return;
+  }
+  auto original = reinterpret_cast<WNDPROC>(SetWindowLongPtr(
+      flutter_view, GWLP_WNDPROC,
+      reinterpret_cast<LONG_PTR>(FilterAccessibilityWndProc)));
+  g_flutter_view_procs[flutter_view] = original;
 }
 
 TaskbarHost::ProgressMode ParseProgressMode(const std::string& mode) {
@@ -65,12 +82,26 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  RegisterDesktopLyricHost(flutter_controller_.get());
+
+  // desktop_multi_window：每个子窗口拥有独立 Flutter 引擎，需在其创建时
+  // 为子引擎注册全部插件（方法通道不能跨引擎共享）。
+  // 子窗 Flutter view 也要挂 WM_GETOBJECT 过滤，否则 UIA 查询会在
+  // flutter_windows.dll 里 Access Violation（与主窗同一坑）。
+  DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
+    auto* flutter_view_controller =
+        reinterpret_cast<flutter::FlutterViewController*>(controller);
+    RegisterPlugins(flutter_view_controller->engine());
+    RegisterDesktopLyricHost(flutter_view_controller);
+    if (flutter_view_controller->view()) {
+      InstallAccessibilityFilter(
+          flutter_view_controller->view()->GetNativeWindow());
+    }
+  });
 
   HWND child_hwnd = flutter_controller_->view()->GetNativeWindow();
   SetChildContent(child_hwnd);
-  g_original_flutter_view_proc = reinterpret_cast<WNDPROC>(
-      SetWindowLongPtr(child_hwnd, GWLP_WNDPROC,
-                       reinterpret_cast<LONG_PTR>(FilterAccessibilityWndProc)));
+  InstallAccessibilityFilter(child_hwnd);
 
   // Explorer broadcasts this after the taskbar is rebuilt — re-add thumbar
   // buttons / progress or they vanish silently.
@@ -192,7 +223,15 @@ void FlutterWindow::RegisterTaskbarChannel() {
 }
 
 void FlutterWindow::OnDestroy() {
-  g_original_flutter_view_proc = nullptr;
+  if (flutter_controller_ && flutter_controller_->view()) {
+    HWND view = flutter_controller_->view()->GetNativeWindow();
+    auto it = g_flutter_view_procs.find(view);
+    if (it != g_flutter_view_procs.end()) {
+      ::SetWindowLongPtr(view, GWLP_WNDPROC,
+                         reinterpret_cast<LONG_PTR>(it->second));
+      g_flutter_view_procs.erase(it);
+    }
+  }
   taskbar_.Destroy();
   taskbar_channel_.reset();
 

@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/models/audio_quality.dart';
 import '../../core/models/playback_source.dart';
+import '../../core/platform.dart';
 import '../../core/theme/kugo_theme.dart';
+import '../../features/desktop_lyric/desktop_lyric_bridge.dart';
 import '../../features/fm/fm_controller.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/mv/mv_entry.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/settings/settings_controller.dart';
 import 'common.dart';
 import 'cover_box.dart';
 import 'player_icon_buttons.dart';
@@ -329,9 +331,9 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
             ),
           ),
 
-          // ---------------- 右侧：音质、音量、歌词、播放列表 ----------------
+          // ---------------- 右侧：音质、音量、桌面歌词、播放列表 ----------------
           SizedBox(
-            width: 220,
+            width: 260,
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
@@ -419,6 +421,12 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
 
                 const SizedBox(width: 4),
 
+                // 桌面歌词开关（与设置页 / 托盘 / 标题栏同一状态）
+                if (isDesktopPlatform)
+                  _DesktopLyricToggle(kugo: kugo),
+
+                const SizedBox(width: 4),
+
                 // 播放列表
                 IconButton(
                   tooltip: '播放队列',
@@ -453,6 +461,29 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
       tooltip: tip,
       onPressed: () => controller.cycleMode(),
       icon: Icon(icon, size: 20, color: kugo.textSecondary),
+    );
+  }
+}
+
+/// 底栏「桌面歌词」开关：图标高亮表示已开启，与托盘/设置/标题栏同状态。
+class _DesktopLyricToggle extends ConsumerWidget {
+  const _DesktopLyricToggle({required this.kugo});
+
+  final KugoTheme kugo;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(
+      settingsControllerProvider.select((s) => s.desktopLyricEnabled),
+    );
+    return IconButton(
+      tooltip: enabled ? '关闭桌面歌词' : '开启桌面歌词',
+      onPressed: () => DesktopLyricBridge.instance?.toggle(),
+      icon: Icon(
+        Icons.lyrics_outlined,
+        size: 22,
+        color: enabled ? kugo.primary : kugo.textSecondary,
+      ),
     );
   }
 }

@@ -85,6 +85,7 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> {
               ),
             ),
           ),
+          // 桌面歌词入口只留在底栏「词」/ 托盘 / 设置，标题栏不重复。
           _TitleBarButton(
             tooltip: '最小化',
             icon: Icons.remove_rounded,

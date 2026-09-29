@@ -64,6 +64,9 @@ class AppSettings {
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
+    this.desktopLyricEnabled = false,
+    this.desktopLyricLocked = false,
+    this.desktopLyricOffsetMs = 0,
     this.defaultSource = MusicPlatform.kugou,
     this.enabledSources = const {
       MusicPlatform.kugou,
@@ -107,6 +110,15 @@ class AppSettings {
 
   /// Windows only: taskbar button progress bar (Echo「任务栏播放进度条」).
   final bool taskbarProgress;
+
+  /// 桌面歌词窗口是否打开（启动恢复 + 托盘/设置同步）。
+  final bool desktopLyricEnabled;
+
+  /// 桌面歌词锁定（点击穿透）。
+  final bool desktopLyricLocked;
+
+  /// 歌词时间偏移（ms），正 = 歌词提前。
+  final int desktopLyricOffsetMs;
 
   /// 默认音源：搜索页音源筛选与「我喜欢」页源筛选的初始值（用户当次仍可切换）。
   final MusicPlatform defaultSource;
@@ -195,6 +207,9 @@ class AppSettings {
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
+    bool? desktopLyricEnabled,
+    bool? desktopLyricLocked,
+    int? desktopLyricOffsetMs,
     MusicPlatform? defaultSource,
     Set<MusicPlatform>? enabledSources,
     Set<String>? disabledFeatures,
@@ -214,6 +229,9 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
+      desktopLyricEnabled: desktopLyricEnabled ?? this.desktopLyricEnabled,
+      desktopLyricLocked: desktopLyricLocked ?? this.desktopLyricLocked,
+      desktopLyricOffsetMs: desktopLyricOffsetMs ?? this.desktopLyricOffsetMs,
       defaultSource: defaultSource ?? this.defaultSource,
       enabledSources: enabledSources ?? this.enabledSources,
       disabledFeatures: disabledFeatures ?? this.disabledFeatures,
@@ -239,6 +257,9 @@ class SettingsController extends Notifier<AppSettings> {
   /// Legacy boolean key (`closeToTray`); read once for migration, then removed.
   static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
+  static const _kDesktopLyricEnabled = 'settings.desktopLyricEnabled';
+  static const _kDesktopLyricLocked = 'settings.desktopLyricLocked';
+  static const _kDesktopLyricOffsetMs = 'settings.desktopLyricOffsetMs';
   static const _kDefaultSource = 'settings.defaultSource';
   static const _kEnabledSources = 'settings.enabledSources';
   static const _kDisabledFeatures = 'settings.disabledFeatures';
@@ -299,6 +320,10 @@ class SettingsController extends Notifier<AppSettings> {
         ),
         closeBehavior: _readCloseBehavior(prefs),
         taskbarProgress: prefs.getBool(_kTaskbarProgress) ?? true,
+        desktopLyricEnabled: prefs.getBool(_kDesktopLyricEnabled) ?? false,
+        desktopLyricLocked: prefs.getBool(_kDesktopLyricLocked) ?? false,
+        desktopLyricOffsetMs:
+            (prefs.getInt(_kDesktopLyricOffsetMs) ?? 0).clamp(-10000, 10000),
         defaultSource: MusicPlatform.fromWire(
           prefs.getString(_kDefaultSource) ?? '',
         ),
@@ -450,6 +475,27 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setTaskbarProgress(bool v) async {
     state = state.copyWith(taskbarProgress: v);
     await _save(_kTaskbarProgress, v);
+  }
+
+  /// 桌面歌词开关。真正的窗口开关由 [DesktopLyricBridge] 执行后再回写此值，
+  /// 避免「设置先亮、窗口没开」的不一致。
+  Future<void> setDesktopLyricEnabled(bool v) async {
+    if (state.desktopLyricEnabled == v) return;
+    state = state.copyWith(desktopLyricEnabled: v);
+    await _save(_kDesktopLyricEnabled, v);
+  }
+
+  Future<void> setDesktopLyricLocked(bool v) async {
+    if (state.desktopLyricLocked == v) return;
+    state = state.copyWith(desktopLyricLocked: v);
+    await _save(_kDesktopLyricLocked, v);
+  }
+
+  Future<void> setDesktopLyricOffsetMs(int v) async {
+    final next = v.clamp(-10000, 10000);
+    if (state.desktopLyricOffsetMs == next) return;
+    state = state.copyWith(desktopLyricOffsetMs: next);
+    await _save(_kDesktopLyricOffsetMs, next);
   }
 
   Future<void> setDefaultSource(MusicPlatform v) async {
