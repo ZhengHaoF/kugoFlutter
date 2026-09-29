@@ -56,6 +56,8 @@ class FmSession {
     this.exhausted = false,
     this.error = '',
     this.gatewayError = '',
+    this.previewTracks = const [],
+    this.previewLoading = false,
   });
 
   /// 是否存在进行中的 FM 会话（播放页据此显示 FM 控件）。
@@ -91,6 +93,14 @@ class FmSession {
   final String error;
   final String gatewayError;
 
+  /// 未起播时的预览缓存：只喂黑胶盘阵，不进播放器、不干扰云盘/歌单播放。
+  /// [start] 成功后也会写入首批，离开 FM（播别的队列）后下次回来仍有盘可看；
+  /// 点播直接从缓存起播，不用再等一次取数。瞬态，不持久化。
+  final List<Track> previewTracks;
+
+  /// 预览取数中（复用播放键转环；与开台 [loading] 分开，避免挡住档位切换）。
+  final bool previewLoading;
+
   /// 有轴被切过、但还没到下一首生效。
   bool get hasPendingChange => pendingMode != mode || pendingPool != pool;
 
@@ -109,6 +119,8 @@ class FmSession {
     bool? exhausted,
     String? error,
     String? gatewayError,
+    List<Track>? previewTracks,
+    bool? previewLoading,
   }) {
     return FmSession(
       active: active ?? this.active,
@@ -125,6 +137,8 @@ class FmSession {
       exhausted: exhausted ?? this.exhausted,
       error: error ?? this.error,
       gatewayError: gatewayError ?? this.gatewayError,
+      previewTracks: previewTracks ?? this.previewTracks,
+      previewLoading: previewLoading ?? this.previewLoading,
     );
   }
 }
@@ -401,7 +415,11 @@ class FmController extends Notifier<FmSession> {
       );
       return;
     }
-    state = state.copyWith(loading: false);
+    state = state.copyWith(
+      loading: false,
+      previewTracks: List<Track>.unmodifiable(tracks),
+      previewLoading: false,
+    );
     await ref.read(playerControllerProvider.notifier).playQueue(
           tracks,
           source: PlaybackQueueSource.fm,
@@ -425,22 +443,42 @@ class FmController extends Notifier<FmSession> {
 
   void _deactivate() {
     if (!state.active) return;
-    state = const FmSession();
+    // 预览缓存保留：播云盘/歌单时 FM 会话结束，但舞台靠 previewTracks
+    // 照样有盘可看，回来点播直接从缓存起，不用白屏等取数。
+    state = FmSession(
+      source: state.source,
+      mode: state.mode,
+      pool: state.pool,
+      pendingMode: state.pendingMode,
+      pendingPool: state.pendingPool,
+      disliked: state.disliked,
+      usedQueries: state.usedQueries,
+      fromServer: state.fromServer,
+      gatewayError: state.gatewayError,
+      previewTracks: state.previewTracks,
+    );
     unawaited(fmSessionStore.save(state));
   }
 
   // ------------------------------------------------------------------ 轴切换
 
   /// 切歌池 / 档位：**下一首生效**，不打断正在听的歌。
+  /// 未起播时预览口径跟着变，旧预览清掉（由调用方补一次 [ensurePreview]）。
   void setPendingPool(FmSongPool pool) {
     if (pool == state.pendingPool) return;
-    state = state.copyWith(pendingPool: pool);
+    state = state.copyWith(
+      pendingPool: pool,
+      previewTracks: state.active ? state.previewTracks : const [],
+    );
     unawaited(_persist());
   }
 
   void setPendingMode(FmMode mode) {
     if (mode == state.pendingMode) return;
-    state = state.copyWith(pendingMode: mode);
+    state = state.copyWith(
+      pendingMode: mode,
+      previewTracks: state.active ? state.previewTracks : const [],
+    );
     unawaited(_persist());
   }
 
@@ -457,6 +495,66 @@ class FmController extends Notifier<FmSession> {
     } finally {
       _applyingPending = false;
     }
+  }
+
+  // ------------------------------------------------------------------ 预览缓存
+
+  /// 未起播时的后台预览：有缓存/会话进行中/正在取数时直接返回，
+  /// 不碰播放器队列（云盘/歌单照播）。失败静默，舞台保持空闲态可点播。
+  Future<void> ensurePreview() async {
+    if (state.active || state.loading || state.previewLoading) return;
+    final target = effectiveSource();
+    if (target == null) return;
+    // 同源已有预览直接复用；切源/切轴后（调用方已清空）才重取。
+    if (state.previewTracks.isNotEmpty && state.source == target) return;
+    state = state.copyWith(
+      source: target,
+      mode: state.pendingMode,
+      pool: state.pendingPool,
+      previewLoading: true,
+      error: '',
+    );
+    try {
+      await ref.read(authControllerProvider.notifier).ensureReady();
+    } catch (_) {}
+    final tracks = await _collect(fresh: true);
+    // 取数期间用户已开台/切走：预览作废，会话态以开台为准。
+    if (state.active || state.loading) return;
+    state = state.copyWith(
+      previewTracks: List<Track>.unmodifiable(tracks),
+      previewLoading: false,
+    );
+  }
+
+  /// 从预览缓存直接起播（即时进歌，不再等一次取数）。
+  /// 缓存为空时退回 [start] 走正常开台。
+  Future<void> playCachedPreview({int index = 0}) async {
+    final cached = state.previewTracks;
+    if (state.active || cached.isEmpty) {
+      await start(mode: state.pendingMode, pool: state.pendingPool);
+      return;
+    }
+    final target = effectiveSource() ?? state.source;
+    if (target == null) {
+      await start(mode: state.pendingMode, pool: state.pendingPool);
+      return;
+    }
+    final at = index.clamp(0, cached.length - 1);
+    state = state.copyWith(
+      active: true,
+      source: target,
+      mode: state.pendingMode,
+      pool: state.pendingPool,
+      loading: false,
+      error: '',
+    );
+    await ref.read(playerControllerProvider.notifier).playQueue(
+          cached,
+          startIndex: at,
+          source: PlaybackQueueSource.fm,
+        );
+    _lastIndex = at;
+    await _persist();
   }
 
   // ------------------------------------------------------------------ 播放控制
@@ -479,6 +577,16 @@ class FmController extends Notifier<FmSession> {
     final key = track.id.isNotEmpty ? track.id : track.hash;
 
     state = state.copyWith(disliked: {...state.disliked, key});
+    // 预览里也摘掉，下次回来盘阵不再出现它。
+    if (state.previewTracks.isNotEmpty) {
+      state = state.copyWith(
+        previewTracks: List<Track>.unmodifiable(
+          state.previewTracks.where(
+            (t) => (t.id.isNotEmpty ? t.id : t.hash) != key,
+          ),
+        ),
+      );
+    }
     // 上报垃圾桶：语义由源映射（酷狗 action=garbage；网易暂无端点，是空实现）。
     final platform = _sessionSource;
     final fm = platform == null
@@ -533,6 +641,11 @@ class FmController extends Notifier<FmSession> {
     }
     state = state.copyWith(appending: false);
     await ref.read(playerControllerProvider.notifier).appendToQueue(more);
+    // 续流同步进预览：离开 FM 后回来盘阵仍是最新长度。
+    state = state.copyWith(
+      previewTracks:
+          List<Track>.unmodifiable([...state.previewTracks, ...more]),
+    );
     await _persist();
     return more;
   }

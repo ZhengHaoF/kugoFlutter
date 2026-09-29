@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,7 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/fm/fm_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
@@ -164,6 +167,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
     // 切源（设置改动）后到达的旧响应直接丢弃。
     if (!mounted || source != _source) return;
+
+    // 发现页舞台的 FM 预览盘阵：后台拉一次，不碰播放器（云盘照播）。
+    // 同源已有预览则内部直接返回；切源/切轴后会重取。
+    unawaited(ref.read(fmControllerProvider.notifier).ensurePreview());
 
     setState(() {
       _rankings = ranks.take(12).toList();

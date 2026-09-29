@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -77,6 +78,11 @@ class _FmPageState extends ConsumerState<FmPage>
       playerCtl.togglePlay();
       return;
     }
+    // 有预览缓存则即时起播，否则开台重新拉取。
+    if (fm.previewTracks.isNotEmpty) {
+      await fmCtl.playCachedPreview();
+      return;
+    }
     await fmCtl.start(mode: fm.pendingMode, pool: fm.pendingPool);
   }
 
@@ -102,6 +108,13 @@ class _FmPageState extends ConsumerState<FmPage>
     final current = player.current;
     final desktop = isDesktopView(context);
     final fmActive = fm.active || player.queueSource == PlaybackQueueSource.fm;
+    // 播放器队列只在 FM 会话中复用；未起播时盘阵用预览缓存（云盘/歌单照播不误），
+    // 卡面文案保持空闲态，点播从缓存即时起。
+    final fmCurrent = fmActive ? current : null;
+    final List<Track> fmQueue = fmActive ? player.queue : fm.previewTracks;
+    final fmIndex = fmActive ? player.currentIndex : 0;
+    final previewCover =
+        fm.previewTracks.isNotEmpty ? fm.previewTracks.first.coverUrl : 'fm';
 
     final available = fmCtl.availableSources();
     // 渲染态必有源：会话源优先，否则设置默认源 / 首个可用源。
@@ -121,7 +134,7 @@ class _FmPageState extends ConsumerState<FmPage>
     }
 
     final accent = CoverPalette.accentFromSeed(
-      current?.coverUrl ?? 'fm',
+      (fmActive ? fmCurrent?.coverUrl : previewCover) ?? 'fm',
       kugo.palette,
     );
     final message = fm.gatewayError.isNotEmpty ? fm.gatewayError : fm.error;
@@ -135,16 +148,20 @@ class _FmPageState extends ConsumerState<FmPage>
       stationTitle: modeAxis ? null : '私人 FM',
       stationSubtitle: modeAxis ? null : '${activeSource.label}私人 FM',
       showModeAxis: modeAxis,
-      onMode: fmCtl.setPendingMode,
+      onMode: (m) {
+        // 起播后切轴走 pending（下一首生效）；未起播只改口径并刷新预览盘阵。
+        fmCtl.setPendingMode(m);
+        if (!fmActive) unawaited(fmCtl.ensurePreview());
+      },
       onPlay: () => _startOrToggle(fm: fm, player: player),
       onDislike: fmCtl.dislike,
       onLike: () => _like(fmCtl),
       isPlaying: player.isPlaying && fmActive,
       bars: _bars,
-      trackName: current?.name ?? '',
-      artist: current?.artist ?? '',
-      loading: fm.loading,
-      actionsEnabled: current != null,
+      trackName: fmCurrent?.name ?? '',
+      artist: fmCurrent?.artist ?? '',
+      loading: fm.loading || fm.previewLoading,
+      actionsEnabled: fmCurrent != null,
     );
 
     // 歌池轴：抬抬头右上角（EchoMusic 的 radio-strategy-switch 位置）。
@@ -156,7 +173,10 @@ class _FmPageState extends ConsumerState<FmPage>
             values: FmSongPool.values,
             labelOf: (p) => p.label,
             selected: fm.pendingPool,
-            onChanged: fmCtl.setPendingPool,
+            onChanged: (p) {
+              fmCtl.setPendingPool(p);
+              if (!fmActive) unawaited(fmCtl.ensurePreview());
+            },
             compact: !desktop,
           );
 
@@ -170,15 +190,20 @@ class _FmPageState extends ConsumerState<FmPage>
         kugo: kugo,
         accent: accent,
         spin: _spin,
-        tracks: player.queue,
-        currentIndex: player.currentIndex,
-        fallbackCoverUrl: current?.coverUrl ?? 'fm',
+        tracks: fmQueue,
+        currentIndex: fmIndex,
+        fallbackCoverUrl:
+            fmActive ? (fmCurrent?.coverUrl ?? 'fm') : previewCover,
         playing: player.isPlaying && fmActive,
         onPlayIndex: (index) {
-          if (index < 0 || index >= player.queue.length) return;
+          if (index < 0 || index >= fmQueue.length) return;
           // 同下标不重入（settle 与点击都可能到达）。
-          if (index == player.currentIndex) return;
-          playerCtl.playAtIndex(index);
+          if (index == fmIndex) return;
+          if (fmActive) {
+            playerCtl.playAtIndex(index);
+          } else {
+            unawaited(fmCtl.playCachedPreview(index: index));
+          }
         },
         onTapCurrent: () => _startOrToggle(fm: fm, player: player),
         discSize: discSize,
@@ -199,10 +224,10 @@ class _FmPageState extends ConsumerState<FmPage>
 
     final startCta = FilledButton.icon(
       key: const ValueKey('fm_start_cta'),
-      onPressed: fm.loading
+      onPressed: (fm.loading || fm.previewLoading)
           ? null
           : () => _startOrToggle(fm: fm, player: player),
-      icon: fm.loading
+      icon: (fm.loading || fm.previewLoading)
           ? const SizedBox(
               width: 16,
               height: 16,
@@ -281,16 +306,14 @@ class _FmPageState extends ConsumerState<FmPage>
             ],
           ),
           const SizedBox(height: KugoSpacing.lg),
-          if (current != null)
+          if (fmCurrent != null)
             _NowPlayingBody(
               kugo: kugo,
-              track: current,
+              track: fmCurrent,
               desktop: desktop,
               // 来源标注只在「这是 FM 队列」时有意义。
-              // 空闲页若播放器里是搜索/歌单的歌，不能写成「关键词检索」。
-              sourceBadge: (fmActive ||
-                      player.queueSource == PlaybackQueueSource.fm)
-                  ? FmSourceBadge(
+              // 非 FM 队列走上面的空闲分支，不会进到这里。
+              sourceBadge: FmSourceBadge(
                       kugo: kugo,
                       platform: activeSource,
                       fromServer: fm.fromServer,
@@ -299,8 +322,7 @@ class _FmPageState extends ConsumerState<FmPage>
                       mode: fm.mode,
                       showPool: modeAxis,
                       textAlign: desktop ? TextAlign.left : TextAlign.center,
-                    )
-                  : const SizedBox.shrink(),
+                    ),
             )
           else
             _FmIdleBody(
@@ -323,8 +345,9 @@ class _FmPageState extends ConsumerState<FmPage>
       onTap: (index) => playerCtl.playAtIndex(index),
     );
 
-    // 没起播就没有队列，此时「接下来」面板只会显示一句令人误会的空文案，直接不渲染。
-    final showUpcoming = fmActive || player.queue.isNotEmpty;
+    // 没起播就没有 FM 队列：云盘/歌单队列不得复用到「接下来」，直接不渲染，
+    // 点「开始电台」才重新拉取。
+    final showUpcoming = fmActive;
 
     return Scaffold(
       backgroundColor: kugo.bg,

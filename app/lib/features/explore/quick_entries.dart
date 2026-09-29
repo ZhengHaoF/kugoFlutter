@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/fm_mode.dart';
 import '../../core/models/playback_source.dart';
+import '../../core/models/track.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/kugo_theme.dart';
@@ -67,7 +68,8 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
     }
   }
 
-  /// 与 /fm 一致：已激活则就地切换播放/暂停；未激活则按 pending 起播。
+  /// 与 /fm 一致：已激活则就地切换播放/暂停；有预览缓存则从缓存即时起播；
+  /// 否则按 pending 开台重新拉取。
   Future<void> _startOrToggle() async {
     final player = ref.read(playerControllerProvider);
     final fm = ref.read(fmControllerProvider);
@@ -76,6 +78,10 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
     final fmActive = fm.active || player.queueSource == PlaybackQueueSource.fm;
     if (fmActive && player.current != null) {
       playerCtl.togglePlay();
+      return;
+    }
+    if (fm.previewTracks.isNotEmpty) {
+      await fmCtl.playCachedPreview();
       return;
     }
     await fmCtl.start(mode: fm.pendingMode, pool: fm.pendingPool);
@@ -94,12 +100,15 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
     if (isFmActive && newMode == fmState.mode) return;
 
     final fm = ref.read(fmControllerProvider.notifier);
-    if (isFmActive || player.isPlaying) {
+    // 只有 FM 会话进行中才立即重开；播云盘/歌单时只改 pending 并刷新预览，
+    // 否则一点档位就把当前队列冲掉并重新拉取。
+    if (isFmActive) {
       unawaited(
         fm.start(mode: newMode, pool: fmState.pendingPool),
       );
     } else {
       fm.setPendingMode(newMode);
+      unawaited(fm.ensurePreview());
     }
   }
 
@@ -123,11 +132,18 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
 
     final desktop = isDesktopView(context);
     final fmActive = fm.active || player.queueSource == PlaybackQueueSource.fm;
-    final current = player.current;
+    // 播放器队列只在 FM 会话中复用；未起播时盘阵用预览缓存（云盘/歌单照播不误），
+    // 卡面文案保持空闲态，点播从缓存即时起。
+    final fmCurrent = fmActive ? player.current : null;
+    final List<Track> fmQueue =
+        fmActive ? player.queue : fm.previewTracks;
+    final fmIndex = fmActive ? player.currentIndex : 0;
+    final previewCover =
+        fm.previewTracks.isNotEmpty ? fm.previewTracks.first.coverUrl : 'fm';
     final showPlaying = player.isPlaying && fmActive;
     _syncAnimations(playing: showPlaying);
     final accent = CoverPalette.accentFromSeed(
-      current?.coverUrl ?? 'fm',
+      fmCurrent?.coverUrl ?? 'fm',
       kugo.palette,
     );
 
@@ -148,24 +164,32 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
       onLike: _like,
       isPlaying: showPlaying,
       bars: _bars,
-      trackName: current?.name ?? '',
-      artist: current?.artist ?? '',
-      loading: fm.loading,
-      actionsEnabled: current != null,
+      trackName: fmCurrent?.name ?? '',
+      artist: fmCurrent?.artist ?? '',
+      loading: fm.loading || fm.previewLoading,
+      actionsEnabled: fmCurrent != null,
     );
 
     final carousel = FmVinylCarousel(
       kugo: kugo,
       accent: accent,
       spin: _spin,
-      tracks: player.queue,
-      currentIndex: player.currentIndex,
-      fallbackCoverUrl: current?.coverUrl ?? 'fm',
+      tracks: fmQueue,
+      currentIndex: fmIndex,
+      fallbackCoverUrl: fmActive
+          ? (fmCurrent?.coverUrl ?? 'fm')
+          : previewCover,
       playing: showPlaying,
       onPlayIndex: (index) {
-        if (index < 0 || index >= player.queue.length) return;
-        if (index == player.currentIndex) return;
-        playerCtl.playAtIndex(index);
+        if (index < 0 || index >= fmQueue.length) return;
+        if (fmActive && index == player.currentIndex) return;
+        if (fmActive) {
+          playerCtl.playAtIndex(index);
+        } else {
+          unawaited(
+            ref.read(fmControllerProvider.notifier).playCachedPreview(index: index),
+          );
+        }
       },
       onTapCurrent: _startOrToggle,
       discSize: FmStageMetrics.discSizeFor(desktop),
