@@ -180,19 +180,22 @@ class _DetailHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(KugoSpacing.lg, KugoSpacing.sm, KugoSpacing.sm, 0),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () {
-              // push 进来可 pop；侧栏 go 直达时回落到「我的」。
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/profile');
-              }
-            },
-            tooltip: '返回',
-            icon: const Icon(Icons.arrow_back_rounded, size: 20),
-          ),
-          const SizedBox(width: 4),
+          // 桌面端靠侧栏导航，返回键冗余；移动端才显示。
+          if (!isDesktopView(context)) ...[
+            IconButton(
+              onPressed: () {
+                // push 进来可 pop；侧栏 go 直达时回落到「我的」。
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/profile');
+                }
+              },
+              tooltip: '返回',
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            ),
+            const SizedBox(width: 4),
+          ],
           Text('个人中心', style: kugo.title.copyWith(fontSize: 22)),
           const Spacer(),
           if (showLogout && onLogout != null)

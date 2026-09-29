@@ -324,6 +324,12 @@ AES `dataMap`：
 
 响应（`status=1`）预期字段（对照 EchoMusic `mapCloudSong` / MoeKoeMusic，**待探针实测**）：
 
+> **2026-09 实测**（`tool/probe_cloud_disk.dart --suite list`）：`data.list` 是
+> **JSON 字符串**（空盘为 `""`），不是原生数组；必须 `jsonDecode` 后再映射，否则
+> 歌曲永远解析为空。空盘实测：`list_count=0`、`used_size=0`、
+> `availble_size=max_size=64424509440`，另带 `type_size`（各类型容量）。
+>
+
 | 业务 | 候选 key |
 | --- | --- |
 | 列表 | `data.list[]` 或 `data.info[]` |

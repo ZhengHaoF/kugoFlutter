@@ -116,6 +116,34 @@ void main() {
     expect(state.lyrics, isEmpty);
   });
 
+  test('retryIfEmpty retries at most once per track (no loading/empty flicker)',
+      () async {
+    final engine = FakeAudioPlayer();
+    // No lyrics for this key → every fetch returns empty.
+    final source = FakeMusicSource();
+    final container = _container(engine: engine, source: source);
+    final controller = container.read(playerControllerProvider.notifier);
+
+    await controller.playQueue([_hashed('n', 'hash_n')], startIndex: 0);
+    expect(container.read(playerControllerProvider).lyricsStatus,
+        LyricsStatus.empty);
+    final afterInitial = source.requestedLyricKeys.length;
+
+    // The player page calls this on every build; simulate many frames.
+    for (var i = 0; i < 8; i++) {
+      controller.ensureLyricsForCurrent(retryIfEmpty: true);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    final state = container.read(playerControllerProvider);
+    expect(state.lyricsStatus, LyricsStatus.empty);
+    // One extra retry beyond the initial load — never a per-frame loop.
+    expect(
+      source.requestedLyricKeys.length - afterInitial,
+      lessThanOrEqualTo(1),
+    );
+  });
+
   test('ensureLyricsForCurrent dedupes after a definitive answer', () async {
     final engine = FakeAudioPlayer();
     final source = FakeMusicSource()

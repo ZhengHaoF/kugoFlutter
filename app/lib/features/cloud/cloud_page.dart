@@ -407,12 +407,15 @@ class _CloudPageState extends ConsumerState<CloudPage> {
             ),
             child: Row(
               children: [
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  tooltip: '返回',
-                ),
-                const SizedBox(width: 4),
+                // 桌面端靠侧栏导航，返回键冗余；移动端才显示。
+                if (!desktop) ...[
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    tooltip: '返回',
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 Expanded(
                   child: Text(
                     '音乐云盘',
@@ -448,9 +451,10 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: _capacity.usedRatio == 0
-                          ? null
-                          : _capacity.usedRatio,
+                      // 只有 totalBytes > 0 才会走到这里；usedRatio==0（空盘）
+                      // 也必须给确定值 0，传 null 会渲染成不确定进度条，
+                      // 看起来像「一直在加载」。
+                      value: _capacity.usedRatio,
                       minHeight: 4,
                       backgroundColor: kugo.primary.withValues(alpha: 0.12),
                     ),

@@ -878,8 +878,27 @@ class CloudRepository {
     for (final key in ['list', 'info', 'songs']) {
       final v = data[key];
       if (v is List) return v;
+      // `get_list` 把列表序列化成 JSON 字符串返回（空盘为 `""`），不是原生数组；
+      // 只认 List 的话永远解析不出歌曲 —— 见 docs/api-notes.md「音乐云盘」。
+      if (v is String) {
+        final decoded = _decodeListString(v);
+        if (decoded != null) return decoded;
+      }
     }
     return const [];
+  }
+
+  /// 解析 `data.list` 的字符串形态；空串 = 空盘，非数组则视为无列表。
+  List<dynamic>? _decodeListString(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return const [];
+    if (!text.startsWith('[')) return null;
+    try {
+      final decoded = jsonDecode(text);
+      return decoded is List ? decoded : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   int _intOf(Object? v) {

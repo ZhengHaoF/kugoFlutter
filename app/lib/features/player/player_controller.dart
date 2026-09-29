@@ -176,6 +176,13 @@ class PlayerController extends Notifier<PlayerState> {
   /// 歌词请求身份：`id|hash`。用于去重与「曲目已变则丢弃过期结果」。
   String? _lyricsInFlightKey;
   String? _lyricsLoadedKey;
+
+  /// 已对「空歌词」补试过一次的曲目 key。
+  ///
+  /// 播放页每帧都会调 [ensureLyricsForCurrent]（retryIfEmpty）。若不加这道
+  /// 闸门，空结论会被反复清掉又重取，`loading → empty → loading …` 无限循环，
+  /// 歌词区就会来回闪「歌词加载中 / 暂无歌词」。
+  String? _lyricsRetriedKey;
   /// True once this session has a playable engine source for the current track.
   /// Cold-start restore fills the queue but not the engine — play must resolve URL first.
   bool _sourceReady = false;
@@ -647,7 +654,12 @@ class PlayerController extends Notifier<PlayerState> {
         track.canResolveStream &&
         state.lyricsStatus == LyricsStatus.empty) {
       final key = _lyricsTrackKey(track);
-      if (_lyricsLoadedKey == key) _lyricsLoadedKey = null;
+      // 每首曲目只补试一次：播放页每帧都会 ensure，无此闸门会
+      // loading↔empty 无限抖动（歌词区闪烁）。
+      if (_lyricsRetriedKey != key) {
+        _lyricsRetriedKey = key;
+        if (_lyricsLoadedKey == key) _lyricsLoadedKey = null;
+      }
     }
     unawaited(_ensureLyrics());
   }

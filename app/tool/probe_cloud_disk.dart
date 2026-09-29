@@ -260,13 +260,34 @@ List<dynamic> _pickList(Map<String, dynamic> body) {
     for (final key in ['list', 'info', 'songs', 'match_list']) {
       final v = data[key];
       if (v is List) return v;
+      // `get_list` 的 list 是 JSON 字符串（空盘为 ""），不是原生数组。
+      if (v is String) {
+        final decoded = _decodeListString(v);
+        if (decoded != null) return decoded;
+      }
     }
   }
   for (final key in ['list', 'info', 'match_list']) {
     final v = body[key];
     if (v is List) return v;
+    if (v is String) {
+      final decoded = _decodeListString(v);
+      if (decoded != null) return decoded;
+    }
   }
   return const [];
+}
+
+List<dynamic>? _decodeListString(String raw) {
+  final text = raw.trim();
+  if (text.isEmpty) return const [];
+  if (!text.startsWith('[')) return null;
+  try {
+    final decoded = jsonDecode(text);
+    return decoded is List ? decoded : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 String? _firstHashFromList(dynamic listResult) {

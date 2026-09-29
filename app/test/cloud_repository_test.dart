@@ -190,6 +190,67 @@ void main() {
       expect(page.tracks[2].id, '3');
     });
 
+    test('fetchCloudDiskPage parses JSON-string list (kugou get_list shape)',
+        () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _FakeDioAdapter((options) async {
+        expect(options.uri.path, '/v1/get_list');
+        // Real `get_list` returns `data.list` as a JSON string, not an array.
+        return _jsonBytes({
+          'status': 1,
+          'error_code': 0,
+          'data': {
+            'list_count': 1,
+            'max_size': 64424509440,
+            'used_size': 0,
+            'availble_size': 64424509440,
+            'list': jsonEncode([
+              {
+                'kv_id': 8001,
+                'hash': 'AABBCC',
+                'filename': 'A - 一.mp3',
+                'timelen': 12000,
+              },
+            ]),
+          },
+        });
+      });
+
+      final repo = CloudRepository(dio: dio);
+      final page = await repo.fetchCloudDiskPage(page: 1, pageSize: 30);
+
+      expect(page.total, 1);
+      expect(page.tracks.length, 1);
+      expect(page.tracks.single.id, '8001');
+      expect(page.hasMore, isFalse);
+    });
+
+    test('fetchCloudDiskPage treats empty-string list as an empty disk',
+        () async {
+      final dio = Dio();
+      dio.httpClientAdapter = _FakeDioAdapter((options) async {
+        return _jsonBytes({
+          'status': 1,
+          'error_code': 0,
+          'data': {
+            'list_count': 0,
+            'max_size': 64424509440,
+            'used_size': 0,
+            'availble_size': 64424509440,
+            'list': '',
+          },
+        });
+      });
+
+      final repo = CloudRepository(dio: dio);
+      final page = await repo.fetchCloudDiskPage();
+
+      expect(page.tracks, isEmpty);
+      expect(page.total, 0);
+      expect(page.capacity.totalBytes, 64424509440);
+      expect(page.capacity.usedRatio, 0);
+    });
+
     test('resolveCloudPlayUrl uses signCloudKey and returns backup urls', () async {
       final dio = Dio();
       RequestOptions? recorded;
