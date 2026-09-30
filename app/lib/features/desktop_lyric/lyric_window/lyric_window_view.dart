@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/kugo_theme.dart';
 import '../desktop_lyric_host.dart';
 import '../desktop_lyric_style.dart';
 import 'karaoke_sweep_line.dart';
@@ -153,6 +154,8 @@ class _LyricBlock extends StatelessWidget {
                   height: 1.25,
                   fontWeight: isTr ? FontWeight.w400 : FontWeight.w500,
                   shadows: lyricShadows(style, strength: 0.7),
+                  fontFamily: kugoFontFamily,
+                  fontFamilyFallback: kugoFontFamilyFallback,
                 ),
               ),
             );

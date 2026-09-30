@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../../core/theme/kugo_theme.dart';
 import 'lyric_window_controller.dart';
 
 /// 桌面歌词平滑扫光行（业界桌面歌词形态）。
@@ -231,6 +232,9 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
         fontWeight: _fontWeight,
         letterSpacing: 0.3,
         shadows: widget.shadows,
+        // TextPainter 不走 DefaultTextStyle 合并，必须显式指定，否则落到 Roboto。
+        fontFamily: kugoFontFamily,
+        fontFamilyFallback: kugoFontFamilyFallback,
       );
 
   TextStyle get _sungStyle => _baseStyle.copyWith(color: widget.sungColor);
@@ -249,6 +253,8 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
       height: widget.heightFactor,
       fontWeight: _fontWeight,
       letterSpacing: 0.3,
+      fontFamily: kugoFontFamily,
+      fontFamilyFallback: kugoFontFamilyFallback,
     );
   }
 

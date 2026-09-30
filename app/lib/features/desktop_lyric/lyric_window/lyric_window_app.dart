@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/kugo_theme.dart';
 import '../desktop_lyric_bridge.dart';
 import '../desktop_lyric_host.dart';
 import '../desktop_lyric_ipc.dart';
@@ -81,9 +82,15 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
 
   @override
   Widget build(BuildContext context) {
+    // 与主窗同一套字体（打包 MiSans + 系统回退），避免歌词窗落到 Roboto。
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        textTheme: ThemeData.dark(useMaterial3: true).textTheme.apply(
+              fontFamily: kugoFontFamily,
+              fontFamilyFallback: kugoFontFamilyFallback,
+            ),
+      ),
       home: !_booted
           ? const SizedBox.shrink()
           : DesktopLyricView(controller: _controller),
