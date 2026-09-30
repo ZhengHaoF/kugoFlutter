@@ -82,12 +82,12 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // 歌词本体：无卡片底
-                _LyricBlock(controller: _c),
-                // 控制条：右下角 hover 浮出的玻璃胶囊
+                // 歌词本体：撑满窗宽，内部右对齐。
+                SizedBox(width: double.infinity, child: _LyricBlock(controller: _c)),
+                // 控制条放左下角：歌词右对齐后放右下会压在字上，显得「按钮挤在一起」。
                 if (showControls)
                   Positioned(
-                    right: 0,
+                    left: 0,
                     bottom: -2,
                     child: _ControlBar(controller: _c),
                   ),

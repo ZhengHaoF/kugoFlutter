@@ -300,7 +300,11 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = math.max(0.0, constraints.maxWidth);
+        // Column.end / 无界约束时 maxWidth 可能是 infinity，直接拿去排版会
+        // 把 originDx 算成 inf、字跑出屏。有界用真实宽度，无界给默认窗宽。
+        final maxWidth = constraints.hasBoundedWidth
+            ? math.max(0.0, constraints.maxWidth)
+            : 680.0;
         // 触发布局（缓存命中时零成本）。
         final base = _ensureLayout(text, maxWidth);
         // 文字贴窗口右缘：主行与副行同一右对齐基线。
