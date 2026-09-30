@@ -176,8 +176,10 @@ class DesktopLyricBridge {
     await _ensureHandler();
 
     // 1. 歌词进程仍在：直接 show（hide/show 复用，不重复 spawn）。
+    // 每次显示都回屏幕顶部居中，保持默认位稳定（用户拖动仅在当次会话有效）。
     if (_childReady && _writer?.isOpen == true) {
       _windowOpen = true;
+      _writer!.send(LyricIpc.signal(LyricIpc.typeReposition));
       _writer!.send(LyricIpc.signal(LyricIpc.typeShow));
       _startPositionTimer();
       Timer.run(() {

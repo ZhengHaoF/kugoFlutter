@@ -121,8 +121,8 @@ class _LyricBlock extends StatelessWidget {
     final tr = snap.translation ? controller.currentTranslation : null;
 
     final content = Column(
-      // 拉满宽度后主行/副行各自水平居中，字才会落在屏幕中央。
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      // 歌词相对窗口右侧对齐（窗口本身贴屏幕顶部居中）。
+      crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
         // 主行：平滑扫光（KRC 逐字插值；LRC 线性扫）。
@@ -148,7 +148,7 @@ class _LyricBlock extends StatelessWidget {
                 sub,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.right,
                 style: TextStyle(
                   // 副行跟随未唱色，再压一点透明度分层。
                   color: style.unsung.withValues(alpha: isTr ? 0.72 : 0.48),

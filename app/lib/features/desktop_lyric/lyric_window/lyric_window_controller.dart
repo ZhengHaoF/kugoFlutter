@@ -305,7 +305,8 @@ Object visibleLyricSignature({
 /// 多引擎下会串到主窗，把主窗口点穿/假死。
 ///
 /// 样式旗标互不依赖，一次发出（平台线程仍按序执行）以省掉串行 round-trip；
-/// 几何单独随后设，避免与 style 变更在 WM_NCCALCSIZE 上交错。
+/// 几何随后设。默认位固定为**屏幕（工作区）顶部居中**，离顶端 12px——
+/// 不恢复历史拖动坐标，避免脏存档把窗甩到角落。
 Future<void> initDesktopLyricWindow({
   DesktopLyricBounds? bounds,
 }) async {
@@ -318,19 +319,7 @@ Future<void> initDesktopLyricWindow({
 
   final w = bounds?.width ?? 720;
   final h = bounds?.height ?? 88;
-
-  // 先落到默认位（工作区顶部居中），再覆盖用户拖过的坐标。
-  // 顺序反了的话，脏存档会先把窗甩到角落，ensureVisible 也未必拉得回来。
   await DesktopLyricHost.centerTop(width: w, height: h, top: 12);
-
-  if (bounds != null && bounds.hasPosition && bounds.x! >= 0 && bounds.y! >= 0) {
-    await Future.wait([
-      DesktopLyricHost.setSize(w, h),
-      DesktopLyricHost.setPosition(bounds.x!, bounds.y!),
-    ]);
-    // 拔过显示器 / 脏存档：位置飞出工作区时自动回顶部居中。
-    await DesktopLyricHost.ensureVisible();
-  }
 }
 
 Future<void> showDesktopLyricWindow() async {

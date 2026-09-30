@@ -303,8 +303,8 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
         final maxWidth = math.max(0.0, constraints.maxWidth);
         // 触发布局（缓存命中时零成本）。
         final base = _ensureLayout(text, maxWidth);
-        // 文字在窗口内水平居中：窗口本身是屏幕居中的宽条，左对齐会让字偏左。
-        final originDx = ((maxWidth - base.width) / 2).clamp(0.0, maxWidth);
+        // 文字贴窗口右缘：主行与副行同一右对齐基线。
+        final originDx = (maxWidth - base.width).clamp(0.0, maxWidth);
         return CustomPaint(
           size: Size(maxWidth, lineHeight),
           painter: _SweepPainter(
@@ -336,7 +336,7 @@ class _SweepPainter extends CustomPainter {
   /// 已唱区域右边界（相对文本左缘）。
   final double sweepX;
 
-  /// 文本左缘相对 canvas 左缘的偏移（水平居中用）。
+  /// 文本左缘相对 canvas 左缘的偏移（右对齐时为 窗宽-字宽）。
   final double originDx;
 
   @override
@@ -362,7 +362,6 @@ class _SweepPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SweepPainter oldDelegate) {
-    // 扫光是连续动画，帧间 sweepX 几乎必然变化；两行字的重绘成本极低。
     return sweepX != oldDelegate.sweepX ||
         originDx != oldDelegate.originDx ||
         strokePainter != oldDelegate.strokePainter;
