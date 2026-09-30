@@ -148,7 +148,7 @@ class SourceBadge extends StatelessWidget {
 /// 当前音源只读小字：`来源：酷狗`。
 ///
 /// 与 [SourceBadge]（行内角标）区分：用于「整页 / 整块内容来自哪个源」的
-/// 场景——播放器、详情页头部、以及**单源时的底部全局提示**。多源场景下
+/// 场景——播放器、详情页头部、发现页头。多源场景下
 /// 优先用可切换的 `SourceFilterBar` chips，这里只做只读陈述，不承载切换。
 class SourceLabel extends StatelessWidget {
   const SourceLabel({
@@ -160,7 +160,7 @@ class SourceLabel extends StatelessWidget {
 
   final MusicPlatform platform;
 
-  /// 前缀文案。底部全局提示可改成「当前音源：」等更明确的说法。
+  /// 前缀文案。按场景可覆盖为「当前音源：」等更明确的说法。
   final String prefix;
 
   /// 紧凑模式：去掉图标，只留文字（用于空间受限处，如迷你播放条）。
@@ -616,7 +616,7 @@ class PlaylistCard extends StatelessWidget {
 
   /// 非 null 时在**封面左上角**浮一个来源角标（不占额外高度）。
   ///
-  /// 调用点只在**多源**时传值：单源已有页头只读标签 / 底部「当前音源」小字，
+  /// 调用点只在**多源**时传值：单源已有页头只读标签，
   /// 逐卡再挂同一个源属重复噪音。
   final MusicPlatform? platform;
 
