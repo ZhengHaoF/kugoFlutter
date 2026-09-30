@@ -319,6 +319,10 @@ Future<void> initDesktopLyricWindow({
   final w = bounds?.width ?? 720;
   final h = bounds?.height ?? 88;
 
+  // 先落到默认位（工作区顶部居中），再覆盖用户拖过的坐标。
+  // 顺序反了的话，脏存档会先把窗甩到角落，ensureVisible 也未必拉得回来。
+  await DesktopLyricHost.centerTop(width: w, height: h, top: 12);
+
   if (bounds != null && bounds.hasPosition && bounds.x! >= 0 && bounds.y! >= 0) {
     await Future.wait([
       DesktopLyricHost.setSize(w, h),
@@ -326,9 +330,6 @@ Future<void> initDesktopLyricWindow({
     ]);
     // 拔过显示器 / 脏存档：位置飞出工作区时自动回顶部居中。
     await DesktopLyricHost.ensureVisible();
-  } else {
-    // 默认：屏幕工作区顶部居中，离顶端留 12px 余量。
-    await DesktopLyricHost.centerTop(width: w, height: h, top: 12);
   }
 }
 

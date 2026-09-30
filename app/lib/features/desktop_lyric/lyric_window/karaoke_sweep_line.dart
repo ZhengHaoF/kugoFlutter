@@ -303,6 +303,8 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
         final maxWidth = math.max(0.0, constraints.maxWidth);
         // 触发布局（缓存命中时零成本）。
         final base = _ensureLayout(text, maxWidth);
+        // 文字在窗口内水平居中：窗口本身是屏幕居中的宽条，左对齐会让字偏左。
+        final originDx = ((maxWidth - base.width) / 2).clamp(0.0, maxWidth);
         return CustomPaint(
           size: Size(maxWidth, lineHeight),
           painter: _SweepPainter(
@@ -310,6 +312,7 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
             sungPainter: _sungPainter,
             strokePainter: _strokePainter,
             sweepX: _computeSweepX(base.width),
+            originDx: originDx,
           ),
         );
       },
@@ -323,6 +326,7 @@ class _SweepPainter extends CustomPainter {
     required this.sungPainter,
     required this.strokePainter,
     required this.sweepX,
+    this.originDx = 0,
   });
 
   final TextPainter basePainter;
@@ -332,11 +336,14 @@ class _SweepPainter extends CustomPainter {
   /// 已唱区域右边界（相对文本左缘）。
   final double sweepX;
 
+  /// 文本左缘相对 canvas 左缘的偏移（水平居中用）。
+  final double originDx;
+
   @override
   void paint(Canvas canvas, Size size) {
     final p = basePainter;
     final dy = (size.height - p.height) / 2;
-    final offset = Offset(0, dy);
+    final offset = Offset(originDx, dy);
 
     // 描边层垫底：先画一圈 stroke，再叠彩色字，避免彩色被描边盖住。
     strokePainter?.paint(canvas, offset);
@@ -348,7 +355,7 @@ class _SweepPainter extends CustomPainter {
     final sung = sungPainter;
     if (sung == null || sweepX <= 0) return;
     canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, sweepX, size.height));
+    canvas.clipRect(Rect.fromLTWH(originDx, 0, sweepX, size.height));
     sung.paint(canvas, offset);
     canvas.restore();
   }
@@ -357,6 +364,7 @@ class _SweepPainter extends CustomPainter {
   bool shouldRepaint(_SweepPainter oldDelegate) {
     // 扫光是连续动画，帧间 sweepX 几乎必然变化；两行字的重绘成本极低。
     return sweepX != oldDelegate.sweepX ||
+        originDx != oldDelegate.originDx ||
         strokePainter != oldDelegate.strokePainter;
   }
 }

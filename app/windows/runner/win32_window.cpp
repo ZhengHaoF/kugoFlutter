@@ -4,6 +4,7 @@
 #include <flutter_windows.h>
 
 #include "resource.h"
+#include "utils.h"
 
 namespace {
 
@@ -218,8 +219,12 @@ Win32Window::MessageHandler(HWND hwnd,
       HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
       const double scale_factor =
           FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
-      info->ptMinTrackSize.x = Scale(kMinOuterWidth, scale_factor);
-      info->ptMinTrackSize.y = Scale(kMinOuterHeight, scale_factor);
+      // 歌词悬浮窗是 720×88 量级，不能套主窗 840×600 下限，否则会被撑大、
+      // 视觉中心跟着跑偏。主窗仍保持大窗下限，避免布局塌成手机尺寸。
+      const int min_w = IsDesktopLyricProcess() ? 240 : kMinOuterWidth;
+      const int min_h = IsDesktopLyricProcess() ? 48 : kMinOuterHeight;
+      info->ptMinTrackSize.x = Scale(min_w, scale_factor);
+      info->ptMinTrackSize.y = Scale(min_h, scale_factor);
       return 0;
     }
 
