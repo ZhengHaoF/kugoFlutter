@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
+import '../../features/desktop_lyric/android_overlay/android_overlay_bridge.dart';
 import '../../features/settings/settings_controller.dart';
 import 'common.dart';
 
@@ -104,6 +106,26 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
               value: settings.lyricRomanization,
               onChanged: controller.setLyricRomanization,
             ),
+            if (isAndroidPlatform)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text('悬浮歌词', style: kugo.body),
+                subtitle: Text('悬浮窗显示桌面歌词，可拖动锁定', style: kugo.caption),
+                value: settings.desktopLyricEnabled,
+                onChanged: (v) async {
+                  final bridge = ref.read(androidLyricBridgeProvider);
+                  if (v) {
+                    final ok = await bridge.open();
+                    if (!ok) {
+                      final granted = await bridge.requestPermission();
+                      if (granted) await bridge.open();
+                    }
+                  } else {
+                    await bridge.close();
+                  }
+                },
+              ),
             const SizedBox(height: KugoSpacing.sm),
             // 字号 / 行间距：拖动中只改内存态做即时预览（播放页同时可见），
             // 松手才落盘，避免一次拖动写几十次 SharedPreferences。

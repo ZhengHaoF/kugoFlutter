@@ -17,6 +17,7 @@ import 'data/storage/netease_auth_store.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/fm/fm_controller.dart';
 import 'features/debug/network_log_provider.dart';
+import 'features/desktop_lyric/android_overlay/android_overlay_bridge.dart';
 import 'features/desktop_lyric/desktop_lyric_ipc.dart';
 import 'features/desktop_lyric/lyric_window/lyric_window_app.dart';
 import 'features/player/audio_service_handler.dart';
@@ -123,6 +124,9 @@ Future<void> main(List<String> args) async {
 
   // 桌面壳：托盘 + 关闭到托盘。必须在 settings/player 就绪之后。
   await DesktopShell.boot(container);
+
+  // Android 悬浮歌词：同进程 MethodChannel，与桌面双进程桥共用 snapshot 协议。
+  await AndroidLyricBridge.boot(container);
 
   runApp(
     UncontrolledProviderScope(

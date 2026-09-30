@@ -15,6 +15,8 @@ import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
 import '../../shared/widgets/desktop_lyric_style_sheet.dart';
 import '../../shared/widgets/smooth_scroll.dart';
+import '../desktop_lyric/android_overlay/android_overlay_bridge.dart';
+import '../desktop_lyric/android_overlay/android_overlay_host.dart';
 import '../desktop_lyric/desktop_lyric_bridge.dart';
 import '../profile/source_account.dart';
 import 'settings_controller.dart';
@@ -97,34 +99,66 @@ class SettingsPage extends ConsumerWidget {
                   ),
               ],
             ),
-          if (isDesktopPlatform)
+          if (isDesktopPlatform || isAndroidPlatform)
             _Section(
               title: '桌面歌词',
               children: [
                 SwitchListTile(
-                  title: Text('显示桌面歌词', style: kugo.body),
+                  title: Text(
+                    isAndroidPlatform ? '显示悬浮歌词' : '显示桌面歌词',
+                    style: kugo.body,
+                  ),
                   subtitle: Text(
-                    kAutoRestoreDesktopLyric
-                        ? '独立悬浮窗显示当前歌词，可置顶、锁定穿透'
-                        : '独立悬浮窗显示当前歌词。实验功能：开启后主窗口会失去响应，'
-                            '且不会开机自启，谨慎开启（排查见 桌面歌词接入方案.md §12）',
+                    isAndroidPlatform
+                        ? '悬浮窗显示当前歌词，可拖动、锁定点击穿透'
+                        : (kAutoRestoreDesktopLyric
+                            ? '独立悬浮窗显示当前歌词，可置顶、锁定穿透'
+                            : '独立悬浮窗显示当前歌词。实验功能：开启后主窗口会失去响应，'
+                                '且不会开机自启，谨慎开启（排查见 桌面歌词接入方案.md §12）'),
                     style: kugo.caption,
                   ),
                   value: settings.desktopLyricEnabled,
-                  onChanged: (v) {
+                  onChanged: (v) async {
                     // 经 Bridge 真正开/关窗口；成功后 Bridge 回写设置。
-                    final bridge = ref.read(desktopLyricBridgeProvider);
-                    if (v) {
-                      bridge.open();
+                    if (isAndroidPlatform) {
+                      final bridge = ref.read(androidLyricBridgeProvider);
+                      if (v) {
+                        final ok = await bridge.open();
+                        if (!ok && context.mounted) {
+                          final granted = await _requestOverlayPermission(
+                            context,
+                            bridge,
+                          );
+                          if (!granted && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('需要「显示在其他应用上层」权限才能开悬浮歌词'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          } else if (granted) {
+                            await bridge.open();
+                          }
+                        }
+                      } else {
+                        await bridge.close();
+                      }
                     } else {
-                      bridge.close();
+                      final bridge = ref.read(desktopLyricBridgeProvider);
+                      if (v) {
+                        bridge.open();
+                      } else {
+                        bridge.close();
+                      }
                     }
                   },
                 ),
                 SwitchListTile(
                   title: Text('锁定歌词窗', style: kugo.body),
                   subtitle: Text(
-                    '点击穿透到下层应用，避免挡住操作',
+                    isAndroidPlatform
+                        ? '锁定后点击穿透到下层应用，避免挡住操作'
+                        : '点击穿透到下层应用，避免挡住操作',
                     style: kugo.caption,
                   ),
                   value: settings.desktopLyricLocked,
@@ -144,19 +178,28 @@ class SettingsPage extends ConsumerWidget {
                 ListTile(
                   title: Text('重置歌词位置', style: kugo.body),
                   subtitle: Text(
-                    '回到屏幕顶部居中（离顶端 12px）',
+                    isAndroidPlatform
+                        ? '回到屏幕顶部居中'
+                        : '回到屏幕顶部居中（离顶端 12px）',
                     style: kugo.caption,
                   ),
                   trailing: const Icon(Icons.my_location_rounded),
-                  onTap: () {
-                    final bridge = ref.read(desktopLyricBridgeProvider);
-                    bridge.resetPosition();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('歌词位置已重置为顶部居中'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
+                  onTap: () async {
+                    if (isAndroidPlatform) {
+                      await ref
+                          .read(androidLyricBridgeProvider)
+                          .resetPosition();
+                    } else {
+                      ref.read(desktopLyricBridgeProvider).resetPosition();
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('歌词位置已重置为顶部居中'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
                   },
                 ),
               ],
@@ -487,6 +530,18 @@ final ButtonStyle _tileActionStyle = TextButton.styleFrom(
   minimumSize: const Size(0, 32),
   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
 );
+
+/// 跳系统「显示在其他应用上层」授权页，返回后轮询一次是否已授权。
+Future<bool> _requestOverlayPermission(
+  BuildContext context,
+  AndroidLyricBridge bridge,
+) async {
+  final granted = await bridge.requestPermission();
+  if (granted) return true;
+  // 从系统设置返回后给一拍再查（部分 ROM 回调不是同步的）。
+  await Future<void>.delayed(const Duration(milliseconds: 400));
+  return AndroidOverlayHost.canDrawOverlays();
+}
 
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.children});

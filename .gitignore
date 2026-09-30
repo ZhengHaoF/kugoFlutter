@@ -31,6 +31,8 @@ Thumbs.db
 # Analyzer / editor scratch dumps
 app/analyze_out.txt
 app/ao.txt
+app/test_err.txt
+app/test_out.json
 
 # Secrets (never commit)
 *.jks
