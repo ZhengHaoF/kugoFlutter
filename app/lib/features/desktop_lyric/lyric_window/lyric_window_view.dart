@@ -82,12 +82,12 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // 歌词本体：撑满窗宽，内部右对齐。
+                // 歌词本体：左对齐，撑满窗宽。
                 SizedBox(width: double.infinity, child: _LyricBlock(controller: _c)),
-                // 控制条放左下角：歌词右对齐后放右下会压在字上，显得「按钮挤在一起」。
+                // 控制条：右下角 hover 浮出（与左侧歌词错开，不压字）。
                 if (showControls)
                   Positioned(
-                    left: 0,
+                    right: 0,
                     bottom: -2,
                     child: _ControlBar(controller: _c),
                   ),
@@ -121,8 +121,8 @@ class _LyricBlock extends StatelessWidget {
     final tr = snap.translation ? controller.currentTranslation : null;
 
     final content = Column(
-      // 歌词相对窗口右侧对齐（窗口本身贴屏幕顶部居中）。
-      crossAxisAlignment: CrossAxisAlignment.end,
+      // 歌词左对齐（窗口本身仍在屏幕顶部居中）。
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         // 主行：平滑扫光（KRC 逐字插值；LRC 线性扫）。
@@ -148,7 +148,6 @@ class _LyricBlock extends StatelessWidget {
                 sub,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
                 style: TextStyle(
                   // 副行跟随未唱色，再压一点透明度分层。
                   color: style.unsung.withValues(alpha: isTr ? 0.72 : 0.48),
