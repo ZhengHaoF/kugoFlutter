@@ -30,8 +30,17 @@ abstract final class AndroidOverlayHost {
       _channel.invokeMethod('openOverlaySettings');
 
   /// 显示悬浮窗。返回 false = 无权限。
-  static Future<bool> show(Map<String, Object?> snapshot) async {
-    final v = await _channel.invokeMethod<bool>('show', {'snapshot': snapshot});
+  /// [boundsX]/[boundsY] 为 WindowManager gravity 相对坐标（TOP|CENTER_HORIZONTAL）。
+  static Future<bool> show(
+    Map<String, Object?> snapshot, {
+    int? boundsX,
+    int? boundsY,
+  }) async {
+    final v = await _channel.invokeMethod<bool>('show', {
+      'snapshot': snapshot,
+      'boundsX': ?boundsX,
+      'boundsY': ?boundsY,
+    });
     return v ?? false;
   }
 

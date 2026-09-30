@@ -55,6 +55,13 @@ class LyricOverlayView(context: Context, private val onCommand: (String, Map<Str
     private var downParamsX = 0
     private var downParamsY = 0
     private var dragging = false
+    private var longPressFired = false
+    private val longPressRunnable = Runnable {
+        if (!dragging) {
+            longPressFired = true
+            onCommand("longPress", emptyMap())
+        }
+    }
 
     var layoutParamsRef: WindowManager.LayoutParams? = null
     var windowManagerRef: WindowManager? = null
@@ -262,6 +269,10 @@ class LyricOverlayView(context: Context, private val onCommand: (String, Map<Str
                 downParamsX = lp.x
                 downParamsY = lp.y
                 dragging = false
+                longPressFired = false
+                // 长按 = 下一首（锁定穿透时到不了这里）。
+                removeCallbacks(longPressRunnable)
+                postDelayed(longPressRunnable, 480)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -281,6 +292,7 @@ class LyricOverlayView(context: Context, private val onCommand: (String, Map<Str
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(longPressRunnable)
                 if (dragging) {
                     onCommand(
                         "bounds",
@@ -292,10 +304,11 @@ class LyricOverlayView(context: Context, private val onCommand: (String, Map<Str
                         ),
                     )
                     dragging = false
-                } else if (event.actionMasked == MotionEvent.ACTION_UP) {
-                    // 轻点：切换控制条 / 锁定
+                } else if (event.actionMasked == MotionEvent.ACTION_UP && !longPressFired) {
+                    // 轻点：播放/暂停
                     onCommand("tap", emptyMap())
                 }
+                longPressFired = false
                 return true
             }
         }

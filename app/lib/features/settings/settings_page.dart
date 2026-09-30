@@ -176,6 +176,36 @@ class SettingsPage extends ConsumerWidget {
                   onTap: () => showDesktopLyricStyleSheet(context, ref),
                 ),
                 ListTile(
+                  title: Text('歌词偏移', style: kugo.body),
+                  subtitle: Text(
+                    settings.desktopLyricOffsetMs == 0
+                        ? '与系统时间对齐'
+                        : '${settings.desktopLyricOffsetMs > 0 ? '+' : ''}'
+                            '${(settings.desktopLyricOffsetMs / 1000).toStringAsFixed(1)}s',
+                    style: kugo.caption,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: '提前 0.5s',
+                        icon: const Icon(Icons.remove_rounded, size: 20),
+                        onPressed: () => controller.setDesktopLyricOffsetMs(
+                          settings.desktopLyricOffsetMs - 500,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '延后 0.5s',
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        onPressed: () => controller.setDesktopLyricOffsetMs(
+                          settings.desktopLyricOffsetMs + 500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  onTap: () => controller.setDesktopLyricOffsetMs(0),
+                ),
+                ListTile(
                   title: Text('重置歌词位置', style: kugo.body),
                   subtitle: Text(
                     isAndroidPlatform

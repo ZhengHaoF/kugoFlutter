@@ -57,8 +57,10 @@ class LyricOverlayPlugin(
             "show" -> {
                 val snap = LyricWire.parseSnapshot(call.argument<Any>("snapshot"))
                 pendingShowSnapshot = snap
+                val bx = (call.argument<Number>("boundsX") as? Number)?.toInt()
+                val by = (call.argument<Number>("boundsY") as? Number)?.toInt()
                 if (LyricOverlayHost.canDrawOverlays(context)) {
-                    val ok = LyricOverlayHost.show(context, snap)
+                    val ok = LyricOverlayHost.show(context, snap, bx, by)
                     result.success(ok)
                 } else {
                     result.success(false)

@@ -39,7 +39,7 @@ object LyricOverlayHost {
      * 显示悬浮窗。已有则只更新内容。
      * @return true=成功；false=无悬浮窗权限。
      */
-    fun show(context: Context, snapshot: LyricSnapshot): Boolean {
+    fun show(context: Context, snapshot: LyricSnapshot, boundsX: Int? = null, boundsY: Int? = null): Boolean {
         appContext = context.applicationContext
         if (!canDrawOverlays(context)) return false
 
@@ -70,8 +70,8 @@ object LyricOverlayHost {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = 0
-            y = (48 * density).toInt()
+            x = boundsX ?: 0
+            y = boundsY ?: (48 * density).toInt()
             if (snapshot.locked) {
                 flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
@@ -107,6 +107,7 @@ object LyricOverlayHost {
         val v = view ?: return
         val manager = wm ?: return
         try {
+            v.removeCallbacks(null)
             manager.removeViewImmediate(v)
         } catch (_: Exception) {
         }

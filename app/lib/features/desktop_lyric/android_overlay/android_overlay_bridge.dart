@@ -32,7 +32,6 @@ class AndroidLyricBridge {
   int _lastPushedPos = -1;
   bool _lyricsDirty = true;
   Timer? _positionTimer;
-  DesktopLyricBounds _bounds = const DesktopLyricBounds();
 
   static AndroidLyricBridge? instance;
 
@@ -54,7 +53,8 @@ class AndroidLyricBridge {
   }
 
   Future<void> _start() async {
-    _bounds = await DesktopLyricBoundsStore.load();
+    // 位置持久化仍走 DesktopLyricBoundsStore（与桌面端同一套键）。
+    await DesktopLyricBoundsStore.load();
     _ready = true;
 
     AndroidOverlayHost.setCommandHandler(_onCommand);
@@ -104,6 +104,7 @@ class AndroidLyricBridge {
       case 'tap':
         // 未锁定轻点 = 播放/暂停（锁定态点击已穿透，到不了这里）。
         _player.togglePlay();
+      case 'longPress':
       case DesktopLyricCommand.next:
         unawaited(_player.next());
       case DesktopLyricCommand.previous:
@@ -115,9 +116,7 @@ class AndroidLyricBridge {
             .read(settingsControllerProvider.notifier)
             .setDesktopLyricLocked(!_settings.desktopLyricLocked));
       case DesktopLyricCommand.bounds:
-        final b = DesktopLyricBounds.fromWire(data);
-        _bounds = b;
-        await DesktopLyricBoundsStore.save(b);
+        await DesktopLyricBoundsStore.save(DesktopLyricBounds.fromWire(data));
     }
   }
 
@@ -134,7 +133,12 @@ class AndroidLyricBridge {
         return false;
       }
       _lyricsDirty = true;
-      final ok = await AndroidOverlayHost.show(_buildWire(forceLyrics: true));
+      final bounds = await DesktopLyricBoundsStore.load();
+      final ok = await AndroidOverlayHost.show(
+        _buildWire(forceLyrics: true),
+        boundsX: bounds.x?.round(),
+        boundsY: bounds.y?.round(),
+      );
       if (!ok) {
         androidLyricLog('show failed');
         return false;
@@ -170,7 +174,6 @@ class AndroidLyricBridge {
 
   Future<void> resetPosition() async {
     await AndroidOverlayHost.resetPosition();
-    _bounds = await DesktopLyricBoundsStore.load();
   }
 
   Future<bool> requestPermission() async {
