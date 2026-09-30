@@ -23,9 +23,14 @@ Thumbs.db
 
 # Session-local assistant memory / state
 .workbuddy/
+.box-agent/
 
 # Local scratch / generated (keep docs/design intentionally)
 /generated-*.png
+
+# Analyzer / editor scratch dumps
+app/analyze_out.txt
+app/ao.txt
 
 # Secrets (never commit)
 *.jks

@@ -16,8 +16,8 @@ namespace {
 
 class DesktopLyricHost {
  public:
-  DesktopLyricHost(flutter::BinaryMessenger* messenger, HWND top)
-      : hwnd_(top) {
+  DesktopLyricHost(flutter::BinaryMessenger* messenger, HWND view)
+      : view_(view) {
     channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
         messenger, "kugo/desktop_lyric_host",
         &flutter::StandardMethodCodec::GetInstance());
@@ -29,6 +29,16 @@ class DesktopLyricHost {
   ~DesktopLyricHost() = default;
 
  private:
+  // 每次调用时解析顶层 HWND：view 可能稍后才 SetChildContent 挂到
+  // FlutterWindow 下，注册时 GetAncestor 结果不可靠。show 打在子 HWND
+  // 上而顶层仍 hidden 时，窗口会永远「看不见」。
+  HWND ResolveTop() const {
+    HWND base = view_;
+    if (base == nullptr) return nullptr;
+    HWND top = ::GetAncestor(base, GA_ROOT);
+    return top != nullptr ? top : base;
+  }
+
   void Handle(
       const flutter::MethodCall<flutter::EncodableValue>& call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
@@ -66,18 +76,18 @@ class DesktopLyricHost {
       return fallback;
     };
 
-    HWND hwnd = hwnd_;
+    HWND hwnd = ResolveTop();
     if (const auto* v = arg("hwnd")) {
       if (const auto* i = std::get_if<int64_t>(v)) {
         hwnd = reinterpret_cast<HWND>(static_cast<intptr_t>(*i));
       }
     }
-    if (hwnd == nullptr) hwnd = hwnd_;
+    if (hwnd == nullptr) hwnd = ResolveTop();
 
     const std::string& m = call.method_name();
     if (m == "getHwnd") {
       result->Success(flutter::EncodableValue(
-          static_cast<int64_t>(reinterpret_cast<intptr_t>(hwnd_))));
+          static_cast<int64_t>(reinterpret_cast<intptr_t>(hwnd))));
       return;
     }
     if (m == "setFrameless") {
@@ -106,16 +116,38 @@ class DesktopLyricHost {
     if (m == "centerTop") {
       double w = arg_d("width", 720.0);
       double h = arg_d("height", 88.0);
-      double topMargin = arg_d("top", 56.0);
+      double topMargin = arg_d("top", 12.0);
       if (w < 100.0) w = 720.0;
       if (h < 30.0) h = 88.0;
-      int screenW = ::GetSystemMetrics(SM_CXSCREEN);
+
+      // 用窗口所在显示器的**工作区**（排除任务栏/贴靠工具栏），
+      // 不要用 SM_CXSCREEN（主屏整屏物理宽，多显示器还会算错）。
+      RECT work{};
+      HMONITOR mon = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      MONITORINFO mi{sizeof(mi)};
+      if (mon != nullptr && ::GetMonitorInfoW(mon, &mi)) {
+        work = mi.rcWork;
+      } else if (!::SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0)) {
+        work.left = 0;
+        work.top = 0;
+        work.right = ::GetSystemMetrics(SM_CXSCREEN);
+        work.bottom = ::GetSystemMetrics(SM_CYSCREEN);
+      }
+
       UINT dpi = ::GetDpiForWindow(hwnd);
-      double scale = dpi ? dpi / 96.0 : 1.0;
+      if (dpi == 0) dpi = 96;
+      double scale = dpi / 96.0;
       int winW = static_cast<int>(w * scale);
       int winH = static_cast<int>(h * scale);
-      int x = (screenW - winW) / 2;
-      int y = static_cast<int>(topMargin * scale);
+      int gap = static_cast<int>(topMargin * scale);
+      if (gap < 0) gap = 0;
+
+      // 工作区水平居中；垂直贴工作区顶部再留一条缝（默认 12px）。
+      int x = work.left + ((work.right - work.left) - winW) / 2;
+      int y = work.top + gap;
+      // 窗口比工作区还宽时夹回左缘，避免负 x 跑到屏外。
+      if (x < work.left) x = work.left;
+
       ::SetWindowPos(hwnd, HWND_TOPMOST, x, y, winW, winH, SWP_NOACTIVATE);
       result->Success(flutter::EncodableValue(true));
       return;
@@ -129,6 +161,58 @@ class DesktopLyricHost {
                      static_cast<int>(y * scale), 0, 0,
                      SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
       result->Success(flutter::EncodableValue(true));
+      return;
+    }
+    if (m == "ensureVisible") {
+      // 存档坐标飞出屏外（拔显示器/脏数据）时，回落到工作区顶部居中。
+      RECT wr{};
+      if (!::GetWindowRect(hwnd, &wr)) {
+        result->Success(flutter::EncodableValue(false));
+        return;
+      }
+      const int kMinVisible = 32;  // 物理像素：至少露出这么多才算「在屏上」
+      bool visible = false;
+      auto consider = [&](HMONITOR mon) {
+        MONITORINFO mi{sizeof(mi)};
+        if (!::GetMonitorInfoW(mon, &mi)) return;
+        RECT inter{};
+        if (::IntersectRect(&inter, &wr, &mi.rcWork)) {
+          if (inter.right - inter.left >= kMinVisible &&
+              inter.bottom - inter.top >= kMinVisible) {
+            visible = true;
+          }
+        }
+      };
+      // 最近显示器 + 主显示器都查一遍，覆盖「拖到副屏后拔掉」这类场景。
+      consider(::MonitorFromRect(&wr, MONITOR_DEFAULTTONEAREST));
+      consider(::MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY));
+      if (visible) {
+        result->Success(flutter::EncodableValue(true));
+        return;
+      }
+
+      RECT work{};
+      HMONITOR mon = ::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      MONITORINFO mi{sizeof(mi)};
+      if (mon != nullptr && ::GetMonitorInfoW(mon, &mi)) {
+        work = mi.rcWork;
+      } else {
+        ::SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+      }
+      UINT dpi = ::GetDpiForWindow(hwnd);
+      double scale = dpi ? dpi / 96.0 : 1.0;
+      const int gap = static_cast<int>(12.0 * scale);
+      const int winW = wr.right - wr.left;
+      const int winH = wr.bottom - wr.top;
+      int x = work.left + ((work.right - work.left) - winW) / 2;
+      int y = work.top + gap;
+      if (x < work.left) x = work.left;
+      // 底边也别掉出工作区（窗口异常高时夹回）。
+      const int maxY = work.bottom - winH;
+      if (y > maxY) y = maxY > work.top ? maxY : work.top;
+      ::SetWindowPos(hwnd, HWND_TOPMOST, x, y, 0, 0,
+                     SWP_NOSIZE | SWP_NOACTIVATE);
+      result->Success(flutter::EncodableValue(false));
       return;
     }
     if (m == "getPosition") {
@@ -204,16 +288,27 @@ class DesktopLyricHost {
     }
     if (m == "show") {
       bool inactive = arg_bool("inactive", true);
-      ::ShowWindow(hwnd, inactive ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
-      ::SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-      ::RedrawWindow(hwnd, nullptr, nullptr,
-                     RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+      // 顶层 + view 都 show：顶层 hidden 时只 show 子 view 依然看不见。
+      HWND top = ResolveTop();
+      const UINT cmd = inactive ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL;
+      if (view_ != nullptr && view_ != top) {
+        ::ShowWindow(view_, cmd);
+      }
+      if (top != nullptr) {
+        ::ShowWindow(top, cmd);
+        ::SetWindowPos(top, HWND_TOPMOST, 0, 0, 0, 0,
+                       SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        ::RedrawWindow(top, nullptr, nullptr,
+                       RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+      }
       result->Success(flutter::EncodableValue(true));
       return;
     }
     if (m == "hide") {
-      ::ShowWindow(hwnd, SW_HIDE);
+      HWND top = ResolveTop();
+      if (top != nullptr) {
+        ::ShowWindow(top, SW_HIDE);
+      }
       result->Success(flutter::EncodableValue(true));
       return;
     }
@@ -264,7 +359,7 @@ class DesktopLyricHost {
     result->NotImplemented();
   }
 
-  HWND hwnd_ = nullptr;
+  HWND view_ = nullptr;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
 };
 
@@ -273,11 +368,10 @@ class DesktopLyricHost {
 void RegisterDesktopLyricHost(flutter::FlutterViewController* controller) {
   if (!controller || !controller->engine() || !controller->view()) return;
   HWND view = controller->view()->GetNativeWindow();
-  HWND top = view ? ::GetAncestor(view, GA_ROOT) : nullptr;
-  if (top == nullptr) top = view;
+  if (view == nullptr) return;
 
   auto host = std::make_unique<DesktopLyricHost>(
-      controller->engine()->messenger(), top);
+      controller->engine()->messenger(), view);
   static std::vector<std::unique_ptr<DesktopLyricHost>>* keep =
       new std::vector<std::unique_ptr<DesktopLyricHost>>();
   keep->push_back(std::move(host));

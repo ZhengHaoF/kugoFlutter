@@ -41,6 +41,21 @@ std::vector<std::string> GetCommandLineArguments() {
   return command_line_arguments;
 }
 
+bool IsDesktopLyricProcess() {
+  wchar_t env[8] = {};
+  const DWORD n = ::GetEnvironmentVariableW(L"KUGO_LYRIC_PROCESS", env, 8);
+  if (n > 0 && n < 8 && env[0] == L'1') {
+    return true;
+  }
+  const std::vector<std::string> args = GetCommandLineArguments();
+  for (const auto& a : args) {
+    if (a == "desktop_lyric") {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::string Utf8FromUtf16(const wchar_t* utf16_string) {
   if (utf16_string == nullptr) {
     return std::string();

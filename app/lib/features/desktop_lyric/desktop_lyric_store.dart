@@ -71,4 +71,13 @@ class DesktopLyricBoundsStore {
       await prefs.setDouble(_kH, b.height);
     } catch (_) {}
   }
+
+  /// 清掉坐标，下次启动走「工作区顶部居中」默认位。
+  static Future<void> clearPosition() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kX);
+      await prefs.remove(_kY);
+    } catch (_) {}
+  }
 }

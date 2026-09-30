@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/features/desktop_lyric/desktop_lyric_style.dart';
 import 'package:kugo/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
 
 List<LyricLine> _lines() => const [
@@ -22,6 +23,7 @@ Object _sig({
   bool locked = false,
   bool translation = true,
   double fontScale = 1.0,
+  DesktopLyricStyle style = const DesktopLyricStyle(),
 }) {
   return visibleLyricSignature(
     title: title,
@@ -30,6 +32,7 @@ Object _sig({
     locked: locked,
     translation: translation,
     fontScale: fontScale,
+    style: style,
     activeIndex: activeIndex,
     lyrics: lyrics ?? _lines(),
   );
@@ -61,6 +64,24 @@ void main() {
     expect(_sig(activeIndex: 1, locked: true), isNot(base));
     expect(_sig(activeIndex: 1, translation: false), isNot(base));
     expect(_sig(activeIndex: 1, fontScale: 1.3), isNot(base));
+  });
+
+  test('style changes invalidate the signature', () {
+    final base = _sig(activeIndex: 1);
+    expect(
+      _sig(activeIndex: 1, style: const DesktopLyricStyle(sungColor: 0xFFFF0000)),
+      isNot(base),
+    );
+    expect(
+      _sig(activeIndex: 1, style: const DesktopLyricStyle(bgOpacity: 0.5)),
+      isNot(base),
+    );
+    expect(
+      _sig(activeIndex: 1, style: const DesktopLyricStyle(strokeWidth: 2)),
+      isNot(base),
+    );
+    // 等价样式不应改变指纹。
+    expect(_sig(activeIndex: 1, style: const DesktopLyricStyle()), base);
   });
 
   test('next-line preview is part of the signature', () {

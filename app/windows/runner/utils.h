@@ -16,4 +16,8 @@ std::string Utf8FromUtf16(const wchar_t* utf16_string);
 // encoded in UTF-8. Returns an empty std::vector<std::string> on failure.
 std::vector<std::string> GetCommandLineArguments();
 
+// True when this process was spawned as the desktop-lyric sidecar
+// (`exe desktop_lyric --ipc-port=N` or env KUGO_LYRIC_PROCESS=1).
+bool IsDesktopLyricProcess();
+
 #endif  // RUNNER_UTILS_H_

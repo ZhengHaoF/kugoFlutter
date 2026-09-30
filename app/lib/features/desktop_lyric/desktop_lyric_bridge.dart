@@ -1,14 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/track.dart';
 import '../../core/platform.dart';
 import '../player/player_controller.dart';
 import '../settings/settings_controller.dart';
+import 'desktop_lyric_ipc.dart';
 import 'desktop_lyric_protocol.dart';
 import 'desktop_lyric_store.dart';
 
@@ -18,22 +18,25 @@ void lyricLog(String msg) {
 
 /// 启动时是否自动恢复上次开着的桌面歌词窗。
 ///
-/// Windows 上必须为 false：歌词窗（dmw 子窗）会让主窗假死，自动恢复等于启动
-/// 即死。见 桌面歌词接入方案.md §12。
-const bool kAutoRestoreDesktopLyric = false;
+/// 双进程方案下子窗与主窗隔离，可以打开；仍保留开关便于一键回退。
+const bool kAutoRestoreDesktopLyric = true;
 
-/// 主窗侧桌面歌词桥：组装 snapshot、管子窗生命周期、收歌词窗命令。
+/// 主窗侧桌面歌词桥：组装 snapshot、spawn 歌词进程、收歌词进程命令。
 ///
-/// 对齐 EchoMusic 主进程职责：唯一 snapshot / 切歌 revision / 回传命令执行。
-/// 歌词窗自身不碰播放。
+/// 通信走 [LyricIpc]（TCP 换行 JSON），**不再用 desktop_multi_window**：
+/// dmw 的 Windows 多引擎会踩坏主窗 task runner（见 桌面歌词接入方案.md §12）。
 class DesktopLyricBridge {
   DesktopLyricBridge(this._container);
 
   final ProviderContainer _container;
-  final WindowMethodChannel _channel =
-      const WindowMethodChannel(kDesktopLyricChannel);
 
-  WindowController? _window;
+  LyricIpcServer? _server;
+  LyricIpcWriter? _writer;
+  LyricIpcReader? _reader;
+  StreamSubscription<Map<String, Object?>>? _msgSub;
+  StreamSubscription<Socket>? _connSub;
+  Process? _process;
+
   bool _handlerReady = false;
   bool _windowOpen = false;
   bool _childReady = false;
@@ -54,7 +57,7 @@ class DesktopLyricBridge {
 
   AppSettings get _settings => _container.read(settingsControllerProvider);
 
-  /// 启动时挂载：恢复 bounds、注册命令 handler、监听播放/设置变化。
+  /// 启动时挂载：恢复 bounds、起 IPC server、监听播放/设置变化。
   static Future<DesktopLyricBridge> boot(ProviderContainer container) async {
     final bridge = DesktopLyricBridge(container);
     instance = bridge;
@@ -89,23 +92,17 @@ class DesktopLyricBridge {
       if (prev?.lyricTranslation != next.lyricTranslation ||
           prev?.lyricRomanization != next.lyricRomanization ||
           prev?.lyricFontScale != next.lyricFontScale ||
-          prev?.desktopLyricLocked != next.desktopLyricLocked) {
+          prev?.desktopLyricLocked != next.desktopLyricLocked ||
+          prev?.desktopLyricStyle != next.desktopLyricStyle) {
         unawaited(_pushSnapshot());
       }
     });
 
-    // 开机自启（上次开着）：延迟一拍等主窗就绪。
-    //
-    // ⚠️ 2026-09-30 停用自动恢复：dmw 子窗一出现就会踩坏主窗引擎的 task
-    // runner（`Failed to post message to main thread`），主窗随即假死；而
-    // `desktopLyricEnabled` 一旦为 true，每次启动都会在 800ms 后自动开窗，
-    // 等于**启动即死**——连 flutter run 都连不上（报 Error connecting to the
-    // service protocol）。详见 桌面歌词接入方案.md §12。
-    // 等桌面歌词在 Windows 上稳定后把 kAutoRestoreDesktopLyric 改回 true。
+    // 开机自启（上次开着）：延迟一拍等主窗就绪。双进程下子窗与主窗引擎隔离，
+    // 不会再踩坏主窗 task runner（§12），可安全恢复。
     if (_settings.desktopLyricEnabled && kAutoRestoreDesktopLyric) {
       unawaited(Future<void>.delayed(const Duration(milliseconds: 800), open));
     } else if (_settings.desktopLyricEnabled) {
-      // 清掉上次残留的开启态，否则设置页显示「已开启」而窗口其实没开。
       unawaited(_container
           .read(settingsControllerProvider.notifier)
           .setDesktopLyricEnabled(false));
@@ -114,63 +111,56 @@ class DesktopLyricBridge {
 
   Future<void> _ensureHandler() async {
     if (_handlerReady) return;
-    await _channel.setMethodCallHandler(_onLyricCall);
     _handlerReady = true;
+    // 无 dmw channel：命令走 IPC，见 _onIpcMessage。
   }
 
-  Future<dynamic> _onLyricCall(MethodCall call) async {
-    switch (call.method) {
+  void _onIpcMessage(Map<String, Object?> msg) {
+    if (msg['t'] != LyricIpc.typeCmd) return;
+    final method = msg['m'] as String? ?? '';
+    final args = msg['d'];
+    unawaited(_handleCmd(method, args));
+  }
+
+  Future<void> _handleCmd(String method, Object? args) async {
+    switch (method) {
       case DesktopLyricCommand.ready:
         _childReady = true;
         _lyricsDirty = true;
         _startPositionTimer();
-        // 必须异步解耦：在 return 'ok' 回包完成后再推 snapshot，
-        // 避免在处理子窗 ready 调用的同一上下文内嵌套调用 invokeMethod('snapshot')
+        // 异步推 snapshot，避免堵在读帧回调里。
         Timer.run(() {
           if (_windowOpen && _childReady) {
             unawaited(_pushSnapshot(forceLyrics: true));
           }
         });
-        return 'ok';
       case DesktopLyricCommand.playPause:
         _player.togglePlay();
-        return 'ok';
       case DesktopLyricCommand.next:
-        // 切歌可能做网络解析，别堵在通道 handler 里。
         unawaited(_player.next());
-        return 'ok';
       case DesktopLyricCommand.previous:
         unawaited(_player.previous());
-        return 'ok';
       case DesktopLyricCommand.close:
         unawaited(close());
-        return 'ok';
       case DesktopLyricCommand.toggleLock:
-        // 立刻回包；设置写入与 snapshot 由 listener 异步推。
         unawaited(_container
             .read(settingsControllerProvider.notifier)
             .setDesktopLyricLocked(!_settings.desktopLyricLocked));
-        return 'ok';
       case DesktopLyricCommand.bounds:
-        final b = DesktopLyricBounds.fromWire(call.arguments);
+        final b = DesktopLyricBounds.fromWire(args);
         _bounds = b;
         await DesktopLyricBoundsStore.save(b);
-        return 'ok';
       case DesktopLyricCommand.closed:
         _windowOpen = false;
         _childReady = false;
-        _window = null;
         _stopPositionTimer();
         await _container
             .read(settingsControllerProvider.notifier)
             .setDesktopLyricEnabled(false);
-        return 'ok';
-      default:
-        return null;
     }
   }
 
-  /// 打开（已存在则前置）。幂等；并发调用会合并到同一次 create。
+  /// 打开（已存在则显示）。幂等；并发调用会合并到同一次 spawn。
   Future<void> open() async {
     if (!isDesktopPlatform) return;
     if (_opening) return;
@@ -184,68 +174,110 @@ class DesktopLyricBridge {
 
   Future<void> _openInner() async {
     await _ensureHandler();
-    // 1. 若本进程已创建过歌词窗，直接唤醒并显示（0ms 无感响应，避免重复开销与多引擎干扰）
-    if (_window != null) {
+
+    // 1. 歌词进程仍在：直接 show（hide/show 复用，不重复 spawn）。
+    if (_childReady && _writer?.isOpen == true) {
       _windowOpen = true;
-      _childReady = true;
-      try {
-        await _channel.invokeMethod('show');
-      } catch (_) {
-        try {
-          await _window!.show();
-        } catch (_) {}
-      }
+      _writer!.send(LyricIpc.signal(LyricIpc.typeShow));
       _startPositionTimer();
       Timer.run(() {
         if (_windowOpen && _childReady) {
           unawaited(_pushSnapshot(forceLyrics: true));
         }
       });
-      await _container
+      unawaited(_container
           .read(settingsControllerProvider.notifier)
-          .setDesktopLyricEnabled(true);
+          .setDesktopLyricEnabled(true));
       return;
     }
 
-    // 2. 首次打开：创建全新的桌面歌词子窗口
+    // 2. 首次：起 IPC server → spawn 歌词进程 → 等它连上。
     try {
-      final win = await WindowController.create(
-        const WindowConfiguration(
-          arguments: kDesktopLyricWindowArg,
-          hiddenAtLaunch: true,
-        ),
+      final server = LyricIpcServer();
+      final port = await server.listen();
+      _server = server;
+
+      _connSub = server.connections?.listen((s) => unawaited(_onConnected(s)));
+      if (_connSub == null) {
+        throw StateError('lyric ipc server has no connection stream');
+      }
+
+      final exe = Platform.resolvedExecutable;
+      final exeDir = File(exe).parent.path;
+      lyricLog('spawn lyric process: $exe dir=$exeDir port=$port');
+      final process = await Process.start(
+        exe,
+        [LyricIpc.argProcess, '${LyricIpc.argPortPrefix}$port'],
+        workingDirectory: exeDir,
+        environment: {
+          ...Platform.environment,
+          LyricIpc.envProcess: '1',
+          LyricIpc.envPort: '$port',
+        },
       );
-      _window = win;
+      _process = process;
+      process.exitCode.then((code) {
+        lyricLog('lyric process exit code=$code');
+        if (_process == process) {
+          _process = null;
+          _windowOpen = false;
+          _childReady = false;
+          _stopPositionTimer();
+          unawaited(_teardownIpc());
+        }
+      }).catchError((_) {});
+
       _windowOpen = true;
       _childReady = false;
       _lyricsDirty = true;
-      await _container
+      unawaited(_container
           .read(settingsControllerProvider.notifier)
-          .setDesktopLyricEnabled(true);
-      // 只在子窗 ready 后推 snapshot 与启动 positionTimer
+          .setDesktopLyricEnabled(true));
     } catch (e, st) {
       debugPrint('[desktop_lyric] open failed: $e\n$st');
       _windowOpen = false;
       _childReady = false;
-      _window = null;
+      await _teardownIpc();
     }
+  }
+
+  Future<void> _onConnected(Socket socket) async {
+    lyricLog('lyric process connected');
+    // 单连接：后连上的顶掉旧的（异常残留）。
+    await _reader?.close();
+    await _writer?.close();
+    await _msgSub?.cancel();
+
+    final reader = LyricIpcReader(socket);
+    _reader = reader;
+    _writer = LyricIpcWriter(socket);
+    _msgSub = reader.messages.listen(_onIpcMessage);
+    _childReady = false;
+    // ready 由歌词进程主动发；连上后由其 ready 触发首帧 snapshot。
+  }
+
+  Future<void> _teardownIpc() async {
+    await _msgSub?.cancel();
+    _msgSub = null;
+    await _reader?.close();
+    _reader = null;
+    await _writer?.close();
+    _writer = null;
+    await _connSub?.cancel();
+    _connSub = null;
+    await _server?.close();
+    _server = null;
+    _childReady = false;
   }
 
   Future<void> close() async {
     _stopPositionTimer();
     _windowOpen = false;
-    _childReady = false;
-    // 隐藏歌词窗，保留子引擎与就绪状态，不销毁 HWND，规避多引擎反复销毁导致的 abort() 与死锁。
-    try {
-      await _channel.invokeMethod('hide');
-    } catch (_) {
-      try {
-        await _window?.hide();
-      } catch (_) {}
-    }
-    await _container
+    // 隐藏歌词窗，保留进程与连接，下次 open 秒开。
+    _writer?.send(LyricIpc.signal(LyricIpc.typeHide));
+    unawaited(_container
         .read(settingsControllerProvider.notifier)
-        .setDesktopLyricEnabled(false);
+        .setDesktopLyricEnabled(false));
   }
 
   Future<void> toggle() async {
@@ -256,9 +288,34 @@ class DesktopLyricBridge {
     }
   }
 
+  /// 重置歌词窗位置：清掉存档坐标，并让已开的窗立刻回顶部居中。
+  Future<void> resetPosition() async {
+    await DesktopLyricBoundsStore.clearPosition();
+    _bounds = const DesktopLyricBounds();
+    _writer?.send(LyricIpc.signal(LyricIpc.typeReposition));
+  }
+
+  /// 主窗退出前调用：杀掉歌词进程并关掉 IPC。
+  Future<void> shutdown() async {
+    _stopPositionTimer();
+    _windowOpen = false;
+    _childReady = false;
+    final p = _process;
+    _process = null;
+    try {
+      _writer?.send(LyricIpc.signal(LyricIpc.typeClose));
+    } catch (_) {}
+    await _teardownIpc();
+    if (p != null) {
+      try {
+        p.kill();
+      } catch (_) {}
+    }
+  }
+
   void _startPositionTimer() {
     _stopPositionTimer();
-    // 对时：播放中低频推 position，歌词窗本地 Ticker 自走。
+    // 对时：播放中低频推 position，歌词进程本地 Ticker 自走。
     _positionTimer = Timer.periodic(const Duration(milliseconds: 400), (_) {
       if (!_windowOpen) return;
       if (!_playerState.isPlaying) return;
@@ -276,6 +333,9 @@ class DesktopLyricBridge {
 
   Future<void> _pushSnapshot({bool forceLyrics = false, bool positionOnly = false}) async {
     if (!_windowOpen || !_childReady) return;
+    final writer = _writer;
+    if (writer == null || !writer.isOpen) return;
+
     final state = _playerState;
     final track = state.current;
     final lyrics = state.lyrics;
@@ -304,6 +364,7 @@ class DesktopLyricBridge {
       fontScale: s.lyricFontScale,
       locked: s.desktopLyricLocked,
       offsetMs: s.desktopLyricOffsetMs,
+      style: s.desktopLyricStyle,
     );
 
     final pos = snap.positionMs;
@@ -321,14 +382,10 @@ class DesktopLyricBridge {
       _lyricsDirty = false;
     }
 
-    try {
-      await _channel.invokeMethod('snapshot', wire);
-    } catch (e) {
-      debugPrint('[desktop_lyric] push snapshot failed: $e');
-    }
+    writer.send(LyricIpc.snapshot(wire));
   }
 
-  /// 窗口 bounds（歌词窗启动时读取）。
+  /// 窗口 bounds（歌词进程启动时读取）。
   DesktopLyricBounds get bounds => _bounds;
 }
 

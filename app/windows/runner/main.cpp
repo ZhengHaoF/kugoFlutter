@@ -18,10 +18,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-  // Must run before any SMTC / taskbar surface. Without an AUMID + Start Menu
-  // shortcut, Win11 media card shows「未知应用」instead of「kugo」.
-  ApplyAppUserModelId();
-  EnsureStartMenuShortcut();
+  const bool lyric_process = IsDesktopLyricProcess();
+  if (!lyric_process) {
+    // Must run before any SMTC / taskbar surface. Without an AUMID + Start Menu
+    // shortcut, Win11 media card shows「未知应用」instead of「kugo」.
+    // 歌词进程是无任务栏的悬浮窗，不需要 AUMID。
+    ApplyAppUserModelId();
+    EnsureStartMenuShortcut();
+  }
 
   flutter::DartProject project(L"data");
 
@@ -31,6 +35,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
+  if (lyric_process) {
+    // 歌词窗：默认 720x88，不居中；Dart 会 setFrameless/setSize/setPosition，
+    // 首帧前保持隐藏（见 FlutterWindow::OnCreate）。
+    Win32Window::Size size(720, 88);
+    Win32Window::Point origin(80, 56);
+    if (!window.Create(L"kugo-lyric", origin, size)) {
+      return EXIT_FAILURE;
+    }
+    window.SetQuitOnClose(true);
+    ::MSG msg;
+    while (::GetMessage(&msg, nullptr, 0, 0)) {
+      ::TranslateMessage(&msg);
+      ::DispatchMessage(&msg);
+    }
+    ::CoUninitialize();
+    return EXIT_SUCCESS;
+  }
+
   // Default window size in logical pixels. Create scales by monitor DPI and
   // clamps to the work area, so a high-DPI / small screen opens smaller.
   Win32Window::Size size(1280, 960);

@@ -13,6 +13,7 @@ import '../../features/debug/network_log_dialog.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
+import '../../shared/widgets/desktop_lyric_style_sheet.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 import '../desktop_lyric/desktop_lyric_bridge.dart';
 import '../profile/source_account.dart';
@@ -130,6 +131,33 @@ class SettingsPage extends ConsumerWidget {
                   onChanged: settings.desktopLyricEnabled
                       ? controller.setDesktopLyricLocked
                       : null,
+                ),
+                ListTile(
+                  title: Text('歌词样式', style: kugo.body),
+                  subtitle: Text(
+                    settings.desktopLyricStyle.matchingPreset?.name ?? '自定义',
+                    style: kugo.caption,
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => showDesktopLyricStyleSheet(context, ref),
+                ),
+                ListTile(
+                  title: Text('重置歌词位置', style: kugo.body),
+                  subtitle: Text(
+                    '回到屏幕顶部居中（离顶端 12px）',
+                    style: kugo.caption,
+                  ),
+                  trailing: const Icon(Icons.my_location_rounded),
+                  onTap: () {
+                    final bridge = ref.read(desktopLyricBridgeProvider);
+                    bridge.resetPosition();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('歌词位置已重置为顶部居中'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../data/storage/queue_store.dart';
 import '../search/search_history_controller.dart';
+import '../desktop_lyric/desktop_lyric_style.dart';
 
 export '../../core/models/audio_quality.dart' show AppQuality, AppQualityX;
 
@@ -67,6 +69,7 @@ class AppSettings {
     this.desktopLyricEnabled = false,
     this.desktopLyricLocked = false,
     this.desktopLyricOffsetMs = 0,
+    this.desktopLyricStyle = const DesktopLyricStyle(),
     this.defaultSource = MusicPlatform.kugou,
     this.enabledSources = const {
       MusicPlatform.kugou,
@@ -119,6 +122,9 @@ class AppSettings {
 
   /// 歌词时间偏移（ms），正 = 歌词提前。
   final int desktopLyricOffsetMs;
+
+  /// 桌面歌词外观：颜色 / 阴影 / 描边 / 背景深度 / 字重。
+  final DesktopLyricStyle desktopLyricStyle;
 
   /// 默认音源：搜索页音源筛选与「我喜欢」页源筛选的初始值（用户当次仍可切换）。
   final MusicPlatform defaultSource;
@@ -210,6 +216,7 @@ class AppSettings {
     bool? desktopLyricEnabled,
     bool? desktopLyricLocked,
     int? desktopLyricOffsetMs,
+    DesktopLyricStyle? desktopLyricStyle,
     MusicPlatform? defaultSource,
     Set<MusicPlatform>? enabledSources,
     Set<String>? disabledFeatures,
@@ -232,6 +239,7 @@ class AppSettings {
       desktopLyricEnabled: desktopLyricEnabled ?? this.desktopLyricEnabled,
       desktopLyricLocked: desktopLyricLocked ?? this.desktopLyricLocked,
       desktopLyricOffsetMs: desktopLyricOffsetMs ?? this.desktopLyricOffsetMs,
+      desktopLyricStyle: desktopLyricStyle ?? this.desktopLyricStyle,
       defaultSource: defaultSource ?? this.defaultSource,
       enabledSources: enabledSources ?? this.enabledSources,
       disabledFeatures: disabledFeatures ?? this.disabledFeatures,
@@ -260,6 +268,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kDesktopLyricEnabled = 'settings.desktopLyricEnabled';
   static const _kDesktopLyricLocked = 'settings.desktopLyricLocked';
   static const _kDesktopLyricOffsetMs = 'settings.desktopLyricOffsetMs';
+  static const _kDesktopLyricStyle = 'settings.desktopLyricStyle';
   static const _kDefaultSource = 'settings.defaultSource';
   static const _kEnabledSources = 'settings.enabledSources';
   static const _kDisabledFeatures = 'settings.disabledFeatures';
@@ -324,6 +333,7 @@ class SettingsController extends Notifier<AppSettings> {
         desktopLyricLocked: prefs.getBool(_kDesktopLyricLocked) ?? false,
         desktopLyricOffsetMs:
             (prefs.getInt(_kDesktopLyricOffsetMs) ?? 0).clamp(-10000, 10000),
+        desktopLyricStyle: _readDesktopLyricStyle(prefs),
         defaultSource: MusicPlatform.fromWire(
           prefs.getString(_kDefaultSource) ?? '',
         ),
@@ -331,6 +341,19 @@ class SettingsController extends Notifier<AppSettings> {
         disabledFeatures: _readDisabledFeatures(prefs),
       );
     } catch (_) {}
+  }
+
+  /// 读取桌面歌词外观。存的是 JSON 字符串（对齐 mvBarrageConfig 的做法）；
+  /// 缺失 / 脏数据 / 越界字段都由 DesktopLyricStyle.fromWire 兜底回默认。
+  DesktopLyricStyle _readDesktopLyricStyle(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString(_kDesktopLyricStyle);
+      if (raw == null || raw.isEmpty) return const DesktopLyricStyle();
+      final decoded = jsonDecode(raw);
+      return DesktopLyricStyle.fromWire(decoded);
+    } catch (_) {
+      return const DesktopLyricStyle();
+    }
   }
 
   /// 读取整源开关。缺失 / 空列表（非法态）/ 全部未知 → 全集兜底。
@@ -496,6 +519,22 @@ class SettingsController extends Notifier<AppSettings> {
     if (state.desktopLyricOffsetMs == next) return;
     state = state.copyWith(desktopLyricOffsetMs: next);
     await _save(_kDesktopLyricOffsetMs, next);
+  }
+
+  /// 桌面歌词外观。拖动滑块时传 persist: false 只改内存态做即时预览，
+  /// 松手（onChangeEnd）再落盘，对齐 [setLyricFontScale] 的做法。
+  Future<void> setDesktopLyricStyle(
+    DesktopLyricStyle v, {
+    bool persist = true,
+  }) async {
+    if (state.desktopLyricStyle == v) return;
+    state = state.copyWith(desktopLyricStyle: v);
+    if (persist) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kDesktopLyricStyle, jsonEncode(v.toWire()));
+      } catch (_) {}
+    }
   }
 
   Future<void> setDefaultSource(MusicPlatform v) async {

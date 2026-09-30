@@ -36,6 +36,13 @@ class DesktopLyricHost {
   static Future<void> setPosition(double x, double y) =>
       _channel.invokeMethod('setPosition', {'x': x, 'y': y});
 
+  /// 确保窗口在某个显示器工作区内；越界则自动顶部居中。
+  /// 返回 true = 原位置仍可见；false = 已回落到默认位。
+  static Future<bool> ensureVisible() async {
+    final v = await _channel.invokeMethod<bool>('ensureVisible');
+    return v ?? true;
+  }
+
   static Future<({double x, double y, double width, double height})>
       getPosition() async {
     final m = await _channel.invokeMethod<Map>('getPosition');

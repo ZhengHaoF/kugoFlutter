@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/features/desktop_lyric/desktop_lyric_protocol.dart';
 import 'package:kugo/features/desktop_lyric/desktop_lyric_store.dart';
+import 'package:kugo/features/desktop_lyric/desktop_lyric_style.dart';
 import 'package:kugo/core/models/track.dart';
 
 void main() {
@@ -58,6 +59,47 @@ void main() {
       expect(line.chars, hasLength(2));
       expect(line.chars.first.text, '第');
       expect(back.effectivePositionMs, 1734);
+    });
+
+    test('snapshot wire roundtrip keeps desktop lyric style', () {
+      const style = DesktopLyricStyle(
+        sungColor: 0xFFFF0000,
+        unsungColor: 0xFF00FF00,
+        shadowColor: 0xFF0000FF,
+        shadowStrength: 1.5,
+        strokeColor: 0xFF123456,
+        strokeWidth: 2.5,
+        bgColor: 0xFFABCDEF,
+        bgOpacity: 0.4,
+        bgRadius: 20,
+        fontScale: 1.35,
+        fontWeight: 1.6,
+      );
+      final back = DesktopLyricSnapshot.fromWire(
+        const DesktopLyricSnapshot(style: style).toWire(),
+      );
+      expect(back.style, style);
+    });
+
+    test('style fromWire falls back to defaults for dirty values', () {
+      // clampDouble 的语义是「越界/脏数据 → 回默认」，不是夹取到边界。
+      const def = DesktopLyricStyle();
+      final s = DesktopLyricStyle.fromWire({
+        'sungColor': 'not-a-number',
+        'shadowStrength': 99,
+        'strokeWidth': -3,
+        'bgOpacity': 2,
+        'bgRadius': -1,
+        'fontScale': 0.1,
+        'fontWeight': 5,
+      });
+      expect(s.sungColor, def.sungColor);
+      expect(s.shadowStrength, def.shadowStrength);
+      expect(s.strokeWidth, def.strokeWidth);
+      expect(s.bgOpacity, def.bgOpacity);
+      expect(s.bgRadius, def.bgRadius);
+      expect(s.fontScale, def.fontScale);
+      expect(s.fontWeight, def.fontWeight);
     });
 
     test('position-only push can omit lyrics without losing hash identity', () {

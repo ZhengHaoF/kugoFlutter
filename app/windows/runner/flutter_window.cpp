@@ -7,6 +7,7 @@
 #include "desktop_lyric_host.h"
 #include "desktop_multi_window/desktop_multi_window_plugin.h"
 #include "flutter/generated_plugin_registrant.h"
+#include "utils.h"
 
 namespace {
 
@@ -50,6 +51,10 @@ TaskbarHost::ProgressMode ParseProgressMode(const std::string& mode) {
   return TaskbarHost::ProgressMode::kNone;
 }
 
+// 歌词进程看门狗：Dart show 因通道/HWND 问题失败时，避免窗口永远不可见。
+constexpr UINT kLyricShowWatchdogTimerId = 0x6C79;  // 'ly'
+constexpr UINT kLyricShowWatchdogMs = 4000;
+
 // WM_SETTINGCHANGE 的 lParam 是设置名。可能是 0，也可能被乱发的程序写脏，
 // 所以先验一下指针再比字符串。
 bool IsSettingName(LPARAM lparam, const wchar_t* expected) {
@@ -82,17 +87,14 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  // 注意：主窗**不要**注册 DesktopLyricHost。它会 SetWindowLongPtr 接管
-  // WNDPROC 做热区 hit-test，主窗没人调这个通道，白白把主窗消息链套一层，
-  // 且一旦被误调 setIgnoreMouseEvents 会把主窗点穿（假死）。
-  // 只有 desktop_multi_window 子窗需要，见下方 CreatedCallback。
+  // 主窗（播放进程）**不要**注册 DesktopLyricHost：它会 SetWindowLongPtr 接管
+  // WNDPROC，主窗没人调这个通道，白白套一层消息链。歌词侧在双进程模式下是
+  // 独立进程的主窗口，需要注册；旧的 dmw 子窗回调见下方（兼容路径）。
+  const bool lyric_process = IsDesktopLyricProcess();
 
-  // desktop_multi_window：子窗口是轻量级歌词悬浮窗，拥有独立的 Flutter 引擎。
+  // desktop_multi_window 兼容：若仍走 dmw 子窗，仅注册 DesktopLyricHost。
   // 注意：千万不要在此调用 RegisterPlugins(engine)。RegisterPlugins 会把 window_manager、
-  // tray_manager、audio_service(SMTC)、media_kit 等全套插件重复注册到子引擎上，
-  // 导致顶层窗口过程被 window_manager 劫持、SMTC 冲突、托盘句柄被覆盖以及通道死锁。
-  // desktop_multi_window 插件会在回调后由 InternalMultiWindowPluginRegisterWithRegistrar
-  // 自动绑定；子窗仅需专属的 DesktopLyricHost 和 UIA 无障碍崩溃过滤。
+  // tray_manager、audio_service(SMTC)、media_kit 等全套插件重复注册到子引擎上。
   DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
     auto* flutter_view_controller =
         reinterpret_cast<flutter::FlutterViewController*>(controller);
@@ -107,6 +109,12 @@ bool FlutterWindow::OnCreate() {
   SetChildContent(child_hwnd);
   InstallAccessibilityFilter(child_hwnd);
 
+  if (lyric_process) {
+    // 必须在 SetChildContent 之后注册：此时 view 已挂到本窗下，
+    // DesktopLyricHost 的 ResolveTop() 才能拿到真正的顶层 HWND。
+    RegisterDesktopLyricHost(flutter_controller_.get());
+  }
+
   // Explorer broadcasts this after the taskbar is rebuilt — re-add thumbar
   // buttons / progress or they vanish silently.
   taskbar_created_msg_ = ::RegisterWindowMessageW(L"TaskbarCreated");
@@ -116,6 +124,18 @@ bool FlutterWindow::OnCreate() {
   }
 
   RegisterTaskbarChannel();
+
+  if (lyric_process) {
+    // 歌词进程：窗口先保持隐藏（Dart 侧 init 完样式后再 show）。
+    // 仍要 ForceRedraw，让 Flutter 完成首帧布局。
+    // 看门狗：若 Dart 侧 show 失败（通道未注册 / HWND 绑错），4s 后强制显示。
+    if (GetHandle()) {
+      ::SetTimer(GetHandle(), kLyricShowWatchdogTimerId, kLyricShowWatchdogMs,
+                 nullptr);
+    }
+    flutter_controller_->ForceRedraw();
+    return true;
+  }
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
@@ -227,6 +247,9 @@ void FlutterWindow::RegisterTaskbarChannel() {
 }
 
 void FlutterWindow::OnDestroy() {
+  if (GetHandle()) {
+    ::KillTimer(GetHandle(), kLyricShowWatchdogTimerId);
+  }
   if (flutter_controller_ && flutter_controller_->view()) {
     HWND view = flutter_controller_->view()->GetNativeWindow();
     auto it = g_flutter_view_procs.find(view);
@@ -252,6 +275,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               LPARAM const lparam) noexcept {
   if (message == WM_GETOBJECT) {
     return DefWindowProc(hwnd, message, wparam, lparam);
+  }
+
+  if (message == WM_TIMER && wparam == kLyricShowWatchdogTimerId) {
+    ::KillTimer(hwnd, kLyricShowWatchdogTimerId);
+    if (!::IsWindowVisible(hwnd)) {
+      ::ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+      ::SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+    return 0;
   }
 
   if (taskbar_created_msg_ != 0 && message == taskbar_created_msg_) {

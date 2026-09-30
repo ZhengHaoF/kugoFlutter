@@ -269,6 +269,10 @@ class DesktopShell with WindowListener {
       _positionListener = null;
     }
     TaskbarBridge.onThumbarCommand = null;
+    // 先杀歌词进程再关主窗，避免残留无主的歌词悬浮窗。
+    try {
+      await DesktopLyricBridge.instance?.shutdown();
+    } catch (_) {}
     final tray = _tray;
     _tray = null;
     await tray?.destroy();

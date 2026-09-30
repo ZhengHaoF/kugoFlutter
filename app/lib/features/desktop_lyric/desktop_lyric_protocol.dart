@@ -1,4 +1,5 @@
 import '../../core/models/track.dart';
+import 'desktop_lyric_style.dart';
 
 /// 桌面歌词子窗口 arguments 标识。
 const String kDesktopLyricWindowArg = 'desktop_lyric';
@@ -24,6 +25,7 @@ class DesktopLyricSnapshot {
     this.fontScale = 1.0,
     this.locked = false,
     this.offsetMs = 0,
+    this.style = const DesktopLyricStyle(),
   });
 
   final String trackId;
@@ -47,6 +49,9 @@ class DesktopLyricSnapshot {
   final bool locked;
   final int offsetMs;
 
+  /// 外观（颜色 / 阴影 / 描边 / 背景 / 字重）。仅样式变化时也会触发推送。
+  final DesktopLyricStyle style;
+
   /// 歌词窗本地游标 = positionMs + offsetMs。
   int get effectivePositionMs => positionMs + offsetMs;
 
@@ -66,6 +71,7 @@ class DesktopLyricSnapshot {
         'fontScale': fontScale,
         'locked': locked,
         'offsetMs': offsetMs,
+      'style': style.toWire(),
       };
 
   static DesktopLyricSnapshot fromWire(Object? raw) {
@@ -89,6 +95,7 @@ class DesktopLyricSnapshot {
       fontScale: (m['fontScale'] as num?)?.toDouble() ?? 1.0,
       locked: m['locked'] as bool? ?? false,
       offsetMs: (m['offsetMs'] as num?)?.toInt() ?? 0,
+      style: DesktopLyricStyle.fromWire(m['style']),
     );
   }
 
@@ -108,6 +115,7 @@ class DesktopLyricSnapshot {
     double? fontScale,
     bool? locked,
     int? offsetMs,
+    DesktopLyricStyle? style,
   }) {
     return DesktopLyricSnapshot(
       trackId: trackId ?? this.trackId,
@@ -125,6 +133,7 @@ class DesktopLyricSnapshot {
       fontScale: fontScale ?? this.fontScale,
       locked: locked ?? this.locked,
       offsetMs: offsetMs ?? this.offsetMs,
+      style: style ?? this.style,
     );
   }
 }

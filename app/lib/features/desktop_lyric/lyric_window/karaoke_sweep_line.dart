@@ -20,6 +20,8 @@ class KaraokeSweepLine extends StatefulWidget {
     this.sungColor = const Color(0xFF2CE06B),
     this.unsungColor = Colors.white,
     this.shadows = const [],
+    this.strokeColor,
+    this.strokeWidth = 0,
     this.heightFactor = 1.2,
   });
 
@@ -34,6 +36,12 @@ class KaraokeSweepLine extends StatefulWidget {
   /// 文字阴影（两层共用，保证可读性一致）。
   final List<Shadow> shadows;
 
+  /// 描边颜色。null / [strokeWidth] == 0 时不描边。
+  final Color? strokeColor;
+
+  /// 描边宽度（逻辑像素）。
+  final double strokeWidth;
+
   /// 行高系数（与字号相乘得行高）。
   final double heightFactor;
 
@@ -45,12 +53,20 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
     with SingleTickerProviderStateMixin {
   Ticker? _ticker;
 
-  // ── 布局缓存：未唱层 + 已唱层 ──
+  // ── 布局缓存：未唱层 + 已唱层 + 描边层 ──
   TextPainter? _basePainter;
   TextPainter? _sungPainter;
+  TextPainter? _strokePainter;
   String? _layoutText;
   double? _layoutFontSize;
   double _lastMaxWidth = 0;
+  // 样式参与缓存键：只改颜色/描边/字重而文本未变时也要重建 painter，
+  // 否则设置面板调色不会反映到歌词窗（_ensureLayout 会命中旧缓存）。
+  Color? _layoutUnsung;
+  Color? _layoutSung;
+  Color? _layoutStrokeColor;
+  double? _layoutStrokeWidth;
+  FontWeight? _layoutFontWeight;
 
   /// 前缀宽度表：_prefixWidth[i] = 到第 i 个字起点为止的累计宽度；
   /// 长度 = chars.length + 1（末项为整行宽）。
@@ -67,6 +83,7 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
     _ticker?.dispose();
     _basePainter?.dispose();
     _sungPainter?.dispose();
+    _strokePainter?.dispose();
     super.dispose();
   }
 
@@ -145,52 +162,97 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
     return (w0 + (w1 - w0) * f).clamp(0, textWidth);
   }
 
-  /// 布局（缓存）：文本 / 字号 / 可用宽度任一变化才重算。
+  /// 布局（缓存）：文本 / 字号 / 可用宽度 / 样式任一变化才重算。
   /// 返回未唱层 painter（前缀表一并重建）。
   TextPainter _ensureLayout(String text, double maxWidth) {
+    final unsung = widget.unsungColor;
+    final sung = widget.sungColor;
+    final strokeC = widget.strokeColor;
+    final strokeW = widget.strokeWidth;
+    final fw = _fontWeight;
     if (_basePainter != null &&
         _layoutText == text &&
         _layoutFontSize == _fontSize &&
-        _lastMaxWidth == maxWidth) {
+        _lastMaxWidth == maxWidth &&
+        _layoutUnsung == unsung &&
+        _layoutSung == sung &&
+        _layoutStrokeColor == strokeC &&
+        _layoutStrokeWidth == strokeW &&
+        _layoutFontWeight == fw) {
       return _basePainter!;
     }
 
     _basePainter?.dispose();
     _sungPainter?.dispose();
+    _strokePainter?.dispose();
 
     final base = TextPainter(
       text: TextSpan(text: text, style: _baseStyle),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout(maxWidth: maxWidth);
-    final sung = TextPainter(
+    final sungP = TextPainter(
       text: TextSpan(text: text, style: _sungStyle),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout(maxWidth: maxWidth);
+    // 描边层与字形同源，仅在宽度 > 0 时构建。
+    TextPainter? strokeP;
+    if (strokeW > 0.004 && strokeC != null) {
+      strokeP = TextPainter(
+        text: TextSpan(text: text, style: _strokeStyle),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout(maxWidth: maxWidth);
+    }
 
     _basePainter = base;
-    _sungPainter = sung;
+    _sungPainter = sungP;
+    _strokePainter = strokeP;
     _layoutText = text;
     _layoutFontSize = _fontSize;
     _lastMaxWidth = maxWidth;
+    _layoutUnsung = unsung;
+    _layoutSung = sung;
+    _layoutStrokeColor = strokeC;
+    _layoutStrokeWidth = strokeW;
+    _layoutFontWeight = fw;
     _rebuildPrefixTable(text, base);
     return base;
   }
 
   double get _fontSize =>
-      24.0 * _c.snapshot.fontScale.clamp(0.85, 1.4);
+      24.0 * _c.snapshot.style.fontScale.clamp(0.6, 2.0);
 
   TextStyle get _baseStyle => TextStyle(
         color: widget.unsungColor,
         fontSize: _fontSize,
         height: widget.heightFactor,
-        fontWeight: FontWeight.w700,
+        fontWeight: _fontWeight,
         letterSpacing: 0.3,
         shadows: widget.shadows,
       );
 
   TextStyle get _sungStyle => _baseStyle.copyWith(color: widget.sungColor);
+
+  /// 描边层：与底层同字形，用 [Paint] 描边绘制；阴影不重复叠加。
+  TextStyle get _strokeStyle {
+    final sc = widget.strokeColor ?? Colors.transparent;
+    return TextStyle(
+      foreground: Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = widget.strokeWidth
+        ..color = sc
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
+      fontSize: _fontSize,
+      height: widget.heightFactor,
+      fontWeight: _fontWeight,
+      letterSpacing: 0.3,
+    );
+  }
+
+  FontWeight get _fontWeight => _c.snapshot.style.resolveFontWeight();
 
   /// 按chars 顺序计算前缀宽度表（含整行宽，长度 = chars.length + 1）。
   ///
@@ -240,6 +302,7 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
           painter: _SweepPainter(
             basePainter: base,
             sungPainter: _sungPainter,
+            strokePainter: _strokePainter,
             sweepX: _computeSweepX(base.width),
           ),
         );
@@ -252,11 +315,13 @@ class _SweepPainter extends CustomPainter {
   _SweepPainter({
     required this.basePainter,
     required this.sungPainter,
+    required this.strokePainter,
     required this.sweepX,
   });
 
   final TextPainter basePainter;
   final TextPainter? sungPainter;
+  final TextPainter? strokePainter;
 
   /// 已唱区域右边界（相对文本左缘）。
   final double sweepX;
@@ -266,6 +331,9 @@ class _SweepPainter extends CustomPainter {
     final p = basePainter;
     final dy = (size.height - p.height) / 2;
     final offset = Offset(0, dy);
+
+    // 描边层垫底：先画一圈 stroke，再叠彩色字，避免彩色被描边盖住。
+    strokePainter?.paint(canvas, offset);
 
     // 底层：未唱。
     p.paint(canvas, offset);
@@ -282,6 +350,7 @@ class _SweepPainter extends CustomPainter {
   @override
   bool shouldRepaint(_SweepPainter oldDelegate) {
     // 扫光是连续动画，帧间 sweepX 几乎必然变化；两行字的重绘成本极低。
-    return sweepX != oldDelegate.sweepX;
+    return sweepX != oldDelegate.sweepX ||
+        strokePainter != oldDelegate.strokePainter;
   }
 }
