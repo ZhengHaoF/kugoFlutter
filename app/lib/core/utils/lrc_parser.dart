@@ -45,15 +45,32 @@ List<LyricLine> parseLrc(String raw) {
   return lines;
 }
 
+/// Index of the line whose timestamp is <= [positionMs], or `-1` when even the
+/// first line has not started yet.
+///
+/// Binary search: the old linear scan ran per visible lyric row on **every**
+/// position tick (O(rows × lines) per frame) and once per engine sample in the
+/// controller. [lines] must be sorted by [LyricLine.timeMs] ascending — the
+/// parsers sort before returning.
 int findLyricIndex(List<LyricLine> lines, int positionMs) {
-  if (lines.isEmpty) return -1;
+  var low = 0;
+  var high = lines.length - 1;
   var active = -1;
-  for (var i = 0; i < lines.length; i++) {
-    if (lines[i].timeMs <= positionMs) {
-      active = i;
+  while (low <= high) {
+    final mid = (low + high) >> 1;
+    if (lines[mid].timeMs <= positionMs) {
+      active = mid;
+      low = mid + 1;
     } else {
-      break;
+      high = mid - 1;
     }
   }
   return active;
+}
+
+/// [findLyricIndex] clamped to `0`, i.e. the index a lyrics view highlights.
+int activeLyricIndex(List<LyricLine> lines, int positionMs) {
+  if (lines.isEmpty) return 0;
+  final found = findLyricIndex(lines, positionMs);
+  return found < 0 ? 0 : found;
 }

@@ -13,6 +13,7 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
+import '../../core/utils/lrc_parser.dart';
 import '../../data/storage/queue_store.dart';
 import '../settings/settings_controller.dart';
 import 'audio_engine.dart';
@@ -1133,12 +1134,10 @@ class PlayerController extends Notifier<PlayerState> {
   String _activeLyricText() {
     final lines = state.lyrics;
     if (lines.isEmpty) return '';
-    var active = '';
-    for (final line in lines) {
-      if (line.timeMs > position.value) break;
-      active = line.text.trim();
-    }
-    return active;
+    // Binary search — this runs on every engine position sample.
+    final index = findLyricIndex(lines, position.value);
+    if (index < 0) return '';
+    return lines[index].text.trim();
   }
 
   void _maybeUpdateMediaSubtitle() {

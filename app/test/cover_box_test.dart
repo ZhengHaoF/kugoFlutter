@@ -49,4 +49,26 @@ void main() {
     );
     expect(box.size, const Size(56, 56));
   });
+
+  // 回归：封面原图常 1000–2000px，列表里只显示几十像素。不限制解码尺寸时
+  // 每张图都按原尺寸解码 + 上传纹理，滚动/切歌时是主要掉帧来源。
+  test('coverDecodeWidth scales by device pixel ratio', () {
+    expect(coverDecodeWidth(56, 2), 112);
+    expect(coverDecodeWidth(200, 3), 600);
+    // 3x 密集屏下播放页封面（~420 逻辑像素）仍远小于常见 2000px 原图。
+    expect(coverDecodeWidth(420, 3), 1260);
+  });
+
+  test('coverDecodeWidth degrades safely on unknown geometry', () {
+    // 约束无界 / 尚未布局 → 不限制解码（交回原尺寸）。
+    expect(coverDecodeWidth(double.infinity, 2), isNull);
+    expect(coverDecodeWidth(0, 2), isNull);
+    expect(coverDecodeWidth(-10, 2), isNull);
+    expect(coverDecodeWidth(double.nan, 2), isNull);
+    // 非法的 dpr 退回 1.0，而不是算出 0 或 NaN。
+    expect(coverDecodeWidth(56, 0), 56);
+    expect(coverDecodeWidth(56, double.nan), 56);
+    // 极小尺寸至少解出 1px，避免 codec 收到 0。
+    expect(coverDecodeWidth(0.1, 1), 1);
+  });
 }

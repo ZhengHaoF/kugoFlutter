@@ -33,9 +33,32 @@ class CoverCache {
     };
   }
 
+  /// Upper bound on retained cover byte payloads.
+  ///
+  /// Covers are commonly 0.3–1.5 MB each, so an unbounded map grows into the
+  /// hundreds of MB over a long session and shows up as GC stutter while
+  /// scrolling. Bounded to roughly 30 MB of raw bytes; anything evicted here
+  /// is still on disk, so the next paint just re-reads a local file.
+  static const int _maxMemBytes = 30 << 20;
+
+  /// Insertion-ordered (Dart's LinkedHashMap keeps first-insert order), so the
+  /// first key is the coldest and gets evicted first.
   final Map<String, Uint8List> _mem = {};
+  int _memBytes = 0;
   final Map<String, Future<Uint8List?>> _inflight = {};
   Directory? _dir;
+
+  void _remember(String url, Uint8List bytes) {
+    final previous = _mem.remove(url);
+    if (previous != null) _memBytes -= previous.length;
+    _mem[url] = bytes;
+    _memBytes += bytes.length;
+    while (_memBytes > _maxMemBytes && _mem.length > 1) {
+      final oldest = _mem.keys.first;
+      final dropped = _mem.remove(oldest);
+      if (dropped != null) _memBytes -= dropped.length;
+    }
+  }
 
   late final Dio _dio = Dio(
     BaseOptions(
@@ -92,7 +115,7 @@ class CoverCache {
       if (await file.exists()) {
         final bytes = await file.readAsBytes();
         if (bytes.isNotEmpty) {
-          _mem[url] = bytes;
+          _remember(url, bytes);
           return bytes;
         }
       }
@@ -104,7 +127,7 @@ class CoverCache {
       final data = resp.data;
       if (data == null || data.isEmpty) return null;
       final bytes = Uint8List.fromList(data);
-      _mem[url] = bytes;
+      _remember(url, bytes);
       unawaited(
         file.writeAsBytes(bytes, flush: true).catchError((Object _) => file),
       );
@@ -118,6 +141,7 @@ class CoverCache {
   /// Drop memory + disk covers (settings → 清理图片缓存).
   Future<void> clear() async {
     _mem.clear();
+    _memBytes = 0;
     _inflight.clear();
     try {
       final dir = await _cacheDir();

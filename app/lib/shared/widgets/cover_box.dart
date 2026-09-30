@@ -89,21 +89,41 @@ class _CoverBoxState extends State<CoverBox> {
     // 移走，没给显式宽高的 Image 就缩回固有尺寸，「封面没占满位置」就是这么
     // 来的。fill 模式必须用 StackFit.expand 把两层都钉死在容器尺寸上。
     if (widget._fillsParent) {
-      return SizedBox.expand(
-        child: AnimatedSwitcher(
-          duration: _kCoverFade,
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          layoutBuilder: _expandLayout,
-          child: _content(fill: true),
-        ),
+      // Decode target has to come from the *laid out* box: cover art is
+      // routinely 1000–2000px while the player shows ~400px, and decoding at
+      // full size costs real CPU plus a large texture upload.
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final side = constraints.maxWidth;
+          return SizedBox.expand(
+            child: AnimatedSwitcher(
+              duration: _kCoverFade,
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              layoutBuilder: _expandLayout,
+              child: _content(
+                fill: true,
+                decodeWidth: coverDecodeWidth(
+                  side,
+                  MediaQuery.devicePixelRatioOf(context),
+                ),
+              ),
+            ),
+          );
+        },
       );
     }
     return AnimatedSwitcher(
       duration: _kCoverFade,
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
-      child: _content(fill: false),
+      child: _content(
+        fill: false,
+        decodeWidth: coverDecodeWidth(
+          widget.size,
+          MediaQuery.devicePixelRatioOf(context),
+        ),
+      ),
     );
   }
 
@@ -117,7 +137,10 @@ class _CoverBoxState extends State<CoverBox> {
   }
 
   /// 占位 → 图片（或反向）。两个分支带不同的 key，AnimatedSwitcher 才知道要过渡。
-  Widget _content({required bool fill}) {
+  ///
+  /// [decodeWidth] 是像素解码上限：只约束解码，不影响布局（宽高仍由
+  /// [Image.memory] 的 width/height 决定），传入 null 时退回原尺寸解码。
+  Widget _content({required bool fill, int? decodeWidth}) {
     final bytes = _bytes;
     if (!widget._isNetwork || bytes == null) {
       return KeyedSubtree(
@@ -135,6 +158,8 @@ class _CoverBoxState extends State<CoverBox> {
         gaplessPlayback: true,
         width: fill ? null : widget.size,
         height: fill ? null : widget.size,
+        // 只约束解码尺寸，不影响布局（宽高仍由上两行决定）。
+        cacheWidth: decodeWidth,
         // 解码出第一帧之前保持透明，否则会先闪一帧空白再淡入。
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (wasSynchronouslyLoaded) return child;
@@ -170,8 +195,24 @@ class _CoverBoxState extends State<CoverBox> {
   }
 }
 
-/// 交叉淡入时长。与 mini_player_bar / common 的 220ms 靠拢，别再开新档。
+/// Cross-fade duration. Kept in step with mini_player_bar / common's 220ms —
+/// do not introduce a new step.
 const Duration _kCoverFade = Duration(milliseconds: 240);
+
+/// Decode budget for a cover drawn at [logicalSide] logical pixels.
+///
+/// Cover art is routinely 1000–2000px while list thumbnails are ~56px; decoding
+/// at source resolution wastes CPU and uploads a needlessly large texture.
+/// Clamped to at least 1px and rounded for the codec, and returns `null` when
+/// the side is unknown (unbounded constraints), which means "decode as-is".
+int? coverDecodeWidth(double logicalSide, double devicePixelRatio) {
+  if (!logicalSide.isFinite || logicalSide <= 0) return null;
+  final dpr = devicePixelRatio.isFinite && devicePixelRatio > 0
+      ? devicePixelRatio
+      : 1.0;
+  final px = (logicalSide * dpr).round();
+  return px < 1 ? 1 : px;
+}
 
 CoverBox? _coverFromHeroContext(BuildContext context) {
   final w = context.widget;
@@ -199,6 +240,14 @@ Widget coverHeroFlightShuttle(
   final fromRadius = from?.radius ?? KugoRadius.cover;
   final toRadius = to?.radius ?? KugoRadius.cover;
   final bytes = seed.isEmpty ? null : CoverCache.instance.peek(seed);
+  // The Hero box grows to roughly the player cover size; decode for that so a
+  // 2000px source does not get uploaded as a full-size texture mid-flight.
+  final decodeWidth = coverDecodeWidth(
+    420,
+    MediaQuery.maybeDevicePixelRatioOf(toHeroContext) ??
+        MediaQuery.maybeDevicePixelRatioOf(fromHeroContext) ??
+        1.0,
+  );
 
   final isPush = flightDirection == HeroFlightDirection.push;
 
@@ -219,6 +268,7 @@ Widget coverHeroFlightShuttle(
           gaplessPlayback: true,
           width: double.infinity,
           height: double.infinity,
+          cacheWidth: decodeWidth,
         );
       } else {
         child = CoverBox(seed: seed, size: 0, radius: radius);

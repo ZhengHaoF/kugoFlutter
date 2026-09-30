@@ -9,6 +9,7 @@ import '../../core/models/track.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
+import '../../core/utils/lrc_parser.dart';
 import '../../features/settings/settings_controller.dart';
 
 class LyricsView extends ConsumerStatefulWidget {
@@ -57,12 +58,25 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   /// 手动介入后停留多久自动恢复跟随。
   static const _resumeDelay = Duration(seconds: 4);
 
+  /// Cache for [activeIndex] so the per-row lookups inside `itemBuilder` do not
+  /// repeat the search. Keyed on the line list identity plus the position, which
+  /// is exactly the pair the result depends on.
+  List<LyricLine>? _activeCacheLines;
+  int _activeCachePosition = -1 << 31;
+  int _activeCacheValue = 0;
+
+  /// Index of the line currently highlighted. Binary search + memoised: this is
+  /// read once per visible row per build, and used to be an O(n) scan each time.
   int get activeIndex {
-    var active = 0;
-    for (var i = 0; i < widget.lines.length; i++) {
-      if (widget.lines[i].timeMs <= widget.positionMs) active = i;
+    final lines = widget.lines;
+    if (identical(lines, _activeCacheLines) &&
+        widget.positionMs == _activeCachePosition) {
+      return _activeCacheValue;
     }
-    return active;
+    _activeCacheLines = lines;
+    _activeCachePosition = widget.positionMs;
+    _activeCacheValue = activeLyricIndex(lines, widget.positionMs);
+    return _activeCacheValue;
   }
 
   /// Half-viewport top/bottom padding so first/last lines can sit on center.
@@ -188,6 +202,27 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     return 0.18;
   }
 
+  /// Non-active rows are cached between position ticks.
+  ///
+  /// The view is rebuilt on every tick, but a row's rendering only depends on
+  /// its opacity (a function of the distance to the active row) plus layout
+  /// settings. Returning the *identical* widget instance lets Flutter
+  /// short-circuit `updateChild` and skip the whole subtree — so a tick now
+  /// costs one row instead of every visible row.
+  ///
+  /// The cached opacity is stored alongside the widget: scrolling or advancing
+  /// the active line changes a row's distance, and a naive `index -> widget`
+  /// map would then keep painting the old (stale) fade.
+  final Map<int, _CachedRow> _rowCache = {};
+  Object? _rowCacheKey;
+
+  /// Invalidate [_rowCache] when anything a row's appearance depends on changes.
+  void _syncRowCache(Object key) {
+    if (_rowCacheKey == key) return;
+    _rowCacheKey = key;
+    _rowCache.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
@@ -231,6 +266,19 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             ? _verticalPad(viewport)
             : _verticalPad(400);
 
+        final active = activeIndex;
+        // Rows depend on layout settings; drop the cache when those change.
+        _syncRowCache(Object.hashAll([
+          // Identity, not length: a different song can have the same line count
+          // and would otherwise reuse the previous song's rows.
+          identityHashCode(widget.lines),
+          settings.lyricFontScale,
+          settings.lyricSpacingScale,
+          showTr,
+          showRo,
+          extent,
+        ]));
+
         final listView = ListView.builder(
           controller: _controller,
           physics: desktop
@@ -245,61 +293,39 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
           itemExtent: extent,
           itemCount: widget.lines.length,
           itemBuilder: (context, index) {
-            final isActive = index == activeIndex;
-            final opacity = _lineOpacity(index, activeIndex);
-            final line = widget.lines[index];
-            return GestureDetector(
-              onTap: widget.onTapLine == null
-                  ? null
-                  : () => widget.onTapLine!(line.timeMs),
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
-                height: extent,
-                child: Center(
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOut,
-                    opacity: opacity,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _PrimaryLine(
-                          line: line,
-                          positionMs: widget.positionMs,
-                          isActive: isActive,
-                          desktop: desktop,
-                          style: _lineStyle(
-                            kugo,
-                            isActive,
-                            desktop: desktop,
-                            scale: settings.lyricFontScale,
-                          ),
-                          accent: kugo.primary,
-                        ),
-                        if (showTr && line.translated != null)
-                          _SecondaryLine(
-                            text: line.translated!,
-                            style: _secondaryStyle(
-                              kugo,
-                              isActive,
-                              scale: settings.lyricFontScale,
-                            ),
-                          ),
-                        if (showRo && line.romanized != null)
-                          _SecondaryLine(
-                            text: line.romanized!,
-                            style: _secondaryStyle(
-                              kugo,
-                              isActive,
-                              roman: true,
-                              scale: settings.lyricFontScale,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            final opacity = _lineOpacity(index, active);
+            if (index != active) {
+              final cached = _rowCache[index];
+              if (cached != null && cached.opacity == opacity) {
+                return cached.widget;
+              }
+              final built = _buildRow(
+                index: index,
+                opacity: opacity,
+                isActive: false,
+                desktop: desktop,
+                settings: settings,
+                showTr: showTr,
+                showRo: showRo,
+                kugo: kugo,
+                extent: extent,
+              );
+              _rowCache[index] = _CachedRow(opacity, built);
+              return built;
+            }
+            // The active row is rebuilt every tick: its karaoke highlight and
+            // opacity follow the live cursor. Everything else is skipped.
+            _rowCache.remove(index);
+            return _buildRow(
+              index: index,
+              opacity: opacity,
+              isActive: true,
+              desktop: desktop,
+              settings: settings,
+              showTr: showTr,
+              showRo: showRo,
+              kugo: kugo,
+              extent: extent,
             );
           },
         );
@@ -377,6 +403,71 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildRow({
+    required int index,
+    required double opacity,
+    required bool isActive,
+    required bool desktop,
+    required AppSettings settings,
+    required bool showTr,
+    required bool showRo,
+    required KugoTheme kugo,
+    required double extent,
+  }) {
+    final line = widget.lines[index];
+    return GestureDetector(
+      onTap: widget.onTapLine == null ? null : () => widget.onTapLine!(line.timeMs),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        height: extent,
+        child: Center(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            opacity: opacity,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _PrimaryLine(
+                  line: line,
+                  positionMs: isActive ? widget.positionMs : 0,
+                  isActive: isActive,
+                  desktop: desktop,
+                  style: _lineStyle(
+                    kugo,
+                    isActive,
+                    desktop: desktop,
+                    scale: settings.lyricFontScale,
+                  ),
+                  accent: kugo.primary,
+                ),
+                if (showTr && line.translated != null)
+                  _SecondaryLine(
+                    text: line.translated!,
+                    style: _secondaryStyle(
+                      kugo,
+                      isActive,
+                      scale: settings.lyricFontScale,
+                    ),
+                  ),
+                if (showRo && line.romanized != null)
+                  _SecondaryLine(
+                    text: line.romanized!,
+                    style: _secondaryStyle(
+                      kugo,
+                      isActive,
+                      roman: true,
+                      scale: settings.lyricFontScale,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -476,6 +567,17 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
       height: 1.25,
     );
   }
+}
+
+/// A non-active lyric row, memoised across position ticks.
+///
+/// [opacity] is stored because it depends on the distance to the active row,
+/// so the entry has to be re-validated when that distance changes.
+class _CachedRow {
+  const _CachedRow(this.opacity, this.widget);
+
+  final double opacity;
+  final Widget widget;
 }
 
 /// 手动翻歌词期间浮出的「回到当前行」。

@@ -2,7 +2,17 @@ import 'dart:async';
 
 import 'package:media_kit/media_kit.dart';
 
+import '../../core/utils/stream_throttle.dart';
 import 'audio_player_port.dart';
+
+/// UI-side position refresh budget.
+///
+/// libmpv reports position on its own internal clock — observed close to once
+/// per frame — and every sample used to rebuild the whole progress/lyrics
+/// subtree. 100ms (10 Hz) is well below what the eye reads as smooth for a
+/// progress bar or a karaoke highlight, and cuts the rebuild rate by roughly
+/// an order of magnitude.
+const Duration kEnginePositionInterval = Duration(milliseconds: 100);
 
 /// Windows / Linux / macOS 桌面端的音频后端，基于 `package:media_kit`（libmpv）。
 ///
@@ -17,6 +27,12 @@ import 'audio_player_port.dart';
 ///   以便复刻端口「先确认音源可加载、再起播」的顺序。
 class MediaKitPlayerImpl implements AudioPlayerPort {
   MediaKitPlayerImpl({Player? player}) : _player = player ?? Player() {
+    // Built once and shared: wrapping the getter instead would spawn a new
+    // throttle controller per access, leaking timers and subscriptions.
+    _positionStream = throttleStream(
+      _player.stream.position,
+      kEnginePositionInterval,
+    );
     _errorSub = _player.stream.error.listen((message) {
       if (_loadingSource) return;
       _lastError = message;
@@ -29,6 +45,7 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
   }
 
   final Player _player;
+  late final Stream<Duration> _positionStream;
   final _completion = StreamController<PlayerIdleReason>.broadcast();
   StreamSubscription<String>? _errorSub;
   StreamSubscription<bool>? _completedSub;
@@ -40,7 +57,7 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
   String _lastError = '';
 
   @override
-  Stream<Duration> get positionStream => _player.stream.position;
+  Stream<Duration> get positionStream => _positionStream;
 
   @override
   Stream<Duration> get bufferedPositionStream => _player.stream.buffer;

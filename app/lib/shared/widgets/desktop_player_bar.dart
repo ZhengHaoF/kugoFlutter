@@ -32,6 +32,10 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
   double _dragProgress = 0.0;
   double _lastVolume = 0.8;
 
+  /// Local volume value while the slider is being dragged. Writing each
+  /// `onChanged` straight to the controller rebuilt the whole player bar.
+  double? _volumeDraft;
+
   static String _formatDuration(int ms) {
     if (ms <= 0) return '00:00';
     final safe = ms < 0 ? 0 : ms;
@@ -410,8 +414,15 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                             thumbColor: kugo.textPrimary,
                           ),
                           child: Slider(
-                            value: player.volume.clamp(0.0, 1.0),
-                            onChanged: (v) => controller.setVolume(v),
+                            value: _volumeDraft ?? player.volume.clamp(0.0, 1.0),
+                            // Only commit on release: `onChanged` fires on every
+                            // mouse move, and `setVolume` writes global state,
+                            // which rebuilt the whole bar mid-drag.
+                            onChanged: (v) => setState(() => _volumeDraft = v),
+                            onChangeEnd: (v) {
+                              setState(() => _volumeDraft = null);
+                              controller.setVolume(v);
+                            },
                           ),
                         ),
                       ),
