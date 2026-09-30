@@ -36,7 +36,14 @@ class _StyleEditor extends ConsumerStatefulWidget {
 class _StyleEditorState extends ConsumerState<_StyleEditor> {
   late DesktopLyricStyle _style = widget.initial;
 
-  SettingsController get _ctrl => ref.read(settingsControllerProvider.notifier);
+  /// initState 里先抓住 notifier：dispose 时 element 已卸载，不能再 `ref.read`。
+  late final SettingsController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = ref.read(settingsControllerProvider.notifier);
+  }
 
   void _apply(DesktopLyricStyle next, {bool persist = true}) {
     setState(() => _style = next);
@@ -47,6 +54,7 @@ class _StyleEditorState extends ConsumerState<_StyleEditor> {
   @override
   void dispose() {
     // 关闭面板时兜底落盘一次（滑块 onChangeEnd 可能因手势取消没走到）。
+    // 必须用 initState 缓存的 _ctrl，不能在 dispose 里访问 ref。
     _ctrl.setDesktopLyricStyle(_style);
     super.dispose();
   }
