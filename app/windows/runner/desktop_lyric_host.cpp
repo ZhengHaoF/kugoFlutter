@@ -4,8 +4,9 @@
 #include <dwmapi.h>
 
 #include <array>
-#include <map>
+#include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "flutter/method_channel.h"
@@ -13,85 +14,21 @@
 
 namespace {
 
-class DesktopLyricHost;
-
-// Flutter view HWND → host，供 WM_NCHITTEST 查热区。
-std::map<HWND, DesktopLyricHost*>& HostMap() {
-  static auto* map = new std::map<HWND, DesktopLyricHost*>();
-  return *map;
-}
-
 class DesktopLyricHost {
  public:
-  DesktopLyricHost(flutter::BinaryMessenger* messenger, HWND top, HWND view)
-      : hwnd_(top), view_(view) {
+  DesktopLyricHost(flutter::BinaryMessenger* messenger, HWND top)
+      : hwnd_(top) {
     channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
         messenger, "kugo/desktop_lyric_host",
         &flutter::StandardMethodCodec::GetInstance());
     channel_->SetMethodCallHandler([this](const auto& call, auto result) {
       Handle(call, std::move(result));
     });
-    // 顶层 + Flutter view 都要 hook：只 hook view 时，view 返回 HTTRANSPARENT
-    // 后顶层仍按 HTCLIENT 吃掉点击，穿透失效。
-    HookProc(view_, original_view_proc_);
-    HookProc(hwnd_, original_top_proc_);
   }
 
-  ~DesktopLyricHost() {
-    UnhookProc(view_, original_view_proc_);
-    UnhookProc(hwnd_, original_top_proc_);
-    HostMap().erase(view_);
-    HostMap().erase(hwnd_);
-  }
-
-  // 热区命中：逻辑像素（与 Flutter 一致）。
-  bool HitTestLocal(double lx, double ly) const {
-    if (!mouse_passthrough_) return true;
-    if (hit_regions_.empty()) return false;
-    for (const auto& r : hit_regions_) {
-      if (lx >= r[0] && ly >= r[1] && lx < r[0] + r[2] && ly < r[1] + r[3]) {
-        return true;
-      }
-    }
-    return false;
-  }
+  ~DesktopLyricHost() = default;
 
  private:
-  void HookProc(HWND hwnd, WNDPROC& out_original) {
-    if (!hwnd) return;
-    HostMap()[hwnd] = this;
-    out_original = reinterpret_cast<WNDPROC>(
-        ::SetWindowLongPtr(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(AnyProc)));
-  }
-
-  void UnhookProc(HWND hwnd, WNDPROC original) {
-    if (!hwnd || !original) return;
-    ::SetWindowLongPtr(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
-  }
-
-  static LRESULT CALLBACK AnyProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
-    auto it = HostMap().find(hwnd);
-    DesktopLyricHost* self = it == HostMap().end() ? nullptr : it->second;
-    if (self && self->mouse_passthrough_ && msg == WM_NCHITTEST) {
-      POINT pt{static_cast<short>(LOWORD(l)), static_cast<short>(HIWORD(l))};
-      // lParam 是屏幕坐标；换算到本窗 client 逻辑像素。
-      ::ScreenToClient(hwnd, &pt);
-      UINT dpi = ::GetDpiForWindow(hwnd);
-      double scale = dpi ? dpi / 96.0 : 1.0;
-      // 顶层与 view 的 client 原点一致（view 铺满 client），本地坐标可共用。
-      if (!self->HitTestLocal(pt.x / scale, pt.y / scale)) {
-        return HTTRANSPARENT;
-      }
-      return HTCLIENT;
-    }
-    if (self) {
-      WNDPROC orig = (hwnd == self->hwnd_) ? self->original_top_proc_
-                                           : self->original_view_proc_;
-      if (orig) return ::CallWindowProc(orig, hwnd, msg, w, l);
-    }
-    return ::DefWindowProc(hwnd, msg, w, l);
-  }
-
   void Handle(
       const flutter::MethodCall<flutter::EncodableValue>& call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
@@ -108,16 +45,24 @@ class DesktopLyricHost {
     };
     auto arg_i = [&](const char* key, int fallback = 0) {
       const auto* v = arg(key);
+      if (!v) return fallback;
       if (const auto* i = std::get_if<int32_t>(v)) return static_cast<int>(*i);
       if (const auto* i64 = std::get_if<int64_t>(v)) {
         return static_cast<int>(*i64);
+      }
+      if (const auto* d = std::get_if<double>(v)) {
+        return static_cast<int>(*d);
       }
       return fallback;
     };
     auto arg_d = [&](const char* key, double fallback = 0) {
       const auto* v = arg(key);
+      if (!v) return fallback;
       if (const auto* d = std::get_if<double>(v)) return *d;
       if (const auto* i = std::get_if<int32_t>(v)) return static_cast<double>(*i);
+      if (const auto* i64 = std::get_if<int64_t>(v)) {
+        return static_cast<double>(*i64);
+      }
       return fallback;
     };
 
@@ -146,14 +91,32 @@ class DesktopLyricHost {
       return;
     }
     if (m == "setSize") {
-      int w = arg_i("width", 0);
-      int h = arg_i("height", 0);
-      // 逻辑像素 → 物理（与 window_manager 一致按主屏 DPI 粗算，子窗单显示器够用）。
+      double w = arg_d("width", 720.0);
+      double h = arg_d("height", 88.0);
+      if (w < 100.0) w = 720.0;
+      if (h < 30.0) h = 88.0;
       UINT dpi = ::GetDpiForWindow(hwnd);
       double scale = dpi ? dpi / 96.0 : 1.0;
       ::SetWindowPos(hwnd, nullptr, 0, 0, static_cast<int>(w * scale),
                      static_cast<int>(h * scale),
                      SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+      result->Success(flutter::EncodableValue(true));
+      return;
+    }
+    if (m == "centerTop") {
+      double w = arg_d("width", 720.0);
+      double h = arg_d("height", 88.0);
+      double topMargin = arg_d("top", 56.0);
+      if (w < 100.0) w = 720.0;
+      if (h < 30.0) h = 88.0;
+      int screenW = ::GetSystemMetrics(SM_CXSCREEN);
+      UINT dpi = ::GetDpiForWindow(hwnd);
+      double scale = dpi ? dpi / 96.0 : 1.0;
+      int winW = static_cast<int>(w * scale);
+      int winH = static_cast<int>(h * scale);
+      int x = (screenW - winW) / 2;
+      int y = static_cast<int>(topMargin * scale);
+      ::SetWindowPos(hwnd, HWND_TOPMOST, x, y, winW, winH, SWP_NOACTIVATE);
       result->Success(flutter::EncodableValue(true));
       return;
     }
@@ -201,7 +164,6 @@ class DesktopLyricHost {
     }
     if (m == "setSkipTaskbar") {
       bool skip = arg_bool("skip", true);
-      // WS_EX_TOOLWINDOW：不进任务栏/Alt+Tab，不碰 ITaskbarList3（避免 COM 死锁）。
       LONG ex = ::GetWindowLong(hwnd, GWL_EXSTYLE);
       if (skip) {
         ex |= WS_EX_TOOLWINDOW;
@@ -211,7 +173,6 @@ class DesktopLyricHost {
         ex |= WS_EX_APPWINDOW;
       }
       ::SetWindowLong(hwnd, GWL_EXSTYLE, ex);
-      // 隐藏再显示，让任务栏刷新。
       if (::IsWindowVisible(hwnd)) {
         ::ShowWindow(hwnd, SW_HIDE);
         ::ShowWindow(hwnd, SW_SHOWNOACTIVATE);
@@ -223,52 +184,19 @@ class DesktopLyricHost {
       bool ignore = arg_bool("ignore");
       LONG ex = ::GetWindowLong(hwnd, GWL_EXSTYLE);
       if (ignore) {
-        // 只加 TRANSPARENT，不动 LAYERED（透明窗依赖它，去掉会黑/闪）。
         ex |= WS_EX_TRANSPARENT;
       } else {
         ex &= ~WS_EX_TRANSPARENT;
       }
       ::SetWindowLong(hwnd, GWL_EXSTYLE, ex);
-      // 锁定 = 整窗穿透；解锁后仍由 setHitRegions 的热区决定谁收鼠标。
-      if (ignore) {
-        mouse_passthrough_ = true;
-        hit_regions_.clear();
-      }
       result->Success(flutter::EncodableValue(true));
       return;
     }
     if (m == "setHitRegions") {
-      // arguments: { passthrough: bool, regions: [{x,y,width,height}, ...] }
-      // 坐标为逻辑像素。非热区 WM_NCHITTEST 返回 HTTRANSPARENT。
-      mouse_passthrough_ = arg_bool("passthrough", true);
-      hit_regions_.clear();
-      if (const auto* regions = arg("regions")) {
-        if (const auto* list = std::get_if<flutter::EncodableList>(regions)) {
-          for (const auto& item : *list) {
-            const auto* rm = std::get_if<flutter::EncodableMap>(&item);
-            if (!rm) continue;
-            auto num = [&](const char* k) -> double {
-              auto it = rm->find(flutter::EncodableValue(k));
-              if (it == rm->end()) return 0;
-              if (const auto* d = std::get_if<double>(&it->second)) return *d;
-              if (const auto* i = std::get_if<int32_t>(&it->second))
-                return static_cast<double>(*i);
-              if (const auto* i64 = std::get_if<int64_t>(&it->second))
-                return static_cast<double>(*i64);
-              return 0;
-            };
-            hit_regions_.push_back({num("x"), num("y"), num("width"),
-                                    num("height")});
-          }
-        }
-      }
       result->Success(flutter::EncodableValue(true));
       return;
     }
     if (m == "startDragging") {
-      // 先回 Success 再进系统拖拽：SendMessage(WM_NCLBUTTONDOWN) 会开模态
-      // 循环占住 platform 线程，若放在 Success 前，Dart await 永远等不到回包，
-      // 表现为点一下歌词窗就假死。
       result->Success(flutter::EncodableValue(true));
       ::ReleaseCapture();
       ::SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
@@ -277,24 +205,29 @@ class DesktopLyricHost {
     if (m == "show") {
       bool inactive = arg_bool("inactive", true);
       ::ShowWindow(hwnd, inactive ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
+      ::SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+      ::RedrawWindow(hwnd, nullptr, nullptr,
+                     RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+      result->Success(flutter::EncodableValue(true));
+      return;
+    }
+    if (m == "hide") {
+      ::ShowWindow(hwnd, SW_HIDE);
       result->Success(flutter::EncodableValue(true));
       return;
     }
     if (m == "destroy") {
-      // 先回包再销毁：DestroyWindow 后 messenger 可能已失效。
       result->Success(flutter::EncodableValue(true));
-      ::DestroyWindow(hwnd);
+      // 必须异步 PostMessage(WM_CLOSE)，绝对不要同步 DestroyWindow(hwnd)，
+      // 否则会在当前正在执行的平台方法调用栈内销毁 FlutterEngine，触发 abort() 崩溃。
+      ::PostMessage(hwnd, WM_CLOSE, 0, 0);
       return;
     }
     if (m == "setTransparentBg") {
-      // Win10/11：DWM 暗色 + 分层透明（对齐 window_manager 的
-      // SetWindowCompositionAttribute 路径）。不要改 GCLP_HBRBACKGROUND——
-      // 那是 window class 级，会波及同 class 的其它窗，且不等于透明。
       BOOL enable = TRUE;
       ::DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &enable,
                               sizeof(enable));
-      // ACCENT_ENABLE_TRANSPARENTGRADIENT + alpha=0 → 整窗可透明合成。
-      // 未定义时退化为仅清掉类背景，保证不崩。
 #ifndef ACCENT_ENABLE_TRANSPARENTGRADIENT
 #define ACCENT_ENABLE_TRANSPARENTGRADIENT 2
 #endif
@@ -311,10 +244,10 @@ class DesktopLyricHost {
       };
       ACCENT_POLICY accent{};
       accent.AccentState = ACCENT_ENABLE_TRANSPARENTGRADIENT;
-      accent.AccentFlags = 2;  // Draw all borders
-      accent.GradientColor = 0;  // ABGR alpha=0
+      accent.AccentFlags = 2;
+      accent.GradientColor = 0;
       WINDOW_COMPOSITION_ATTRIB_DATA data{};
-      data.Attrib = 19;  // WCA_ACCENT_POLICY
+      data.Attrib = 19;
       data.pvData = &accent;
       data.cbData = sizeof(accent);
       using SetWindowCompositionAttributeFn = BOOL(WINAPI*)(HWND,
@@ -325,23 +258,13 @@ class DesktopLyricHost {
       if (set_wca) {
         set_wca(hwnd, &data);
       }
-      ::SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND,
-                        reinterpret_cast<LONG_PTR>(::GetStockObject(NULL_BRUSH)));
       result->Success(flutter::EncodableValue(true));
       return;
     }
     result->NotImplemented();
   }
 
-  flutter::BinaryMessenger* messenger_ = nullptr;
   HWND hwnd_ = nullptr;
-  HWND view_ = nullptr;
-  WNDPROC original_top_proc_ = nullptr;
-  WNDPROC original_view_proc_ = nullptr;
-  // true = 非热区穿透；false = 整窗收鼠标（主窗调试用）。
-  bool mouse_passthrough_ = false;
-  // 每项 {x,y,w,h}，逻辑像素。
-  std::vector<std::array<double, 4>> hit_regions_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;
 };
 
@@ -352,12 +275,9 @@ void RegisterDesktopLyricHost(flutter::FlutterViewController* controller) {
   HWND view = controller->view()->GetNativeWindow();
   HWND top = view ? ::GetAncestor(view, GA_ROOT) : nullptr;
   if (top == nullptr) top = view;
-  // 实测（2026-09-30）：主窗 HWND 类为 FLUTTER_RUNNER_WIN32_WINDOW，
-  // dmw 子窗为 FLUTTER_MULTI_WINDOW_WIN32_WINDOW，GA_ROOT 取值正确、不串窗；
-  // 且子窗 HWND 与主窗同属一个线程（平台线程），不存在跨线程操作。
+
   auto host = std::make_unique<DesktopLyricHost>(
-      controller->engine()->messenger(), top, view);
-  // Channel keeps itself alive; pin hosts for process lifetime.
+      controller->engine()->messenger(), top);
   static std::vector<std::unique_ptr<DesktopLyricHost>>* keep =
       new std::vector<std::unique_ptr<DesktopLyricHost>>();
   keep->push_back(std::move(host));

@@ -17,7 +17,21 @@ class DesktopLyricHost {
   static Future<void> setFrameless() => _channel.invokeMethod('setFrameless');
 
   static Future<void> setSize(double width, double height) =>
-      _channel.invokeMethod('setSize', {'width': width, 'height': height});
+      _channel.invokeMethod('setSize', {
+        'width': width.round(),
+        'height': height.round(),
+      });
+
+  static Future<void> centerTop({
+    double width = 720,
+    double height = 88,
+    double top = 56,
+  }) =>
+      _channel.invokeMethod('centerTop', {
+        'width': width.round(),
+        'height': height.round(),
+        'top': top.round(),
+      });
 
   static Future<void> setPosition(double x, double y) =>
       _channel.invokeMethod('setPosition', {'x': x, 'y': y});
@@ -63,6 +77,8 @@ class DesktopLyricHost {
 
   static Future<void> show({bool inactive = true}) =>
       _channel.invokeMethod('show', {'inactive': inactive});
+
+  static Future<void> hide() => _channel.invokeMethod('hide');
 
   static Future<void> destroy() => _channel.invokeMethod('destroy');
 

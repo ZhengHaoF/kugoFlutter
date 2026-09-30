@@ -87,14 +87,15 @@ bool FlutterWindow::OnCreate() {
   // 且一旦被误调 setIgnoreMouseEvents 会把主窗点穿（假死）。
   // 只有 desktop_multi_window 子窗需要，见下方 CreatedCallback。
 
-  // desktop_multi_window：每个子窗口拥有独立 Flutter 引擎，需在其创建时
-  // 为子引擎注册全部插件（方法通道不能跨引擎共享）。
-  // 子窗 Flutter view 也要挂 WM_GETOBJECT 过滤，否则 UIA 查询会在
-  // flutter_windows.dll 里 Access Violation（与主窗同一坑）。
+  // desktop_multi_window：子窗口是轻量级歌词悬浮窗，拥有独立的 Flutter 引擎。
+  // 注意：千万不要在此调用 RegisterPlugins(engine)。RegisterPlugins 会把 window_manager、
+  // tray_manager、audio_service(SMTC)、media_kit 等全套插件重复注册到子引擎上，
+  // 导致顶层窗口过程被 window_manager 劫持、SMTC 冲突、托盘句柄被覆盖以及通道死锁。
+  // desktop_multi_window 插件会在回调后由 InternalMultiWindowPluginRegisterWithRegistrar
+  // 自动绑定；子窗仅需专属的 DesktopLyricHost 和 UIA 无障碍崩溃过滤。
   DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
     auto* flutter_view_controller =
         reinterpret_cast<flutter::FlutterViewController*>(controller);
-    RegisterPlugins(flutter_view_controller->engine());
     RegisterDesktopLyricHost(flutter_view_controller);
     if (flutter_view_controller->view()) {
       InstallAccessibilityFilter(

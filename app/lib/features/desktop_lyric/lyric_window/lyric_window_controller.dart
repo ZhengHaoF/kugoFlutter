@@ -71,8 +71,11 @@ class DesktopLyricController extends ChangeNotifier {
         _applySnap(snap, lyricsOmitted: lyricsOmitted);
         return 'ok';
       case 'close':
-        // 主窗 close() 下发：自毁本窗，避免只 hide 留下僵尸引擎。
-        unawaited(destroyDesktopLyricWindow());
+      case 'hide':
+        await DesktopLyricHost.hide();
+        return 'ok';
+      case 'show':
+        await DesktopLyricHost.show(inactive: true);
         return 'ok';
       default:
         return null;
@@ -205,21 +208,13 @@ Future<void> initDesktopLyricWindow({
 
   final w = bounds?.width ?? 720;
   final h = bounds?.height ?? 88;
-  await DesktopLyricHost.setSize(w, h);
 
-  if (bounds != null && bounds.hasPosition) {
+  if (bounds != null && bounds.hasPosition && bounds.x! >= 0 && bounds.y! >= 0) {
+    await DesktopLyricHost.setSize(w, h);
     await DesktopLyricHost.setPosition(bounds.x!, bounds.y!);
   } else {
-    // 顶中、略下移，避免盖住主窗标题栏按钮。
-    try {
-      final view = WidgetsBinding.instance.platformDispatcher.views.first;
-      final dpr = view.devicePixelRatio;
-      final sw = view.physicalSize.width / dpr;
-      final x = (sw - w) / 2;
-      await DesktopLyricHost.setPosition(x, 56);
-    } catch (_) {
-      await DesktopLyricHost.setPosition(100, 56);
-    }
+    // 居中靠顶显示（下移 56px 避免遮挡主窗标题栏按钮）
+    await DesktopLyricHost.centerTop(width: w, height: h, top: 56);
   }
 }
 

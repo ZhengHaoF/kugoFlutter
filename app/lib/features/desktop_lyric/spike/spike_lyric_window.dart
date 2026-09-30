@@ -108,7 +108,7 @@ class _SpikeLyricWindowState extends State<SpikeLyricWindow> {
       final childHwnd = await windowManager.getId();
       final mainHwnd = await _channel.invokeMethod('mainHwnd');
       _log('INFO  child HWND=$childHwnd  main HWND=$mainHwnd');
-      if (childHwnd != null && childHwnd != mainHwnd) {
+      if (childHwnd != mainHwnd) {
         _log('PASS  HWND binding (child != main)');
       } else {
         _log('FAIL  HWND binding (child == main or null)');

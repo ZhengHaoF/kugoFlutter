@@ -36,6 +36,7 @@ class DesktopLyricBridge {
   WindowController? _window;
   bool _handlerReady = false;
   bool _windowOpen = false;
+  bool _childReady = false;
   bool _opening = false;
   int _revision = 0;
   String? _lastLyricKey;
@@ -70,7 +71,7 @@ class DesktopLyricBridge {
     await _ensureHandler();
 
     _container.listen<PlayerState>(playerControllerProvider, (prev, next) {
-      if (!_windowOpen) return;
+      if (!_windowOpen || !_childReady) return;
       final trackChanged = prev?.current?.identityKey != next.current?.identityKey;
       final lyricsChanged = !identical(prev?.lyrics, next.lyrics) ||
           prev?.lyricsStatus != next.lyricsStatus;
@@ -84,7 +85,7 @@ class DesktopLyricBridge {
     });
 
     _container.listen<AppSettings>(settingsControllerProvider, (prev, next) {
-      if (!_windowOpen) return;
+      if (!_windowOpen || !_childReady) return;
       if (prev?.lyricTranslation != next.lyricTranslation ||
           prev?.lyricRomanization != next.lyricRomanization ||
           prev?.lyricFontScale != next.lyricFontScale ||
@@ -120,10 +121,16 @@ class DesktopLyricBridge {
   Future<dynamic> _onLyricCall(MethodCall call) async {
     switch (call.method) {
       case DesktopLyricCommand.ready:
+        _childReady = true;
         _lyricsDirty = true;
-        // 不要在这里 await push：同通道嵌套 invokeMethod（ready → snapshot）
-        // 在 Windows 多引擎下会堵死 platform 线程，表现为开词后假死。
-        unawaited(_pushSnapshot(forceLyrics: true));
+        _startPositionTimer();
+        // 必须异步解耦：在 return 'ok' 回包完成后再推 snapshot，
+        // 避免在处理子窗 ready 调用的同一上下文内嵌套调用 invokeMethod('snapshot')
+        Timer.run(() {
+          if (_windowOpen && _childReady) {
+            unawaited(_pushSnapshot(forceLyrics: true));
+          }
+        });
         return 'ok';
       case DesktopLyricCommand.playPause:
         _player.togglePlay();
@@ -151,6 +158,7 @@ class DesktopLyricBridge {
         return 'ok';
       case DesktopLyricCommand.closed:
         _windowOpen = false;
+        _childReady = false;
         _window = null;
         _stopPositionTimer();
         await _container
@@ -176,40 +184,30 @@ class DesktopLyricBridge {
 
   Future<void> _openInner() async {
     await _ensureHandler();
-    if (_windowOpen && _window != null) {
+    // 1. 若本进程已创建过歌词窗，直接唤醒并显示（0ms 无感响应，避免重复开销与多引擎干扰）
+    if (_window != null) {
+      _windowOpen = true;
+      _childReady = true;
       try {
-        await _window!.show();
-        return;
-      } catch (_) {}
+        await _channel.invokeMethod('show');
+      } catch (_) {
+        try {
+          await _window!.show();
+        } catch (_) {}
+      }
+      _startPositionTimer();
+      Timer.run(() {
+        if (_windowOpen && _childReady) {
+          unawaited(_pushSnapshot(forceLyrics: true));
+        }
+      });
+      await _container
+          .read(settingsControllerProvider.notifier)
+          .setDesktopLyricEnabled(true);
+      return;
     }
 
-    // 只保留一个歌词窗：异常残留的多余实例直接关掉，避免叠两层「当前词」。
-    try {
-      final all = await WindowController.getAll();
-      WindowController? keep;
-      for (final c in all) {
-        if (c.arguments != kDesktopLyricWindowArg) continue;
-        if (keep == null) {
-          keep = c;
-        } else {
-          try {
-            await c.hide();
-          } catch (_) {}
-        }
-      }
-      if (keep != null) {
-        _window = keep;
-        _windowOpen = true;
-        await keep.show();
-        _startPositionTimer();
-        await _pushSnapshot(forceLyrics: true);
-        await _container
-            .read(settingsControllerProvider.notifier)
-            .setDesktopLyricEnabled(true);
-        return;
-      }
-    } catch (_) {}
-
+    // 2. 首次打开：创建全新的桌面歌词子窗口
     try {
       final win = await WindowController.create(
         const WindowConfiguration(
@@ -219,31 +217,30 @@ class DesktopLyricBridge {
       );
       _window = win;
       _windowOpen = true;
+      _childReady = false;
       _lyricsDirty = true;
-      _startPositionTimer();
       await _container
           .read(settingsControllerProvider.notifier)
           .setDesktopLyricEnabled(true);
-      // 只在子窗 ready 后推 snapshot：init 阶段并发调 window_manager 会死锁。
+      // 只在子窗 ready 后推 snapshot 与启动 positionTimer
     } catch (e, st) {
       debugPrint('[desktop_lyric] open failed: $e\n$st');
       _windowOpen = false;
+      _childReady = false;
       _window = null;
     }
   }
 
   Future<void> close() async {
     _stopPositionTimer();
-    final win = _window;
-    _window = null;
     _windowOpen = false;
-    // 走歌词通道让子窗自毁。WindowController.invokeMethod('close') 打的是
-    // mixin.one/window_controller/*，子窗从未 setWindowMethodHandler，只会 hide 残留。
+    _childReady = false;
+    // 隐藏歌词窗，保留子引擎与就绪状态，不销毁 HWND，规避多引擎反复销毁导致的 abort() 与死锁。
     try {
-      await _channel.invokeMethod('close');
+      await _channel.invokeMethod('hide');
     } catch (_) {
       try {
-        await win?.hide();
+        await _window?.hide();
       } catch (_) {}
     }
     await _container
@@ -278,7 +275,7 @@ class DesktopLyricBridge {
   }
 
   Future<void> _pushSnapshot({bool forceLyrics = false, bool positionOnly = false}) async {
-    if (!_windowOpen) return;
+    if (!_windowOpen || !_childReady) return;
     final state = _playerState;
     final track = state.current;
     final lyrics = state.lyrics;

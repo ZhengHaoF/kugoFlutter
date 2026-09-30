@@ -49,9 +49,11 @@ class DesktopLyricBoundsStore {
   static Future<DesktopLyricBounds> load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final x = prefs.getDouble(_kX);
+      final y = prefs.getDouble(_kY);
       return DesktopLyricBounds(
-        x: prefs.getDouble(_kX),
-        y: prefs.getDouble(_kY),
+        x: (x != null && x >= 0) ? x : null,
+        y: (y != null && y >= 0) ? y : null,
         width: (prefs.getDouble(_kW) ?? 720).clamp(320, 1600),
         height: (prefs.getDouble(_kH) ?? 88).clamp(60, 600),
       );

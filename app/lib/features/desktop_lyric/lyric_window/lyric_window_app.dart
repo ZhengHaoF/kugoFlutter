@@ -33,8 +33,11 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
     _controller.markWindowReady();
     if (!mounted) return;
     setState(() => _booted = true);
-    // 等一帧让歌词卡真正上屏，再 show，避免空窗。
-    await WidgetsBinding.instance.endOfFrame;
+    // 等一帧让歌词卡真正上屏，再 show，避免空窗；加 300ms 超时保底防卡帧。
+    try {
+      await WidgetsBinding.instance.endOfFrame
+          .timeout(const Duration(milliseconds: 300));
+    } catch (_) {}
     await showDesktopLyricWindow();
     lyricLog('lyric window shown');
   }
