@@ -15,10 +15,21 @@ class MiniPlayerBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kugo = KugoTheme.of(context);
-    final player = ref.watch(playerControllerProvider);
-    final track = player.current;
+    // 细粒度订阅：播放栏只在「曲目 / 时长 / 加载态 / 播放态」变化时重建，
+    // 不再被音量、循环模式、队列增删等离散变更连带重建。
+    final track = ref.watch(
+      playerControllerProvider.select((s) => s.current),
+    );
     if (track == null) return const SizedBox.shrink();
-    final durationMs = player.durationMs;
+    final durationMs = ref.watch(
+      playerControllerProvider.select((s) => s.durationMs),
+    );
+    final isLoading = ref.watch(
+      playerControllerProvider.select((s) => s.isLoading),
+    );
+    final isPlaying = ref.watch(
+      playerControllerProvider.select((s) => s.isPlaying),
+    );
 
     final isLight = kugo.palette.isLight;
 
@@ -98,7 +109,7 @@ class MiniPlayerBar extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: player.isLoading
+                      onPressed: isLoading
                           ? null
                           : () => ref
                               .read(playerControllerProvider.notifier)
@@ -109,14 +120,14 @@ class MiniPlayerBar extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: player.isLoading
+                      onPressed: isLoading
                           ? null
                           : () => ref
                               .read(playerControllerProvider.notifier)
                               .togglePlay(),
                       icon: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 180),
-                        child: player.isLoading
+                        child: isLoading
                             ? SizedBox(
                                 width: 22,
                                 height: 22,
@@ -126,14 +137,14 @@ class MiniPlayerBar extends ConsumerWidget {
                                 ),
                               )
                             : PlayPauseIcon(
-                                playing: player.isPlaying,
+                                playing: isPlaying,
                                 size: 34,
                                 color: kugo.primary,
                               ),
                       ),
                     ),
                     IconButton(
-                      onPressed: player.isLoading
+                      onPressed: isLoading
                           ? null
                           : () =>
                               ref.read(playerControllerProvider.notifier).next(),

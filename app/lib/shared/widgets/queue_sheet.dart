@@ -7,6 +7,10 @@ import '../../features/player/player_controller.dart';
 import 'common.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
+/// 队列长度超过这个值就不再 shrinkWrap：shrinkWrap 的列表每次布局都要把
+/// 全部子项量一遍尺寸（O(n)），几百首时打开/滚动队列会明显掉帧。
+const int _kShrinkWrapQueueLimit = 30;
+
 /// Shows the current playback queue in a bottom sheet or modal.
 void showQueueSheet(BuildContext context, WidgetRef ref) {
   final kugo = KugoTheme.of(context);
@@ -50,7 +54,10 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
             else
               Flexible(
                 child: SmoothListViewBuilder(
-                  shrinkWrap: true,
+                  // shrinkWrap 会让列表放弃视口懒加载模型，每次布局都要把
+                  // 整队列量一遍尺寸。短队列保持原样（底部弹窗按内容收缩），
+                  // 长队列改用懒加载填满可用高度。
+                  shrinkWrap: player.queue.length <= _kShrinkWrapQueueLimit,
                   itemCount: player.queue.length,
                   itemBuilder: (context, index) {
                     final track = player.queue[index];

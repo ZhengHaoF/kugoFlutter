@@ -966,7 +966,14 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
         ),
       );
     }
-    final player = ref.watch(playerControllerProvider);
+    // 只订阅「当前曲目 id + 是否在播」两个标量：原先全量 watch 播放器状态，
+    // 音量、循环模式、队列增删等任何离散变更都会把整个歌曲 SliverList 重建一遍。
+    final currentId = ref.watch(
+      playerControllerProvider.select((s) => s.current?.id),
+    );
+    final playing = ref.watch(
+      playerControllerProvider.select((s) => s.isPlaying),
+    );
     return SliverList.builder(
       itemCount: songs.length,
       itemBuilder: (context, index) {
@@ -974,7 +981,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
         return TrackTile(
           track: track,
           index: index + 1,
-          isPlaying: player.current?.id == track.id && player.isPlaying,
+          isPlaying: playing && currentId == track.id,
           onArtistTap: artistTapFor(context, track),
           onTap: () {
             ref

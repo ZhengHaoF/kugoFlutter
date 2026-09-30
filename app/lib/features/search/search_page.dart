@@ -477,7 +477,13 @@ class _TabResults extends ConsumerWidget {
     bool showSource,
   ) {
     final tab = state.activeTab;
-    final player = ref.watch(playerControllerProvider);
+    // 只订阅两个标量：整页结果列表不该因为音量/循环模式等离散变更而重建。
+    final currentId = ref.watch(
+      playerControllerProvider.select((s) => s.current?.id),
+    );
+    final playing = ref.watch(
+      playerControllerProvider.select((s) => s.isPlaying),
+    );
     switch (type) {
       case SearchType.song:
         final tracks = songItemsOf(tab);
@@ -485,7 +491,7 @@ class _TabResults extends ConsumerWidget {
         final track = tracks[index];
         return TrackTile(
           track: track,
-          isPlaying: player.current?.id == track.id && player.isPlaying,
+          isPlaying: playing && currentId == track.id,
           onArtistTap: artistTapFor(context, track),
           onTap: () => onPlaySong(index),
           showSource: showSource,

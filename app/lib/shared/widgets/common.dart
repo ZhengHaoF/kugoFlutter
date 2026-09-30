@@ -414,8 +414,13 @@ class TrackTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => _HoverScope(
-    builder: (context, hovered) => _buildRow(context, hovered),
+  Widget build(BuildContext context) => RepaintBoundary(
+    // 桌面端鼠标扫过列表时每行都会 hover setState + 140ms 的 AnimatedOpacity，
+    // 没有重绘边界的话这些重绘会向上污染整段列表（本文件原先没有任何
+    // RepaintBoundary）。边界把重绘限制在单行内，滚动时尤其明显。
+    child: _HoverScope(
+      builder: (context, hovered) => _buildRow(context, hovered),
+    ),
   );
 
   Widget _buildRow(BuildContext context, bool hovered) {
@@ -772,52 +777,56 @@ class SearchResultRow extends StatelessWidget {
           )
         : cover;
 
-    return KugoClickable(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.tile),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KugoSpacing.lg,
-          vertical: 10,
-        ),
-        child: Row(
-          children: [
-            coverWidget,
-            const SizedBox(width: KugoSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: kugo.body,
-                  ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+    return RepaintBoundary(
+      // 搜索结果行同样进长列表：给出重绘边界，避免行内变化（hover/封面淡入）
+      // 把重绘范围扩散到整段列表。
+      child: KugoClickable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(KugoRadius.tile),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KugoSpacing.lg,
+            vertical: 10,
+          ),
+          child: Row(
+            children: [
+              coverWidget,
+              const SizedBox(width: KugoSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle,
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.caption,
+                      style: kugo.body,
                     ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: kugo.caption,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            if (trailingLabel.isNotEmpty) ...[
-              const SizedBox(width: KugoSpacing.sm),
-              Text(
-                trailingLabel,
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
-              ),
+              if (trailingLabel.isNotEmpty) ...[
+                const SizedBox(width: KugoSpacing.sm),
+                Text(
+                  trailingLabel,
+                  style: kugo.caption.copyWith(color: kugo.textTertiary),
+                ),
+              ],
+              if (platform != null) ...[
+                const SizedBox(width: 6),
+                SourceBadge(platform: platform!),
+              ],
             ],
-            if (platform != null) ...[
-              const SizedBox(width: 6),
-              SourceBadge(platform: platform!),
-            ],
-          ],
+          ),
         ),
       ),
     );
