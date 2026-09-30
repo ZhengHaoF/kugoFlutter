@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../desktop_lyric_host.dart';
+import 'karaoke_sweep_line.dart';
 import 'lyric_window_controller.dart';
 
 /// 桌面歌词窗 UI：透明悬浮歌词（无卡片底）+ hover 玻璃控制条。
@@ -120,7 +121,6 @@ class _LyricBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final snap = controller.snapshot;
     final scale = snap.fontScale.clamp(0.85, 1.4);
-    final current = controller.currentLine;
     final next = controller.nextLine;
     final tr = snap.translation ? controller.currentTranslation : null;
 
@@ -128,16 +128,12 @@ class _LyricBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          current,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24 * scale,
-            height: 1.2,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
+        // 主行：平滑扫光（KRC 逐字插值；LRC 线性扫）。
+        RepaintBoundary(
+          child: KaraokeSweepLine(
+            controller: controller,
+            sungColor: const Color(0xFF2CE06B),
+            unsungColor: Colors.white,
             shadows: _lyricShadows(),
           ),
         ),

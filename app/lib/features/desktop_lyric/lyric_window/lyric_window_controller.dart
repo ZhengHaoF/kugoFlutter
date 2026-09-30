@@ -37,17 +37,29 @@ class DesktopLyricController extends ChangeNotifier {
   String get title => _snap.title;
   String get artist => _snap.artist;
 
+  /// 歌词游标锚点（本地 Ticker 自走的基准）。
+  /// [anchorWall] 是收到 snapshot 时的墙钟，[anchorPosMs] 是当时（含 offset）的游标。
+  DateTime get anchorWall => _anchorWall;
+  int get anchorPosMs => _anchorPosMs;
+
   /// 当前歌词游标（含 offset）。
   int get positionMs => _localPosMs;
 
   int get activeIndex => findLyricIndex(_lyrics, _localPosMs);
 
-  String get currentLine {
+  /// 当前整行（供逐字渲染取 chars/时间轴）；无词时 null。
+  LyricLine? get currentLyric {
     final i = activeIndex;
-    if (i < 0 || i >= _lyrics.length) {
+    if (i < 0 || i >= _lyrics.length) return null;
+    return _lyrics[i];
+  }
+
+  String get currentLine {
+    final line = currentLyric;
+    if (line == null) {
       return _snap.title.isEmpty ? '桌面歌词' : _snap.title;
     }
-    return _lyrics[i].text;
+    return line.text;
   }
 
   String? get nextLine {
