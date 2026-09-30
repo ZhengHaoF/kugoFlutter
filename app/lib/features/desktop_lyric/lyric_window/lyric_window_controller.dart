@@ -121,7 +121,33 @@ class DesktopLyricController extends ChangeNotifier {
     _anchorPosMs = _localPosMs;
     _syncTicker();
     _applyLock(snap.locked);
-    notifyListeners();
+    // 主窗播放中每 400ms 推一次 positionOnly 快照，其中绝大多数不改变任何
+    // 可见内容（歌词行、标题、播放态都没变）。无条件通知会让整个歌词窗
+    // 每秒重建 2–3 次，因此只在可见内容真的变化时才通知。
+    if (_visibleSignatureChanged()) notifyListeners();
+  }
+
+  /// 上次通知时窗口可见内容与当前行号的快照（用于去重通知）。
+  Object? _lastSignature;
+
+  /// 触发重建只取决这些量：外形（标题/播放态/锁定/译文/字号）+ 当前行内容。
+  /// 游标推进本身不需要重建——[KaraokeSweepLine] 有独立 Ticker 自算扫光。
+  Object _visibleSignature() => visibleLyricSignature(
+        title: _snap.title,
+        artist: _snap.artist,
+        isPlaying: _snap.isPlaying,
+        locked: _snap.locked,
+        translation: _snap.translation,
+        fontScale: _snap.fontScale,
+        activeIndex: activeIndex,
+        lyrics: _lyrics,
+      );
+
+  bool _visibleSignatureChanged() {
+    final next = _visibleSignature();
+    if (next == _lastSignature) return false;
+    _lastSignature = next;
+    return true;
   }
 
   bool _lockApplied = false;
@@ -152,6 +178,11 @@ class DesktopLyricController extends ChangeNotifier {
     if (snap != null) {
       _applySnap(snap, lyricsOmitted: false);
     }
+    // 暂存的快照在 _applySnap 里可能因为签名未变而不通知（首帧必然变化，
+    // 但为了不依赖这一点，这里显式保证窗口一就绪就渲染一次）。
+    _lastSignature = null;
+    _visibleSignatureChanged();
+    notifyListeners();
   }
 
   void _syncTicker() {
@@ -162,7 +193,9 @@ class DesktopLyricController extends ChangeNotifier {
       final elapsed =
           DateTime.now().difference(_anchorWall).inMilliseconds;
       _localPosMs = _anchorPosMs + elapsed;
-      notifyListeners();
+      // 只在跨到新歌词行时才通知：游标推进本身由 [KaraokeSweepLine] 的
+      // 独立 Ticker 自算扫光，原先每 100ms 无条件重建整个歌词窗。
+      if (_visibleSignatureChanged()) notifyListeners();
     });
   }
 
@@ -204,6 +237,40 @@ class DesktopLyricController extends ChangeNotifier {
     _channel.setMethodCallHandler(null);
     super.dispose();
   }
+}
+
+/// 歌词窗「可见内容」指纹：值相同就不需要重建界面。
+///
+/// 歌词窗原先在播放中每 100ms 无条件 `notifyListeners()`（外加主窗每 400ms
+/// 的 positionOnly 快照也通知一次），而其中绝大多数事件的可见内容完全没变——
+/// 游标推进只影响 [KaraokeSweepLine] 的扫光，那由它自己的 Ticker 按帧驱动。
+/// 抽成纯函数便于直接覆盖「跨行才变、同行为不同游标不变」这条关键性质。
+Object visibleLyricSignature({
+  required String title,
+  required String artist,
+  required bool isPlaying,
+  required bool locked,
+  required bool translation,
+  required double fontScale,
+  required int activeIndex,
+  required List<LyricLine> lyrics,
+}) {
+  final hasLine = activeIndex >= 0 && activeIndex < lyrics.length;
+  final next = activeIndex + 1;
+  return Object.hash(
+    title,
+    artist,
+    isPlaying,
+    locked,
+    translation,
+    fontScale,
+    activeIndex,
+    lyrics.length,
+    hasLine ? lyrics[activeIndex].text : '',
+    // 主行下方显示的是「译文优先、否则下一行」——两者都参与指纹。
+    hasLine ? lyrics[activeIndex].translated : null,
+    next >= 0 && next < lyrics.length ? lyrics[next].text : null,
+  );
 }
 
 /// 歌词窗窗口样式初始化。

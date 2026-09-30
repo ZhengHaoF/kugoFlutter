@@ -901,34 +901,39 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
         ),
       );
     }
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth.isFinite && constraints.maxWidth > 0
-                ? constraints.maxWidth
-                : MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2;
-            final grid = coverGridDelegateForWidth(
-              context,
-              width,
-              preferredExtent: preferredExtent,
-              mobileAspectRatio: mobileAspectRatio,
-              desktopAspectRatio: desktopAspectRatio,
-              mainAxisSpacing: KugoSpacing.lg,
-              crossAxisSpacing: KugoSpacing.lg,
-              maxColumns: maxColumns,
-            );
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              gridDelegate: grid,
-              itemCount: itemCount,
-              itemBuilder: itemBuilder,
-            );
-          },
-        ),
+    // 用 SliverGrid 而不是「SliverToBoxAdapter + shrinkWrap GridView」：
+    // shrinkWrap 的 GridView 为了求自身高度必须一次性布局全部子项，栅格懒加载
+    // 完全失效——歌单/新碟/歌手三个 Tab 的网格在每次滚动、切 tag、加载完成时
+    // 都要重走一遍全网格布局。SliverGrid 直接参与外层视口布局，按需构建。
+    //
+    // 列数仍按内容盒实际宽度算（SliverLayoutBuilder 给出 crossAxisExtent），
+    // 与之前 LayoutBuilder 的口径一致。
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+      sliver: SliverLayoutBuilder(
+        builder: (context, constraints) {
+          // crossAxisExtent 已经是不含 SliverPadding 的内容盒宽度，
+          // 与之前「Padding 内层 LayoutBuilder」的口径一致，不要再减一次。
+          final width = constraints.crossAxisExtent.isFinite &&
+                  constraints.crossAxisExtent > 0
+              ? constraints.crossAxisExtent
+              : MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2;
+          final grid = coverGridDelegateForWidth(
+            context,
+            width,
+            preferredExtent: preferredExtent,
+            mobileAspectRatio: mobileAspectRatio,
+            desktopAspectRatio: desktopAspectRatio,
+            mainAxisSpacing: KugoSpacing.lg,
+            crossAxisSpacing: KugoSpacing.lg,
+            maxColumns: maxColumns,
+          );
+          return SliverGrid.builder(
+            gridDelegate: grid,
+            itemCount: itemCount,
+            itemBuilder: itemBuilder,
+          );
+        },
       ),
     );
   }

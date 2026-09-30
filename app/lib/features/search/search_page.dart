@@ -431,131 +431,151 @@ class _TabResults extends ConsumerWidget {
       );
     }
 
-    final rows = _rowsFor(context, ref, state, type);
+    final count = _rowCountFor(state, type);
+    final showSource = _showSourceColumn(ref, state);
     return SmoothListViewBuilder(
       controller: scroll,
       // One extra slot for the load-more footer.
-      itemCount: rows.length + 1,
+      itemCount: count + 1,
       itemBuilder: (context, index) {
-        if (index == rows.length) return _Footer(tab: tab, onRetry: onRetry);
-        return rows[index];
+        if (index == count) return _Footer(tab: tab, onRetry: onRetry);
+        // 按 index 现取数据现建行：原先先把整页几百个 TrackTile（各自还带
+        // onTap/onArtistTap 闭包）materialize 成 List<Widget>，builder 的懒加载
+        // 名存实亡，翻页追加一次就整页重建一轮。
+        return _rowAt(context, ref, state, type, index, showSource);
       },
     );
   }
 
-  List<Widget> _rowsFor(
+  int _rowCountFor(SearchState state, SearchType type) {
+    final tab = state.activeTab;
+    switch (type) {
+      case SearchType.song:
+        return songItemsOf(tab).length;
+      case SearchType.playlist:
+        return playlistItemsOf(tab).length;
+      case SearchType.album:
+        return albumItemsOf(tab).length;
+      case SearchType.artist:
+        return artistItemsOf(tab).length;
+      case SearchType.mv:
+        return mvItemsOf(tab).length;
+    }
+  }
+
+  /// 多源混排时才打角标——已筛选时每行都一样，纯属噪音。
+  bool _showSourceColumn(WidgetRef ref, SearchState state) =>
+      state.sourceFilter == null &&
+      ref.read(searchControllerProvider.notifier).availablePlatforms.length > 1;
+
+  Widget _rowAt(
     BuildContext context,
     WidgetRef ref,
     SearchState state,
     SearchType type,
+    int index,
+    bool showSource,
   ) {
     final tab = state.activeTab;
     final player = ref.watch(playerControllerProvider);
-    // 只在「全部源混排」且确实注册了多个源时打角标——已筛选时每行都一样，
-    // 纯属噪音。
-    final showSource = state.sourceFilter == null &&
-        ref.read(searchControllerProvider.notifier).availablePlatforms.length >
-            1;
     switch (type) {
       case SearchType.song:
         final tracks = songItemsOf(tab);
-        return [
-          for (var i = 0; i < tracks.length; i++)
-            TrackTile(
-              track: tracks[i],
-              isPlaying:
-                  player.current?.id == tracks[i].id && player.isPlaying,
-              onArtistTap: artistTapFor(context, tracks[i]),
-              onTap: () => onPlaySong(i),
-              showSource: showSource,
-            ),
-        ];
+        if (index >= tracks.length) return const SizedBox.shrink();
+        final track = tracks[index];
+        return TrackTile(
+          track: track,
+          isPlaying: player.current?.id == track.id && player.isPlaying,
+          onArtistTap: artistTapFor(context, track),
+          onTap: () => onPlaySong(index),
+          showSource: showSource,
+        );
       case SearchType.playlist:
-        return [
-          for (final p in playlistItemsOf(tab))
-            SearchResultRow(
-              imageSeed: p.coverUrl,
-              title: p.name,
-              subtitle: p.creator,
-              heroTag: p.id.isNotEmpty ? KugoHeroTags.playlistCover(p.id) : null,
-              trailingLabel:
-                  p.trackCount > 0 ? '${p.trackCount}首' : p.playCountLabel,
-              platform: showSource ? p.platform : null,
-              onTap: p.id.isEmpty
-                  ? null
-                  // 网易结果必须带 src，否则路由按酷狗详情取数（id 打错接口）。
-                  : () => context.push(
-                        p.platform == MusicPlatform.kugou
-                            ? '/playlist/${p.id}'
-                            : '/playlist/${p.id}?src=netease',
-                        extra: p,
-                      ),
-            ),
-        ];
+        final items = playlistItemsOf(tab);
+        if (index >= items.length) return const SizedBox.shrink();
+        final p = items[index];
+        return SearchResultRow(
+          imageSeed: p.coverUrl,
+          title: p.name,
+          subtitle: p.creator,
+          heroTag: p.id.isNotEmpty ? KugoHeroTags.playlistCover(p.id) : null,
+          trailingLabel:
+              p.trackCount > 0 ? '${p.trackCount}首' : p.playCountLabel,
+          platform: showSource ? p.platform : null,
+          onTap: p.id.isEmpty
+              ? null
+              // 网易结果必须带 src，否则路由按酷狗详情取数（id 打错接口）。
+              : () => context.push(
+                    p.platform == MusicPlatform.kugou
+                        ? '/playlist/${p.id}'
+                        : '/playlist/${p.id}?src=netease',
+                    extra: p,
+                  ),
+        );
       case SearchType.album:
-        return [
-          for (final a in albumItemsOf(tab))
-            SearchResultRow(
-              imageSeed: a.coverUrl,
-              title: a.name,
-              subtitle: a.artist,
-              heroTag: a.id.isNotEmpty ? KugoHeroTags.albumCover(a.id) : null,
-              trailingLabel: a.trackCount > 0 ? '${a.trackCount}首' : '',
-              platform: showSource ? a.platform : null,
-              onTap: a.id.isEmpty
-                  ? null
-                  : () => context.push(
-                        a.platform == MusicPlatform.kugou
-                            ? '/album/${a.id}'
-                            : '/album/${a.id}?src=netease',
-                      ),
-            ),
-        ];
+        final items = albumItemsOf(tab);
+        if (index >= items.length) return const SizedBox.shrink();
+        final a = items[index];
+        return SearchResultRow(
+          imageSeed: a.coverUrl,
+          title: a.name,
+          subtitle: a.artist,
+          heroTag: a.id.isNotEmpty ? KugoHeroTags.albumCover(a.id) : null,
+          trailingLabel: a.trackCount > 0 ? '${a.trackCount}首' : '',
+          platform: showSource ? a.platform : null,
+          onTap: a.id.isEmpty
+              ? null
+              : () => context.push(
+                    a.platform == MusicPlatform.kugou
+                        ? '/album/${a.id}'
+                        : '/album/${a.id}?src=netease',
+                  ),
+        );
       case SearchType.artist:
-        return [
-          for (final a in artistItemsOf(tab))
-            SearchResultRow(
-              imageSeed: a.avatarUrl,
-              title: a.name,
-              round: true,
-              heroTag: a.id.isNotEmpty ? KugoHeroTags.artistAvatar(a.id) : null,
-              platform: showSource ? a.platform : null,
-              // Avatar is backfilled from `singer/info` (search payload has
-              // none). Empty seed still falls back to the person glyph.
-              onTap: a.id.isEmpty
-                  ? null
-                  : () => context.push(
-                        a.platform == MusicPlatform.kugou
-                            ? '/artist/${a.id}'
-                            : '/artist/${a.id}?src=netease',
-                      ),
-            ),
-        ];
+        final items = artistItemsOf(tab);
+        if (index >= items.length) return const SizedBox.shrink();
+        final a = items[index];
+        return SearchResultRow(
+          imageSeed: a.avatarUrl,
+          title: a.name,
+          round: true,
+          heroTag: a.id.isNotEmpty ? KugoHeroTags.artistAvatar(a.id) : null,
+          platform: showSource ? a.platform : null,
+          // Avatar is backfilled from `singer/info` (search payload has
+          // none). Empty seed still falls back to the person glyph.
+          onTap: a.id.isEmpty
+              ? null
+              : () => context.push(
+                    a.platform == MusicPlatform.kugou
+                        ? '/artist/${a.id}'
+                        : '/artist/${a.id}?src=netease',
+                  ),
+        );
       case SearchType.mv:
-        return [
-          for (final m in mvItemsOf(tab))
-            SearchResultRow(
-              imageSeed: m.coverUrl,
-              title: m.name,
-              subtitle: m.artist,
-              trailingLabel: m.durationLabel,
-              onTap: m.hash.isEmpty
-                  ? null
-                  : () => context.push(
-                        Uri(
-                          path: '/mv',
-                          queryParameters: {
-                            'id': m.id,
-                            'hash': m.hash,
-                            'name': m.name,
-                            'artist': m.artist,
-                            'cover': m.coverUrl,
-                            'mixSongId': m.mixSongId,
-                          },
-                        ).toString(),
-                      ),
-            ),
-        ];
+        final items = mvItemsOf(tab);
+        if (index >= items.length) return const SizedBox.shrink();
+        final m = items[index];
+        return SearchResultRow(
+          imageSeed: m.coverUrl,
+          title: m.name,
+          subtitle: m.artist,
+          trailingLabel: m.durationLabel,
+          onTap: m.hash.isEmpty
+              ? null
+              : () => context.push(
+                    Uri(
+                      path: '/mv',
+                      queryParameters: {
+                        'id': m.id,
+                        'hash': m.hash,
+                        'name': m.name,
+                        'artist': m.artist,
+                        'cover': m.coverUrl,
+                        'mixSongId': m.mixSongId,
+                      },
+                    ).toString(),
+                  ),
+        );
     }
   }
 }
