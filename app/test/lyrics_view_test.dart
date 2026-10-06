@@ -190,10 +190,10 @@ void main() {
         romanization: false,
         positionMs: 0,
         lines: _plainLines(),
-        spacingScale: 2,
+        spacingScale: kLyricSpacingScaleMax,
       ),
     );
-    expect(_rowExtent(tester), closeTo(112, 0.001));
+    expect(_rowExtent(tester), closeTo(56 * kLyricSpacingScaleMax, 0.001));
   });
 
   testWidgets('row extent never shrinks below the text height', (tester) async {
@@ -207,7 +207,7 @@ void main() {
         spacingScale: kLyricSpacingScaleMin,
       ),
     );
-    // 倍率算出的 (56 + 18) × 0.5 = 37 会被文字高度 18×1.35 + 12×1.25 = 39.3 顶住。
+    // 倍率算出的 (56 + 18) × 0.4 = 29.6 会被文字高度 18×1.35 + 12×1.25 = 39.3 顶住。
     expect(_rowExtent(tester), closeTo(39.3, 0.001));
   });
 }

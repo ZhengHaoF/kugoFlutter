@@ -87,7 +87,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
 
   /// 行盒高度 = 基准 56（+ 副行加成）× 字号倍率 × 行间距倍率。
   ///
-  /// 行间距下限（0.5）可能把行盒压到比文字本身还矮，故取「文字实际高度」
+  /// 行间距下限（0.4）可能把行盒压到比文字本身还矮，故取「文字实际高度」
   /// 兜底——否则 ListView 会连同文字一起裁掉上下边缘。
   double _itemExtent({required bool desktop}) {
     final s = ref.read(settingsControllerProvider);
@@ -98,7 +98,11 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     return math.max(scaled, _contentHeight(s, desktop: desktop));
   }
 
-  /// 单行（活动行 + 开启的副行）文字实际占位高度，按最大字号的档位算。
+  /// 单行（活动行 + 开启的副行）文字实际占位高度，按最大字号的档位算——
+  /// 活动行字号最大（18/22 w700），这就是行盒的物理下限。
+  ///
+  /// 不要改成按非活动行（15/16）算：行盒高度固定（ListView `itemExtent` +
+  /// `SizedBox`），活动行 24.3 的文字塞进更矮的盒子会 RenderFlex overflow。
   double _contentHeight(AppSettings s, {required bool desktop}) {
     var h = (desktop ? 22.0 : 18.0) * 1.35 * s.lyricFontScale;
     if (_showTr(s)) h += 12 * 1.25 * s.lyricFontScale;

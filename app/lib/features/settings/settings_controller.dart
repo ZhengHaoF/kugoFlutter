@@ -25,9 +25,13 @@ const double kLyricFontScaleMin = 0.8;
 const double kLyricFontScaleMax = 1.6;
 
 /// 歌词行间距倍率可调范围（1.0 = 现有默认行间距）。
-/// 下限贴近「文字刚好不重叠」，再小会被行盒高度下限挡住（见 lyrics_view）。
-const double kLyricSpacingScaleMin = 0.5;
-const double kLyricSpacingScaleMax = 2.0;
+///
+/// 下限 0.4 已是行盒物理下限：`lyrics_view._itemExtent` 会把行盒兜底到
+/// 活动行文字高度，倍率再低也只是空转（行盒被顶住，看不到变化）。
+const double kLyricSpacingScaleMin = 0.4;
+
+/// 上限收到 1.5：2.0 时行距约合正文（15px）的 7.5 倍，一屏只剩 4–5 行。
+const double kLyricSpacingScaleMax = 1.5;
 
 /// Desktop: what the window close button does.
 ///

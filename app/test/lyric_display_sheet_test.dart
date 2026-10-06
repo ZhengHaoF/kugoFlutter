@@ -93,7 +93,7 @@ void main() {
         overrides: [
           settingsControllerProvider.overrideWith(
             () => _FixedSettings(
-              const AppSettings(lyricFontScale: 1.4, lyricSpacingScale: 1.5),
+              const AppSettings(lyricFontScale: 1.4, lyricSpacingScale: 1.3),
             ),
           ),
         ],
@@ -120,7 +120,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('140%'), findsOneWidget);
-    expect(find.text('150%'), findsOneWidget);
+    expect(find.text('130%'), findsOneWidget);
 
     final reset = find.widgetWithText(TextButton, '恢复默认');
     expect(tester.widget<TextButton>(reset).onPressed, isNotNull);
