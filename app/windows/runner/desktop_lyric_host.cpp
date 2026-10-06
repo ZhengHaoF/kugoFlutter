@@ -320,19 +320,35 @@ class DesktopLyricHost {
       return;
     }
     if (m == "setTransparentBg") {
-      // **必须**加 WS_EX_LAYERED：Flutter Windows 渲染器只在窗口带
-      // WS_EX_LAYERED 时才把背景当 alpha 通道输出，否则一律画成不透明灰白。
-      // 只调 DwmSetWindowAttribute / SetWindowCompositionAttribute（下面那两段
-      // Aero 毛玻璃）根本关不掉不透明底 —— 症状就是歌词窗变成一块灰白板，
-      // 只有文字和一条压扁的扫光带（见 §13）。
+      // 透明背景在 Flutter Windows 上试了三条路，两条实测失败（2026-10-06）。
+      // 先说清**为什么**Flutter 这么难透明，再列实测结论，避免后人重走：
       //
-      //顶层窗与 Flutter 的渲染子窗（view_）都要加：渲染面在子窗上，
-      // 只给顶层加的话子窗仍是不透明底。
+      // Flutter Windows 走 GPU(Direct3D/ANGLE) 加速合成，反向证据：
+      // `strings flutter_windows.dll` 里**完全没有** SetLayeredWindowAttributes
+      // / DwmExtendFrameIntoClientArea 的引用 → 引擎自己不管分层窗口，
+      // 宿主设了也不参与合成。nativeshell#53 同一结论："WS_EX_LAYERED
+      // click-through only works for GDI, not compatible with accelerated
+      // applications such as Flutter"。
+      //
+      // 实测结论（本机 Win11，采样歌词窗 720x88 区域像素）：
+      //  1. 不加 WS_EX_LAYERED            → 不透明灰白板（原症状）
+      //  2. 加 WS_EX_LAYERED + LWA_ALPHA   → **整窗纯黑**，四角中点全 R0G0B0
+      //  3. 上面 + DwmEnableBlurBehindWindow
+      //     + DwmExtendFrameIntoClientArea → **仍然纯黑**（DWM 路线无效）
+      //
+      //结论：LWA_ALPHA / LWA_COLORKEY / DWM 玻璃都是给 **GDI / DWM 合成**用的，
+      // 管不到 Flutter 的 GPU swap chain。目前**没有可靠 Win32 侧解法**。
+      //
+      // 保留 WS_EX_LAYERED 现状（几何/穿透行为已实测正确），透明待定：
+      //  - A. 改用 `flutter_acrylic` 插件做真材质底（放弃纯透明悬浮形态）
+      //  - B. 歌词窗改用非 Flutter 渲染（原生 GDI/Direct2D 文本）
+      //  - C. 接受半透明深色底（改 bgOpacity 默认值，形态退化但不卡）
       for (HWND w : {hwnd, view_}) {
         if (w == nullptr) continue;
         LONG ex = ::GetWindowLong(w, GWL_EXSTYLE);
         ex |= WS_EX_LAYERED;
         ::SetWindowLong(w, GWL_EXSTYLE, ex);
+        ::SetLayeredWindowAttributes(w, 0, 255, LWA_ALPHA);
       }
 
       BOOL enable = TRUE;
