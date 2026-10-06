@@ -358,7 +358,12 @@ class _SweepPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SweepPainter oldDelegate) {
+    // 三个 painter 都要比：换歌（文本变→base/sung 换实例）或改样式
+    // （描边/颜色变）时，若只比 sweepX，当帧恰好游标位置相同
+    // （例如刚 open 的 sweepX 都是 0）就会漏 repaint，歌词卡在上一首。
     return sweepX != oldDelegate.sweepX ||
-        strokePainter != oldDelegate.strokePainter;
+        !identical(basePainter, oldDelegate.basePainter) ||
+        !identical(sungPainter, oldDelegate.sungPainter) ||
+        !identical(strokePainter, oldDelegate.strokePainter);
   }
 }

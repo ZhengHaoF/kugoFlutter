@@ -320,6 +320,21 @@ class DesktopLyricHost {
       return;
     }
     if (m == "setTransparentBg") {
+      // **必须**加 WS_EX_LAYERED：Flutter Windows 渲染器只在窗口带
+      // WS_EX_LAYERED 时才把背景当 alpha 通道输出，否则一律画成不透明灰白。
+      // 只调 DwmSetWindowAttribute / SetWindowCompositionAttribute（下面那两段
+      // Aero 毛玻璃）根本关不掉不透明底 —— 症状就是歌词窗变成一块灰白板，
+      // 只有文字和一条压扁的扫光带（见 §13）。
+      //
+      //顶层窗与 Flutter 的渲染子窗（view_）都要加：渲染面在子窗上，
+      // 只给顶层加的话子窗仍是不透明底。
+      for (HWND w : {hwnd, view_}) {
+        if (w == nullptr) continue;
+        LONG ex = ::GetWindowLong(w, GWL_EXSTYLE);
+        ex |= WS_EX_LAYERED;
+        ::SetWindowLong(w, GWL_EXSTYLE, ex);
+      }
+
       BOOL enable = TRUE;
       ::DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &enable,
                               sizeof(enable));
