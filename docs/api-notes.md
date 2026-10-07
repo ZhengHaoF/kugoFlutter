@@ -273,12 +273,13 @@ dart run tool/probe_mv.dart
 
 ---
 
-## 音乐云盘（协议对照 · 待实测）
+## 音乐云盘（已落地：列表/播放/删除/上传 · 2026-09-28）
 
 > 对齐 KuGouMusicApi `module/user_cloud*.js`（2026-09 静态对照）。
 > EchoMusic 走 `/user/cloud` 等业务路由；上游真实 host 见下表。
 > 探针：`dart run tool/probe_cloud_disk.dart --suite list|url|match|del`
-> 方案：[酷狗云盘接入方案.md](../酷狗云盘接入方案.md)
+> **实现**：`CloudRepository` + `CloudDiskSource`/`CloudUploadSource`（`CloudPage` / `cloud_upload_picker.dart`）；
+> 一/二期全部落地（列表/容量/播放/删除/上传匹配/秒传），三期后置项（索引/回退/音质面板）见 [gap-vs-echomusic.md](gap-vs-echomusic.md) P2 #21。
 
 ### 端点总览
 
@@ -452,7 +453,7 @@ dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID> --confirm
 
 > 脚本：`dart run tool/probe_netease_mv.dart`
 > 对齐 api-enhanced `module/mv_*.js` / `cloudsearch.js`（type=1004）。
-> 方案见 [网易云MV接入方案.md](../网易云MV接入方案.md)。
+> 落地状态与能力口径见 [../网易云接口文档.md](../网易云接口文档.md) §十（A0/A1 已落地，A2 搜索 / A3 收藏未做）。
 
 ### ★ weapi 路径坑（第一轮踩过）
 

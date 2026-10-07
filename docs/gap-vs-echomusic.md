@@ -1,6 +1,6 @@
 # kugoFlutter vs EchoMusic — 功能差距清单
 
-> 对比日期：2026-09-19 · **状态按代码刷新：2026-09-28（并入 Windows 系统集成）**
+> 对比日期：2026-09-19 · **状态按代码刷新：2026-09-28（并入 Windows 系统集成）· 2026-10-07 二次刷新（云盘 / 桌面歌词 / MV 状态）**
 > 基准：`D:\work\EchoMusic`（Electron + Vue3，v2.3.2-beta.5）
 > 对象：`D:\work\kugoFulutter\app`（Flutter，Android + Windows）
 > 用途：作为 kugo 的二期 backlog 输入（业务能力 + Windows 系统集成；原 `windows-gap-vs-echomusic.md` 已并入 §三）
@@ -12,10 +12,10 @@
 | 维度 | kugo 现状 | EchoMusic | 差距 |
 | --- | --- | --- | --- |
 | 核心听歌闭环 | 完整（登录、搜索、播放、歌单/专辑/歌手、FM、榜单、每日推荐、歌词、评论、设置、云端我喜欢/收藏） | 完整 | 已对齐 |
-| 内容形态 | 音频 + **MV（含弹幕）** | 音频 + MV + 动态封面 + 云盘 | 缺动态封面、云盘；MV 评论非 EchoMusic 项 |
+| 内容形态 | 音频 + **MV（含弹幕）** + **酷狗云盘** | 音频 + MV + 动态封面 + 云盘 | 缺动态封面；MV 评论非 EchoMusic 项 |
 | 社交与互动 | 评论读写（歌曲/歌单/专辑）+ 楼层 + 分类/热词 + 弹幕 + 点赞（网易） | 评论读写 + 楼层 + 弹幕 | 基本对齐；余楼层内二次回复、收藏数 |
 | 用户资产管理 | 收藏/关注/云端我喜欢同步；**缺自建歌单 CRUD** | 自建歌单增删改 + 排序 + 封面编辑 | 缺歌单写入 |
-| 歌词 | **LRC + KRC 逐字**（卡拉 OK 着色）+ 译文 + 音译副行 + 字号/行间距滑块 | LRC/YRC 逐字 + 音译 + 换肤 + 写真 + 桌面歌词 + 弹幕 | 缺换肤/写真/桌面歌词 |
+| 歌词 | **LRC + KRC 逐字**（卡拉 OK 着色）+ 译文 + 音译副行 + 字号/行间距滑块 + **桌面歌词（双进程窗 + 安卓悬浮）** | LRC/YRC 逐字 + 音译 + 换肤 + 写真 + 桌面歌词 + 弹幕 | 缺换肤/写真；桌面歌词待打磨（透明背景无解，见 §三备忘） |
 | 音效 | 无 | 10 段 EQ + LUFS + 空间音效 + DSP 热插拔 | 缺音效引擎 |
 | 播放能力 | 队列/模式/音质/定时 | + 倍速 + 歌曲过渡 + 音量 + 输出设备 + 独占 | 缺倍速 UI（Port/引擎已有） |
 | 搜索 | **歌曲/歌单/专辑/歌手/MV** 五 Tab | 歌曲/歌手/专辑/歌单/歌词/MV 六维 | 缺歌词（接口 404） |
@@ -57,7 +57,7 @@
 | 14 | **分享** | 全内容 | 无 | 系统 share sheet 成本低 |
 | 15 | **外部歌单导入** | 多平台 | 无 | 可考虑 |
 
-#### 评论余项（原 `评论接入评估.md` 未做项，2026-09-28 迁入）
+#### 评论余项（2026-09-28 迁入；原评估文档已删，口径见 `网易云接口文档.md` §三-B）
 
 | # | 项 | 说明 | 建议 |
 | --- | --- | --- | --- |
@@ -75,7 +75,7 @@
 | 18 | 音量/输出设备管理 | 移动端语义不同，通常不做 |
 | 19 | 听歌识曲 | 麦克风采集 + 指纹匹配，成本高 |
 | 20 | 一起听 | 需服务端房间，违背「不托管」原则 |
-| 21 | 音乐云盘 | EchoMusic 有 `Cloud.vue` + `cloudUpload.ts`；接入方案见 [酷狗云盘接入方案.md](../酷狗云盘接入方案.md) |
+| 21 | ~~音乐云盘~~ | ✅ **已落地**（2026-09-28，commit `ea134bf`）：列表/容量/播放/删除/上传（匹配 + 秒传）；`CloudDiskSource` / `CloudUploadSource` / `CloudRepository`。三期后置项：C1 云盘音频索引（启动后台分页建索引）、C2 曲库失败回退查云盘 URL、C3 音质面板「云盘文件」切换、C4 响度字段 |
 | 22 | 内容黑名单 | `contentBlacklist.ts`，可在 FM/推荐里屏蔽 |
 | 23 | 听歌偏好设置 | `listeningPreferences.ts`，影响推荐 |
 | 24 | 登录设备管理 | `loginDevices.ts`，查看/移除设备 |
@@ -88,9 +88,11 @@
 
 ### P3 · 形态差异，明确不做
 
-插件系统（含在线插件源、浮窗、插件任务）、桌面歌词独立窗口、FM 弹幕、TCP/Graphics 插件 API。
+插件系统（含在线插件源、浮窗、插件任务、TCP/Graphics 插件 API）、FM 弹幕。
 
 > 系统托盘 / 全局快捷键 / mini 窗**不再**算形态差异：托盘与 Thumbar 已落地，其余 Windows 集成缺口见 §三。
+> **桌面歌词独立窗口亦不再算**：2026-09-29 起已落地（双进程 + TCP IPC，Windows）+ 2026-09-30 安卓悬浮歌词 overlay；
+> 遗留问题是 Windows 透明背景（三条 Win32 路线实测全败，结论见 §三备忘），当前退化为半透明深色卡片。
 
 ---
 
@@ -115,6 +117,7 @@
 | 关闭到托盘（每次询问 / 最小化到托盘 / 退出应用，默认询问） | `settings_controller.closeBehavior` + `close_behavior_dialog.dart`；旧 `closeToTray` 自动迁移 |
 | Thumbar 播控 4 钮（上一曲 / 播停 / 下一曲 / **收藏**） | `windows/runner/taskbar_host.cpp` + `shared/taskbar/taskbar_bridge.dart` |
 | 任务栏进度条（normal / paused / indeterminate / none，可关） | 同上；Dart 侧 200ms 节流 |
+| **桌面歌词窗（双进程 + TCP IPC）** | `features/desktop_lyric/`：`DesktopLyricBridge`（主窗 spawn 本 exe）+ `lyric_window/`（`LyricIpc` 换行 JSON、`desktop_lyric_host.cpp` Win32 通道）；KRC 逐字插值扫光；样式自定义（字号/行间距/颜色/不透明度）；顶部居中默认位、可拖动 |
 | 窗口自由缩放 + 启动夹到工作区 | `win32_window.cpp`（4:3 约束已去掉） |
 | 音频探针工具 / 托盘图标 | `tool/windows_audio_probe.dart`、`assets/tray_icon.ico` |
 
@@ -146,6 +149,19 @@
 - **进度节流双层**：Dart 200ms + 1‰ 门槛；C++ 再做 mode/permille 去重；paused 最低 10‰ 避免黄条看不见。
 - **Thumbar 收藏**：`favorite` → `taskbar_bridge` → `likes_controller`；心形 filled/outline 双 glyph。
 - media_kit（libmpv）只负责解码输出；媒体键 / SMTC / 任务栏状态都不在它职责内。
+- **Windows 纯透明在 Flutter 侧无可靠解法（2026-10-06 像素采样实测，别再试）**：Flutter Windows 走
+  GPU(Direct3D/ANGLE) 合成，`WS_EX_LAYERED` + `SetLayeredWindowAttributes(LWA_ALPHA)` 得整窗纯黑，
+  再加 `DwmEnableBlurBehindWindow` + `DwmExtendFrameIntoClientArea` 仍纯黑；`strings flutter_windows.dll`
+  对这几个 API **零引用**（引擎不处理分层窗口；nativeshell#53 同结论：click-through 只对 GDI 有效）。
+  当前歌词窗停在「半透明深色卡片」（`bgOpacity` 默认 0.6）。要真透明只有改产品形态：flutter_acrylic 材质底，
+  或歌词窗改原生 GDI/Direct2D 渲染。**该方向的改动已由 commit `e457f7b` 全部还原，勿重加。**
+- **MV 播放器「主窗瘦身」而非新开窗口（2026-09-28 落地备忘）**：`window_manager` 一个 Flutter 实例只管一个窗口；
+  `desktop_multi_window` 多窗口与 media_kit 纹理共享有坑（Flutter 纹理 per-engine，视频纹理不能跨 engine 渲染），
+  要真开第二窗只能写原生窗口 + mpv `wid` 嵌入，成本远高于收益。MV 迷你态即主窗缩成 360 宽置顶小窗。
+- **多窗口/原生通道两个已修的真坑**：① `MaterialApp.builder` 在 Navigator **之外**，那里没有 `Material` 祖先，
+  卡片里的 `InkWell` 会抛「No Material widget found」并被 ErrorWidget 顶掉（MV 小窗踩过，需自带 `Material(color: black)`）；
+  ② `desktop_lyric_host.cpp` 注册 `SetWindowLongPtr(GWLP_WNDPROC)` 后，**主窗 isolate 绝不注册**该 host——
+  注册即启动假死（主窗被停帧），只有歌词子窗需要（2026-09-30 假死排查结论）。
 
 ### 建议顺序
 
@@ -164,7 +180,7 @@
 
 ### 明确可暂缓（Windows）
 
-桌面歌词独立窗口、插件浮窗、taskbar layout helper（`TaskbarLayout.cs`）、托盘菜单里的桌面歌词开关/锁定。
+插件浮窗、taskbar layout helper（`TaskbarLayout.cs`）、托盘菜单里的桌面歌词锁定项。
 
 ### 验收口径（抽查）
 
@@ -219,21 +235,27 @@
 ✅ MV 核心播放闭环（2026-09）：取流协议 + 搜索 Tab + 歌曲详情入口 + /mv 播放页 + 清晰度切换（余项见 P1 #13）
 ✅ MV 收尾（2026-09-28）：播控 / 详情区 / 多版本 / 收藏 / 歌手 MV 条 / mapper 单测
 ✅ MV 弹幕（2026-09-28）：读/发协议 + 飞层 + 开关与显示设置（对齐 EchoMusic）；余 MV 评论（EchoMusic 无此项，另立）
+✅ MV 小窗 / 画中画（2026-09-28，P0–P2）：应用级播放宿主 + 应用内浮动小窗 + Android 系统 PiP + 桌面主窗瘦身迷你窗
 ✅ 已砍：本地音乐 / 下载管理两个占位入口（2026-09，UI 已移除，见 P0 #1 #2）
 ✅ 多音源阶段 A（M5）已完成：MusicSource / KugouSource / platform 身份（见 多音源接入方案.md §8.1）
 ✅ 逐字歌词 + 音译副行已完成（KRC）
 ✅ 歌词字号 / 行间距可调已完成（播放页「歌词显示」弹层连续滑块，双端同一套值）
 ✅ 评论读写已完成（酷狗 P0–P2 + 网易 N1–N3：列表/排序/楼层/评论数/发评/回复/分类热词/弹幕/铭牌/点赞；余项见 P1 #9 评论余项）
+✅ 酷狗云盘已完成（2026-09-28，一/二期）：列表/容量/播放/删除/上传（匹配+秒传）；三期后置项见 P2 #21
+✅ 桌面歌词已完成（2026-09-29 Windows 双进程窗 + 2026-09-30 安卓悬浮 overlay）：KRC 扫光 + 样式自定义；
+   遗留：Windows 透明背景无可靠解（见 §三备忘），当前半透明深色卡片
+✅ 网易云 MV A0/A1 已完成（2026-09-28）：探针 + mvDetail/mvUrl + MvDetailSource；A2 搜索 / A3 收藏未做
+   （NeteaseSource 未 implements MvSearchSource/MvCollectSource），口径见 网易云接口文档.md §十
 
 当前排期主线：产品二期（M6）或网易云接口调试（另文）
   —— 酷狗音源抽象已收口；功能页仍有部分直接走 Repository，第二源接入时再收薄。
 
 产品二期 backlog（未排期，另立 M6）：
   倍速 UI（0.5d）/ 自建歌单 CRUD（5d）/ 分享（1d）
-  另：歌单封面/排序、MV 评论（非对齐项）、听歌偏好、登录设备管理
+  另：歌单封面/排序、MV 评论（非对齐项）、听歌偏好、登录设备管理、网易 MV 搜索/收藏（A2/A3）
   评论余项（真机发评验收 / 楼层内二次回复 / 收藏数）见 P1 #9，均不阻塞主线
   Windows 集成余项（全局快捷键 / Mini 窗 / 材质 / 自启…）见 §三，与上列可并行
 ```
 
-> 注：音频增强、听歌识曲、一起听、云盘建议明确划出二期范围甚至不做 —— 移动端成本与收益不匹配。
+> 注：音频增强、听歌识曲、一起听建议明确划出二期范围甚至不做 —— 移动端成本与收益不匹配。
 > 私人 FM 细项见 `personal-fm-vs-echomusic.md`；Windows 系统集成见本文 §三。
