@@ -82,10 +82,10 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
       final ly = cur.y - b.y;
       final inWindow =
           lx >= -2 && ly >= -2 && lx <= b.width + 2 && ly <= b.height + 2;
-      // 控制条在右下角（约 140×30）；给个略宽松的命中区，便于点到解锁。
+      // 锁定态控制条只有一个解锁按钮（右下角，约 34×30）；命中区对准它即可。
       final overBar = inWindow &&
-          lx >= b.width - 180 &&
-          ly >= b.height - 48;
+          lx >= b.width - 80 &&
+          ly >= b.height - 46;
       if (inWindow != _lockedHover || overBar != _overBar) {
         setState(() {
           _lockedHover = inWindow;
@@ -253,31 +253,41 @@ class _ControlBar extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Btn(
-            tooltip: snap.isPlaying ? '暂停' : '播放',
-            icon: snap.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            onTap: hasTrack ? controller.playPause : null,
-          ),
-          _Btn(
-            tooltip: '上一首',
-            icon: Icons.skip_previous_rounded,
-            onTap: hasTrack ? controller.previous : null,
-          ),
-          _Btn(
-            tooltip: '下一首',
-            icon: Icons.skip_next_rounded,
-            onTap: hasTrack ? controller.next : null,
-          ),
-          _Btn(
-            tooltip: snap.locked ? '解锁' : '锁定',
-            icon: snap.locked ? Icons.lock_rounded : Icons.lock_open_rounded,
-            onTap: controller.toggleLock,
-          ),
-          _Btn(
-            tooltip: '关闭',
-            icon: Icons.close_rounded,
-            onTap: controller.requestClose,
-          ),
+          // 锁定态只留「解锁」：其余操作在穿透状态下点了也容易被误触，
+          // 且此时用户唯一的诉求就是解除锁定。
+          if (snap.locked)
+            _Btn(
+              tooltip: '解锁',
+              icon: Icons.lock_rounded,
+              onTap: controller.toggleLock,
+            )
+          else ...[
+            _Btn(
+              tooltip: snap.isPlaying ? '暂停' : '播放',
+              icon: snap.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              onTap: hasTrack ? controller.playPause : null,
+            ),
+            _Btn(
+              tooltip: '上一首',
+              icon: Icons.skip_previous_rounded,
+              onTap: hasTrack ? controller.previous : null,
+            ),
+            _Btn(
+              tooltip: '下一首',
+              icon: Icons.skip_next_rounded,
+              onTap: hasTrack ? controller.next : null,
+            ),
+            _Btn(
+              tooltip: '锁定',
+              icon: Icons.lock_open_rounded,
+              onTap: controller.toggleLock,
+            ),
+            _Btn(
+              tooltip: '关闭',
+              icon: Icons.close_rounded,
+              onTap: controller.requestClose,
+            ),
+          ],
         ],
       ),
     );
