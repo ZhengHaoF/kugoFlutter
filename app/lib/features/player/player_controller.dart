@@ -14,6 +14,7 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
 import '../../core/utils/lrc_parser.dart';
+import '../../data/storage/playback_position_store.dart';
 import '../../data/storage/queue_store.dart';
 import '../settings/settings_controller.dart';
 import 'audio_engine.dart';
@@ -200,6 +201,13 @@ class PlayerController extends Notifier<PlayerState> {
   Timer? _demoTimer;
   Timer? _sleepTimer;
   Timer? _mediaTick;
+
+  /// 冷启动恢复出的「上次播放位置（ms）」。引擎加载完成后 seek 一次。
+  /// 显式切歌/新队列会清掉，避免把旧位置套到新曲目。
+  int? _resumeSeekMs;
+
+  /// 播放中周期性落盘当前位置（4s 一拍），暂停/退出时补一拍。
+  Timer? _posSaveTimer;
   int _sleepDeadlineMs = 0;
   String? _lastMediaSubtitle;
   int _bufferedMs = 0;
@@ -307,6 +315,8 @@ class PlayerController extends Notifier<PlayerState> {
       _demoTimer?.cancel();
       _sleepTimer?.cancel();
       _mediaTick?.cancel();
+      _posSaveTimer?.cancel();
+      _persistPosition();
       position.dispose();
       _engine.dispose();
     });
@@ -350,13 +360,22 @@ class PlayerController extends Notifier<PlayerState> {
         _ignoreEnginePlayUntil = null;
         _lyricsInFlightKey = null;
         _lyricsLoadedKey = null;
+        // 上次播放位置：只有同一首歌才恢复（按曲目身份比对，key 不匹配忽略）。
+        final resumeAt = await PlaybackPositionStore.load(
+          tracks[index].identityKey,
+        );
         _zeroCursor();
+        if (resumeAt != null && resumeAt > 0) {
+          position.value = resumeAt;
+          _resetMediaPosition(resumeAt);
+          _resumeSeekMs = resumeAt;
+        }
         state = state.copyWith(
           queue: List.unmodifiable(tracks),
           currentIndex: index,
           mode: mode,
           display: PlayerDisplayState.paused,
-          positionMs: 0,
+          positionMs: _resumeSeekMs ?? 0,
           lyrics: const [],
           lyricsStatus: LyricsStatus.idle,
           seq: seq,
@@ -423,6 +442,8 @@ class PlayerController extends Notifier<PlayerState> {
     _sourceReady = false;
     _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
+    _resumeSeekMs = null;
+    unawaited(PlaybackPositionStore.clear());
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
     _zeroCursor();
@@ -628,6 +649,42 @@ class PlayerController extends Notifier<PlayerState> {
       resolvedQuality: () => granted,
     );
     _syncBridge(track: liveTrack);
+    unawaited(_applyResumeSeek(liveTrack));
+  }
+
+  /// 冷启动恢复出的「上次位置」：等引擎真正起播后再 seek——
+  /// mpv 在 open/play 时会把位置重置，提前 seek 会白做。
+  Future<void> _applyResumeSeek(Track track) async {
+    final resume = _resumeSeekMs;
+    if (resume == null || resume <= 0 || !track.canResolveStream) return;
+    _resumeSeekMs = null;
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (state.durationMs > 0 && resume >= state.durationMs) return;
+    try {
+      await _engine.seek(Duration(milliseconds: resume));
+    } catch (_) {}
+    if (position.value != resume) position.value = resume;
+    _resetMediaPosition(resume);
+    _publishMediaPosition(resume, force: true);
+    _startPosSave();
+  }
+
+  /// 播放中 4s 一拍落盘当前位置。
+  void _startPosSave() {
+    _posSaveTimer?.cancel();
+    _posSaveTimer = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _persistPosition(),
+    );
+  }
+
+  void _stopPosSave() => _posSaveTimer?.cancel();
+
+  /// 落盘当前位置（带曲目身份；冷启动时按身份比对恢复）。
+  void _persistPosition() {
+    final track = state.current;
+    if (track == null) return;
+    unawaited(PlaybackPositionStore.save(track.identityKey, position.value));
   }
 
   /// New source is live: re-accept engine samples and force the platform cursor
@@ -780,6 +837,8 @@ class PlayerController extends Notifier<PlayerState> {
         unawaited(_engine.pause());
       }
       _stopDemoTick();
+      _persistPosition();
+      _stopPosSave();
       state = state.copyWith(display: PlayerDisplayState.paused);
       _syncBridge();
       return;
@@ -798,6 +857,7 @@ class PlayerController extends Notifier<PlayerState> {
     }
     state = state.copyWith(display: PlayerDisplayState.playing);
     _syncBridge();
+    _startPosSave();
   }
 
   /// Resolve + load the current track into the engine (cold start / failed source).
@@ -864,6 +924,8 @@ class PlayerController extends Notifier<PlayerState> {
 
   Future<void> _jumpTo(int index) async {
     final seq = ++_seq;
+    _resumeSeekMs = null;
+    unawaited(PlaybackPositionStore.clear());
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
     _zeroCursor();

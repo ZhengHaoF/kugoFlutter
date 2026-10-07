@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
@@ -10,6 +11,7 @@ import 'app.dart';
 import 'core/api/kugou/kugo_client.dart';
 import 'core/api/netease/netease_client.dart';
 import 'core/api/network_log.dart';
+import 'core/diagnostics/crash_log.dart';
 import 'core/platform.dart';
 import 'core/theme/kugo_theme.dart';
 import 'data/sources/sources.dart';
@@ -27,6 +29,14 @@ import 'shared/tray/desktop_shell.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // ── 崩溃捕获：装在最早，保证后续初始化里的报错也能落盘 ──
+  await CrashLog.install();
+  // zone 级未捕获错误同样收编（框架 / 原生两级在 CrashLog.install 里）。
+  return runZonedGuarded(() => _bootApp(args), CrashLog.onPlatformError);
+}
+
+/// 原 main 内容，仅拆出来以便包进 [runZonedGuarded]。
+Future<void> _bootApp(List<String> args) async {
 
   // ── 桌面歌词独立进程分流：只承载歌词 UI，不做音频/托盘/数据源初始化 ──
   // 双进程（不再用 desktop_multi_window）：主窗 spawn 本 exe 并带上

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/diagnostics/crash_log.dart';
 import '../../core/platform.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
@@ -9,6 +10,7 @@ import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/netease_login_controller.dart';
+import '../../features/debug/crash_log_dialog.dart';
 import '../../features/debug/network_log_dialog.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
@@ -362,6 +364,7 @@ class SettingsPage extends ConsumerWidget {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showNetworkLogDialog(context),
               ),
+              const _CrashLogEntry(),
             ],
           ),
           _Section(
@@ -636,6 +639,45 @@ class _ThemeModeTile extends StatelessWidget {
           ? Icon(Icons.check_rounded, color: kugo.primary)
           : null,
       onTap: onTap,
+    );
+  }
+}
+
+/// 崩溃日志入口：摘要（条数 + 最近时间）要读文件，做成独立 State 免得整页重建。
+class _CrashLogEntry extends StatefulWidget {
+  const _CrashLogEntry();
+
+  @override
+  State<_CrashLogEntry> createState() => _CrashLogEntryState();
+}
+
+class _CrashLogEntryState extends State<_CrashLogEntry> {
+  String _summary = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final summary = await CrashLog.summary() ?? '无';
+    if (!mounted) return;
+    setState(() => _summary = summary);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kugo = KugoTheme.of(context);
+    return ListTile(
+      leading: Icon(Icons.error_outline, color: kugo.textSecondary),
+      title: Text('崩溃日志', style: kugo.body),
+      subtitle: Text(
+        '框架 / 原生 / 未捕获错误 · $_summary',
+        style: kugo.caption,
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: () => showCrashLogDialog(context),
     );
   }
 }

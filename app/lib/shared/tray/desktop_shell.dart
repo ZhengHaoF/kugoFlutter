@@ -14,6 +14,7 @@ import '../../features/settings/settings_controller.dart';
 import '../taskbar/taskbar_bridge.dart';
 import 'close_behavior_dialog.dart';
 import 'desktop_tray.dart';
+import 'window_bounds_store.dart';
 
 /// Windows / 桌面壳：托盘 + 关闭到托盘 + 任务栏 Thumbar/进度条。
 ///
@@ -42,6 +43,11 @@ class DesktopShell with WindowListener {
 
   CloseBehavior get _closeBehavior =>
       _container.read(settingsControllerProvider).closeBehavior;
+
+  AppSettings get _settings => _container.read(settingsControllerProvider);
+
+  SettingsController get _settingsCtrl =>
+      _container.read(settingsControllerProvider.notifier);
 
   bool get _taskbarProgressEnabled =>
       _container.read(settingsControllerProvider).taskbarProgress;
@@ -79,6 +85,15 @@ class DesktopShell with WindowListener {
     //    再不行就保持默认底。
     unawaited(_applyWindowEffect());
 
+    // 恢复上次的窗口尺寸 / 位置（window_manager 在 Windows 上不会自己记住）。
+    await _restoreWindowBounds();
+
+    // 音量记忆：把上次的音量灌给播放器；之后播放器里的改动再回写设置。
+    if (_settings.volume != _playerState.volume) {
+      _player.setVolume(_settings.volume);
+    }
+    _syncTitle(_playerState);
+
     // 桌面歌词桥：snapshot 推送 / 子窗生命周期 / 命令回传。
     // 若上次开着（desktopLyricEnabled），bridge._start 会自动恢复，无需再拉。
     final lyricBridge = await DesktopLyricBridge.boot(_container);
@@ -102,9 +117,13 @@ class DesktopShell with WindowListener {
     _syncTray();
     _wireTaskbar();
 
-    _container.listen<PlayerState>(playerControllerProvider, (_, _) {
+    _container.listen<PlayerState>(playerControllerProvider, (prev, next) {
       _syncTray();
       _syncTaskbarFromState();
+      if (prev?.current != next.current) _syncTitle(next);
+      if (prev?.volume != next.volume) {
+        unawaited(_settingsCtrl.setVolume(next.volume));
+      }
     });
     _container.listen<List>(likesProvider, (_, _) => _syncTaskbarFromState());
     _container.listen<AppSettings>(settingsControllerProvider, (prev, next) {
@@ -142,6 +161,65 @@ class DesktopShell with WindowListener {
     }
     try {
       await Window.setEffect(effect: WindowEffect.disabled);
+    } catch (_) {}
+  }
+
+  /// 窗口标题跟当前曲目（任务栏 / Alt+Tab 上显示）。
+  void _syncTitle(PlayerState s) {
+    final name = s.current?.name ?? '';
+    final artist = s.current?.artist ?? '';
+    final title = name.isEmpty
+        ? 'kugo'
+        : (artist.isEmpty ? 'kugo · $name' : 'kugo · $name · $artist');
+    unawaited(windowManager.setTitle(title));
+  }
+
+  /// 恢复上次的窗口尺寸 / 位置；曾经最大化过则恢复最大化。
+  Future<void> _restoreWindowBounds() async {
+    try {
+      final b = await DesktopWindowBoundsStore.load();
+      if (b.hasPosition) {
+        await windowManager
+            .setBounds(Rect.fromLTWH(b.x!, b.y!, b.width, b.height));
+      }
+      if (b.maximized) await windowManager.maximize();
+    } catch (_) {}
+  }
+
+  Timer? _boundsSaveTimer;
+
+  /// 拖动 / 缩放结束（去抖）后落盘。
+  void _scheduleBoundsSave() {
+    if (_boundsSaveTimer?.isActive ?? false) return;
+    _boundsSaveTimer = Timer(const Duration(milliseconds: 600), () {
+      unawaited(_saveWindowBounds());
+    });
+  }
+
+  /// 最小化与最大化状态只存标记，bounds 用「上一次非最大化」的值。
+  Future<void> _saveWindowBounds() async {
+    if (_quitting) return;
+    if (!isDesktopPlatform) return;
+    try {
+      if (await windowManager.isMinimized()) return;
+      final maximized = await windowManager.isMaximized();
+      if (maximized) {
+        await DesktopWindowBoundsStore.save(
+          const DesktopWindowBounds(maximized: true),
+        );
+        return;
+      }
+      final b = await windowManager.getBounds();
+      if (b.width < 320 || b.height < 320) return;
+      await DesktopWindowBoundsStore.save(
+        DesktopWindowBounds(
+          x: b.left,
+          y: b.top,
+          width: b.width,
+          height: b.height,
+          maximized: false,
+        ),
+      );
     } catch (_) {}
   }
 
@@ -263,6 +341,9 @@ class DesktopShell with WindowListener {
     _quitting = true;
     _progressTimer?.cancel();
     _progressTimer = null;
+    _boundsSaveTimer?.cancel();
+    _boundsSaveTimer = null;
+    await _saveWindowBounds();
     final listener = _positionListener;
     if (listener != null) {
       _player.position.removeListener(listener);
@@ -295,6 +376,7 @@ class DesktopShell with WindowListener {
   @override
   void onWindowClose() {
     if (_quitting || _closePromptOpen) return;
+    unawaited(_saveWindowBounds());
     switch (_closeBehavior) {
       case CloseBehavior.tray:
         unawaited(windowManager.hide());
@@ -340,4 +422,10 @@ class DesktopShell with WindowListener {
       unawaited(TaskbarBridge.refresh());
     }
   }
+
+  @override
+  void onWindowMove() => _scheduleBoundsSave();
+
+  @override
+  void onWindowResize() => _scheduleBoundsSave();
 }

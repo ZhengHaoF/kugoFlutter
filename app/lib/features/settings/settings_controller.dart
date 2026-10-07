@@ -70,6 +70,7 @@ class AppSettings {
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
+    this.volume = 1.0,
     this.desktopLyricEnabled = false,
     this.desktopLyricLocked = false,
     this.desktopLyricOffsetMs = 0,
@@ -117,6 +118,9 @@ class AppSettings {
 
   /// Windows only: taskbar button progress bar (Echo「任务栏播放进度条」).
   final bool taskbarProgress;
+
+  /// 播放音量（0.0–1.0）。落盘记忆，重启不回 100%。
+  final double volume;
 
   /// 桌面歌词窗口是否打开（启动恢复 + 托盘/设置同步）。
   final bool desktopLyricEnabled;
@@ -217,6 +221,7 @@ class AppSettings {
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
+    double? volume,
     bool? desktopLyricEnabled,
     bool? desktopLyricLocked,
     int? desktopLyricOffsetMs,
@@ -240,6 +245,7 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
+      volume: volume ?? this.volume,
       desktopLyricEnabled: desktopLyricEnabled ?? this.desktopLyricEnabled,
       desktopLyricLocked: desktopLyricLocked ?? this.desktopLyricLocked,
       desktopLyricOffsetMs: desktopLyricOffsetMs ?? this.desktopLyricOffsetMs,
@@ -269,6 +275,7 @@ class SettingsController extends Notifier<AppSettings> {
   /// Legacy boolean key (`closeToTray`); read once for migration, then removed.
   static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
+  static const _kVolume = 'settings.volume';
   static const _kDesktopLyricEnabled = 'settings.desktopLyricEnabled';
   static const _kDesktopLyricLocked = 'settings.desktopLyricLocked';
   static const _kDesktopLyricOffsetMs = 'settings.desktopLyricOffsetMs';
@@ -333,6 +340,9 @@ class SettingsController extends Notifier<AppSettings> {
         ),
         closeBehavior: _readCloseBehavior(prefs),
         taskbarProgress: prefs.getBool(_kTaskbarProgress) ?? true,
+        // 非 bool 值按字符串落盘（见 _save），脏数据回落 1.0。
+        volume: (double.tryParse(prefs.getString(_kVolume) ?? '') ?? 1.0)
+            .clamp(0.0, 1.0),
         desktopLyricEnabled: prefs.getBool(_kDesktopLyricEnabled) ?? false,
         desktopLyricLocked: prefs.getBool(_kDesktopLyricLocked) ?? false,
         desktopLyricOffsetMs:
@@ -502,6 +512,14 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setTaskbarProgress(bool v) async {
     state = state.copyWith(taskbarProgress: v);
     await _save(_kTaskbarProgress, v);
+  }
+
+  /// 播放音量。记忆落盘，重启后仍是上次的值。
+  Future<void> setVolume(double v) async {
+    final next = v.clamp(0.0, 1.0);
+    if (state.volume == next) return;
+    state = state.copyWith(volume: next);
+    await _save(_kVolume, next);
   }
 
   /// 桌面歌词开关。真正的窗口开关由 [DesktopLyricBridge] 执行后再回写此值，
