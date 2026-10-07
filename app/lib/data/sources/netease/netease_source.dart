@@ -886,7 +886,7 @@ class NeteaseSource
     }
   }
 
-  /// 资源 threadId 前缀（见 `docs/网易评论接入评估.md` §1）：
+  /// 资源 threadId 前缀（见 `网易云接口文档.md` §三-B）：
   /// 歌单 `A_PL_0_` / 专辑 `R_AL_3_`。
   String? _resourceThreadId(CommentResourceKind kind, String resourceId) {
     final id = int.tryParse(resourceId.trim()) ?? 0;

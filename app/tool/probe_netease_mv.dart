@@ -25,7 +25,7 @@ import 'package:kugo/core/api/netease/netease_client.dart';
 /// dart run tool/probe_netease_mv.dart --suite sub --mvid 5436712 --write --collect false
 /// ```
 ///
-/// 探针目标（见《网易云MV接入方案.md》§2 / §4）：
+/// 探针目标（见 `网易云接口文档.md` §十 与 `docs/api-notes.md`「网易云 MV（A0）」）：
 /// 1. `mv/detail` 的 `brs` 形态（档位枚举依据）
 /// 2. `song/enhance/play/mv/url` 的 `url` / `r` / 时效
 /// 3. `cloudsearch` type=1004 的列表字段（映射 `MvBrief`）
