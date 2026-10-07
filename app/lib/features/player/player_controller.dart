@@ -236,13 +236,17 @@ class PlayerController extends Notifier<PlayerState> {
       if (ms > _tickBaseMs) {
         _tickBaseMs = ms;
         _tickBaseAt = DateTime.now();
+        // NB: engine samples must NOT assign Riverpod state. media_kit / mpv
+        // emits position very often; copyWith(positionMs:) would rebuild every
+        // full-state watcher (player bar, explore, lists…) on each tick. Live
+        // UI (progress bar / 歌词) listens to [position] instead.
+        //
+        // 只有「推进」的样本才写 UI 游标：引擎在暂停/恢复/缓冲/切源时会吐回旧
+        // 样本（甚至 0），无条件写入会让歌词游标瞬间倒退回前面的行、下一帧才被
+        // 纠正——表现为「播放/暂停切换后歌词跳到另一行」。seek 走 seekTo()，那里
+        // 会重置 _tickBaseMs，所以倒着拖进度不受影响。
+        if (position.value != ms) position.value = ms;
       }
-      // NB: engine samples must NOT assign Riverpod state. media_kit / mpv
-      // emits position very often; copyWith(positionMs:) would rebuild every
-      // full-state watcher (player bar, explore, lists…) on each tick. Live
-      // UI listens to [position] instead. Discrete jumps (seek / track load)
-      // still mirror into [PlayerState.positionMs] for logic and tests.
-      if (position.value != ms) position.value = ms;
       // The engine sample is deliberately NOT forwarded to the media
       // session here. The MediaSession holds a snapshot, not a live value, and
       // positions must never be published out of order (AVRCP only refreshes

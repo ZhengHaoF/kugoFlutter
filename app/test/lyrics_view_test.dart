@@ -37,6 +37,7 @@ Widget _harness({
   List<LyricLine>? lines,
   double fontScale = 1,
   double spacingScale = 1,
+  bool isPlaying = false,
 }) {
   return ProviderScope(
     overrides: [
@@ -56,6 +57,7 @@ Widget _harness({
         body: LyricsView(
           lines: lines ?? _sample(),
           positionMs: positionMs,
+          isPlaying: isPlaying,
         ),
       ),
     ),
@@ -127,6 +129,73 @@ void main() {
     final sung = span.toPlainText().substring(0, 2); // 夜空 by 1200ms
     expect(span.toPlainText(), '夜空中最亮的星');
     expect(span.toPlainText().startsWith(sung), isTrue);
+  });
+
+  testWidgets('active line ticker survives play/pause/play without build errors',
+      (tester) async {
+    // 回归：SingleTickerProviderStateMixin 下 dispose 后再 createTicker 会断言失败，
+    // 使活动行 build 抛错 —— 歌词区随之无法重建/滚动（表现为「滚动不了」）。
+    Future<void> pump(bool playing) async {
+      await tester.pumpWidget(
+        _harness(
+          translation: false,
+          romanization: false,
+          positionMs: 1200,
+          isPlaying: playing,
+        ),
+      );
+      await tester.pump();
+    }
+
+    await pump(true); // 首次 createTicker
+    await pump(false); // 暂停
+    await pump(true); // 再次播放：旧实现会第二次 createTicker → 断言
+    await pump(false); // 收尾：停掉 ticker，避免测试结束时仍有活跃 ticker
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('sweep does not count the pause gap when resuming',
+      (tester) async {
+    // 回归：锚点必须基于 Ticker 帧计时。用墙上时钟时，暂停期间流逝的时间会被
+    // 算进扫光，恢复播放瞬间扫光直接冲到整行（表现为「逐字滚动失效/跳到某句」）。
+    int sungChars() {
+      final rich = tester
+          .widgetList<Text>(find.byType(Text))
+          .firstWhere((t) => t.textSpan != null);
+      final children = (rich.textSpan! as TextSpan).children!;
+      return (children.first as TextSpan).text?.length ??
+          rich.textSpan!.toPlainText().length;
+    }
+
+    Future<void> pump({required bool playing}) async {
+      await tester.pumpWidget(
+        _harness(
+          translation: false,
+          romanization: false,
+          positionMs: 1000, // 夜(0) 空(500) 中(1000) → 已唱 3 字
+          isPlaying: playing,
+        ),
+      );
+    }
+
+    await pump(playing: true);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(sungChars(), 3);
+
+    // 暂停 30 秒：扫光停在离散位置不动。
+    await pump(playing: false);
+    await tester.pump(const Duration(seconds: 30));
+    expect(sungChars(), 3);
+
+    // 恢复播放，位置仍是 1000（引擎尚未发新样本）：不得把暂停的 30s 算进去。
+    await pump(playing: true);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(sungChars(), lessThanOrEqualTo(4));
+
+    // 收尾：停 ticker，避免测试结束时仍有活跃 ticker。
+    await pump(playing: false);
+    await tester.pump();
   });
 
   testWidgets('default scales keep the base font size and row extent',

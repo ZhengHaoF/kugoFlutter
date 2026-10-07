@@ -50,6 +50,16 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
     with SingleTickerProviderStateMixin {
   Ticker? _ticker;
 
+  // ── 扫光插值锚点（帧驱动，见 _currentPositionMs）──
+  /// Ticker 自走经过的时间。
+  Duration _elapsed = Duration.zero;
+  /// 上一次锚定时的 [_elapsed]。
+  Duration _anchorElapsed = Duration.zero;
+  /// 上一次锚定对应的主窗快照锚点时刻（null = 需要重锚）。
+  DateTime? _seenAnchorWall;
+  /// 锚点游标（含 offset）。
+  int _anchorPosMs = 0;
+
   // ── 布局缓存：未唱层 + 已唱层 + 描边层 ──
   TextPainter? _basePainter;
   TextPainter? _sungPainter;
@@ -86,28 +96,49 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
 
   DesktopLyricController get _c => widget.controller;
 
+  /// 把当前游标钉到当前帧时钟上（主窗每次快照都会换 [anchorWall]）。
+  void _reanchorIfSnapshotChanged() {
+    final c = _c;
+    if (_seenAnchorWall == c.anchorWall) return;
+    _seenAnchorWall = c.anchorWall;
+    _anchorPosMs = c.anchorPosMs;
+    _anchorElapsed = _elapsed;
+  }
+
   void _maybeStartTicker() {
     final shouldRun =
         _c.isPlaying && (_c.currentLyric?.text.isNotEmpty ?? false);
-    if (shouldRun && _ticker == null) {
-      _ticker = createTicker((_) => _onFrame());
-      _ticker!.start();
-    } else if (!shouldRun && _ticker != null) {
-      _ticker!.stop();
+    if (shouldRun) {
+      // Ticker 只创建一次（SingleTickerProviderStateMixin 不允许再次 createTicker）。
+      _ticker ??= createTicker(_onFrame);
+      if (!_ticker!.isActive) {
+        // 从停止态启动：elapsed 从 0 重算，锚点等下一帧以最新快照重建。
+        _elapsed = Duration.zero;
+        _anchorElapsed = Duration.zero;
+        _seenAnchorWall = null;
+        _ticker!.start();
+      }
+    } else {
+      _ticker?.stop();
     }
   }
 
-  void _onFrame() {
+  void _onFrame(Duration elapsed) {
+    _elapsed = elapsed;
     // 只 rebuild 本叶子；由 _SweepPainter.shouldRepaint 兜底去重重绘。
     if (mounted) setState(() {});
   }
 
-  /// 当前帧的游标（ms，含 offset）：锚点 + 自走时间；暂停时用 controller 的离散值。
+  /// 当前帧的游标（ms，含 offset）。
+  ///
+  /// 用 **Ticker 帧计时**（[_elapsed]）而不是 `DateTime.now()`：暂停/恢复或掉帧
+  /// 期间流逝的墙上时间不会被算进扫光，否则恢复播放时扫光会直接冲到底。
+  /// 主窗每次快照都更新 `anchorWall`，视为新锚点。
   int _currentPositionMs() {
     final c = _c;
     if (!c.isPlaying) return c.positionMs;
-    final elapsed = DateTime.now().difference(c.anchorWall).inMilliseconds;
-    return c.anchorPosMs + elapsed;
+    _reanchorIfSnapshotChanged();
+    return _anchorPosMs + (_elapsed - _anchorElapsed).inMilliseconds;
   }
 
   /// 计算扫光边界 x（相对文本左缘，已 clamp 到 [0, textWidth]）。

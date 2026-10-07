@@ -704,8 +704,14 @@ class _ActiveLine extends StatefulWidget {
 class _ActiveLineState extends State<_ActiveLine>
     with SingleTickerProviderStateMixin {
   Ticker? _ticker;
+
+  /// Ticker 自走经过的时间（帧驱动）。用它而不是 `DateTime.now()`：暂停/恢复
+  /// 或窗口掉帧期间流逝的墙上时间不会被算进扫光，否则恢复播放时扫光会直接
+  /// 冲到整行、看起来"逐字滚动失效"。
+  Duration _elapsed = Duration.zero;
+  /// 上一次锚定时的 [_elapsed] 与游标；帧间插值 = 锚点游标 + (elapsed - 锚点 elapsed)。
+  Duration _anchorElapsed = Duration.zero;
   int _anchorPosMs = 0;
-  DateTime _anchorWall = DateTime.now();
 
   bool get _smooth =>
       widget.isPlaying &&
@@ -721,36 +727,54 @@ class _ActiveLineState extends State<_ActiveLine>
   @override
   void didUpdateWidget(covariant _ActiveLine oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 位置流每次 tick 都送新游标；切行 / seek 会跳变，统一以它重锚，避免自走漂移。
+    // 位置流送来新游标 / 切行 / 播放态变化 → 重锚。播放态变化必须重锚：
+    // 否则暂停期间的时间会被算进扫光。
     if (oldWidget.positionMs != widget.positionMs ||
+        oldWidget.isPlaying != widget.isPlaying ||
         !identical(oldWidget.line, widget.line)) {
-      _anchorPosMs = widget.positionMs;
-      _anchorWall = DateTime.now();
+      _reanchor();
     }
   }
 
   @override
   void dispose() {
-    _ticker?.dispose();
+    // 停掉即可：Ticker 由 SingleTickerProviderStateMixin 负责释放，
+    // 且该 mixin 在 dispose 时断言 ticker 不得处于 active。
+    _ticker?.stop();
     super.dispose();
   }
 
-  /// 当前帧游标：平滑态用「锚点 + 自走时间」，否则用父级离散值。
-  int _currentPositionMs() {
-    if (!_smooth) return widget.positionMs;
-    return _anchorPosMs +
-        DateTime.now().difference(_anchorWall).inMilliseconds;
+  /// 把当前游标钉到当前帧时钟上（切行 / seek / 暂停恢复都走这里）。
+  void _reanchor() {
+    _anchorPosMs = widget.positionMs;
+    _anchorElapsed = _elapsed;
   }
 
+  void _onTick(Duration elapsed) {
+    _elapsed = elapsed;
+    if (mounted) setState(() {});
+  }
+
+  /// 当前帧游标：平滑态用「锚点 + Ticker 自走时间」，否则用父级离散值。
+  int _currentPositionMs() {
+    if (!_smooth) return widget.positionMs;
+    return _anchorPosMs + (_elapsed - _anchorElapsed).inMilliseconds;
+  }
+
+  /// 平滑态 start、其余 stop。Ticker **只创建一次**：
+  /// SingleTickerProviderStateMixin 在 dispose 后不允许再次 createTicker
+  /// （会断言失败、令活动行 build 抛错，表现为歌词区重建/滚动异常）。
   void _syncTicker() {
     if (_smooth) {
-      _ticker ??= createTicker((_) {
-        if (mounted) setState(() {});
-      })
-        ..start();
-    } else if (_ticker != null) {
-      _ticker!.dispose();
-      _ticker = null;
+      _ticker ??= createTicker(_onTick);
+      if (!_ticker!.isActive) {
+        // 从停止态启动：Ticker 的 elapsed 从 0 重新计，锚点也一并重来。
+        _elapsed = Duration.zero;
+        _reanchor();
+        _ticker!.start();
+      }
+    } else {
+      _ticker?.stop();
     }
   }
 
