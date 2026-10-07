@@ -355,7 +355,9 @@ class DesktopLyricBridge {
       title: track?.name ?? '',
       artist: track?.artist ?? '',
       isPlaying: state.isPlaying,
-      positionMs: positionOnly ? _player.position.value : state.positionMs,
+      // 始终用实时游标：`state.positionMs` 只在离散跳变（seek/换曲）时同步，
+      // 播放中不更新。若暂停那一刻推它，子窗会跳到旧位置对应的行、恢复后才纠正。
+      positionMs: _player.position.value,
       durationMs: state.durationMs,
       lyrics: lyrics,
       lyricsReady: state.lyricsStatus == LyricsStatus.ready,

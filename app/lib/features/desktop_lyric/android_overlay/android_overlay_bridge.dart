@@ -223,8 +223,9 @@ class AndroidLyricBridge {
       title: track?.name ?? '',
       artist: track?.artist ?? '',
       isPlaying: state.isPlaying,
-      positionMs:
-          positionOnly ? _player.position.value : state.positionMs,
+      // 始终用实时游标：`state.positionMs` 播放中不更新（只在 seek/换曲时同步），
+      // 暂停那一刻推它会让悬浮窗跳到旧位置对应的行。
+      positionMs: _player.position.value,
       durationMs: state.durationMs,
       lyrics: lyrics,
       lyricsReady: state.lyricsStatus == LyricsStatus.ready,
