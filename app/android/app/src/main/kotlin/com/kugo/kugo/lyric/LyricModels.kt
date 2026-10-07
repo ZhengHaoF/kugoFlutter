@@ -25,10 +25,8 @@ data class LyricLine(
 data class LyricStyle(
     val sungColor: Int = 0xFF2CE06B.toInt(),
     val unsungColor: Int = 0xFFFFFFFF.toInt(),
-    val shadowColor: Int = 0xFF000000.toInt(),
-    val shadowStrength: Float = 1f,
     val strokeColor: Int = 0xFF000000.toInt(),
-    val strokeWidth: Float = 0f,
+    val strokeWidth: Float = 1.2f,
     val bgColor: Int = 0xFF000000.toInt(),
     val bgOpacity: Float = 0f,
     val bgRadius: Float = 14f,
@@ -36,7 +34,6 @@ data class LyricStyle(
     val fontWeight: Float = 1f,
 ) {
     val hasBackground: Boolean get() = bgOpacity > 0.004f
-    val hasShadow: Boolean get() = shadowStrength > 0.004f
     val hasStroke: Boolean get() = strokeWidth > 0.004f
 
     /** 1.0 → 700；映射到 400..900 的最近 Material 档位。 */
@@ -149,10 +146,8 @@ object LyricWire {
         return LyricStyle(
             sungColor = color(m["sungColor"], 0xFF2CE06B.toInt()),
             unsungColor = color(m["unsungColor"], 0xFFFFFFFF.toInt()),
-            shadowColor = color(m["shadowColor"], 0xFF000000.toInt()),
-            shadowStrength = clamp(m["shadowStrength"], 0f, 3f, 1f),
             strokeColor = color(m["strokeColor"], 0xFF000000.toInt()),
-            strokeWidth = clamp(m["strokeWidth"], 0f, 6f, 0f),
+            strokeWidth = clamp(m["strokeWidth"], 0f, 6f, 1.2f),
             bgColor = color(m["bgColor"], 0xFF000000.toInt()),
             bgOpacity = clamp(m["bgOpacity"], 0f, 1f, 0f),
             bgRadius = clamp(m["bgRadius"], 0f, 40f, 14f),

@@ -49,7 +49,7 @@ class DesktopLyricSnapshot {
   final bool locked;
   final int offsetMs;
 
-  /// 外观（颜色 / 阴影 / 描边 / 背景 / 字重）。仅样式变化时也会触发推送。
+  /// 外观（颜色 / 描边 / 背景 / 字重）。仅样式变化时也会触发推送。
   final DesktopLyricStyle style;
 
   /// 歌词窗本地游标 = positionMs + offsetMs。

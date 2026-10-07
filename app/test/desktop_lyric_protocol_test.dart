@@ -65,8 +65,6 @@ void main() {
       const style = DesktopLyricStyle(
         sungColor: 0xFFFF0000,
         unsungColor: 0xFF00FF00,
-        shadowColor: 0xFF0000FF,
-        shadowStrength: 1.5,
         strokeColor: 0xFF123456,
         strokeWidth: 2.5,
         bgColor: 0xFFABCDEF,
@@ -86,7 +84,6 @@ void main() {
       const def = DesktopLyricStyle();
       final s = DesktopLyricStyle.fromWire({
         'sungColor': 'not-a-number',
-        'shadowStrength': 99,
         'strokeWidth': -3,
         'bgOpacity': 2,
         'bgRadius': -1,
@@ -94,7 +91,6 @@ void main() {
         'fontWeight': 5,
       });
       expect(s.sungColor, def.sungColor);
-      expect(s.shadowStrength, def.shadowStrength);
       expect(s.strokeWidth, def.strokeWidth);
       expect(s.bgOpacity, def.bgOpacity);
       expect(s.bgRadius, def.bgRadius);

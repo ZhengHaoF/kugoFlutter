@@ -93,20 +93,6 @@ class _StyleEditorState extends ConsumerState<_StyleEditor> {
                 onChanged: (c) => _apply(_style.copyWith(unsungColor: c)),
               ),
               _ColorRow(
-                label: '阴影颜色',
-                value: _style.shadowColor,
-                onChanged: (c) => _apply(_style.copyWith(shadowColor: c)),
-              ),
-              _SliderRow(
-                label: '阴影强度',
-                value: _style.shadowStrength,
-                min: 0,
-                max: 3,
-                display: _style.shadowStrength == 0 ? '关' : _style.shadowStrength.toStringAsFixed(2),
-                onChanged: (v) => _apply(_style.copyWith(shadowStrength: v), persist: false),
-                onChangeEnd: (v) => _apply(_style.copyWith(shadowStrength: v)),
-              ),
-              _ColorRow(
                 label: '描边颜色',
                 value: _style.strokeColor,
                 onChanged: (c) => _apply(_style.copyWith(strokeColor: c)),
@@ -229,36 +215,47 @@ class _Preview extends StatelessWidget {
   }
 
   Widget _buildText(String demo, int cut) {
-    final shadows = style.shadowsOf();
     final size = 22.0 * style.fontScale.clamp(0.6, 2.0);
-    return Text.rich(
+    final base = TextStyle(
+      fontSize: size,
+      height: 1.25,
+      fontWeight: style.resolveFontWeight(),
+      letterSpacing: 0.3,
+    );
+    final filled = Text.rich(
       TextSpan(
         children: [
           TextSpan(
             text: demo.substring(0, cut),
-            style: TextStyle(
-              color: style.sung,
-              fontSize: size,
-              height: 1.25,
-              fontWeight: style.resolveFontWeight(),
-              letterSpacing: 0.3,
-              shadows: shadows,
-            ),
+            style: base.copyWith(color: style.sung),
           ),
           TextSpan(
             text: demo.substring(cut),
-            style: TextStyle(
-              color: style.unsung,
-              fontSize: size,
-              height: 1.25,
-              fontWeight: style.resolveFontWeight(),
-              letterSpacing: 0.3,
-              shadows: shadows,
-            ),
+            style: base.copyWith(color: style.unsung),
           ),
         ],
       ),
       textAlign: TextAlign.center,
+    );
+    // 无阴影，可读性靠描边：底层描边 + 上层填充（与子窗 KaraokeSweepLine 一致）。
+    if (!style.hasStroke) return filled;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          demo,
+          textAlign: TextAlign.center,
+          style: base.copyWith(
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = style.strokeWidth
+              ..strokeJoin = StrokeJoin.round
+              ..strokeCap = StrokeCap.round
+              ..color = style.stroke,
+          ),
+        ),
+        filled,
+      ],
     );
   }
 }

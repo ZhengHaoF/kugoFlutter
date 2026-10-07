@@ -11,10 +11,8 @@ class DesktopLyricStyle {
   const DesktopLyricStyle({
     this.sungColor = 0xFF2CE06B,
     this.unsungColor = 0xFFFFFFFF,
-    this.shadowColor = 0xFF000000,
-    this.shadowStrength = 1.0,
     this.strokeColor = 0xFF000000,
-    this.strokeWidth = 0.0,
+    this.strokeWidth = 1.2,
     this.bgColor = 0xFF000000,
     this.bgOpacity = 0.0,
     this.bgRadius = 14.0,
@@ -25,19 +23,13 @@ class DesktopLyricStyle {
   /// 已唱（扫光已过）部分颜色。默认酷狗系强调绿。
   final int sungColor;
 
-  /// 未唱部分颜色。默认纯白（桌面歌词主流：浅色壁纸靠阴影/描边保证可读）。
+  /// 未唱部分颜色。默认纯白（浅色壁纸靠描边保证可读）。
   final int unsungColor;
-
-  /// 文字阴影颜色（默认黑）。
-  final int shadowColor;
-
-  /// 阴影强度（0 = 无阴影，1 = 默认两层阴影，> 1 更重）。
-  final double shadowStrength;
 
   /// 描边颜色。仅当 [strokeWidth] > 0 时生效。
   final int strokeColor;
 
-  /// 描边宽度（逻辑像素）。0 = 不描边；桌面歌词在浅色壁纸上的可读性兜底。
+  /// 描边宽度（逻辑像素）。0 = 不描边；默认 1.2 是浅色壁纸上的可读性兜底。
   final double strokeWidth;
 
   /// 歌词块背景色（[bgOpacity] > 0 时绘制圆角底）。
@@ -61,27 +53,7 @@ class DesktopLyricStyle {
   Color get bg => Color(bgColor);
 
   bool get hasBackground => bgOpacity > 0.004;
-  bool get hasShadow => shadowStrength > 0.004;
   bool get hasStroke => strokeWidth > 0.004;
-
-  /// 阴影层数与 [lyric_window_view] 的 `_buildShadows` 一致，这里只给权重。
-  List<Shadow> shadowsOf({double strength = 1}) {
-    if (!hasShadow) return const [];
-    final s = (shadowStrength * strength).clamp(0.0, 3.0);
-    final base = Color(shadowColor);
-    return [
-      Shadow(
-        color: base.withValues(alpha: (0.85 * s).clamp(0.0, 1.0)),
-        blurRadius: 10 * s,
-        offset: const Offset(0, 2),
-      ),
-      Shadow(
-        color: base.withValues(alpha: (0.55 * s).clamp(0.0, 1.0)),
-        blurRadius: 3 * s,
-        offset: const Offset(0, 1),
-      ),
-    ];
-  }
 
   FontWeight resolveFontWeight() {
     // 1.0 → 700；线性映射到 400..900 并收敛到 Material 档位。
@@ -106,8 +78,6 @@ class DesktopLyricStyle {
   Map<String, Object?> toWire() => {
         'sungColor': sungColor,
         'unsungColor': unsungColor,
-        'shadowColor': shadowColor,
-        'shadowStrength': shadowStrength,
         'strokeColor': strokeColor,
         'strokeWidth': strokeWidth,
         'bgColor': bgColor,
@@ -122,10 +92,8 @@ class DesktopLyricStyle {
     return DesktopLyricStyle(
       sungColor: _readColor(m['sungColor'], 0xFF2CE06B),
       unsungColor: _readColor(m['unsungColor'], 0xFFFFFFFF),
-      shadowColor: _readColor(m['shadowColor'], 0xFF000000),
-      shadowStrength: clampDouble(m['shadowStrength'], 0, 3, 1),
       strokeColor: _readColor(m['strokeColor'], 0xFF000000),
-      strokeWidth: clampDouble(m['strokeWidth'], 0, 6, 0),
+      strokeWidth: clampDouble(m['strokeWidth'], 0, 6, 1.2),
       bgColor: _readColor(m['bgColor'], 0xFF000000),
       bgOpacity: clampDouble(m['bgOpacity'], 0, 1, 0),
       bgRadius: clampDouble(m['bgRadius'], 0, 40, 14),
@@ -149,8 +117,6 @@ class DesktopLyricStyle {
   DesktopLyricStyle copyWith({
     int? sungColor,
     int? unsungColor,
-    int? shadowColor,
-    double? shadowStrength,
     int? strokeColor,
     double? strokeWidth,
     int? bgColor,
@@ -162,8 +128,6 @@ class DesktopLyricStyle {
     return DesktopLyricStyle(
       sungColor: sungColor ?? this.sungColor,
       unsungColor: unsungColor ?? this.unsungColor,
-      shadowColor: shadowColor ?? this.shadowColor,
-      shadowStrength: shadowStrength ?? this.shadowStrength,
       strokeColor: strokeColor ?? this.strokeColor,
       strokeWidth: strokeWidth ?? this.strokeWidth,
       bgColor: bgColor ?? this.bgColor,
@@ -181,8 +145,6 @@ class DesktopLyricStyle {
           runtimeType == other.runtimeType &&
           sungColor == other.sungColor &&
           unsungColor == other.unsungColor &&
-          shadowColor == other.shadowColor &&
-          shadowStrength == other.shadowStrength &&
           strokeColor == other.strokeColor &&
           strokeWidth == other.strokeWidth &&
           bgColor == other.bgColor &&
@@ -195,8 +157,6 @@ class DesktopLyricStyle {
   int get hashCode => Object.hash(
         sungColor,
         unsungColor,
-        shadowColor,
-        shadowStrength,
         strokeColor,
         strokeWidth,
         bgColor,
@@ -220,7 +180,7 @@ class DesktopLyricPreset {
 
   static const _default = DesktopLyricStyle();
 
-  /// 经典悬浮：白字 + 绿扫光 + 重阴影，无背景（P1 形态）。
+  /// 经典悬浮：白字 + 绿扫光 + 黑描边，无背景（P1 形态）。
   static const classic = DesktopLyricPreset._(
     name: '经典悬浮',
     style: _default,
@@ -231,7 +191,6 @@ class DesktopLyricPreset {
     style: DesktopLyricStyle(
       sungColor: 0xFF2CE06B,
       unsungColor: 0xFFFFFFFF,
-      shadowStrength: 1.2,
       strokeWidth: 1.2,
     ),
   );
@@ -241,7 +200,6 @@ class DesktopLyricPreset {
     style: DesktopLyricStyle(
       sungColor: 0xFFE60026,
       unsungColor: 0xFFF2F2F2,
-      shadowStrength: 1.1,
       strokeWidth: 1.0,
     ),
   );
@@ -251,8 +209,6 @@ class DesktopLyricPreset {
     style: DesktopLyricStyle(
       sungColor: 0xFFFFB300,
       unsungColor: 0xFFFFF3E0,
-      shadowColor: 0xFF4A1500,
-      shadowStrength: 1.3,
       strokeWidth: 1.4,
     ),
   );
@@ -262,8 +218,6 @@ class DesktopLyricPreset {
     style: DesktopLyricStyle(
       sungColor: 0xFF00E5FF,
       unsungColor: 0xFFE1BEE7,
-      shadowColor: 0xFF1A0033,
-      shadowStrength: 1.6,
       strokeWidth: 1.2,
     ),
   );
@@ -276,7 +230,6 @@ class DesktopLyricPreset {
       bgColor: 0xFF101418,
       bgOpacity: 0.62,
       bgRadius: 18,
-      shadowStrength: 0.7,
       strokeWidth: 0.8,
     ),
   );
@@ -286,7 +239,6 @@ class DesktopLyricPreset {
     style: DesktopLyricStyle(
       sungColor: 0xFFFFFFFF,
       unsungColor: 0xFFBDBDBD,
-      shadowStrength: 0.9,
       strokeWidth: 1.6,
       strokeColor: 0xFFFFFFFF,
     ),

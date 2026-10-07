@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/kugo_theme.dart';
 import '../desktop_lyric_host.dart';
-import '../desktop_lyric_style.dart';
 import 'karaoke_sweep_line.dart';
 import 'lyric_window_controller.dart';
 
 /// 桌面歌词窗 UI：透明悬浮歌词（无卡片底）+ hover 玻璃控制条。
 ///
-/// 业界形态：窗口全透明，可读性靠文字阴影/描边，不靠深色面板。
+/// 业界形态：窗口全透明，可读性靠文字描边，不靠深色面板。
 class DesktopLyricView extends StatefulWidget {
   const DesktopLyricView({super.key, required this.controller});
 
@@ -100,13 +99,6 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
   }
 }
 
-/// 桌面歌词文字阴影：浅色壁纸上也能读。颜色与强度来自 [DesktopLyricStyle]。
-List<Shadow> lyricShadows(
-  DesktopLyricStyle style, {
-  double strength = 1,
-}) =>
-    style.shadowsOf(strength: strength);
-
 class _LyricBlock extends StatelessWidget {
   const _LyricBlock({required this.controller});
 
@@ -131,7 +123,6 @@ class _LyricBlock extends StatelessWidget {
             controller: controller,
             sungColor: style.sung,
             unsungColor: style.unsung,
-            shadows: lyricShadows(style),
             strokeColor: style.hasStroke ? style.stroke : null,
             strokeWidth: style.strokeWidth,
           ),
@@ -154,7 +145,6 @@ class _LyricBlock extends StatelessWidget {
                   fontSize: (isTr ? 13 : 14) * scale,
                   height: 1.25,
                   fontWeight: isTr ? FontWeight.w400 : FontWeight.w500,
-                  shadows: lyricShadows(style, strength: 0.7),
                   fontFamily: kugoFontFamily,
                   fontFamilyFallback: kugoFontFamilyFallback,
                 ),
@@ -189,7 +179,6 @@ class _ControlBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final snap = controller.snapshot;
     final hasTrack = snap.title.isNotEmpty || snap.artist.isNotEmpty;
-    final btnShadows = lyricShadows(snap.style, strength: 0.5);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -205,31 +194,26 @@ class _ControlBar extends StatelessWidget {
             tooltip: snap.isPlaying ? '暂停' : '播放',
             icon: snap.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
             onTap: hasTrack ? controller.playPause : null,
-            shadows: btnShadows,
           ),
           _Btn(
             tooltip: '上一首',
             icon: Icons.skip_previous_rounded,
             onTap: hasTrack ? controller.previous : null,
-            shadows: btnShadows,
           ),
           _Btn(
             tooltip: '下一首',
             icon: Icons.skip_next_rounded,
             onTap: hasTrack ? controller.next : null,
-            shadows: btnShadows,
           ),
           _Btn(
             tooltip: '锁定',
             icon: Icons.lock_open_rounded,
             onTap: controller.toggleLock,
-            shadows: btnShadows,
           ),
           _Btn(
             tooltip: '关闭',
             icon: Icons.close_rounded,
             onTap: controller.requestClose,
-            shadows: btnShadows,
           ),
         ],
       ),
@@ -242,13 +226,11 @@ class _Btn extends StatelessWidget {
     required this.tooltip,
     required this.icon,
     required this.onTap,
-    this.shadows = const [],
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback? onTap;
-  final List<Shadow> shadows;
 
   @override
   Widget build(BuildContext context) {
@@ -266,7 +248,6 @@ class _Btn extends StatelessWidget {
               icon,
               size: 16,
               color: onTap == null ? Colors.white24 : Colors.white.withValues(alpha: 0.88),
-              shadows: shadows,
             ),
           ),
         ),

@@ -63,8 +63,6 @@ void main() {
     for (final key in [
       'sungColor',
       'unsungColor',
-      'shadowColor',
-      'shadowStrength',
       'strokeColor',
       'strokeWidth',
       'bgColor',

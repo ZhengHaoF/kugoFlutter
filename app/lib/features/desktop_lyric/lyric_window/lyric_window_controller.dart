@@ -287,7 +287,7 @@ Object visibleLyricSignature({
     locked,
     translation,
     fontScale,
-    // 外观整包参与指纹：改颜色/阴影/描边/背景/字重都必须触发重建，
+    // 外观整包参与指纹：改颜色/描边/背景/字重都必须触发重建，
     // 否则设置面板调完色歌词窗不刷新。
     style,
     activeIndex,

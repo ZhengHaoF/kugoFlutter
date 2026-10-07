@@ -284,6 +284,7 @@ class FullPlayerPage extends ConsumerWidget {
                             builder: (context, positionMs) => LyricsView(
                               lines: player.lyrics,
                               positionMs: positionMs,
+                              isPlaying: player.isPlaying,
                               status: player.lyricsStatus,
                               onTapLine: (ms) => controller.seekTo(ms),
                             ),
@@ -561,6 +562,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                     builder: (context, positionMs) => LyricsView(
                       lines: player.lyrics,
                       positionMs: positionMs,
+                      isPlaying: player.isPlaying,
                       status: player.lyricsStatus,
                       onTapLine: (ms) => controller.seekTo(ms),
                     ),
@@ -841,6 +843,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                   compact: true,
                   lines: player.lyrics,
                   positionMs: positionMs,
+                  isPlaying: player.isPlaying,
                   status: player.lyricsStatus,
                 ),
               ),

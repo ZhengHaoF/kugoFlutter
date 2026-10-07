@@ -127,7 +127,7 @@ class AppSettings {
   /// 歌词时间偏移（ms），正 = 歌词提前。
   final int desktopLyricOffsetMs;
 
-  /// 桌面歌词外观：颜色 / 阴影 / 描边 / 背景深度 / 字重。
+  /// 桌面歌词外观：颜色 / 描边 / 背景深度 / 字重。
   final DesktopLyricStyle desktopLyricStyle;
 
   /// 默认音源：搜索页音源筛选与「我喜欢」页源筛选的初始值（用户当次仍可切换）。

@@ -102,14 +102,8 @@ class LyricOverlayView(context: Context, private val onCommand: (String, Map<Str
         p.textSize = size
         p.typeface = Typeface.create(Typeface.DEFAULT, st.resolveFontWeight(), false)
         p.letterSpacing = 0.3f / 24f
-        if (st.hasShadow) {
-            val s = st.shadowStrength.coerceIn(0f, 3f)
-            val alpha = (0x85 * s).toInt().coerceIn(0, 255)
-            val shadowColor = (st.shadowColor and 0x00FFFFFF) or (alpha shl 24)
-            p.setShadowLayer(10f * s * density, 0f, 2f * s * density, shadowColor)
-        } else {
-            p.clearShadowLayer()
-        }
+        // 可读性靠描边（strokePaint），不再用文字阴影。
+        p.clearShadowLayer()
     }
 
     private fun rebuildLayout(text: String, maxWidth: Float) {
@@ -125,7 +119,6 @@ class LyricOverlayView(context: Context, private val onCommand: (String, Map<Str
         strokePaint.strokeWidth = st.strokeWidth * density
         strokePaint.strokeJoin = Paint.Join.ROUND
         strokePaint.strokeCap = Paint.Cap.ROUND
-        strokePaint.clearShadowLayer()
 
         val widths = FloatArray(text.length)
         var x = 0f

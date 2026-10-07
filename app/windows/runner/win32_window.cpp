@@ -162,7 +162,11 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+      window_class, title.c_str(),
+      // 歌词悬浮窗直接以无边框弹窗创建：客户区 == 窗口尺寸，避免「先建带标题栏
+      // 的窗口、setFrameless 后首帧按旧客户区高度布局且不重排」导致歌词被压到
+      // 窗口底部只露一条的问题。主窗保持带边框的常规窗口。
+      IsDesktopLyricProcess() ? WS_POPUP : WS_OVERLAPPEDWINDOW,
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(window_width, scale_factor), Scale(window_height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);

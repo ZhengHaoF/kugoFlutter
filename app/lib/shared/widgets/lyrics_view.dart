@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/track.dart';
@@ -20,6 +21,7 @@ class LyricsView extends ConsumerStatefulWidget {
     this.status = LyricsStatus.idle,
     this.onTapLine,
     this.compact = false,
+    this.isPlaying = false,
   });
 
   final List<LyricLine> lines;
@@ -32,6 +34,10 @@ class LyricsView extends ConsumerStatefulWidget {
 
   /// When true, only shows current ± 1 lines (player bottom preview).
   final bool compact;
+
+  /// 是否正在播放。true 时活动行的逐字扫光由内部 Ticker 按帧插值（平滑）；
+  /// false（暂停 / 无逐字时间轴）时退回离散的位置流。
+  final bool isPlaying;
 
   @override
   ConsumerState<LyricsView> createState() => _LyricsViewState();
@@ -435,19 +441,29 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _PrimaryLine(
-                  line: line,
-                  positionMs: isActive ? widget.positionMs : 0,
-                  isActive: isActive,
-                  desktop: desktop,
-                  style: _lineStyle(
-                    kugo,
-                    isActive,
-                    desktop: desktop,
-                    scale: settings.lyricFontScale,
+                if (isActive)
+                  _ActiveLine(
+                    line: line,
+                    positionMs: widget.positionMs,
+                    isPlaying: widget.isPlaying,
+                    style: _lineStyle(
+                      kugo,
+                      true,
+                      desktop: desktop,
+                      scale: settings.lyricFontScale,
+                    ),
+                    accent: kugo.primary,
+                  )
+                else
+                  _PrimaryLine(
+                    line: line,
+                    style: _lineStyle(
+                      kugo,
+                      false,
+                      desktop: desktop,
+                      scale: settings.lyricFontScale,
+                    ),
                   ),
-                  accent: kugo.primary,
-                ),
                 if (showTr && line.translated != null)
                   _SecondaryLine(
                     text: line.translated!,
@@ -637,42 +653,131 @@ class _ResumeFollowChip extends StatelessWidget {
   }
 }
 
-/// 当前行：有逐字时间轴时做卡拉 OK 已唱/未唱着色。
+/// 非活动行：普通单行文本（无逐字着色）。
 class _PrimaryLine extends StatelessWidget {
   const _PrimaryLine({
     required this.line,
+    required this.style,
+  });
+
+  final LyricLine line;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (line.text.isEmpty) return const SizedBox.shrink();
+    return Text(
+      line.text,
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+  }
+}
+
+/// 活动行：内部 Ticker 按「锚点 + elapsed」在帧间插值游标，**只重建本叶子**，
+/// 让逐字扫光从「位置流节奏（100–200ms 跳字）」变成每帧平滑。
+///
+/// 思路与桌面歌词窗 `karaoke_sweep_line.dart` 一致：父级每次位置 tick 送来新
+/// 游标即作为新锚点（切行 / seek 会跳变，也靠它纠偏）；暂停或无逐字时间轴
+/// （LRC）时不跑 Ticker，退回离散渲染。
+class _ActiveLine extends StatefulWidget {
+  const _ActiveLine({
+    required this.line,
     required this.positionMs,
-    required this.isActive,
-    required this.desktop,
+    required this.isPlaying,
     required this.style,
     required this.accent,
   });
 
   final LyricLine line;
   final int positionMs;
-  final bool isActive;
-  final bool desktop;
+  final bool isPlaying;
   final TextStyle style;
   final Color accent;
 
   @override
+  State<_ActiveLine> createState() => _ActiveLineState();
+}
+
+class _ActiveLineState extends State<_ActiveLine>
+    with SingleTickerProviderStateMixin {
+  Ticker? _ticker;
+  int _anchorPosMs = 0;
+  DateTime _anchorWall = DateTime.now();
+
+  bool get _smooth =>
+      widget.isPlaying &&
+      widget.line.hasCharTiming &&
+      widget.line.text.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _anchorPosMs = widget.positionMs;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ActiveLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 位置流每次 tick 都送新游标；切行 / seek 会跳变，统一以它重锚，避免自走漂移。
+    if (oldWidget.positionMs != widget.positionMs ||
+        !identical(oldWidget.line, widget.line)) {
+      _anchorPosMs = widget.positionMs;
+      _anchorWall = DateTime.now();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.dispose();
+    super.dispose();
+  }
+
+  /// 当前帧游标：平滑态用「锚点 + 自走时间」，否则用父级离散值。
+  int _currentPositionMs() {
+    if (!_smooth) return widget.positionMs;
+    return _anchorPosMs +
+        DateTime.now().difference(_anchorWall).inMilliseconds;
+  }
+
+  void _syncTicker() {
+    if (_smooth) {
+      _ticker ??= createTicker((_) {
+        if (mounted) setState(() {});
+      })
+        ..start();
+    } else if (_ticker != null) {
+      _ticker!.dispose();
+      _ticker = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final text = line.text;
+    _syncTicker();
+
+    final text = widget.line.text;
     if (text.isEmpty) return const SizedBox.shrink();
 
-    if (!isActive || !line.hasCharTiming) {
+    // LRC（无逐字时间轴）：整行用活动样式，无逐字填充。
+    if (!widget.line.hasCharTiming) {
       return Text(
         text,
         textAlign: TextAlign.center,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: style,
+        style: widget.style,
       );
     }
 
-    final sung = line.sungCharCount(positionMs).clamp(0, text.length);
-    final played = style.copyWith(
-      color: accent,
+    final sung = widget
+        .line
+        .sungCharCount(_currentPositionMs())
+        .clamp(0, text.length);
+    final played = widget.style.copyWith(
+      color: widget.accent,
       fontWeight: FontWeight.w700,
     );
     return Text.rich(
@@ -680,7 +785,7 @@ class _PrimaryLine extends StatelessWidget {
         children: [
           if (sung > 0) TextSpan(text: text.substring(0, sung), style: played),
           if (sung < text.length)
-            TextSpan(text: text.substring(sung), style: style),
+            TextSpan(text: text.substring(sung), style: widget.style),
         ],
       ),
       textAlign: TextAlign.center,

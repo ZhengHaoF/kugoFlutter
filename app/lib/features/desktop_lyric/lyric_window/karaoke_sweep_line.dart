@@ -20,7 +20,6 @@ class KaraokeSweepLine extends StatefulWidget {
     required this.controller,
     this.sungColor = const Color(0xFF2CE06B),
     this.unsungColor = Colors.white,
-    this.shadows = const [],
     this.strokeColor,
     this.strokeWidth = 0,
     this.heightFactor = 1.2,
@@ -33,9 +32,6 @@ class KaraokeSweepLine extends StatefulWidget {
 
   /// 未唱部分颜色。
   final Color unsungColor;
-
-  /// 文字阴影（两层共用，保证可读性一致）。
-  final List<Shadow> shadows;
 
   /// 描边颜色。null / [strokeWidth] == 0 时不描边。
   final Color? strokeColor;
@@ -231,7 +227,6 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
         height: widget.heightFactor,
         fontWeight: _fontWeight,
         letterSpacing: 0.3,
-        shadows: widget.shadows,
         // TextPainter 不走 DefaultTextStyle 合并，必须显式指定，否则落到 Roboto。
         fontFamily: kugoFontFamily,
         fontFamilyFallback: kugoFontFamilyFallback,
@@ -239,7 +234,7 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
 
   TextStyle get _sungStyle => _baseStyle.copyWith(color: widget.sungColor);
 
-  /// 描边层：与底层同字形，用 [Paint] 描边绘制；阴影不重复叠加。
+  /// 描边层：与底层同字形，用 [Paint] 描边绘制。
   TextStyle get _strokeStyle {
     final sc = widget.strokeColor ?? Colors.transparent;
     return TextStyle(
