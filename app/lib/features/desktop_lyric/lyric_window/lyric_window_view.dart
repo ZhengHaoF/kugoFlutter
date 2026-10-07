@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/kugo_theme.dart';
@@ -20,12 +22,21 @@ class DesktopLyricView extends StatefulWidget {
 class _DesktopLyricViewState extends State<DesktopLyricView> {
   bool _hover = false;
 
+  /// 锁定态下的 hover：整窗点击穿透收不到鼠标事件，只能轮询系统光标判断。
+  bool _lockedHover = false;
+  /// 锁定态下光标是否落在控制条热区（此时临时关掉穿透，让按钮可点）。
+  bool _overBar = false;
+  Timer? _lockPoll;
+  /// 已经应用到原生窗口的穿透态（去重，避免每拍重复 IPC）。
+  bool? _appliedIgnore;
+
   DesktopLyricController get _c => widget.controller;
 
   @override
   void initState() {
     super.initState();
     _c.addListener(_onChange);
+    _syncLockPoll();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _c.notifyReady();
     });
@@ -33,12 +44,63 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
 
   @override
   void dispose() {
+    _lockPoll?.cancel();
     _c.removeListener(_onChange);
     super.dispose();
   }
 
   void _onChange() {
+    _syncLockPoll();
     if (mounted) setState(() {});
+  }
+
+  /// 锁定 → 起轮询；解锁 → 停轮询并恢复可交互。
+  void _syncLockPoll() {
+    if (_c.locked) {
+      _lockPoll ??=
+          Timer.periodic(const Duration(milliseconds: 100), (_) => _pollLocked());
+      return;
+    }
+    if (_lockPoll == null) return;
+    _lockPoll!.cancel();
+    _lockPoll = null;
+    _applyIgnore(false);
+    if (_lockedHover || _overBar) {
+      _lockedHover = false;
+      _overBar = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _pollLocked() async {
+    if (!mounted || !_c.locked) return;
+    try {
+      final b = await DesktopLyricHost.getPosition();
+      final cur = await DesktopLyricHost.getCursorPos();
+      if (!mounted || !_c.locked) return;
+      final lx = cur.x - b.x;
+      final ly = cur.y - b.y;
+      final inWindow =
+          lx >= -2 && ly >= -2 && lx <= b.width + 2 && ly <= b.height + 2;
+      // 控制条在右下角（约 140×30）；给个略宽松的命中区，便于点到解锁。
+      final overBar = inWindow &&
+          lx >= b.width - 180 &&
+          ly >= b.height - 48;
+      if (inWindow != _lockedHover || overBar != _overBar) {
+        setState(() {
+          _lockedHover = inWindow;
+          _overBar = overBar;
+        });
+      }
+      // 只在光标落到控制条热区时才关闭穿透；其余区域保持点击穿透，不挡下层应用。
+      _applyIgnore(!overBar);
+    } catch (_) {}
+  }
+
+  void _applyIgnore(bool ignore) {
+    if (_appliedIgnore == ignore) return;
+    _appliedIgnore = ignore;
+    unawaited(DesktopLyricHost.setIgnoreMouseEvents(ignore));
   }
 
   Future<void> _onDragStart(DragStartDetails d) async {
@@ -61,9 +123,9 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
 
   @override
   Widget build(BuildContext context) {
-    // 锁定穿透时 hover 收不到事件，控制条只在未锁定 hover 时有用；
-    // 解锁走主窗设置 / 托盘。
-    final showControls = _hover && !_c.locked;
+    // 锁定态整窗点击穿透收不到鼠标事件，用轮询到的 [_lockedHover] 决定是否浮出
+    // 控制条；光标落到控制条热区时会临时关闭穿透，解锁按钮即可点击。
+    final showControls = _c.locked ? _lockedHover : _hover;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -207,8 +269,8 @@ class _ControlBar extends StatelessWidget {
             onTap: hasTrack ? controller.next : null,
           ),
           _Btn(
-            tooltip: '锁定',
-            icon: Icons.lock_open_rounded,
+            tooltip: snap.locked ? '解锁' : '锁定',
+            icon: snap.locked ? Icons.lock_rounded : Icons.lock_open_rounded,
             onTap: controller.toggleLock,
           ),
           _Btn(
