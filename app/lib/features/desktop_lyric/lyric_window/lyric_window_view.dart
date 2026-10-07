@@ -183,9 +183,10 @@ class _ControlBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+        // 半透明深色底：浅色壁纸上也看得清（原来 14% 白底在白背景下几乎不可见）。
+        color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
