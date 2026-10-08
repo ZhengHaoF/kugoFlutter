@@ -70,15 +70,13 @@ flutter run
 
 | 能力 | 参考来源 |
 | --- | --- |
-| 酷狗取流 / 防盗链 | KuGouMusicApi `module/song_url.js` · EchoMusic `api/music.ts` |
-| 酷狗 MV 详情 / 取流 / 弹幕 | KuGouMusicApi `video_detail.js` / `video_url.js` / `module/_comment.js` · EchoMusic `MvDetail.vue` + `BarrageLayer.vue` |
-| 酷狗云盘 | KuGouMusicApi `user_cloud*.js` · EchoMusic `Cloud.vue` / `cloudUpload.ts` |
-| 网易 weapi/eapi 加密 | NeriPlayer `NeteaseCrypto.kt` · NeteaseCloudMusicApi `util/crypto.js` |
-| 网易 MV（详情 / 取流 / 收藏） | api-enhanced `module/mv_detail.js` / `mv_url.js` / `mv_sub.js` |
-| 网易评论 | NeteaseCloudMusicApi `module/comment_*.js` |
-| B 站搜索 / 取流 | NeriPlayer `core/api/bili/` · bilibili-API-collect |
-
-本地参考副本路径（开发机）：`D:\work\EchoMusic` · `D:\work\NeriPlayer` · `D:\work\api-enhanced`
+| 酷狗取流 / 防盗链 | [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) · [hoowhoami/EchoMusic](https://github.com/hoowhoami/EchoMusic) |
+| 酷狗 MV 详情 / 取流 / 弹幕 | [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) · [hoowhoami/EchoMusic](https://github.com/hoowhoami/EchoMusic) |
+| 酷狗云盘 | [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) · [hoowhoami/EchoMusic](https://github.com/hoowhoami/EchoMusic) |
+| 网易 weapi/eapi 加密 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) · [Binaryify/NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi) |
+| 网易 MV（详情 / 取流 / 收藏） | [NeteaseCloudMusicApiEnhanced/api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) |
+| 网易评论 | [Binaryify/NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi) |
+| B 站搜索 / 取流 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) · [SocialSisterYi/bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) |
 
 ## 合规声明
 
