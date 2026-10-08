@@ -1649,3 +1649,127 @@ String _probeHead(List list) => list
     .take(3)
     .map((m) => '${m['name']}(${m['id']})')
     .join(' | ');
+
+// ── H 组：账号档案 / 会员（探针解析） ─────────────────────────
+
+/// H1：`vip/info` 摘要 —— 会员等级字段**未实测**，故只清点不解散。
+///
+/// api-enhanced `module/vip_info.js` 用 weapi 打
+/// `/api/music-vip-membership/front/vip/info`，入参 `{userId}`；本项目直连
+/// 架构下 weapi 会把 `/api/` 换成 `/weapi/`（见 `netease_endpoints.dart`
+/// A1-MV 那条 404 实测记录），路径形态是否一致必须探针确认。
+///
+/// 这里打印顶层键 + `data` 键 + 候选会员字段，跑完再定 mapper 读哪些键。
+Map<String, Object?> parseProbeVipInfo(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final data = root['data'];
+  final scope = data is Map ? data : root;
+  return {
+    'code': root['code'],
+    'topKeys': root.keys.join(','),
+    'dataKeys': data is Map ? data.keys.join(',') : null,
+    for (final k in const [
+      'redVipLevel',
+      'redVipLevelIcon',
+      'redplus',
+      'associator',
+      'vipLevel',
+      'vipType',
+      'isVip',
+      'now',
+      'expireTime',
+      'isAutoRenew',
+      'musicPackage',
+      'vipGrowPoint',
+    ])
+      if (scope[k] != null) k: scope[k],
+  };
+}
+
+/// H2：`user/level` 摘要 —— 网易**听歌等级**（Lv1–Lv10）字段未实测。
+///
+/// 与酷狗 `p_grade`/`p_current_point` 口径不同，`profile_stats.dart` 的
+/// [getGradeProgress] 不能直接复用；这里先清点真实键名。
+Map<String, Object?> parseProbeUserLevel(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final data = root['data'];
+  final scope = data is Map ? data : root;
+  return {
+    'code': root['code'],
+    'topKeys': root.keys.join(','),
+    for (final k in const [
+      'level',
+      'progress',
+      'nowPlayCount',
+      'nextPlayCount',
+      'nowLoginCount',
+      'nextLoginCount',
+    ])
+      if (scope[k] != null) k: scope[k],
+  };
+}
+
+/// H3：关注 / 粉丝列表摘要。`getfollows` 回 `follow[]`、`getfolloweds` 回
+/// `followeds[]`（键名不同，两种都探），只要 `count`/`more`/`size`。
+///
+/// **总数不在顶层**：两口的响应都没有 `size`，`getfolloweds` 要靠
+/// `getcounts=true` 才会带回计数字段（api-enhanced `module/user_followeds.js`），
+/// 故这里连原始 body 一起打印，用于定位那个键名。
+Map<String, Object?> parseProbeFollowPage(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final list = _probeList(root, const ['follow', 'followeds', 'data']);
+  return {
+    'code': root['code'],
+    'count': list.length,
+    'more': _probeDeep(root, 'more'),
+    'size': _probeDeep(root, 'size'),
+    'topKeys': root.keys.join(','),
+    // limit=1 的响应很小，连 body 一起打印以便定位计数字段名。
+    'body': raw.length <= 500 ? raw : '${raw.substring(0, 500)}…',
+  };
+}
+
+/// H4：收藏计数摘要。**路径是 `/api/subcount`，不是 `/api/user/subcount`**
+/// （后者 404，2026-10-08 实测；api-enhanced `module/user_subcount.js` 用的
+/// 就是 `/api/subcount`）。响应是平铺标量，连 body 一起打印。
+Map<String, Object?> parseProbeSubcount(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  return {'code': root['code'], 'body': root.toString()};
+}
+
+/// H5：`account/get` 的 `profile` **全字段清点**。
+///
+/// 个人中心「账号档案」要的乐龄 / 地区 / 性别 / 签名，很可能已经在现有 E1
+/// 响应里（`mapNeteaseAccount` 目前只读了 4 个字段），清点后能省掉新开口子。
+Map<String, Object?> parseProbeAccountProfile(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final profile = root['profile'];
+  final p = profile is Map ? profile : const {};
+  return {
+    'code': root['code'],
+    'profileKeys': p.keys.join(','),
+    for (final k in const [
+      'userId',
+      'nickname',
+      'avatarUrl',
+      'vipType',
+      'authStatus',
+      'expertTags',
+      'createTime',
+      'birthday',
+      'gender',
+      'province',
+      'city',
+      'signature',
+      'description',
+      'backgroundUrl',
+      'playlistCount',
+      'followeds',
+      'follows',
+      'artistId',
+      'userType',
+      'djStatus',
+    ])
+      if (p[k] != null) k: p[k],
+  };
+}

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:kugo/core/api/netease/netease_client.dart';
+import 'package:kugo/core/api/netease/netease_endpoints.dart';
 import 'package:kugo/core/source/music_source.dart';
 import 'package:qr/qr.dart';
 
@@ -55,11 +56,24 @@ import 'package:qr/qr.dart';
 /// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --like false --id 1234567
 /// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --playlist 24381616 --id 1234567
 /// dart run tool/probe_netease_api.dart --suite like --uid 123 --write --playlist 24381616 --id 1234567 --del
+///
+/// # H 组账号档案 / 会员（需登录；个人中心网易侧要补的展示位）
+/// #   --qr 进程内扫码登录；或 --cookie "MUSIC_U=xxx; __csrf=yyy" 直接灌 cookie
+/// dart run tool/probe_netease_api.dart --suite account --qr
+/// dart run tool/probe_netease_api.dart --suite account --cookie "MUSIC_U=xxx"
+/// dart run tool/probe_netease_api.dart --suite account --uid 32953014 --cookie "MUSIC_U=xxx"
 /// ```
 Future<void> main(List<String> args) async {
   final o = _Args.parse(args);
   final client = NeteaseClient();
   print('== Netease probe · suites=${o.suites.join(',')} keyword=${o.keyword} ==');
+
+  // H 组（及任何登录态 suite）都可用 --cookie 直接灌凭据，省一次扫码。
+  if (o.cookie.isNotEmpty) {
+    final seeded = _parseCookieHeader(o.cookie);
+    client.seedCookies(seeded);
+    print('[S2] seeded cookie keys=${seeded.keys.join(',')}');
+  }
 
   try {
     await client.ensureWeapiSession();
@@ -78,6 +92,7 @@ Future<void> main(List<String> args) async {
   if (o.suites.contains('toplist')) await _probeToplist(client);
   if (o.suites.contains('albumnew')) await _probeAlbumNew(client);
   if (o.suites.contains('artistlist')) await _probeArtistList(client);
+  if (o.suites.contains('account')) await _probeAccount(client, o);
 
   print('== done · cookies=${client.cookies.keys.join(',')} ==');
 }
@@ -600,6 +615,262 @@ Future<void> _probeArtistList(NeteaseClient client) async {
   }
 }
 
+// ── H 组：账号档案 / 会员（登录态） ──────────────────────────
+
+/// H 组账号档案探针：VIP 信息 / 听歌等级 / 关注粉丝 / 收藏数 / profile 全字段。
+///
+/// **背景**：个人中心页网易侧目前只有一句「暂不提供等级/歌龄/关注粉丝等档案
+/// 信息」（`profile_detail_page.dart` 的 `_SourceAccountNotice`）。api-enhanced
+/// 里 `/vip/info`、`/user/level`、`/user/getfollows` 等接口是齐的，但**路径
+/// 形态在本项目直连架构下未经实测**，故先探针再落实现。
+///
+/// 需登录：`--qr`（进程内扫码，登完直接跑 H 组）或
+/// `--cookie "MUSIC_U=xxx; __csrf=yyy"`。未登录会直接跳过，不白发请求。
+Future<void> _probeAccount(NeteaseClient client, _Args o) async {
+  if (!client.hasLogin && o.qr) await _probeQrLogin(client, o);
+  if (!client.hasLogin) {
+    print('[H] 未登录 — 加 --qr 进程内扫码，或 --cookie "MUSIC_U=..."');
+    return;
+  }
+
+  var uid = o.uid;
+  if (uid == 0) {
+    try {
+      final acc = parseProbeAccount(await client.accountRaw());
+      uid = (acc['userId'] as num?)?.toInt() ?? 0;
+    } catch (e) {
+      print('[H0] account FAIL ${_err(e)}');
+    }
+  }
+  print('[H0] uid=$uid hasLogin=${client.hasLogin} '
+      'cookieKeys=${client.cookies.keys.join(',')}');
+  if (uid == 0) {
+    print('[H1–H4] no uid — skip（登录态异常或传 --uid）');
+    return;
+  }
+
+  await _probeVipInfo(client, uid);
+  await _probeUserLevel(client);
+  await _probeSocial(client, uid);
+  await _probeSubcount(client);
+  await _probeAccountProfile(client);
+  await _probeUserDetail(client, uid);
+}
+
+/// H1：VIP 信息。api-enhanced `module/vip_info.js` 用 weapi 打
+/// `/api/music-vip-membership/front/vip/info`；本项目 weapi 走
+/// [NeteaseClient.callWeApi] 时会自动补 `/weapi` 前缀（即把 `/api/` 换成
+/// `/weapi/`，见 `netease_endpoints.dart` A1-MV 那条 404 实测记录）。
+///
+/// 故四种形态都试：weapi 剥前缀 / weapi 原 `/api` 路径 / 明文原路径 /
+/// app 端 `client/vip/info`。命中后打印 raw 供核对字段。
+Future<void> _probeVipInfo(NeteaseClient client, int uid) async {
+  final variants = <({String label, Future<String> Function() call})>[
+    (
+      label: 'weapi front',
+      call: () => client.callWeApi(
+        '/music-vip-membership/front/vip/info',
+        {'userId': '$uid'},
+      ),
+    ),
+    (
+      label: 'weapiAt front(/api 原路径)',
+      call: () => client.callWeApiAt(
+        '${NeteaseEndpoints.mainHost}/api/music-vip-membership/front/vip/info',
+        params: {'userId': '$uid'},
+      ),
+    ),
+    (
+      label: 'plain front(/api 原路径)',
+      call: () => client.callPlainApi(
+        '/api/music-vip-membership/front/vip/info',
+        {'userId': '$uid'},
+      ),
+    ),
+    (
+      label: 'weapi client(app 端 v2)',
+      call: () => client.callWeApi(
+        '/music-vip-membership/client/vip/info',
+        {'userId': '$uid'},
+      ),
+    ),
+    // api-enhanced 的兜底形态：不传 uid（`query.uid || ''`）= 当前登录用户。
+    (
+      label: 'weapi front(userId 空)',
+      call: () => client.callWeApi(
+        '/music-vip-membership/front/vip/info',
+        {'userId': ''},
+      ),
+    ),
+  ];
+  for (final v in variants) {
+    try {
+      final raw = await v.call();
+      final s = parseProbeVipInfo(raw);
+      print('[H1] ${v.label} $s');
+      if (s['code'] == 200) print('      raw=${_short(raw, 600)}');
+    } catch (e) {
+      print('[H1] ${v.label} FAIL ${_err(e)}');
+    }
+  }
+}
+
+/// H2：用户听歌等级（Lv1–Lv10）。三种形态对照，判据同 H1。
+Future<void> _probeUserLevel(NeteaseClient client) async {
+  final variants = <({String label, Future<String> Function() call})>[
+    (
+      label: 'weapi /weapi/user/level',
+      call: () => client.callWeApi('/user/level', const {}),
+    ),
+    (
+      label: 'weapiAt /api/user/level',
+      call: () => client.callWeApiAt(
+        '${NeteaseEndpoints.mainHost}/api/user/level',
+      ),
+    ),
+    (
+      label: 'plain /api/user/level',
+      call: () => client.callPlainApi('/api/user/level', const {}),
+    ),
+  ];
+  for (final v in variants) {
+    try {
+      final raw = await v.call();
+      final s = parseProbeUserLevel(raw);
+      print('[H2] ${v.label} $s');
+      if (s['code'] == 200) print('      raw=${_short(raw, 400)}');
+    } catch (e) {
+      print('[H2] ${v.label} FAIL ${_err(e)}');
+    }
+  }
+}
+
+/// H3：关注 / 粉丝。`limit=1` 只要总数与 `more`，不拉全量。
+///
+/// 访客数网易云没有（酷狗特色），那格在 UI 上留 `—`。
+/// `getfolloweds` 必须带 `getcounts=true` + `userId` + `time=0` 才会回计数
+/// （api-enhanced `module/user_followeds.js`）；第一轮漏了这三个参数，
+/// 顶层 `size` 是 null，故补跑。
+Future<void> _probeSocial(NeteaseClient client, int uid) async {
+  final variants = <({String label, Future<String> Function() call})>[
+    (
+      label: 'weapi getfollows',
+      call: () => client.callWeApi(
+        '/user/getfollows/$uid',
+        {'offset': '0', 'limit': '1', 'order': 'true'},
+      ),
+    ),
+    (
+      label: 'plain getfollows',
+      call: () => client.callPlainApi(
+        '/api/user/getfollows/$uid',
+        {'offset': '0', 'limit': '1', 'order': 'true'},
+      ),
+    ),
+    (
+      label: 'weapi getfolloweds(getcounts)',
+      call: () => client.callWeApi(
+        '/user/getfolloweds/$uid',
+        {
+          'userId': '$uid',
+          'time': '0',
+          'limit': '1',
+          'offset': '0',
+          'getcounts': 'true',
+        },
+      ),
+    ),
+    (
+      label: 'plain getfolloweds(getcounts)',
+      call: () => client.callPlainApi(
+        '/api/user/getfolloweds/$uid',
+        {
+          'userId': '$uid',
+          'time': '0',
+          'limit': '1',
+          'offset': '0',
+          'getcounts': 'true',
+        },
+      ),
+    ),
+  ];
+  for (final v in variants) {
+    try {
+      final raw = await v.call();
+      print('[H3] ${v.label} ${parseProbeFollowPage(raw)}');
+    } catch (e) {
+      print('[H3] ${v.label} FAIL ${_err(e)}');
+    }
+  }
+}
+
+/// H4：收藏计数（账号档案用）。
+///
+/// **路径是 `/api/subcount`**：第一轮按 api-enhanced 文档写的
+/// `/api/user/subcount` 实测 **404「接口未找到！」**，对照
+/// `module/user_subcount.js` 才发现真路径少一段 `user/`。
+Future<void> _probeSubcount(NeteaseClient client) async {
+  final variants = <({String label, Future<String> Function() call})>[
+    (
+      label: 'weapi /weapi/subcount',
+      call: () => client.callWeApi('/subcount', const {}),
+    ),
+    (
+      label: 'plain /api/subcount',
+      call: () => client.callPlainApi('/api/subcount', const {}),
+    ),
+  ];
+  for (final v in variants) {
+    try {
+      final raw = await v.call();
+      print('[H4] ${v.label} ${parseProbeSubcount(raw)}');
+    } catch (e) {
+      print('[H4] ${v.label} FAIL ${_err(e)}');
+    }
+  }
+}
+
+/// H5：`account/get` 的 `profile` 全字段清点。
+///
+/// 乐龄（`createTime`）/ 地区 / 性别 / 签名很可能**已经在现有 E1 响应里**，
+/// `mapNeteaseAccount` 目前只读了 4 个字段。若这里就够，档案区不用新开口子。
+Future<void> _probeAccountProfile(NeteaseClient client) async {
+  try {
+    final raw = await client.accountRaw();
+    print('[H5] ${parseProbeAccountProfile(raw)}');
+  } catch (e) {
+    print('[H5] FAIL ${_err(e)}');
+  }
+}
+
+/// H6：`/api/v1/user/detail/{uid}` —— 找「关注数」。
+///
+/// H3 已确认：`getfolloweds` 带 `getcounts=true` 能回 `size`（**粉丝数** cheap），
+/// 但 `getfollows` **没有任何计数字段**（只有 `follow[]` + `more`），关注数只能
+/// 翻页数。本口的 `profile` 在部分版本里带 `follows`/`followeds`，值得一试 ——
+/// 若通，`_IdentityCard` 的「关注」格就能和「粉丝」一样零成本拿到。
+Future<void> _probeUserDetail(NeteaseClient client, int uid) async {
+  final variants = <({String label, Future<String> Function() call})>[
+    (
+      label: 'plain /api/v1/user/detail',
+      call: () => client.callPlainApi('/api/v1/user/detail/$uid', const {}),
+    ),
+    (
+      label: 'weapi /weapi/v1/user/detail',
+      call: () => client.callWeApi('/v1/user/detail/$uid', const {}),
+    ),
+  ];
+  for (final v in variants) {
+    try {
+      final raw = await v.call();
+      print('[H6] ${v.label} ${parseProbeAccountProfile(raw)}');
+      print('      raw=${_short(raw, 400)}');
+    } catch (e) {
+      print('[H6] ${v.label} FAIL ${_err(e)}');
+    }
+  }
+}
+
 // ── 小工具 ──────────────────────────────────────────────────
 
 /// 参数解析。
@@ -623,6 +894,11 @@ class _Args {
   bool verifySms = false;
   bool write = false;
   bool? like;
+
+  /// H 组登录凭据：`MUSIC_U=xxx; __csrf=yyy` 形式，`;` 分隔。
+  ///
+  /// 与 `--qr` 二选一；都给了以 `--cookie` 为准（seedCookies 会覆盖同名键）。
+  String cookie = '';
 
   /// F5b：把 `--playlist` + `--id` 的动作用 `op=del` 发（默认 `add`）。
   bool del = false;
@@ -661,6 +937,8 @@ class _Args {
         o.ydToken = next();
       } else if (a == '--qr') {
         o.qr = true;
+      } else if (a == '--cookie') {
+        o.cookie = next();
       } else if (a == '--qr-timeout') {
         o.qrTimeout = int.tryParse(next()) ?? o.qrTimeout;
       } else if (a == '--send-sms') {
@@ -693,6 +971,20 @@ class _Args {
 
 String _codeOf(String raw) =>
     RegExp(r'"code"\s*:\s*(-?\d+)').firstMatch(raw)?.group(1) ?? '-';
+
+/// `MUSIC_U=xxx; __csrf=yyy` → Map。空值 / 缺 `=` 的段跳过。
+Map<String, String> _parseCookieHeader(String raw) {
+  final out = <String, String>{};
+  for (final part in raw.split(';')) {
+    final i = part.indexOf('=');
+    if (i <= 0) continue;
+    final k = part.substring(0, i).trim();
+    final v = part.substring(i + 1).trim();
+    if (k.isEmpty || v.isEmpty) continue;
+    out[k] = v;
+  }
+  return out;
+}
 
 String _short(String s, [int max = 60]) =>
     s.length <= max ? s : '${s.substring(0, max)}…';
