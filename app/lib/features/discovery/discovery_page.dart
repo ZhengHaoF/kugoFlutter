@@ -14,6 +14,7 @@ import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
+import '../../features/rank/rank_boards_grid.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
@@ -57,14 +58,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   String _playlistsError = '';
   bool _tagsLoaded = false;
 
-  // 排行榜
-  List<PlaylistBrief> _ranks = const [];
-  PlaylistBrief? _activeRank;
-  List<Track> _rankTracks = const [];
-  // 懒加载：初始必须是 false，否则 `isEmpty && !loading` 永远进不去。
-  bool _ranksLoading = false;
-  bool _rankTracksLoading = false;
-  String _ranksError = '';
+  // 排行榜：Tab 内容就是 RankBoardsGrid（自己取数），这里不留状态。
 
   // 新碟（'' = 用该源首项，即「全部」）
   String _albumRegion = '';
@@ -116,7 +110,8 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       case 0:
         if (!_tagsLoaded && !_playlistsLoading) _loadPlaylists();
       case 1:
-        if (_ranks.isEmpty && !_ranksLoading) _loadRanks();
+        // 排行榜 Tab 自己加载（RankBoardsGrid），这里不用管。
+        break;
       case 2:
         if (_albums.isEmpty && !_albumsLoading) _loadAlbums();
       case 3:
@@ -186,12 +181,6 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     _playlists = const [];
     _playlistsLoading = false;
     _playlistsError = '';
-    _ranks = const [];
-    _activeRank = null;
-    _rankTracks = const [];
-    _ranksLoading = false;
-    _rankTracksLoading = false;
-    _ranksError = '';
     _albums = const [];
     _albumsLoading = false;
     _albumsError = '';
@@ -255,66 +244,6 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       _playlists = playlists;
       _playlistsLoading = false;
       _playlistsError = error;
-    });
-  }
-
-  Future<void> _loadRanks() async {
-    final source = _source;
-    final rankSource = _capability<RankSource>(source);
-    if (rankSource == null) {
-      setState(() {
-        _ranks = const [];
-        _ranksLoading = false;
-        _ranksError = '';
-      });
-      return;
-    }
-    setState(() {
-      _ranksLoading = true;
-      _ranksError = '';
-    });
-    List<PlaylistBrief> ranks = const [];
-    var error = '';
-    try {
-      ranks = await rankSource.rankBoards();
-    } catch (e) {
-      error = _errorText(e, '排行榜加载失败，请检查网络后重试');
-    }
-    if (!mounted || source != _source) return;
-    setState(() {
-      _ranks = ranks;
-      _ranksLoading = false;
-      if (ranks.isEmpty) {
-        _ranksError =
-            error.isEmpty ? '排行榜加载失败，请检查网络后重试' : error;
-      } else {
-        _activeRank = ranks.first;
-      }
-    });
-    final active = _activeRank;
-    if (active != null && _rankTracks.isEmpty) {
-      await _loadRankTracks(active);
-    }
-  }
-
-  Future<void> _loadRankTracks(PlaylistBrief rank) async {
-    final source = _source;
-    final rankSource = _capability<RankSource>(source);
-    if (rankSource == null) return;
-    setState(() {
-      _activeRank = rank;
-      _rankTracksLoading = true;
-    });
-    List<Track> tracks = const [];
-    try {
-      tracks = await rankSource.rankTracks(rank.id);
-    } catch (_) {
-      tracks = const [];
-    }
-    if (!mounted || source != _source) return;
-    setState(() {
-      _rankTracks = tracks;
-      _rankTracksLoading = false;
     });
   }
 
@@ -430,18 +359,6 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     });
   }
 
-  /// 榜单来源说明：同源榜单共用同一个 `rankTypeName` 时说明「共几个」——
-  /// 网易一次返回多个官方榜（白名单 G11），不说明用户容易以为漏了榜。
-  String get _rankHint {
-    if (_ranks.isEmpty) return '';
-    final labels = <String>{
-      for (final r in _ranks)
-        if (r.rankTypeName.trim().isNotEmpty) r.rankTypeName.trim(),
-    };
-    if (labels.length != 1) return '';
-    return '${labels.first} · 共 ${_ranks.length} 个榜单';
-  }
-
   /// 非酷狗源必须带 `?src=`，详情页据此按源取数（同 common.dart `artistTapFor`）。
   String _playlistRoute(PlaylistBrief playlist) =>
       '/playlist/${playlist.id}${_srcSuffix(playlist.platform)}';
@@ -517,7 +434,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
                     : _buildPlaylistsTab(kugo),
                 _capability<RankSource>(active) == null
                     ? _unsupportedTab('排行榜')
-                    : _buildRanksTab(kugo),
+                    : const RankBoardsGrid(),
                 _capability<NewAlbumFeedSource>(active) == null
                     ? _unsupportedTab('新碟上架')
                     : _buildAlbumsTab(kugo),
@@ -615,86 +532,6 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
                 extra: playlist,
               ),
             );
-          },
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
-  }
-
-  Widget _buildRanksTab(KugoTheme kugo) {
-    return SmoothCustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              KugoSpacing.md,
-              KugoSpacing.lg,
-              KugoSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _RankPicker(
-                    ranks: _ranks,
-                    active: _activeRank,
-                    onChanged: (r) {
-                      if (r == null || r.id == _activeRank?.id) return;
-                      _loadRankTracks(r);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => context.push('/ranks'),
-                  child: const Text('全部榜单'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (_rankHint.isNotEmpty)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
-                0,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
-              ),
-              child: Text(
-                _rankHint,
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
-              ),
-            ),
-          ),
-        if (_rankTracks.isNotEmpty)
-          SliverToBoxAdapter(
-            child: SectionHeader(
-              title: _activeRank?.name ?? '排行榜',
-              showAccent: true,
-              actionLabel: '播放全部',
-              onAction: () {
-                ref
-                    .read(playerControllerProvider.notifier)
-                    .playQueue(_rankTracks, startIndex: 0);
-                context.push('/player');
-              },
-            ),
-          ),
-        _songSliver(
-          loading: _ranksLoading || _rankTracksLoading,
-          error: _ranksError,
-          songs: _rankTracks,
-          emptyMessage: '暂无榜单歌曲',
-          onRetry: () {
-            final r = _activeRank;
-            if (r != null) {
-              _loadRankTracks(r);
-            } else {
-              _loadRanks();
-            }
           },
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -991,61 +828,6 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
           },
         );
       },
-    );
-  }
-}
-
-class _RankPicker extends StatelessWidget {
-  const _RankPicker({
-    required this.ranks,
-    required this.active,
-    required this.onChanged,
-  });
-
-  final List<PlaylistBrief> ranks;
-  final PlaylistBrief? active;
-  final ValueChanged<PlaylistBrief?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final activeId = active?.id;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: kugo.surface,
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
-        border: Border.all(color: kugo.divider),
-      ),
-      child: DropdownButton<String>(
-        value: ranks.any((r) => r.id == activeId) ? activeId : null,
-        isExpanded: true,
-        underline: const SizedBox.shrink(),
-        hint: Text('选择榜单', style: kugo.caption.copyWith(fontSize: 13)),
-        items: [
-          for (final r in ranks)
-            DropdownMenuItem<String>(
-              value: r.id,
-              child: Text(
-                r.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: kugo.body.copyWith(fontSize: 13),
-              ),
-            ),
-        ],
-        onChanged: ranks.isEmpty
-            ? null
-            : (id) {
-                if (id == null) return;
-                for (final r in ranks) {
-                  if (r.id == id) {
-                    onChanged(r);
-                    return;
-                  }
-                }
-              },
-      ),
     );
   }
 }
