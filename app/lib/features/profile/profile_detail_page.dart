@@ -6,7 +6,9 @@ import '../../core/source/music_platform.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
+import '../../core/api/netease/netease_account_models.dart';
 import '../../features/auth/auth_controller.dart';
+import '../../features/profile/netease_account_profile.dart';
 import '../../features/profile/profile_stats.dart';
 import '../../features/profile/source_account.dart';
 import '../../features/profile/user_profile_detail.dart';
@@ -24,6 +26,29 @@ class ProfileDetailPage extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<ProfileDetailPage> createState() => _ProfileDetailPageState();
+}
+
+/// 网易等级 → [GradeProgress] 外壳，供 `_IdentityCard` / 「我的等级」弹窗复用。
+///
+/// 只做单位换算，**不重新算进度**：网易 `progress` 是服务端算好的 0–1 比值
+/// （酷狗那边得用 `p_current_point`/`p_next_grade_point` 自己除）。
+///
+/// `available` 只看有没有下一级听歌目标；登录天数要求（`nextLoginCount`）
+/// 已满足时不参与进度，达标时 `remaining` 归零、进度条满。
+GradeProgress? _neteaseGrade(NeteaseLevelInfo level) {
+  if (level.level <= 0) return null;
+  final target = level.nextPlayCount;
+  final current = level.nowPlayCount;
+  final available = target > 0;
+  return GradeProgress(
+    grade: level.level,
+    current: current,
+    nextGrade: level.level + 1,
+    target: target,
+    available: available,
+    remaining: available ? (target - current).clamp(0, target) : null,
+    percent: (level.progress * 100).clamp(0, 100).toDouble(),
+  );
 }
 
 class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
@@ -51,6 +76,15 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
     final detail =
         isKugou ? (user?.detail ?? UserProfileDetail.empty) : UserProfileDetail.empty;
     final grade = isKugou ? getGradeProgress(detail.toDetailMap()) : null;
+
+    // 网易侧档案 / 会员（H 组，2026-10-08 探针后落地）。酷狗源**不 watch**，
+    // 否则会实例化网易控制器、白跑一次登录态判断。
+    final netease = isKugou
+        ? const NeteaseAccountProfileState()
+        : ref.watch(neteaseAccountProfileProvider);
+    // 网易等级 → 套 GradeProgress 外壳（progress 服务端已算成 0–1）。
+    final neteaseGrade = isKugou ? null : _neteaseGrade(netease.level);
+    final neteaseVipLabel = isKugou ? null : neteaseVipBadgeLabel(netease.vip);
 
     Widget sourceBar(double horizontalPadding) => SourceFilterBar(
           platforms: accountSources,
@@ -132,14 +166,21 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
               avatarUrl: account.avatarUrl,
               displayName: displayName,
               // 签名 / IP / 等级 / 关注粉丝都是酷狗档案，网易侧留空不出。
-              signature: isKugou ? detail.signature.trim() : '',
+              signature: isKugou
+                  ? detail.signature.trim()
+                  : netease.detail.signature.trim(),
               ipLocation: isKugou ? detail.ipLocation : '',
               isVip: account.isVip,
               tvipActive: isKugou && detail.tvipActive,
               svipActive: isKugou && detail.svipActive,
-              grade: grade,
-              follows: isKugou ? detail.follows : null,
-              fans: isKugou ? detail.fans : null,
+              // 网易给具体会员名（黑胶VIP / 音乐包）；null = 走酷狗那套。
+              vipBadgeLabel: neteaseVipLabel,
+              grade: isKugou ? grade : neteaseGrade,
+              // 网易等级弹窗的计量单位是「首」不是「经验」，权益串也一起带过去。
+              gradeUnit: isKugou ? '经验' : '首',
+              gradePrivileges: isKugou ? const [] : netease.level.privileges,
+              follows: isKugou ? detail.follows : netease.detail.follows,
+              fans: isKugou ? detail.fans : netease.detail.followeds,
               visitors: isKugou ? detail.visitors : null,
             ),
             if (isKugou) ...[
@@ -151,7 +192,10 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
               ),
             ] else ...[
               const SizedBox(height: KugoSpacing.lg),
-              _SourceAccountNotice(platform: accountPlatform),
+              _NeteaseArchiveAndMembership(
+                state: netease,
+                isDesktop: isDesktop,
+              ),
             ],
             const SizedBox(height: KugoSpacing.lg),
             // 退出登录入口：从「我的」页统计卡下方拆迁到此（酷狗/网易云两源通用）。
@@ -253,6 +297,9 @@ class _IdentityCard extends StatelessWidget {
     required this.follows,
     required this.fans,
     required this.visitors,
+    this.vipBadgeLabel,
+    this.gradeUnit = '经验',
+    this.gradePrivileges = const [],
   });
 
   final String avatarUrl;
@@ -263,11 +310,20 @@ class _IdentityCard extends StatelessWidget {
   final bool tvipActive;
   final bool svipActive;
 
+  /// 具体会员名（网易「黑胶VIP」/「音乐包」）。null = 用酷狗那套 tvip/svip。
+  final String? vipBadgeLabel;
+
   /// 等级进度。null = 该源没有等级口径（网易），此时不出等级/关注/粉丝/访客一行。
   final GradeProgress? grade;
   final int? follows;
   final int? fans;
   final int? visitors;
+
+  /// 「还差 N **x**」的单位：酷狗是经验，网易是听歌首数。
+  final String gradeUnit;
+
+  /// 等级权益串（网易 `info` 拆的列表；酷狗没有，为空）。
+  final List<String> gradePrivileges;
 
   @override
   Widget build(BuildContext context) {
@@ -323,8 +379,14 @@ class _IdentityCard extends StatelessWidget {
                           const _VipBadge(label: '畅听', color: Color(0xFF07C160)),
                         if (svipActive)
                           const _VipBadge(label: '概念', color: Color(0xFFF59E0B)),
-                        if (!tvipActive && !svipActive && isVip)
-                          const _VipBadge(label: '会员', color: Color(0xFFF59E0B)),
+                        if (!tvipActive &&
+                            !svipActive &&
+                            (vipBadgeLabel ?? (isVip ? '会员' : ''))
+                                .isNotEmpty)
+                          _VipBadge(
+                            label: vipBadgeLabel ?? '会员',
+                            color: const Color(0xFFF59E0B),
+                          ),
                       ],
                     ),
                     if (signature.isNotEmpty) ...[
@@ -406,7 +468,9 @@ class _IdentityCard extends StatelessWidget {
             children: [
               Center(child: Text('我的等级', style: kugo.section)),
               const SizedBox(height: 4),
-              Center(child: Text('每一次聆听，都在积累成长。', style: kugo.caption)),
+              Center(
+                child: Text('每一次聆听，都在积累成长。', style: kugo.caption),
+              ),
               const SizedBox(height: KugoSpacing.lg),
               Container(
                 width: double.infinity,
@@ -428,7 +492,10 @@ class _IdentityCard extends StatelessWidget {
                   children: [
                     Text('当前等级', style: kugo.caption),
                     const SizedBox(height: 4),
-                    Text(grade.gradeLabel, style: kugo.title.copyWith(fontSize: 30)),
+                    Text(
+                      grade.gradeLabel,
+                      style: kugo.title.copyWith(fontSize: 30),
+                    ),
                     const SizedBox(height: KugoSpacing.lg),
                     if (grade.available) ...[
                       Row(
@@ -436,7 +503,9 @@ class _IdentityCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              '距 Lv.${grade.nextGrade} 还差 ${grade.remaining ?? 0} 经验',
+                              // 单位按源区分：酷狗攒经验，网易攒听歌首数。
+                              '距 Lv.${grade.nextGrade} 还差 '
+                              '${grade.remaining ?? 0} $gradeUnit',
                               style: kugo.caption,
                             ),
                           ),
@@ -457,6 +526,31 @@ class _IdentityCard extends StatelessWidget {
                       ),
                     ] else
                       Text('暂未获取到下一等级进度', style: kugo.caption),
+                    // 网易 `info` 给的等级权益（`$` 分隔，已拆成列表）；
+                    // 酷狗没有这个字段，为空时不占位。
+                    if (gradePrivileges.isNotEmpty) ...[
+                      const SizedBox(height: KugoSpacing.lg),
+                      Text('当前等级权益', style: kugo.caption),
+                      const SizedBox(height: 6),
+                      for (final p in gradePrivileges)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.check_rounded,
+                                size: 14,
+                                color: kugo.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(p, style: kugo.caption),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -673,14 +767,135 @@ class _ArchiveAndMembership extends StatelessWidget {
   }
 }
 
-class _SourceAccountNotice extends StatelessWidget {
-  const _SourceAccountNotice({required this.platform});
+/// 网易云「账号档案 + 会员状态」（宽屏双栏 / 窄屏单列）。
+///
+/// 数据来自 H 组三个明文口（见 `netease_account_profile.dart`）：
+/// `/api/v1/user/detail/{uid}` 一手包办身份 / 社交数 / 生涯统计 / 档案，
+/// 故不再打 getfollows / getfolloweds / subcount。
+class _NeteaseArchiveAndMembership extends StatelessWidget {
+  const _NeteaseArchiveAndMembership({
+    required this.state,
+    required this.isDesktop,
+  });
 
-  final MusicPlatform platform;
+  final NeteaseAccountProfileState state;
+  final bool isDesktop;
 
   @override
   Widget build(BuildContext context) {
     final kugo = KugoTheme.of(context);
+    final d = state.detail;
+
+    // 加载中 / 整块失败：别铺一屏「—」，给一句人话。
+    if (state.loading && d.userId.isEmpty) return _hint(kugo, '正在获取账号信息…');
+    if (state.loaded && d.userId.isEmpty) {
+      return _hint(
+        kugo,
+        state.error.isEmpty ? '账号信息获取失败，请稍后重试' : state.error,
+      );
+    }
+
+    final vip = state.vip;
+    final heijiao = vip.heijiao;
+    final musicPackage = vip.musicPackage;
+    final now = DateTime.now();
+
+    final archive = GlassSurface(
+      padding: const EdgeInsets.all(KugoSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_outline_rounded, size: 18, color: kugo.primary),
+              const SizedBox(width: 8),
+              Text('账号档案', style: kugo.section.copyWith(fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: KugoSpacing.sm),
+          _ArchiveRow(label: '用户 ID', value: d.userId.isEmpty ? '—' : d.userId),
+          _ArchiveRow(label: '性别', value: neteaseGenderLabel(d.gender)),
+          _ArchiveRow(label: '乐龄', value: neteaseAccountAge(d.createTime)),
+          _ArchiveRow(
+            label: '累计听歌',
+            value: neteaseListenSongsLabel(d.listenSongs),
+          ),
+          _ArchiveRow(
+            label: '所在地区',
+            value: neteaseLocationText(d.provinceCode),
+          ),
+          _ArchiveRow(
+            label: '云贝',
+            value: d.cloudBeanBalance <= 0 ? '—' : '${d.cloudBeanBalance}',
+          ),
+          if (d.playlistCount > 0)
+            _ArchiveRow(label: '自建歌单', value: '${d.playlistCount}'),
+        ],
+      ),
+    );
+
+    final membership = GlassSurface(
+      padding: const EdgeInsets.all(KugoSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.card_giftcard_outlined, size: 18, color: kugo.primary),
+              const SizedBox(width: 8),
+              Text('会员状态', style: kugo.section.copyWith(fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: KugoSpacing.sm),
+          _MembershipTile(
+            title: '黑胶VIP',
+            active: heijiao?.isActiveAt(now) ?? false,
+            accent: const Color(0xFFF59E0B),
+            icon: Icons.album_rounded,
+            expireText: heijiao == null
+                ? null
+                : formatVipExpireText(heijiao.expireTime),
+            beginText: heijiao == null ? '--' : formatVipDate(heijiao.expireTime),
+            endText: heijiao == null ? '--' : formatVipDate(heijiao.expireTime),
+          ),
+          const SizedBox(height: KugoSpacing.sm),
+          _MembershipTile(
+            title: '音乐包',
+            active: musicPackage?.isActiveAt(now) ?? false,
+            accent: const Color(0xFF07C160),
+            icon: Icons.library_music_rounded,
+            expireText: musicPackage == null
+                ? null
+                : formatVipExpireText(musicPackage.expireTime),
+            beginText:
+                musicPackage == null ? '--' : formatVipDate(musicPackage.expireTime),
+            endText:
+                musicPackage == null ? '--' : formatVipDate(musicPackage.expireTime),
+          ),
+        ],
+      ),
+    );
+
+    if (!isDesktop) {
+      return Column(
+        children: [
+          archive,
+          const SizedBox(height: KugoSpacing.lg),
+          membership,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 3, child: archive),
+        const SizedBox(width: KugoSpacing.lg),
+        Expanded(flex: 2, child: membership),
+      ],
+    );
+  }
+
+  Widget _hint(KugoTheme kugo, String text) {
     return GlassSurface(
       padding: const EdgeInsets.all(KugoSpacing.lg),
       child: Row(
@@ -693,11 +908,7 @@ class _SourceAccountNotice extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              '${platform.label}账号暂不提供等级 / 歌龄 / 关注粉丝等档案信息；'
-              '歌单与「我喜欢」见「我的」页。',
-              style: kugo.caption.copyWith(fontSize: 12),
-            ),
+            child: Text(text, style: kugo.caption.copyWith(fontSize: 12)),
           ),
         ],
       ),

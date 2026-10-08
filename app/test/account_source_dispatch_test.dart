@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:kugo/core/api/netease/netease_account_models.dart';
+import 'package:kugo/core/api/netease/netease_account_source.dart';
 import 'package:kugo/core/api/netease/netease_mappers.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
@@ -14,6 +16,7 @@ import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/data/storage/kugo_db.dart';
 import 'package:kugo/data/storage/queue_store.dart';
 import 'package:kugo/features/auth/netease_login_controller.dart';
+import 'package:kugo/features/profile/netease_account_profile.dart';
 import 'package:kugo/features/profile/netease_collections_controller.dart';
 import 'package:kugo/features/profile/profile_detail_page.dart';
 import 'package:kugo/features/profile/profile_page.dart';
@@ -39,6 +42,42 @@ class FakeUserPlaylistReadSource implements UserPlaylistReadSource {
     final e = error;
     if (e != null) throw e;
     return page;
+  }
+}
+
+/// 测试用假「账号档案」源（H 组三口）：不碰网络，可注入错误。
+///
+/// 不 override 的话 `neteaseAccountProfileProvider` 会落到全局
+/// `neteaseSource`，widget 测试直接打真实网易云。
+class FakeNeteaseAccountSource implements NeteaseAccountSource {
+  NeteaseUserDetail detail = NeteaseUserDetail.empty;
+  NeteaseVipInfo vip = NeteaseVipInfo.empty;
+  NeteaseLevelInfo level = NeteaseLevelInfo.empty;
+  Object? error;
+  int calls = 0;
+
+  @override
+  Future<NeteaseUserDetail> userDetail(int uid) async {
+    calls++;
+    _throwIfNeeded();
+    return detail;
+  }
+
+  @override
+  Future<NeteaseVipInfo> vipInfo({required int userId}) async {
+    _throwIfNeeded();
+    return vip;
+  }
+
+  @override
+  Future<NeteaseLevelInfo> userLevel() async {
+    _throwIfNeeded();
+    return level;
+  }
+
+  void _throwIfNeeded() {
+    final e = error;
+    if (e != null) throw e;
   }
 }
 
@@ -312,6 +351,7 @@ void main() {
       FakeUserPlaylistReadSource? playlists,
       FakeDeviceLoginSource? login,
       UserPlaylistsPage? libraryPage,
+      FakeNeteaseAccountSource? account,
     }) {
       SharedPreferences.setMockInitialValues({
         'settings.enabledSources': enabledSources,
@@ -334,6 +374,9 @@ void main() {
         overrides: [
           neteaseLoginSourceProvider
               .overrideWithValue(login ?? FakeDeviceLoginSource()),
+          // 不 override 会落到全局 neteaseSource → widget 测试打真实网络。
+          neteaseAccountSourceProvider
+              .overrideWithValue(account ?? FakeNeteaseAccountSource()),
         ],
       );
       addTearDown(container.dispose);
@@ -472,22 +515,75 @@ void main() {
       expect(find.text('升级进度'), findsNothing);
     });
 
-    testWidgets('个人中心：网易已登录时隐藏等级/档案区块', (tester) async {
+    testWidgets('个人中心：网易已登录时显示等级/档案/会员区块', (tester) async {
       final login = FakeDeviceLoginSource()
         ..account = const LoginAccount(userId: '42', nickname: '小明');
+      // 2026-10-09 H 组落地后网易侧不再只有一句「暂不提供」，
+      // 等级 / 关注粉丝 / 档案 / 会员状态全部有真数据。
+      final account = FakeNeteaseAccountSource()
+        ..detail = const NeteaseUserDetail(
+          userId: '42',
+          nickname: '小明',
+          signature: '网易云签名',
+          level: 9,
+          listenSongs: 10904,
+          follows: 16,
+          followeds: 1,
+          playlistCount: 8,
+          cloudBeanBalance: 0,
+          createTime: 1536474759615,
+          gender: 0,
+          provinceCode: '330000',
+        )
+        ..level = const NeteaseLevelInfo(
+          level: 9,
+          progress: 0.242,
+          nowPlayCount: 2904,
+          nextPlayCount: 12000,
+          nowLoginCount: 350,
+          nextLoginCount: 350,
+          privileges: ['60G音乐网盘免费容量', '云贝商城满100减12元优惠券'],
+        )
+        ..vip = const NeteaseVipInfo(
+          level: 7,
+          heijiao: NeteaseVipMembership(
+            vipCode: 100,
+            expireTime: 1786031999000,
+            vipLevel: 7,
+          ),
+          musicPackage: NeteaseVipMembership(
+            vipCode: 220,
+            expireTime: 1786031999000,
+            vipLevel: 7,
+          ),
+        );
       final container = containerWith(
         enabledSources: ['kugou', 'netease'],
         defaultSource: 'netease',
         login: login,
+        account: account,
       );
 
       await pumpPage(tester, container, const ProfileDetailPage());
+      // 等 H 组三个并发请求落地。
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
 
       expect(find.text('小明'), findsOneWidget);
-      expect(find.text('升级进度'), findsNothing);
-      expect(find.text('账号档案'), findsNothing);
-      expect(find.text('会员状态'), findsNothing);
-      expect(find.textContaining('暂不提供等级'), findsOneWidget);
+      expect(find.text('网易云签名'), findsOneWidget);
+      // 等级一行：等级 / 关注 / 粉丝（网易没有访客，那格不出）。
+      expect(find.text('升级进度'), findsOneWidget);
+      expect(find.text('Lv.9'), findsOneWidget);
+      expect(find.text('16'), findsOneWidget);
+      expect(find.text('1'), findsWidgets);
+      // 档案 + 会员状态。
+      expect(find.text('账号档案'), findsOneWidget);
+      expect(find.text('会员状态'), findsOneWidget);
+      expect(find.text('黑胶VIP'), findsOneWidget);
+      expect(find.text('音乐包'), findsOneWidget);
+      // 「暂不提供」那句说明应该没了。
+      expect(find.textContaining('暂不提供等级'), findsNothing);
       // 退出登录入口在页尾红字行，两源通用（登录态才渲染）。
       expect(find.text('退出登录'), findsOneWidget);
     });

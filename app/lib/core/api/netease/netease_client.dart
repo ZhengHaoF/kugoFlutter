@@ -525,6 +525,44 @@ class NeteaseClient {
 
   // ── 登录 / 账号（对齐 Neri） ────────────────────────────────
 
+  // ── H 组：账号档案 / 会员（明文，个人中心网易侧） ──────────
+
+  /// H6 用户详情：`/api/v1/user/detail/{uid}`。
+  ///
+  /// **2026-10-08 探针实测明文即通**。响应不止 `profile`——顶层还有
+  /// `level` / `listenSongs` / `userPoint` / `mobileSign` / `pcSign`，
+  /// `profile` 里有 `follows` / `followeds` / `playlistCount` 等。
+  ///
+  /// 有了它就不必再打 `getfollows` / `getfolloweds` / `subcount`
+  /// （`profile.followeds` 与 `getfolloweds` 的 `size` 实测一致）。
+  Future<String> userDetailRaw(int uid) {
+    return callPlainApi('${NeteaseEndpoints.userDetail}/$uid', const {});
+  }
+
+  /// H1 VIP 信息：`/api/music-vip-membership/front/vip/info`。
+  ///
+  /// [userId] 传实际 uid（api-enhanced 用 `query.uid || ''`，空串=当前登录用户；
+  /// 产品侧已有 uid，显式传更稳）。
+  ///
+  /// ⚠️ `redVipLevel` 是**历史等级**，会员过期也不归零（实测账号等级 7 但
+  /// `vipType=0` 且已过期两个月）。判「是否生效中」必须由调用方比对
+  /// [NeteaseVipMembership.expireTime]，别用 `redVipLevel > 0`。
+  Future<String> vipInfoRaw({required int userId}) {
+    return callPlainApi(NeteaseEndpoints.vipInfo, {'userId': '$userId'});
+  }
+
+  /// H2 听歌等级：`/api/user/level`。
+  ///
+  /// 字段在 `data` 下：`level` / `progress`（**0–1 比值，服务端算好**）/
+  /// `nowPlayCount` / `nextPlayCount` / `nowLoginCount` / `nextLoginCount` /
+  /// `info`（`$` 分隔的等级权益串）。
+  ///
+  /// `nowPlayCount` 是**当前等级内**进度，不是生涯累计——累计听歌走
+  /// [userDetailRaw] 的 `listenSongs`。
+  Future<String> userLevelRaw() {
+    return callPlainApi(NeteaseEndpoints.userLevel, const {});
+  }
+
   /// `POST /weapi/w/nuser/account/get`（游客 code 可能非 200）。
   Future<String> accountRaw() => callWeApi(NeteaseEndpoints.account, const {});
 

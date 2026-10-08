@@ -10,6 +10,7 @@ import '../../source/capabilities.dart';
 import '../../source/music_platform.dart';
 import '../../source/music_source.dart';
 import '../../utils/lrc_parser.dart';
+import 'netease_account_models.dart';
 import 'netease_crypto.dart';
 import 'netease_failures.dart';
 
@@ -783,6 +784,10 @@ List<LyricLine> parseYrc(String raw) {
 /// E1：`/weapi/w/nuser/account/get` → [LoginAccount]。
 ///
 /// 游客态 `code` 可能非 200、`profile` 可能为空，此时返回 null（不抛）。
+///
+/// 除 4 个基础字段外，还把档案字段（乐龄 / 性别 / 省市 / 签名 / 背景图）
+/// 一并搬进 [neteaseUserDetailFromProfile]，供 H6 之外的场景兜底——
+/// 实测 `profile` 有 39 个键，此前只读 4 个，其余全丢了。
 LoginAccount? mapNeteaseAccount(String raw) {
   final Map<String, dynamic> root;
   try {
@@ -803,6 +808,111 @@ LoginAccount? mapNeteaseAccount(String raw) {
     isVip: _int(profile['vipType']) > 0,
   );
 }
+
+// ── H 组：账号档案 / 会员（2026-10-08 探针实测） ─────────────
+
+/// H6：`/api/v1/user/detail/{uid}` → [NeteaseUserDetail]。
+///
+/// 响应结构：顶层 `level` / `listenSongs` / `userPoint` / `mobileSign` /
+/// `pcSign`，`profile` 里是身份与社交数。`profile` 缺失时退化成只有
+/// 顶层字段（游客/异常态），不抛。
+NeteaseUserDetail mapNeteaseUserDetail(String raw) {
+  final root = _decode(raw);
+  if (_int(root['code']) != 200) {
+    throw mapNeteaseCode(_int(root['code']), message: '用户详情 code 异常');
+  }
+  final profile = _asMap(root['profile']);
+  final point = _asMap(root['userPoint']);
+  return NeteaseUserDetail(
+    // 用 _str 而非 _int：缺键时得空串而不是 '0'。
+    userId: _str(profile['userId']),
+    nickname: _str(profile['nickname']),
+    avatarUrl: _pic(_str(profile['avatarUrl'])),
+    backgroundUrl: _pic(_str(profile['backgroundUrl'])),
+    signature: _str(profile['signature']),
+    description: _str(profile['description']),
+    level: _int(root['level']) != 0
+        ? _int(root['level'])
+        : _int(profile['level']),
+    listenSongs: _int(root['listenSongs']),
+    follows: _int(profile['follows']),
+    followeds: _int(profile['followeds']),
+    playlistCount: _int(profile['playlistCount']),
+    cloudBeanBalance: _int(point['balance']),
+    createTime: _positiveOrNull(_int(profile['createTime'])),
+    gender: _int(profile['gender']),
+    provinceCode: _str(profile['province']),
+    cityCode: _str(profile['city']),
+  );
+}
+
+/// H1：`/api/music-vip-membership/front/vip/info` → [NeteaseVipInfo]。
+///
+/// 四条会员都是同名结构（`vipCode` / `expireTime` / `vipLevel` / `isSign*`），
+/// 用 [_vipMembership] 统一解；缺键或 `vipCode==0` 返回 null（未开通）。
+NeteaseVipInfo mapNeteaseVipInfo(String raw) {
+  final root = _decode(raw);
+  if (_int(root['code']) != 200) {
+    throw mapNeteaseCode(_int(root['code']), message: 'VIP 信息 code 异常');
+  }
+  final data = _asMap(root['data']);
+  return NeteaseVipInfo(
+    level: _int(data['redVipLevel']),
+    levelIconUrl: _str(data['redVipLevelIcon']),
+    annualCount: _int(data['redVipAnnualCount']),
+    heijiao: _vipMembership(data['associator']),
+    musicPackage: _vipMembership(data['musicPackage']),
+    redplus: _vipMembership(data['redplus']),
+    familyVip: _vipMembership(data['familyVip']),
+  );
+}
+
+/// H2：`/api/user/level` → [NeteaseLevelInfo]。
+///
+/// `progress` 服务端已算成 0–1 比值，钳到 [0,1] 防脏值；
+/// `info` 是 `$` 分隔的权益串，拆成列表（空段丢弃）。
+NeteaseLevelInfo mapNeteaseUserLevel(String raw) {
+  final root = _decode(raw);
+  if (_int(root['code']) != 200) {
+    throw mapNeteaseCode(_int(root['code']), message: '用户等级 code 异常');
+  }
+  final data = _asMap(root['data']);
+  final progress = _double(data['progress']).clamp(0.0, 1.0);
+  return NeteaseLevelInfo(
+    level: _int(data['level']),
+    progress: progress.isFinite ? progress : 0,
+    nowPlayCount: _int(data['nowPlayCount']),
+    nextPlayCount: _int(data['nextPlayCount']),
+    nowLoginCount: _int(data['nowLoginCount']),
+    nextLoginCount: _int(data['nextLoginCount']),
+    privileges: _str(data['info'])
+        .split('\$')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(),
+  );
+}
+
+/// 一条会员记录；非 Map 或 `vipCode==0`（未开通）返回 null。
+NeteaseVipMembership? _vipMembership(Object? node) {
+  if (node is! Map) return null;
+  final m = _asMap(node);
+  final code = _int(m['vipCode']);
+  if (code <= 0) return null;
+  return NeteaseVipMembership(
+    vipCode: code,
+    expireTime: _positiveOrNull(_int(m['expireTime'])),
+    vipLevel: _int(m['vipLevel']),
+    // isSign / isSignIap / isSignDeduct / isSignIapDeduct 任一为真即续费中。
+    isAutoRenew: m['isSign'] == true ||
+        m['isSignIap'] == true ||
+        m['isSignDeduct'] == true ||
+        m['isSignIapDeduct'] == true,
+  );
+}
+
+/// 非正数 → null（网易用 `0` / 负值表示「无此项」，如 `birthday=-2209017600000`）。
+int? _positiveOrNull(int v) => v > 0 ? v : null;
 
 // ── 内部工具 ─────────────────────────────────────────────────
 
@@ -952,6 +1062,13 @@ Map<String, dynamic> _asMap(Object? value) =>
 int _int(Object? value) {
   if (value is num) return value.toInt();
   return int.tryParse('${value ?? ''}'.trim()) ?? 0;
+}
+
+/// 宽松转 double（`progress` 可能是 `0.242` 也可能是字符串 `"0.242"`）；
+/// 解析不了返回 0，由调用方钳范围。
+double _double(Object? value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse('${value ?? ''}'.trim()) ?? 0;
 }
 
 String _str(Object? value) {

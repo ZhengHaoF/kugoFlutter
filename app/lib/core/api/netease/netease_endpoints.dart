@@ -31,6 +31,22 @@ abstract final class NeteaseEndpoints {
   static const playlistManipulateTracks = '/playlist/manipulate/tracks';
   static const userAlbums = '/eapi/mine/rn/resource/list';
 
+  /// H 组账号档案 / 会员（个人中心网易侧，2026-10-08 探针实测）。
+  ///
+  /// 三个口**明文即通**，故走 [NeteaseClient.callPlainApi]，不套 weapi 预热
+  /// （省一次首页 GET，也少一个风控暴露面；同 G12/G13 结论）。
+  ///
+  /// - H6 [userDetail]：身份 / 等级 / 关注(`profile.follows`) / 粉丝
+  ///   (`profile.followeds`) / 累计听歌(`listenSongs`) / 云贝(`userPoint`) /
+  ///   档案(`createTime`/`gender`/`province`/`city`/`signature`)。
+  ///   一个请求顶 H3+H4 多数字段，故产品侧**不打** getfollows/getfolloweds/subcount。
+  /// - H1 [vipInfo]：VIP 等级 + 到期。`redVipLevel` 是**历史等级**（过期不归零），
+  ///   判生效必须比对 `expireTime`。
+  /// - H2 [userLevel]：升级进度（`progress` 是服务端算好的 0–1 比值）+ 权益串 `info`。
+  static const userDetail = '/api/v1/user/detail';
+  static const vipInfo = '/api/music-vip-membership/front/vip/info';
+  static const userLevel = '/api/user/level';
+
   /// 详情（歌单 / 专辑 / 歌人）
   static const playlistDetail = '/api/v6/playlist/detail';
   static const albumDetail = '/weapi/v1/album/';

@@ -1,3 +1,5 @@
+import '../../../core/api/netease/netease_account_models.dart';
+import '../../../core/api/netease/netease_account_source.dart';
 import '../../../core/api/netease/netease_client.dart';
 import '../../../core/api/netease/netease_failures.dart';
 import '../../../core/api/netease/netease_mappers.dart';
@@ -41,7 +43,8 @@ class NeteaseSource
         CommentLikeSource,
         ResourceCommentSource,
         SearchHotSource,
-        MvDetailSource {
+        MvDetailSource,
+        NeteaseAccountSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
 
   final NeteaseClient _client;
@@ -597,6 +600,27 @@ class NeteaseSource
   @override
   Future<void> logout() async {
     _client.clearLogin();
+  }
+
+  // ── H 组：账号档案 / 会员（NeteaseAccountSource，需登录） ───
+
+  /// H6 用户详情。uid 由调用方从 [currentAccount] 取（避免本方法再打一次
+  /// `account/get`——[currentAccount] 每次都是真网络请求）。
+  @override
+  Future<NeteaseUserDetail> userDetail(int uid) async {
+    if (uid <= 0) throw const LoginRequired('网易云未登录，无法读取账号档案');
+    return mapNeteaseUserDetail(await _client.userDetailRaw(uid));
+  }
+
+  @override
+  Future<NeteaseVipInfo> vipInfo({required int userId}) async {
+    if (userId <= 0) throw const LoginRequired('网易云未登录，无法读取会员信息');
+    return mapNeteaseVipInfo(await _client.vipInfoRaw(userId: userId));
+  }
+
+  @override
+  Future<NeteaseLevelInfo> userLevel() async {
+    return mapNeteaseUserLevel(await _client.userLevelRaw());
   }
 
   // ── 内部 ─────────────────────────────────────────────────
