@@ -30,7 +30,11 @@ void main() {
 
   test('全新安装默认全部启用', () async {
     final container = await restored({});
-    expect(enabled(container), {MusicPlatform.kugou, MusicPlatform.netease});
+    // B5 装配后新装默认集含 B 站（方案 §7.2：存量用户不做迁移）。
+    expect(
+      enabled(container),
+      {MusicPlatform.kugou, MusicPlatform.netease, MusicPlatform.bili},
+    );
   });
 
   test('落盘还原（只启用网易云）', () async {
@@ -42,7 +46,10 @@ void main() {
 
   test('空列表（非法态）回退全集', () async {
     final container = await restored({'settings.enabledSources': <String>[]});
-    expect(enabled(container), {MusicPlatform.kugou, MusicPlatform.netease});
+    expect(
+      enabled(container),
+      {MusicPlatform.kugou, MusicPlatform.netease, MusicPlatform.bili},
+    );
   });
 
   test('未知取值被丢弃，不误读成酷狗', () async {
@@ -87,7 +94,10 @@ void main() {
         .read(settingsControllerProvider.notifier)
         .setEnabledSources({});
 
-    expect(enabled(container), {MusicPlatform.kugou, MusicPlatform.netease});
+    expect(
+      enabled(container),
+      {MusicPlatform.kugou, MusicPlatform.netease, MusicPlatform.bili},
+    );
   });
 
   test('停用当前默认源时默认源联动回退', () async {
@@ -267,5 +277,36 @@ void main() {
     expect((tile.subtitle as Text).data, '登录网易云后可启用');
     // 子开关同样提示先登录，而不是误读成「用户自己关掉了」。
     expect(find.text('登录网易云后可启用'), findsWidgets);
+  });
+
+  testWidgets('UI：B 站源开关在列且默认开，子开关只有「搜索」', (tester) async {
+    await pumpSettingsApp(
+      tester,
+      neteaseAccount: const LoginAccount(userId: '7', nickname: '已登录'),
+    );
+
+    // 整源开关：registry 注册即出现（B5），新装默认启用。
+    final biliTile = tester.widget<SwitchListTile>(
+      find.ancestor(
+        of: find.text('启用哔哩哔哩音源'),
+        matching: find.byType(SwitchListTile),
+      ),
+    );
+    expect(biliTile.value, isTrue, reason: '新装默认集含 B 站');
+    expect(biliTile.onChanged, isNotNull, reason: '可手动关闭');
+
+    // 子开关只列基类能力「搜索」——FM / 日推 / 榜单 / 发现 / 云盘都不列，
+    // 不出假入口（方案 §4.3「谁有谁 implements」）。
+    expect(
+      find.byKey(const ValueKey('feature_switch_bili_search')),
+      findsOneWidget,
+    );
+    for (final id in const ['fm', 'daily', 'rank', 'discovery', 'cloud']) {
+      expect(
+        find.byKey(ValueKey('feature_switch_bili_$id')),
+        findsNothing,
+        reason: 'B 站不该列出 $id 子开关',
+      );
+    }
   });
 }

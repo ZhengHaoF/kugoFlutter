@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/source/music_platform.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/profile/profile_page.dart';
 import 'package:kugo/shared/widgets/common.dart';
@@ -10,6 +12,7 @@ import 'package:kugo/shared/widgets/player_icon_buttons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
+import 'fakes/fake_music_source.dart';
 
 Track _track(String id, {String name = '', String artist = 'artist'}) => Track(
       id: id,
@@ -133,6 +136,10 @@ void main() {
 
   testWidgets('Profile stats never show hardcoded numbers', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    // 装一个酷狗假源：没有 registry 时页面判断不出该源有没有云端歌单
+    // （UserPlaylistReadSource），统计格副标题会退化成「暂不支持」。
+    musicSourceRegistry =
+        MusicSourceRegistry([FakeMusicSource(platform: MusicPlatform.kugou)]);
     final engine = FakeAudioPlayer();
     final container = ProviderContainer(
       overrides: [

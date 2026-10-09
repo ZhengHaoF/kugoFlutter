@@ -20,16 +20,23 @@ class CoverCache {
   static const _ua =
       'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 
-  /// 防盗链按 CDN 域名下发：网易系画布要 music.163.com，酷狗系要 kugou。
+  /// 防盗链按 CDN 域名下发：网易系画布要 music.163.com，酷狗系要 kugou，
+  /// B 站系（`hdslb.com` / `biliimg.com`）要 www.bilibili.com（方案 §3.4：
+  /// 不带 Referer 会 403；与取流直链同一套口径）。
   static Map<String, String> headersFor(String url) {
     final u = url.toLowerCase();
     final isNetease = u.contains('126.net') ||
         u.contains('163.com') ||
         u.contains('music.126') ||
         u.contains('p1.music.126');
+    final isBili = u.contains('hdslb.com') || u.contains('biliimg.com');
     return {
       'User-Agent': _ua,
-      'Referer': isNetease ? 'https://music.163.com' : 'http://www.kugou.com/',
+      'Referer': isNetease
+          ? 'https://music.163.com'
+          : isBili
+              ? 'https://www.bilibili.com'
+              : 'http://www.kugou.com/',
     };
   }
 

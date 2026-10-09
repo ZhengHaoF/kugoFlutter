@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
+import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
@@ -164,6 +165,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
             .where(enabled.contains)
             .toList() ??
         const [];
+  }
+
+  /// 当前筛选源有没有云端「我喜欢」可同步（[UserLibrarySource]）。
+  /// B 站没有（方案 §5.3 #1）：不出登录引导，走空态文案。
+  bool get _canSyncLikes {
+    final f = _sourceFilter;
+    if (f == null) return false;
+    return musicSourceRegistry?.capability<UserLibrarySource>(f) != null;
   }
 
   @override
@@ -457,7 +466,11 @@ class _LikesPageState extends ConsumerState<LikesPage>
     required List<MusicPlatform> platforms,
   }) {
     // 选中某源但未登录：给登录引导，而不是一个看不懂的空列表。
-    if (_sourceFilter != null && !accountLogged) {
+    //
+    // 但**没有云端「我喜欢」的源不引导登录**（B 站，方案 §5.3 #1：
+    // 红心只写本地）——直接落到下面 `_songsEmptyMessage` 的 bili 空态文案。
+    // 门控看 [UserLibrarySource] 能力，不写 `platform == bili` 特判。
+    if (_sourceFilter != null && !accountLogged && _canSyncLikes) {
       return _loginPrompt(
         kugo: kugo,
         icon: Icons.cloud_outlined,
@@ -480,9 +493,11 @@ class _LikesPageState extends ConsumerState<LikesPage>
 
     if (totalCount == 0) {
       // 未登录时「重试」应当是去登录，而不是空转一次请求。
-      final VoidCallback onRetry = !accountLogged
-          ? () => context.push(loginRouteFor(accountPlatform))
-          : _refreshSongs;
+      // 没有登录入口的源（B 站 B3 落地前）退回普通刷新。
+      final VoidCallback onRetry =
+          !accountLogged && canLoginSource(accountPlatform)
+              ? () => context.push(loginRouteFor(accountPlatform))
+              : _refreshSongs;
       return AsyncBody(
         loading: false,
         hasError: error.isNotEmpty,

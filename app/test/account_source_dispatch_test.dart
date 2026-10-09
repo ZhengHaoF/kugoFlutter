@@ -9,6 +9,7 @@ import 'package:kugo/core/api/netease/netease_account_models.dart';
 import 'package:kugo/core/api/netease/netease_account_source.dart';
 import 'package:kugo/core/api/netease/netease_mappers.dart';
 import 'package:kugo/core/models/cloud_models.dart';
+import 'package:kugo/core/models/search_result.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/music_platform.dart';
@@ -18,6 +19,7 @@ import 'package:kugo/data/storage/kugo_db.dart';
 import 'package:kugo/data/storage/queue_store.dart';
 import 'package:kugo/features/auth/netease_login_controller.dart';
 import 'package:kugo/features/cloud/cloud_page.dart';
+import 'package:kugo/features/likes/likes_page.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/profile/netease_account_profile.dart';
 import 'package:kugo/features/profile/netease_collections_controller.dart';
@@ -113,6 +115,78 @@ class FakeNeteaseAccountSource implements NeteaseAccountSource {
     final e = error;
     if (e != null) throw e;
   }
+}
+
+/// 网易形态的假源：基类 + [DeviceLoginSource]。真 `NeteaseSource` 有扫码
+/// 登录能力，登录入口门控（`canLoginSource`）在 registry 层判定它——
+///  plain [FakeMusicSource] 没有这个能力，会把网易也门控成「不可登录」。
+class _FakeLoginMusicSource extends FakeMusicSource
+    implements DeviceLoginSource {
+  _FakeLoginMusicSource({required super.platform});
+
+  @override
+  Future<LoginQrSession> createLoginQr() async =>
+      const LoginQrSession(id: 'k', qrContent: 'https://qr');
+
+  @override
+  Future<LoginQrPoll> pollLoginQr(LoginQrSession session) async =>
+      const LoginQrPoll(status: LoginQrStatus.waiting);
+
+  @override
+  Future<LoginAccount?> currentAccount() async => null;
+
+  @override
+  Future<void> logout() async {}
+}
+
+/// B5 期的 B 站形态：只有 [MusicSource] 基类（搜索 + 取流）。账号（B3）/
+/// 云端歌单・我喜欢（B4）能力都还没 implements——**不空实现冒充**
+/// （多音源方案 §3.2：谁有谁 implements，UI 靠 `capability<T>()` 显隐）。
+class _BareBiliSource implements MusicSource {
+  @override
+  MusicPlatform get platform => MusicPlatform.bili;
+
+  @override
+  Future<SearchPageResult<Track>> searchSongs(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<AlbumBrief>> searchAlbums(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<SearchPageResult<ArtistBrief>> searchArtists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      const SearchPageResult.empty();
+
+  @override
+  Future<PlayUrlResult> resolvePlayUrl(
+    Track track, {
+    AppQuality? preferred,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<LyricPayload> fetchLyric(Track track) async => LyricPayload.empty;
 }
 
 PlaylistBrief _playlist(
@@ -392,7 +466,7 @@ void main() {
         'settings.defaultSource': defaultSource,
       });
       final kugou = FakeMusicSource(platform: MusicPlatform.kugou);
-      final netease = FakeMusicSource(platform: MusicPlatform.netease)
+      final netease = _FakeLoginMusicSource(platform: MusicPlatform.netease)
         ..libraryPage = libraryPage ??
             (playlists != null
                 ? UserPlaylistsPage(
@@ -441,6 +515,11 @@ void main() {
           GoRoute(
             path: '/netease-login',
             builder: (_, _) => const Scaffold(body: Text('网易登录页')),
+          ),
+          // 探针路由：B 站登录页（B3）落地前不该有任何入口跳到这里。
+          GoRoute(
+            path: '/bili-login',
+            builder: (_, _) => const Scaffold(body: Text('B 站登录页（不该到达）')),
           ),
           GoRoute(path: '/cloud', builder: (_, _) => const CloudPage()),
         ],
@@ -882,6 +961,65 @@ void main() {
       }
       // 退出登录入口在页尾红字行，两源通用（登录态才渲染）。
       expect(find.text('退出登录'), findsOneWidget);
+    });
+
+    group('B 站账号源（B3/B4 落地前按游客渲染，不出死路由入口）', () {
+      /// B5 期 B 站：启用 + 注册，但只有基类能力（账号 / 内容面未落地）。
+      ///
+      /// 先等设置还原落定再返回——`LikesPage.initState` 会一次性读默认源
+      /// 定筛选项，还原未完成时会读到构造默认值（酷狗）。
+      Future<ProviderContainer> containerWithBili() async {
+        final c = containerWith(
+          enabledSources: ['kugou', 'netease', 'bili'],
+          defaultSource: 'bili',
+        );
+        await c.read(settingsControllerProvider.notifier).ensureRestored();
+        musicSourceRegistry = MusicSourceRegistry([
+          FakeMusicSource(platform: MusicPlatform.kugou),
+          _FakeLoginMusicSource(platform: MusicPlatform.netease),
+          _BareBiliSource(),
+        ]);
+        return c;
+      }
+
+      testWidgets('我的页：歌单占位说明没有云端歌单，不出登录按钮', (tester) async {
+        final container = await containerWithBili();
+
+        await pumpPage(tester, container, const Scaffold(body: ProfilePage()));
+
+        expect(find.text('哔哩哔哩暂无云端歌单'), findsOneWidget);
+        expect(find.text('立即登录'), findsNothing);
+        // 统计格副标题不是「需登录」——登录了也没有可同步的云端歌单。
+        expect(find.text('暂不支持'), findsOneWidget);
+
+        // 点统计格不会 push 不存在的 /bili-login（探针路由不该到达）。
+        await tester.tap(find.ancestor(
+          of: find.text('暂不支持'),
+          matching: find.byType(InkWell),
+        ).first);
+        await tester.pumpAndSettle();
+        expect(find.text('B 站登录页（不该到达）'), findsNothing);
+      });
+
+      testWidgets('个人中心：B 站出游客说明，不出「立即登录」', (tester) async {
+        final container = await containerWithBili();
+
+        await pumpPage(tester, container, const ProfileDetailPage());
+
+        expect(find.text('哔哩哔哩暂不支持账号登录'), findsOneWidget);
+        expect(find.text('请先登录哔哩哔哩账号'), findsNothing);
+        expect(find.text('立即登录'), findsNothing);
+      });
+
+      testWidgets('我喜欢：B 站出「没有云端我喜欢」空态，不引导登录', (tester) async {
+        final container = await containerWithBili();
+
+        await pumpPage(tester, container, const LikesPage());
+
+        // §5.3 #1：B 站没有云端「我喜欢」，红心只写本地。
+        expect(find.textContaining('B 站没有云端'), findsOneWidget);
+        expect(find.text('立即登录'), findsNothing);
+      });
     });
   });
 }

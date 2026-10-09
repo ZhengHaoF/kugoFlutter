@@ -95,6 +95,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     final account = ref.watch(sourceAccountProvider(accountPlatform));
     final isKugou = accountPlatform == MusicPlatform.kugou;
     final library = ref.watch(sourceLibraryProvider(accountPlatform));
+    // 云端歌单读能力（合集/收藏夹口径，B4 落地前 B 站没有）。没有它
+    // 就不出「去登录」引导——登录了也没有可同步的歌单，是假入口
+    // （多音源方案 §3.2）。B4 落地后 B 站自动获得引导，无需特判。
+    // 注：登录路由本身的有效性由 [canLoginSource] 在个人中心页把关；
+    // B3（账号）排期早于 B4（内容面），有读能力时必有登录入口。
+    final canReadPlaylists = musicSourceRegistry
+            ?.capability<UserPlaylistReadSource>(accountPlatform) !=
+        null;
 
     final realLikesCount = account.isLogged
         ? (library.likedPlaylist?.trackCount ??
@@ -121,7 +129,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
         : (library.loading && !library.loaded
             ? '—'
             : '${library.totalPlaylistsCount}');
-    final playlistStatHint = !account.isLogged ? '需登录' : null;
+    // 没有云端歌单的源（B 站，合集/收藏夹属 B4）不出「需登录」——
+    // 登录了也没有可同步的歌单，摆个去登录的入口就是假入口。
+    final playlistStatHint = !account.isLogged
+        ? (canReadPlaylists ? '需登录' : '暂不支持')
+        : null;
 
     return Scaffold(
       // 页头对齐「探索发现」：顶部居中页面标题，下面一条页签栏。
@@ -231,7 +243,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           // 顶部，无需滚动）；已在歌单页签才滚到卡片。
                           onTap: () {
                             if (!account.isLogged) {
-                              context.push(loginRouteFor(accountPlatform));
+                              // 没有云端歌单的源（B 站 B4 落地前）不跳转，
+                              // 去了也是死路由。
+                              if (canReadPlaylists) {
+                                context.push(loginRouteFor(accountPlatform));
+                              }
                               return;
                             }
                             if (_tabController.index != 0) {
@@ -344,50 +360,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           ),
                           const SizedBox(height: KugoSpacing.md),
                           if (!account.isLogged) ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: KugoSpacing.md,
-                                vertical: KugoSpacing.lg,
-                              ),
-                              decoration: BoxDecoration(
-                                color: kugo.surfaceElevated.withValues(
-                                  alpha: 0.4,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  KugoRadius.tile,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.queue_music_rounded,
-                                    size: 38,
-                                    color: kugo.textSecondary.withValues(
-                                      alpha: 0.7,
-                                    ),
-                                  ),
-                                  const SizedBox(height: KugoSpacing.sm),
-                                  Text(
-                                    '登录${accountPlatform.label}账号后，即可同步自建与收藏歌单',
-                                    style: kugo.caption.copyWith(fontSize: 13),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: KugoSpacing.md),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 8,
-                                      ),
-                                    ),
-                                    onPressed: () => context.push(
-                                      loginRouteFor(accountPlatform),
-                                    ),
-                                    child: const Text('立即登录'),
-                                  ),
-                                ],
-                              ),
+                            _playlistPlaceholder(
+                              kugo: kugo,
+                              message: canReadPlaylists
+                                  ? '登录${accountPlatform.label}账号后，即可同步自建与收藏歌单'
+                                  : '${accountPlatform.label}暂无云端歌单',
+                              loginRoute: canReadPlaylists
+                                  ? loginRouteFor(accountPlatform)
+                                  : null,
                             ),
                           ] else ...[
                             Center(
@@ -479,6 +459,55 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// 「我的歌单」未登录占位卡：有登录入口时引导去登录；没有时
+  /// （B 站 B3/B4 落地前）只说明该源没有云端歌单——**不摆去登录的
+  /// 假入口**（多音源方案 §3.2 口径）。
+  Widget _playlistPlaceholder({
+    required KugoTheme kugo,
+    required String message,
+    required String? loginRoute,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: KugoSpacing.md,
+        vertical: KugoSpacing.lg,
+      ),
+      decoration: BoxDecoration(
+        color: kugo.surfaceElevated.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(KugoRadius.tile),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.queue_music_rounded,
+            size: 38,
+            color: kugo.textSecondary.withValues(alpha: 0.7),
+          ),
+          const SizedBox(height: KugoSpacing.sm),
+          Text(
+            message,
+            style: kugo.caption.copyWith(fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          if (loginRoute != null) ...[
+            const SizedBox(height: KugoSpacing.md),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
+              ),
+              onPressed: () => context.push(loginRoute),
+              child: const Text('立即登录'),
+            ),
+          ],
         ],
       ),
     );

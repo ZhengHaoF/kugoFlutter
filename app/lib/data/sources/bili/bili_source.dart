@@ -6,6 +6,7 @@ import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
 import '../../../core/source/music_source.dart';
 import '../../../core/source/music_platform.dart';
+import '../../../core/source/quality_map.dart';
 
 /// B 站音源适配器（B2：搜索 + 取流）。
 ///
@@ -151,10 +152,14 @@ class BiliSource implements MusicSource {
 
   /// 带宽 → 抽象档。**按带宽判、禁硬编码 audio id**（方案 §3.5 / §8.1）：
   /// 实测 30216≈64k / 30232≈80~115k / 30280≈177~216k，同一 id 带宽还随
-  /// 视频变，只能按带宽分档。
+  /// 视频变，只能按带宽分档。阈值收口在 [SourceQualityMap.biliBandwidthFloor]。
   static AppQuality qualityOfBandwidth(int bandwidth) {
-    if (bandwidth >= 150000) return AppQuality.sq;
-    if (bandwidth >= 70000) return AppQuality.hq;
+    if (bandwidth >= SourceQualityMap.biliBandwidthFloor(AppQuality.sq)) {
+      return AppQuality.sq;
+    }
+    if (bandwidth >= SourceQualityMap.biliBandwidthFloor(AppQuality.hq)) {
+      return AppQuality.hq;
+    }
     return AppQuality.standard;
   }
 
@@ -214,12 +219,17 @@ class BiliSource implements MusicSource {
     return b.track.bandwidth.compareTo(a.track.bandwidth);
   }
 
-  static int _groupRank(String group) => switch (group) {
+/// [BiliAudioPick] 的 [BiliAudioPick.group] 在同档内的优先序：
+/// flac（Hi-Res）> dolby > 普通 audio。
+static int _groupRank(String group) => switch (group) {
         'flac' => 2,
         'dolby' => 1,
         _ => 0,
       };
 }
+
+/// 全局单例（对齐 `kugouSource` / `neteaseSource`；B5 装配进 registry）。
+final biliSource = BiliSource();
 
 /// [BiliSource.selectAudio] 的选出项。
 class BiliAudioPick {

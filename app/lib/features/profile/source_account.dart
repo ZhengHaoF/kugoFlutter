@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../auth/auth_controller.dart';
@@ -41,6 +42,18 @@ String loginRouteFor(MusicPlatform platform) => switch (platform) {
       MusicPlatform.netease => '/netease-login',
       MusicPlatform.bili => '/bili-login',
     };
+
+/// 该源**有没有登录入口**。酷狗走独立的 `features/auth` 链路（不经
+/// [DeviceLoginSource]），其余源看 registry 里有没有扫码能力。
+///
+/// B 站扫码登录（B3）落地前没有登录页也没有 `/bili-login` 路由——
+/// 此时各登录入口必须按本函数门控，否则 push 一个不存在的路由。
+/// B3 落地（`BiliSource implements DeviceLoginSource` + 登录页 + 路由）
+/// 后自动放行，无需回来改调用方。
+bool canLoginSource(MusicPlatform platform) {
+  if (platform == MusicPlatform.kugou) return true;
+  return musicSourceRegistry?.capability<DeviceLoginSource>(platform) != null;
+}
 
 /// 退出该源的账号（酷狗走 [AuthController]，网易走 [NeteaseLoginController]）。
 Future<void> logoutSource(WidgetRef ref, MusicPlatform platform) =>

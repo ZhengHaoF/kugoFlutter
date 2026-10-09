@@ -76,9 +76,12 @@ class AppSettings {
     this.desktopLyricOffsetMs = 0,
     this.desktopLyricStyle = const DesktopLyricStyle(),
     this.defaultSource = MusicPlatform.kugou,
+    // 新装开箱即用含 B 站（方案 §7.2）；存量用户不做迁移——
+    // enabledSources 是持久化配置，默认集改动只影响全新安装。
     this.enabledSources = const {
       MusicPlatform.kugou,
       MusicPlatform.netease,
+      MusicPlatform.bili,
     },
     this.disabledFeatures = const {},
   });

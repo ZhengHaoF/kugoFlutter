@@ -101,6 +101,9 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
         );
 
     if (!account.isLogged) {
+      // 没有登录入口的源（B 站 B3 落地前）不出「立即登录」按钮——
+      // 去了是没有路由的死路；按游客说明只能看公开内容。
+      final canLogin = canLoginSource(accountPlatform);
       return Scaffold(
         backgroundColor: kugo.bg,
         body: SafeArea(
@@ -120,15 +123,24 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
                       ),
                       const SizedBox(height: KugoSpacing.lg),
                       Text(
-                        '请先登录${accountPlatform.label}账号',
+                        canLogin
+                            ? '请先登录${accountPlatform.label}账号'
+                            : '${accountPlatform.label}暂不支持账号登录',
                         style: kugo.title.copyWith(fontSize: 16),
                       ),
                       const SizedBox(height: KugoSpacing.xl),
-                      FilledButton(
-                        onPressed: () =>
-                            context.push(loginRouteFor(accountPlatform)),
-                        child: const Text('立即登录'),
-                      ),
+                      if (canLogin)
+                        FilledButton(
+                          onPressed: () =>
+                              context.push(loginRouteFor(accountPlatform)),
+                          child: const Text('立即登录'),
+                        )
+                      else
+                        Text(
+                          '搜索与播放公开内容无需登录',
+                          style: kugo.caption,
+                          textAlign: TextAlign.center,
+                        ),
                     ],
                   ),
                 ),

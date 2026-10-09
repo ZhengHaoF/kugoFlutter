@@ -109,6 +109,22 @@ void main() {
       );
     });
 
+    test('B 站系封面（hdslb / biliimg）带 www.bilibili.com Referer', () {
+      // B5 装配后 B 站封面走 hdslb CDN；不带 Referer 会 403（方案 §3.4）。
+      for (final url in const [
+        'https://i0.hdslb.com/bfs/archive/abc.jpg',
+        'http://i1.hdslb.com/abc.jpg@400w_300h_1c.webp',
+        'https://i2.biliimg.com/bfs/face/xyz.jpg',
+        'https://I0.HDSLB.COM/upper.jpg',
+      ]) {
+        expect(
+          CoverCache.headersFor(url)['Referer'],
+          'https://www.bilibili.com',
+          reason: url,
+        );
+      }
+    });
+
     test('两种域名共用同一个移动端 User-Agent', () {
       final a = CoverCache.headersFor('https://p1.music.126.net/a.jpg');
       final b = CoverCache.headersFor('https://imge.kugou.com/a.jpg');

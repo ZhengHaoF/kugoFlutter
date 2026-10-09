@@ -223,15 +223,17 @@ void main() {
       expect(fm.availableSources(), isEmpty);
     });
 
-    test('搜索：关掉网易云的搜索后筛选条只剩酷狗', () async {
+    test('搜索：关掉网易云的搜索后筛选条只剩酷狗与 B 站', () async {
       final c = await restored({});
       final search = c.read(searchControllerProvider.notifier);
+      // B5 装配后 B 站进默认音源集且已注册，筛选条自动纳入（真源能力判定）。
       expect(search.availablePlatforms,
-          [MusicPlatform.kugou, MusicPlatform.netease]);
+          [MusicPlatform.kugou, MusicPlatform.netease, MusicPlatform.bili]);
 
       await ctrl(c)
           .setFeatureEnabled(MusicPlatform.netease, SourceFeature.search, false);
-      expect(search.availablePlatforms, [MusicPlatform.kugou]);
+      expect(search.availablePlatforms,
+          [MusicPlatform.kugou, MusicPlatform.bili]);
     });
 
     testWidgets('榜单：关掉酷狗榜单后整页空态，且归因到功能而非整源',
