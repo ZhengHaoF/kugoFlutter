@@ -484,7 +484,10 @@ List<Widget> _sourceSwitchTiles({
             locked
                 ? '登录${platform.label}后可启用'
                 : (enabled
-                    ? '关闭后该源不再出现在「${f.label}」入口'
+                    ? (f == SourceFeature.cloud
+                        // 云盘页本身就是入口，「不再出现在入口」读不通。
+                        ? '关闭后隐藏「音乐云盘」入口与该源云盘'
+                        : '关闭后该源不再出现在「${f.label}」入口')
                     : '${platform.label}音源已关闭，此项暂时不生效'),
             style: kugo.caption,
           ),

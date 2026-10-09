@@ -6,14 +6,18 @@ import 'package:kugo/core/source/features.dart';
 import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/data/sources/sources.dart';
 import 'package:kugo/features/auth/netease_login_controller.dart';
+import 'package:kugo/features/cloud/cloud_page.dart';
 import 'package:kugo/features/fm/fm_controller.dart';
+import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/rank/rank_list_page.dart';
 import 'package:kugo/features/search/search_controller.dart';
 import 'package:kugo/features/settings/settings_controller.dart';
 import 'package:kugo/features/settings/settings_page.dart';
+import 'package:kugo/shared/shell/desktop_sidebar.dart';
 import 'package:kugo/shared/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_device_login_source.dart';
 
 void main() {
@@ -30,6 +34,23 @@ void main() {
     addTearDown(container.dispose);
     await container.read(settingsControllerProvider.notifier).ensureRestored();
     return container;
+  }
+
+  /// 会渲染播放器相关 widget（侧栏 / 云盘页）的用例用这个：MediaKit 在测试里
+  /// 没初始化，必须把播放器顶成假引擎。
+  Future<ProviderContainer> restoredWithPlayer(
+    Map<String, Object> prefs, {
+    List<Override> overrides = const [],
+  }) {
+    return restored(
+      prefs,
+      overrides: [
+        playerControllerProvider.overrideWith(
+          () => PlayerController(engine: FakeAudioPlayer()),
+        ),
+        ...overrides,
+      ],
+    );
   }
 
   AppSettings settingsOf(ProviderContainer c) =>
@@ -228,9 +249,78 @@ void main() {
       expect(find.text('酷狗的「排行榜」已关闭'), findsOneWidget);
     });
 
-    testWidgets('设置页：子开关列全四个功能，父开关关闭时置灰但取值保留',
+    testWidgets('音乐云盘：关掉后侧栏入口消失、云盘页出「已关闭」空态',
         (tester) async {
       tester.view.physicalSize = const Size(1280, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      // 只留酷狗一个源，关掉它的「音乐云盘」子开关（整源仍启用）。
+      final c = await restoredWithPlayer({
+        'settings.enabledSources': ['kugou'],
+        'settings.defaultSource': 'kugou',
+        'settings.disabledFeatures': ['kugou:cloud'],
+      });
+
+      // 侧栏入口没了（真 KugouSource implements CloudDiskSource，能力在）。
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            home: DesktopSidebar(
+              location: '/cloud',
+              onNavigate: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('音乐云盘'), findsNothing);
+      // 侧栏其它入口不受影响。
+      expect(find.text('我喜欢'), findsOneWidget);
+
+      // 直接进云盘页（深链/返回）：出「已关闭」空态，归因到功能而非整源。
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: const MaterialApp(home: CloudPage()),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(SourceDisabledView), findsOneWidget);
+      expect(find.text('酷狗的「音乐云盘」已关闭'), findsOneWidget);
+    });
+
+    testWidgets('音乐云盘：子开关开着时入口与页面都正常', (tester) async {
+      tester.view.physicalSize = const Size(1280, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final c = await restoredWithPlayer({
+        'settings.enabledSources': ['kugou'],
+        'settings.defaultSource': 'kugou',
+      });
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            home: DesktopSidebar(location: '/cloud', onNavigate: (_) {}),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('音乐云盘'), findsOneWidget);
+    });
+
+    testWidgets('设置页：子开关列全四个功能，父开关关闭时置灰但取值保留',
+        (tester) async {      tester.view.physicalSize = const Size(1280, 2600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -255,7 +345,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 50));
 
-      // 两源都具备这四项能力 → 各 4 个子开关。
+      // 两源都具备这几项能力 → 各 5 个子开关（含「音乐云盘」）。
       for (final p in MusicPlatform.values) {
         for (final f in SourceFeature.values) {
           expect(

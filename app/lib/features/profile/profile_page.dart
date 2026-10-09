@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
@@ -280,11 +281,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     // * 「播放历史」与用户卡「最近播放」重复，统一从统计进
                     //   /history。
                     // 将来新增入口时在此重建卡片；不要留只弹提示的假入口。
-                    // 云盘是账号资产：当前账号源具备该能力才显示（酷狗/网易都有）。
+                    // 云盘是账号资产：当前账号源具备该能力才显示（酷狗/网易都有）；
+                    // 再 AND 功能子开关（设置里关掉「音乐云盘」即隐藏）。
                     if (musicSourceRegistry?.capability<CloudDiskSource>(
                           accountPlatform,
                         ) !=
-                        null) ...[
+                        null &&
+                        settings.isFeatureEnabled(
+                          accountPlatform,
+                          SourceFeature.cloud,
+                        )) ...[
                       GlassSurface(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: _LinkTile(

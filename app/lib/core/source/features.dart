@@ -23,7 +23,17 @@ enum SourceFeature {
   /// 用户心智里就是一个入口；拆成两项只会让人在两处各关一遍。
   /// **不含**「为你推荐」推荐中心（`/recommend`），它有自己的数据面
   /// （[RecommendFeedSource]），本期未接子开关。
-  discovery('discovery', '发现');
+  discovery('discovery', '发现'),
+
+  /// 音乐云盘：侧栏入口 + 云盘页（用户私有文件库）。
+  ///
+  /// 与其它四项不同，它是**可见性开关**而非取数开关——云盘页本身就是入口，
+  /// 关掉即隐藏入口并把页面换成「已关闭」空态（已入队 / 正在播放的云盘曲目
+  /// 照常播完，同 FM 口径）。
+  ///
+  /// 两源都实现了 [CloudDiskSource]（酷狗一贯有；网易 J 组 2026-10-09 接），
+  /// 故两个源各有一个子开关。
+  cloud('cloud', '音乐云盘');
 
   const SourceFeature(this.id, this.label);
 
@@ -55,6 +65,8 @@ enum SourceFeature {
         registry.capability<PlaylistCatalogSource>(platform) != null ||
             registry.capability<NewSongFeedSource>(platform) != null ||
             registry.capability<RankSource>(platform) != null,
+      SourceFeature.cloud =>
+        registry.capability<CloudDiskSource>(platform) != null,
     };
   }
 }

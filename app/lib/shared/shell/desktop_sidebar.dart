@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/playback_source.dart';
 import '../../core/platform.dart';
 import '../../core/source/capabilities.dart';
+import '../../core/source/features.dart';
 import '../../features/profile/source_account.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
@@ -35,6 +37,18 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
 
   static const _expandedWidth = 220.0;
   static const _collapsedWidth = 64.0;
+
+  /// 云盘入口是否显示：当前账号源具备 [CloudDiskSource] 能力，**且**该源的
+  /// 「音乐云盘」功能子开关没被关掉（两级 AND，同其它入口类功能）。
+  bool _cloudDiskEnabled(WidgetRef ref) {
+    final platform = ref.watch(effectiveAccountSourceProvider);
+    if (musicSourceRegistry?.capability<CloudDiskSource>(platform) == null) {
+      return false;
+    }
+    return ref
+        .watch(settingsControllerProvider)
+        .isFeatureEnabled(platform, SourceFeature.cloud);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -243,11 +257,9 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                       selected: widget.location.startsWith('/likes'),
                       onTap: () => widget.onNavigate('/likes'),
                     ),
-                    // 云盘是账号资产：当前账号源具备该能力才显示（酷狗/网易都有）。
-                    if (musicSourceRegistry?.capability<CloudDiskSource>(
-                          ref.watch(effectiveAccountSourceProvider),
-                        ) !=
-                        null)
+                    // 云盘是账号资产：当前账号源具备该能力才显示（酷狗/网易都有）；
+                    // 再 AND 一下功能子开关（关掉「音乐云盘」即隐藏入口）。
+                    if (_cloudDiskEnabled(ref))
                       _SidebarItem(
                         icon: Icons.cloud_outlined,
                         label: '音乐云盘',

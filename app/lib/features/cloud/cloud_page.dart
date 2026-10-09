@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/cloud_models.dart';
 import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
+import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
@@ -86,6 +87,17 @@ class _CloudPageState extends ConsumerState<CloudPage> {
       setState(() {
         _error = '当前音源不支持云盘';
         _loading = false;
+      });
+      return;
+    }
+    // 功能子开关关掉就别发请求（入口已隐藏，能到这儿多是深链/返回）。
+    if (!ref
+        .read(settingsControllerProvider)
+        .isFeatureEnabled(_platform, SourceFeature.cloud)) {
+      setState(() {
+        _loading = false;
+        _error = '';
+        _tracks.clear();
       });
       return;
     }
@@ -404,12 +416,28 @@ class _CloudPageState extends ConsumerState<CloudPage> {
     final logged = src?.isCloudDiskLoggedIn ?? false;
     final displayed = _displayed;
 
+    // 功能子开关：源还启用着，但「音乐云盘」被单独关掉 → 整页空态（同 FM /
+    // 榜单口径，只拦入口；已在队列里的云盘曲目照常播完）。
+    final cloudOff = src != null &&
+        !ref
+            .watch(settingsControllerProvider)
+            .isFeatureEnabled(_platform, SourceFeature.cloud);
+
     // 切源重取：云盘是账号资产，换源必须整块重拉（不混源、不清空旧数据）。
     if (_loadedPlatform != _platform) {
       _loadedPlatform = _platform;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _load();
       });
+    }
+
+    if (cloudOff) {
+      return Scaffold(
+        body: SourceDisabledView(
+          platform: _platform,
+          feature: SourceFeature.cloud,
+        ),
+      );
     }
 
     return Scaffold(
