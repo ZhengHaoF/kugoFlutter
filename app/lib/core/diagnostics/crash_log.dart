@@ -80,7 +80,10 @@ class CrashLog {
     }
   }
 
-  static final _entryRe = RegExp(r'=====\s+(\S+)');
+  /// 只匹配**行首**的条目头（`===== <时间戳> <kind> =====`）。
+  /// 不用 `^` 锚定会把行尾那个 `=====` 也匹配上——`\s+` 会吃掉换行，
+  /// 于是每条被数两遍，且「最近」取到的是错误文本而不是时间戳。
+  static final _entryRe = RegExp(r'^=====\s+(\S+)', multiLine: true);
 
   /// 只返回尾部内容——弹窗不需要整段历史。
   static Future<String> readText() async {
