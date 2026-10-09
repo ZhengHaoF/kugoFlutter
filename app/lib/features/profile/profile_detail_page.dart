@@ -916,8 +916,19 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
   }
 }
 
+/// 账号档案单行：标签定宽成列，数值贴卡片右内边距（对齐 Echo `justify-between`）。
+///
+/// 数值必须套 [Align] 而不是直接 `Expanded(child: Text(textAlign: right))`：
+/// [Flexible] 给子节点的是 loose 盒，`RenderParagraph` 的盒宽会缩到文字宽
+/// （`clamp(文字宽, minWidth, maxWidth)`），此时 `textAlign` 画在盒子左侧，
+/// 等于没写 —— 数值列会逐行漂移、右侧留一大片空白。
+/// [Align] 用 `constraints.loosen()` 收窄到自身宽度后按 alignment 定位，
+/// 贴右是确定性的，子 Text 也仍会在同一宽度上出省略号。
 class _ArchiveRow extends StatelessWidget {
   const _ArchiveRow({required this.label, required this.value});
+
+  /// 标签列宽：12px 下最长的「累计听歌」约 48px，留余量成列。
+  static const double _labelWidth = 56;
 
   final String label;
   final String value;
@@ -929,14 +940,25 @@ class _ArchiveRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       child: Row(
         children: [
-          Text(label, style: kugo.caption),
-          const Spacer(),
-          Flexible(
+          SizedBox(
+            width: _labelWidth,
             child: Text(
-              value,
-              style: kugo.body.copyWith(fontSize: 13),
-              textAlign: TextAlign.right,
+              label,
+              style: kugo.caption,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: KugoSpacing.sm),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                style: kugo.body.copyWith(fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ],

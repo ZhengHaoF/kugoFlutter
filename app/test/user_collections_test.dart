@@ -439,6 +439,43 @@ void main() {
       expect(find.text('1 小时'), findsOneWidget);
       expect(find.text('所在地区'), findsOneWidget);
 
+      // 档案两列对齐：标签左边缘成列、数值右边缘贴行尾。
+      // 回归的是 `Spacer + Flexible(textAlign: right)` 那种写法 —— loose 盒下
+      // RenderParagraph 盒宽贴合文字，右对齐空转，数值列会逐行漂移。
+      const archiveLabels = ['用户 ID', '性别', '乐龄', '累计听歌', '所在地区'];
+      final labelLefts = <double>[];
+      final valueRights = <double>[];
+      for (final label in archiveLabels) {
+        final rowFinder = find.ancestor(
+          of: find.text(label),
+          matching: find.byType(Row),
+        ).first;
+        final row = tester.getRect(rowFinder);
+        final value = tester.getRect(
+          find.descendant(of: rowFinder, matching: find.byType(Text)).at(1),
+        );
+        expect(
+          value.right,
+          moreOrLessEquals(row.right, epsilon: 0.5),
+          reason: '「$label」的数值没有贴右',
+        );
+        labelLefts.add(tester.getRect(find.text(label)).left);
+        valueRights.add(value.right);
+      }
+      // 同列同 x：每一行都等于第一行。
+      for (var i = 1; i < archiveLabels.length; i++) {
+        expect(
+          labelLefts[i],
+          moreOrLessEquals(labelLefts.first, epsilon: 0.5),
+          reason: '「${archiveLabels[i]}」的标签没和「${archiveLabels.first}」对齐',
+        );
+        expect(
+          valueRights[i],
+          moreOrLessEquals(valueRights.first, epsilon: 0.5),
+          reason: '「${archiveLabels[i]}」的数值没和「${archiveLabels.first}」对齐',
+        );
+      }
+
       // 退出登录入口（从「我的」页搬到页尾）在酷狗源同样渲染。
       await tester.scrollUntilVisible(
         find.text('退出登录'),
