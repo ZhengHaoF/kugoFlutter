@@ -101,6 +101,22 @@ class BiliClient {
   /// 探针 / B3 落盘恢复用：灌入 Cookie。
   void seedCookies(Map<String, String> cookies) => _cookies.addAll(cookies);
 
+  void clearCookies() {
+    _cookies.clear();
+    _anonCookies = null;
+    _mixinKey = null;
+  }
+
+  /// 内容接口统一复用 Cookie、错误映射与 WBI 管线。
+  Future<Map<String, dynamic>> content(
+    String path,
+    Map<String, String> params, {
+    bool signed = false,
+  }) =>
+      signed
+          ? _getWbiJson(path, params, path)
+          : _getJson(path, params, path);
+
   // ── 基础设施 ──────────────────────────────────────────────
 
   /// I3 匿名设备指纹。未登录也要能请求；缓存 1 小时（方案 §3.3）。

@@ -15,6 +15,8 @@ import 'core/diagnostics/crash_log.dart';
 import 'core/platform.dart';
 import 'core/theme/kugo_theme.dart';
 import 'data/sources/sources.dart';
+import 'data/sources/bili/bili_source.dart';
+import 'data/storage/bili_auth_store.dart';
 import 'data/storage/netease_auth_store.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/fm/fm_controller.dart';
@@ -86,6 +88,7 @@ Future<void> _bootApp(List<String> args) async {
 
   // 网易云登录态：把上次落盘的 cookie 灌回共享客户端，否则重启即掉登录。
   final neteaseLogged = await NeteaseAuthStore.restoreInto(neteaseClient);
+  await BiliAuthStore.restoreInto(biliSource.client);
 
   // 网易云音源需登录才生效：未登录时把它从启用集清掉（旧数据 / 默认全集都可能
   // 带着它）。已登录方向**不动**——保留用户在登录态下对网易云的手动停用；

@@ -63,11 +63,10 @@ void main() {
       expect(biliSource.platform, MusicPlatform.bili);
       // 基类六件套在（搜索 + 取流 + 恒空歌词，B2 已落地）。
       expect(registry.capability<MusicSource>(MusicPlatform.bili), isNotNull);
-      // B3（扫码登录）/ B4（收藏夹、云端我喜欢）落地前一律不 implements——
-      // 空实现冒充会让 UI 靠 `capability<T>()` 显出假入口（多音源方案 §3.2）。
+      // B3/B4 实现只读内容和登录；云端我喜欢依然不实现。
       expect(
         registry.capability<DeviceLoginSource>(MusicPlatform.bili),
-        isNull,
+        isNotNull,
       );
       expect(
         registry.capability<UserLibrarySource>(MusicPlatform.bili),
@@ -75,7 +74,7 @@ void main() {
       );
       expect(
         registry.capability<UserPlaylistReadSource>(MusicPlatform.bili),
-        isNull,
+        isNotNull,
       );
     });
   });
@@ -86,9 +85,9 @@ void main() {
       expect(canLoginSource(MusicPlatform.kugou), isTrue);
     });
 
-    test('B 站 B3 落地前为 false（没有 /bili-login 路由可跳）', () {
+    test('B 站 B3 落地后有登录入口', () {
       musicSourceRegistry = MusicSourceRegistry([biliSource]);
-      expect(canLoginSource(MusicPlatform.bili), isFalse);
+      expect(canLoginSource(MusicPlatform.bili), isTrue);
     });
 
     test('有 DeviceLoginSource 的源为 true', () {

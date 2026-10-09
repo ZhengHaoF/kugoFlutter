@@ -1,6 +1,11 @@
 import '../../../core/api/bili/bili_client.dart';
 import '../../../core/api/bili/bili_endpoints.dart';
 import '../../../core/api/bili/bili_mappers.dart';
+import '../../../core/api/bili/bili_qr_login.dart';
+import '../../../core/api/bili/bili_cookies.dart';
+import '../../../core/models/catalog_models.dart';
+import '../../../core/source/capabilities.dart';
+import 'bili_content.dart';
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/search_result.dart';
 import '../../../core/models/track.dart';
@@ -8,16 +13,135 @@ import '../../../core/source/music_source.dart';
 import '../../../core/source/music_platform.dart';
 import '../../../core/source/quality_map.dart';
 
-/// B 站音源适配器（B2：搜索 + 取流）。
-///
-/// 范围对齐方案 §8 B2：`searchSongs` + `resolvePlayUrl`（音轨降级 + cid 懒取）
-/// + 音质映射 + 分 P 展开的 id 兼容。歌单 / 歌手 / 收藏夹 / 账号等能力接口
-/// 属 B3/B4，本类先只 implements [MusicSource]——**禁止空实现冒充**
-/// （多音源方案 §3.2：谁有谁 implements）。
-class BiliSource implements MusicSource {
-  BiliSource({BiliClient? client}) : _client = client ?? BiliClient();
+/// B 站音源：搜索/播放、扫码登录与只读收藏夹/合集/系列/UP 主内容。
+/// 不实现音乐推荐、歌词、云端红心或写能力，避免制造假入口。
+class BiliSource
+    implements
+        MusicSource,
+        DeviceLoginSource,
+        PlaylistDetailSource,
+        ArtistDetailSource,
+        UserPlaylistReadSource,
+        ArtistContentSource {
+  BiliSource({BiliClient? client, BiliQrLoginClient? qrClient})
+    : _client = client ?? BiliClient(),
+      _qrClient = qrClient ?? BiliQrLoginClient();
 
   final BiliClient _client;
+  final BiliQrLoginClient _qrClient;
+  int _loginGeneration = 0;
+
+  BiliClient get client => _client;
+
+  @override
+  Future<LoginQrSession> createLoginQr() async {
+    final generation = ++_loginGeneration;
+    _qrClient.reset();
+    final session = await _qrClient.createSession();
+    return LoginQrSession(
+      id: session.key,
+      qrContent: session.qrContent,
+      payload: generation,
+    );
+  }
+
+  @override
+  Future<LoginQrPoll> pollLoginQr(LoginQrSession session) async {
+    if (session.payload != _loginGeneration) {
+      return const LoginQrPoll(status: LoginQrStatus.expired);
+    }
+    final poll = await _qrClient.pollLogin(
+      BiliQrLoginSession(key: session.id, qrContent: session.qrContent),
+    );
+    if (session.payload != _loginGeneration) {
+      return const LoginQrPoll(status: LoginQrStatus.expired);
+    }
+    if (poll.isConfirmed) {
+      final cookies = BiliCookies.sanitize(poll.cookies);
+      if (cookies.isEmpty) throw const LoginRequired('扫码成功但未收到登录凭据');
+      // 切换账号时替换旧 cookie，禁止把两个账号的字段混合。
+      _client.clearCookies();
+      _client.seedCookies(cookies);
+      final account = await currentAccount();
+      if (session.payload != _loginGeneration) {
+        return const LoginQrPoll(status: LoginQrStatus.expired);
+      }
+      if (account == null) throw const LoginRequired('登录态确认失败，请重试');
+    }
+    return LoginQrPoll(status: poll.status, message: poll.message);
+  }
+
+  @override
+  Future<LoginAccount?> currentAccount() async {
+    if (!_client.hasLogin) return null;
+    final account = await _client.currentAccount();
+    if (account == null || account.mid <= 0) return null;
+    return LoginAccount(userId: '${account.mid}', nickname: account.uname);
+  }
+
+  @override
+  Future<void> logout() async {
+    _loginGeneration++;
+    _client.clearCookies();
+    _qrClient.reset();
+  }
+
+  @override
+  Future<UserPlaylistsPage> userPlaylists({
+    int offset = 0,
+    int limit = 1000,
+  }) async {
+    final account = await currentAccount();
+    if (account == null) throw const LoginRequired('请先登录哔哩哔哩');
+    final content = BiliContent(_client);
+    var page = await content.folders(
+      account.userId,
+      offset: offset,
+      limit: limit,
+    );
+    if (limit <= 20) return page;
+    final created = page.created;
+    final collected = [...page.collected];
+    final seen = collected.map((p) => p.id).toSet();
+    var next = offset + 20;
+    while (page.more) {
+      page = await content.folders(account.userId, offset: next, limit: 20);
+      final fresh = page.collected.where((p) => seen.add(p.id)).toList();
+      if (page.more && (fresh.isEmpty || next >= 20000)) {
+        throw const UpstreamChanged('收藏夹分页异常，未返回完整列表');
+      }
+      collected.addAll(fresh);
+      next += 20;
+    }
+    return UserPlaylistsPage(created: created, collected: collected);
+  }
+
+  @override
+  Future<SearchPageResult<PlaylistBrief>> artistContents(
+    String artistId, {
+    int page = 1,
+  }) => BiliContent(_client).contents(artistId, page: page);
+
+  @override
+  Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylistDetail(
+    String id, {
+    PlaylistBrief? briefHint,
+    bool preferRank = false,
+  }) => BiliContent(_client).detail(id, hint: briefHint);
+
+  @override
+  Future<ArtistDetail?> fetchArtistDetail(String artistId) =>
+      BiliContent(_client).artist(artistId);
+
+  @override
+  Future<ArtistSongsPage> fetchArtistSongsPage(
+    String artistId, {
+    int page = 1,
+    int pageSize = 30,
+    ArtistSongSort sort = ArtistSongSort.hot,
+  }) => BiliContent(
+    _client,
+  ).videos(artistId, page: page, pageSize: pageSize, sort: sort);
 
   @override
   MusicPlatform get platform => MusicPlatform.bili;
@@ -40,8 +164,7 @@ class BiliSource implements MusicSource {
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   /// B 站无专辑概念（方案 §5.3 #2：合集 ≠ 专辑）。
   @override
@@ -49,8 +172,7 @@ class BiliSource implements MusicSource {
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   /// `search_type=bili_user` 搜 UP 主一期不做（方案 §4.1）。
   @override
@@ -58,8 +180,7 @@ class BiliSource implements MusicSource {
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   // ── 播放 ──────────────────────────────────────────────────
 
@@ -69,10 +190,7 @@ class BiliSource implements MusicSource {
     AppQuality? preferred,
   }) async {
     final locator = await _locateCid(track.id);
-    var info = await _playUrlWithRetry(
-      bvid: locator.bvid,
-      cid: locator.cid,
-    );
+    var info = await _playUrlWithRetry(bvid: locator.bvid, cid: locator.cid);
     var pick = selectAudio(info, preferred);
 
     // DASH 音轨持续为空 → html5/mp4 渐进流兜底（整段音视频，
@@ -144,9 +262,7 @@ class BiliSource implements MusicSource {
   }
 
   static bool _hasAnyAudio(BiliPlayInfo info) =>
-      info.audio.isNotEmpty ||
-      info.dolby.isNotEmpty ||
-      info.flac.isNotEmpty;
+      info.audio.isNotEmpty || info.dolby.isNotEmpty || info.flac.isNotEmpty;
 
   // ── 选轨（纯函数，单测覆盖）────────────────────────────────
 
@@ -172,7 +288,10 @@ class BiliSource implements MusicSource {
         BiliAudioPick(track: t, quality: AppQuality.sq, group: 'dolby'),
       for (final t in info.audio)
         BiliAudioPick(
-            track: t, quality: qualityOfBandwidth(t.bandwidth), group: 'audio'),
+          track: t,
+          quality: qualityOfBandwidth(t.bandwidth),
+          group: 'audio',
+        ),
     ];
 
     if (candidates.isNotEmpty) {
@@ -219,13 +338,13 @@ class BiliSource implements MusicSource {
     return b.track.bandwidth.compareTo(a.track.bandwidth);
   }
 
-/// [BiliAudioPick] 的 [BiliAudioPick.group] 在同档内的优先序：
-/// flac（Hi-Res）> dolby > 普通 audio。
-static int _groupRank(String group) => switch (group) {
-        'flac' => 2,
-        'dolby' => 1,
-        _ => 0,
-      };
+  /// [BiliAudioPick] 的 [BiliAudioPick.group] 在同档内的优先序：
+  /// flac（Hi-Res）> dolby > 普通 audio。
+  static int _groupRank(String group) => switch (group) {
+    'flac' => 2,
+    'dolby' => 1,
+    _ => 0,
+  };
 }
 
 /// 全局单例（对齐 `kugouSource` / `neteaseSource`；B5 装配进 registry）。
