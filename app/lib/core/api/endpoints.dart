@@ -12,6 +12,9 @@ abstract final class KugoEndpoints {
   /// Search songs (no auth).
   static const searchSong = '/api/v3/search/song';
   static const searchHot = '/api/v3/search/hot';
+  /// 搜索联想端点。**未接线**：`SearchRepository.suggest()` 与输入框
+  /// `onChanged` 都不存在（见 docs/功能与动画盘点.md §1.1 #2），
+  /// 保留常量只为接口清单一并齐全。
   static const searchSuggest = '/api/v3/search/suggest';
   static const searchLyric = '/api/v3/search/lyric';
 

@@ -1,5 +1,13 @@
 // go_router 行为备忘 / 回归测试。
 //
+// ⚠️ **已知局限（别再把它当成 app.dart 的守卫）**：
+// 下面的 `_build()` 是在测试里**手抄的一份 go_router 配置**，不是
+// `lib/app.dart` 的真路由表。它守的是 go_router 自身的行为（顶级→顶级 push
+// 不崩、跨 branch push 不崩）；而真正的回归点——「`/song` 必须定义在顶级
+// routes，不能留在 branch0」——只能靠人工核对 app.dart。
+// 要真守住那条，得把 app.dart 的 router 构造成可注入/可导出；在那之前，
+// 这份用例的价值仅限于「go_router 升级时行为没变」。
+//
 // 背景：线上曾报
 //   'package:flutter/src/widgets/navigator.dart': Failed assertion:
 //   '!keyReservation.contains(key)': is not true.

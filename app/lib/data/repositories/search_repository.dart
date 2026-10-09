@@ -186,33 +186,6 @@ class SearchRepository {
     }
   }
 
-  Future<List<String>> suggest(String keyword) async {
-    try {
-      final url = buildUrl(
-        KugoEndpoints.mobileCdn,
-        KugoEndpoints.searchSuggest,
-        {'format': 'json', 'keyword': keyword},
-      );
-      final data = await _client.getJson(url);
-      final maps = <Map>[];
-      if (data is Map) {
-        final info = data['data'];
-        if (info is Map) {
-          final infoList = info['info'];
-          if (infoList is List) maps.addAll(infoList.whereType<Map>());
-        }
-        final list = data['list'];
-        if (list is List) maps.addAll(list.whereType<Map>());
-      }
-      return maps
-          .map((e) => (e['keyword'] ?? e['hint'] ?? '').toString())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    } on KugoApiException {
-      return const [];
-    }
-  }
-
   /// Result array for the four search endpoints.
   ///
   /// `search/singer` puts the array **directly** in `data` rather than under

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/data/mock_data.dart';
 import 'package:kugo/core/models/daily_recommend.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/music_platform.dart';
@@ -30,7 +29,14 @@ class _DailyFake extends FakeMusicSource {
   }
 }
 
-Track _track(String name) => MockData.dailyTracks.first.copyWith(name: name);
+Track _track(String name) => Track(
+      id: name,
+      name: name,
+      artist: 'artist',
+      album: 'album',
+      coverUrl: 'mock://$name',
+      durationMs: 200000,
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

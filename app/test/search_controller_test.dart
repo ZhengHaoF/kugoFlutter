@@ -157,9 +157,6 @@ class _RecordingRepo implements SearchRepository {
 
   @override
   Future<List<String>> hotKeywords({int count = 20}) async => const [];
-
-  @override
-  Future<List<String>> suggest(String keyword) async => const [];
 }
 
 /// Throws the same exception the real client does when the network gateway
