@@ -144,6 +144,13 @@ class AuthState {
 
 /// Real gateway login only — never invents a local session on failure.
 class AuthController extends Notifier<AuthState> {
+  /// [repository] 可注入：测试用假仓库替换掉全局单例，避免打真实网关
+  /// （默认值即生产用的同一个 `loginRepository`）。
+  AuthController({LoginRepository? repository})
+      : _repository = repository ?? loginRepository;
+
+  final LoginRepository _repository;
+
   static const _kUser = 'auth.user.v1';
   static const _kGuest = 'auth.guest.v1';
   static const _kSeen = 'auth.seen.v1';
@@ -261,14 +268,14 @@ class AuthController extends Notifier<AuthState> {
           ? LoginStatus.logged
           : LoginStatus.guest,
     );
-    final created = await loginRepository.createQrLogin();
+    final created = await _repository.createQrLogin();
     if (gen != _qrGeneration) return;
     if (created == null) {
       state = state.copyWith(
         qrPhase: QrPhase.error,
-        errorMessage: loginRepository.lastError.isEmpty
+        errorMessage: _repository.lastError.isEmpty
             ? '获取二维码失败'
-            : loginRepository.lastError,
+            : _repository.lastError,
       );
       return;
     }
@@ -284,7 +291,7 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> _pollQr(int gen, String key) async {
     if (gen != _qrGeneration) return;
-    final res = await loginRepository.checkQrLogin(key);
+    final res = await _repository.checkQrLogin(key);
     if (gen != _qrGeneration || res == null) return;
     switch (res.status) {
       case 0:
@@ -323,12 +330,12 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
     state = state.copyWith(errorMessage: '');
-    final ok = await loginRepository.sendSmsCode(phone.trim());
+    final ok = await _repository.sendSmsCode(phone.trim());
     if (!ok) {
       state = state.copyWith(
-        errorMessage: loginRepository.lastError.isEmpty
+        errorMessage: _repository.lastError.isEmpty
             ? '发送验证码失败'
-            : loginRepository.lastError,
+            : _repository.lastError,
       );
       return false;
     }
@@ -364,7 +371,7 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
     state = state.copyWith(status: LoginStatus.loading, errorMessage: '');
-    final session = await loginRepository.loginWithSms(
+    final session = await _repository.loginWithSms(
       mobile: phone.trim(),
       code: code.trim(),
       userid: userid,
@@ -372,9 +379,9 @@ class AuthController extends Notifier<AuthState> {
     if (session == null) {
       state = state.copyWith(
         status: LoginStatus.error,
-        errorMessage: loginRepository.lastError.isEmpty
+        errorMessage: _repository.lastError.isEmpty
             ? '登录失败'
-            : loginRepository.lastError,
+            : _repository.lastError,
       );
       return false;
     }
@@ -393,16 +400,16 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
     state = state.copyWith(status: LoginStatus.loading, errorMessage: '');
-    final session = await loginRepository.loginWithPassword(
+    final session = await _repository.loginWithPassword(
       username: username.trim(),
       password: password,
     );
     if (session == null) {
       state = state.copyWith(
         status: LoginStatus.error,
-        errorMessage: loginRepository.lastError.isEmpty
+        errorMessage: _repository.lastError.isEmpty
             ? '登录失败'
-            : loginRepository.lastError,
+            : _repository.lastError,
       );
       return false;
     }
@@ -424,7 +431,7 @@ class AuthController extends Notifier<AuthState> {
 
     // Enrich profile (nickname / avatar / archive) from user detail.
     try {
-      final profile = await loginRepository.fetchMyInfo(
+      final profile = await _repository.fetchMyInfo(
         token: session.token,
         userId: session.userId,
       );
@@ -472,7 +479,7 @@ class AuthController extends Notifier<AuthState> {
     final user = state.user;
     if (!state.isLogged || user == null || user.token.isEmpty) return;
     try {
-      final profile = await loginRepository.fetchMyInfo(
+      final profile = await _repository.fetchMyInfo(
         token: user.token,
         userId: user.userId,
       );
