@@ -449,6 +449,79 @@ dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID> --confirm
 
 ---
 
+## 网易云音乐云盘（J 组 · 2026-10-09 接）
+
+> 协议面对齐 api-enhanced `module/user_cloud*.js` / `cloud*.js`（该仓有**整套**云盘
+> module；此前「网易侧不做云盘入口，`NeteaseClient` 里确无对应对口」只对了后半句，
+> 上游协议是现成的——这条原先只记在已删除的《网易云接入排期.md》里）。
+> 探针：`dart run tool/probe_netease_api.dart --suite cloud --qr`
+> **实现**：`NeteaseClient` J 组 + `NeteaseSource implements CloudDiskSource`
+> （`mapNeteaseCloudPage` / `mapNeteaseCloudPlayUrl` / `mapNeteaseCloudLyric`）。
+
+### 端点总览（2026-10-09 真机实测，uid 1593114455：460 文件 / 19.3G of 60G）
+
+| 能力 | 路由 | 上游 | 加密 | 登录 |
+| --- | --- | --- | --- | --- |
+| 列表 | `/user/cloud` | `/api/v1/cloud/get` | weapi | 是 |
+| 详情 | `/user/cloud/detail` | `/api/v1/cloud/get/byids` | weapi | 是 |
+| 删除 | `/user/cloud/del` | `/api/cloud/del` | weapi | 是 |
+| 取流 | `/song/cloud/download` | `/api/cloud/dowonload` | **eapi** | 是 |
+| 歌词 | `/cloud/lyric/get` | `/api/cloud/lyric/get` | eapi | 是 |
+| 匹配 | `/cloud/match` | `/api/cloud/user/song/match` | weapi | 是 |
+| 秒传判定 | — | `/api/cloud/upload/check` | 明文 | 是 |
+| 直传凭证 | — | `/api/nos/token/alloc` + wanproxy LBS | 明文+weapi | 是 |
+| 完成导入 | — | `/api/upload/cloud/info/v2` + `/api/cloud/pub/v2` | 明文 | 是 |
+| 导入歌曲 | `/cloud/import` | `/api/cloud/user/song/import` | 明文 | 是 |
+
+⚠️ **`dowonload` 少一个 `l`**，上游拼写就这样，照抄才不 404（同 `/api/subcount`
+少一段 `user/`、`/api/v1/artist/list` 缺 `v1` 一类坑）。
+
+### 响应形态（三个「不像曲库」的点）
+
+1. **列表 `data[]` 是 simpleSong 形态**（`name/ar/al/dt/fee/h/m/l/sq/hr`），与曲库歌曲
+   同构 → 直接走 `mapNeteaseSongs`，云盘页能显示正规歌名/歌手/专辑/封面。
+   **云盘文件自己的字段不在列表口**，只在详情口：`{simpleSong, songId, songName,
+   fileName, fileSize, addTime, cover, coverId, lyricId, matchType, bitrate, album,
+   artist, version, pcId}`。
+2. **取流是平铺响应**：`{code, size, name, url}` 全在顶层，不是曲库那套 `data[0].url`。
+   URL 是 `http://m803.music.126.net/...` 带 `vuutv` 时效签名的直链（短时有效）。
+3. **歌词是顶层字符串** `{lrc, krc}`，且来自**文件 `LYRICS` 标签**而非曲库歌词口；
+   两者皆空 = 该文件没内嵌歌词，口是通的。
+
+**容量**在列表顶层：`size`（已用字节）/ `maxSize`（总额），容量条可直接做。
+
+**分页未定**：`limit=30` 实测把 460 条全返回了（`limit` 疑似被忽略），顶层另有
+`cursor`/`hasMore`。产品侧 [CloudDiskPage.hasMore] 以响应自带 `hasMore` 为准，
+limit 被忽略时首屏即全量、`hasMore=false`，两种形态都不漏数据——二轮探针待确认。
+
+### 上传链（J3 期，未接产品）
+
+```text
+/api/cloud/upload/check    → needUpload + songId      （秒传判据：needUpload=false）
+/api/nos/token/alloc       → token / resourceId       （bucket: jd-musicrep-privatecloud-audio-public）
+PUT wanproxy.127.net/lbs   → 客户端直传对象存储
+/api/upload/cloud/info/v2  → 回填 md5/歌名/专辑/艺术家/bitrate/resourceId
+/api/cloud/pub/v2          → 发布
+```
+
+api-enhanced 把这条链拆成**后端代理**（`/cloud`，multipart）与**客户端直传**
+（token + complete）两种模式，后者为绕开 Vercel 4.5MB 请求体限制——Flutter 客户端
+应走直传。上传元数据（歌名/歌手/专辑）api-enhanced 用 `music-metadata` 读 ID3，
+Dart 侧**没有现成包**，要么加包要么手写最小解析（title/artist/album 三项）。
+
+### 探针用法
+
+```powershell
+cd app
+dart run tool/probe_netease_api.dart --suite cloud --qr
+dart run tool/probe_netease_api.dart --suite cloud --cookie "MUSIC_U=xxx"
+dart run tool/probe_netease_api.dart --suite cloud --qr --file D:\a.mp3   # 顺带验秒传
+```
+
+删除默认 **dry-run**（只打印 `songIds`），真删加 `--write`。
+
+---
+
 ## 网易云 MV（2026-09-28 探针打通 · A0）
 
 > 脚本：`dart run tool/probe_netease_mv.dart`

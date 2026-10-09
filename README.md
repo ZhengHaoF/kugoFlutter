@@ -7,7 +7,6 @@
 | [设计方案.md](设计方案.md) | 产品定位、架构、功能范围（含实现对照） |
 | [多音源接入方案.md](多音源接入方案.md) | 多音源契约与架构（阶段 A/B 已落地） |
 | [网易云接口文档.md](网易云接口文档.md) | 网易云接口清单与实测状态（含 G8 评论/热搜、MV） |
-| [网易云接入排期.md](网易云接入排期.md) | 网易云接入排期与实测记录（阶段 A–U 落地主记录） |
 | [哔哩哔哩接入方案.md](哔哩哔哩接入方案.md) | B 站接入架构 + 功能差异（能力映射 / 支持与不支持清单；**规划中，未开工**） |
 | [桌面歌词接入方案.md](桌面歌词接入方案.md) | 桌面歌词方案（双进程 TCP IPC，已落地）+ 安卓悬浮歌词 + 透明背景实测无解记录 |
 | [app/README.md](app/README.md) | 工程运行说明 |
@@ -74,9 +73,23 @@ flutter run
 | 酷狗 MV 详情 / 取流 / 弹幕 | [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) · [hoowhoami/EchoMusic](https://github.com/hoowhoami/EchoMusic) |
 | 酷狗云盘 | [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) · [hoowhoami/EchoMusic](https://github.com/hoowhoami/EchoMusic) |
 | 网易 weapi/eapi 加密 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) · [Binaryify/NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi) |
+| 网易请求形态 / Cookie 合并 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) `core/api/netease/NeteaseClient` |
+| 网易扫码登录 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) `NeteaseQrLoginClient`（chainId / scanlogin URL / 803 实机走通） |
+| 网易歌词 YRC 逐字 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) `NeteaseYrcParser` |
+| 网易用户歌单 / 我喜欢分流 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer)（`subscribed == true` = 收藏，`specialType == 5` = 我喜欢的音乐） |
 | 网易 MV（详情 / 取流 / 收藏） | [NeteaseCloudMusicApiEnhanced/api-enhanced](https://github.com/NeteaseCloudMusicApiEnhanced/api-enhanced) |
 | 网易评论 | [Binaryify/NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi) |
 | B 站搜索 / 取流 | [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) · [SocialSisterYi/bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect) |
+
+**对齐基准**：网易云侧以 `cwuom/NeriPlayer` 的 `core/api/netease/` 为基准（本地 checkout 路径见
+《网易云接口文档.md》页首），`chaunsin/netease-cloud-music` 是它的上游协议参考。
+
+**参考实现的边界**（以下各项**未**被参考实现覆盖，是本仓自研，勿当成「已对齐」）：
+
+- 网易评论 / 热搜：不在 NeriPlayer `core/api/netease/` 内，照 `Binaryify/NeteaseCloudMusicApi`
+  （`module/comment_new.js` / `module/search_hot.js`）自研。
+- B 站评论、红心 / 收藏夹写入、UP 主搜索、音乐向榜单：NeriPlayer 未实现，本仓同样未做，
+  能力矩阵见《哔哩哔哩接入方案.md》。
 
 ## 合规声明
 
