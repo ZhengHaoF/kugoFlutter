@@ -60,7 +60,7 @@ class CoverCache {
     }
   }
 
-  late final Dio _dio = Dio(
+  late Dio _dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 12),
       receiveTimeout: const Duration(seconds: 25),
@@ -69,6 +69,10 @@ class CoverCache {
       validateStatus: (s) => s != null && s >= 200 && s < 300,
     ),
   );
+
+  /// 测试注入下载用的 Dio，避免用例真去打 CDN。
+  @visibleForTesting
+  set dioForTesting(Dio dio) => _dio = dio;
 
   String _key(String url) => sha1.convert(utf8.encode(url)).toString();
 
