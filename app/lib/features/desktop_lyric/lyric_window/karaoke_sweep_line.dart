@@ -3,8 +3,79 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../../core/models/track.dart';
 import '../../../core/theme/kugo_theme.dart';
 import 'lyric_window_controller.dart';
+
+/// 帧计时游标（纯函数，便于直接覆盖「暂停用快照、播放用锚点+帧增量」）。
+///
+/// **不用墙上时钟**（`DateTime.now()`）：暂停/恢复或掉帧期间流逝的真实时间
+/// 不会被算进扫光，否则恢复播放时扫光会直接冲到底。主窗每次快照都换
+/// [anchorWall]，调用方据此重锚（见 `_reanchorIfSnapshotChanged`）。
+int sweepPositionMs({
+  required bool isPlaying,
+  required int snapshotPositionMs,
+  required int anchorPosMs,
+  required Duration anchorElapsed,
+  required Duration elapsed,
+}) {
+  if (!isPlaying) return snapshotPositionMs;
+  return anchorPosMs + (elapsed - anchorElapsed).inMilliseconds;
+}
+
+/// 扫光边界 x（相对文本左缘，已 clamp 到 [0, textWidth]）。
+///
+/// - LRC（无逐字时间轴）：整行按 [LyricLine.timeMs]→`endMs` 线性扫；
+/// - KRC：二分定位当前字后做**字内插值**，字间空隙停在下一字起点。
+///
+/// [prefixWidth] 是 `_prefixWidth[i] = 到第 i 个字起点为止的累计宽度`
+/// （长度 = chars.length + 1，末项为整行宽）。
+double sweepBoundaryX({
+  required LyricLine? line,
+  required int posMs,
+  required double textWidth,
+  required List<double> prefixWidth,
+}) {
+  if (line == null || line.text.isEmpty || textWidth <= 0) return 0;
+
+  // 无逐字时间轴（LRC）：整行线性扫。
+  if (!line.hasCharTiming) {
+    final start = line.timeMs;
+    final end = line.endMs ?? start + 3000;
+    if (posMs <= start) return 0;
+    if (posMs >= end) return textWidth;
+    return textWidth * (posMs - start) / (end - start);
+  }
+
+  // KRC 逐字：二分找当前字（chars[i].startMs <= posMs），再做字内插值。
+  final chars = line.chars;
+  if (posMs <= chars.first.startMs) return 0;
+
+  var lo = 0, hi = chars.length - 1, idx = -1;
+  while (lo <= hi) {
+    final mid = (lo + hi) >> 1;
+    if (chars[mid].startMs <= posMs) {
+      idx = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  // 当前字结束（行尾/字间空隙在时间轴内）：按下一字起点前的位置推进。
+  final cur = chars[idx];
+  final nextStart = idx + 1 < chars.length ? chars[idx + 1].startMs : cur.endMs;
+  final w0 = prefixWidth[idx];
+  final w1 = (idx + 1 < prefixWidth.length) ? prefixWidth[idx + 1] : textWidth;
+  if (posMs >= nextStart && posMs >= cur.endMs) {
+    // 字间空隙：停在下一字起点（视觉上「即将点亮」）。
+    return w1.clamp(0, textWidth);
+  }
+
+  final dur = cur.endMs - cur.startMs;
+  final f = dur > 0 ? (posMs - cur.startMs) / dur : 1.0;
+  return (w0 + (w1 - w0) * f).clamp(0, textWidth);
+}
 
 /// 桌面歌词平滑扫光行（业界桌面歌词形态）。
 ///
@@ -136,59 +207,25 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
   /// 主窗每次快照都更新 `anchorWall`，视为新锚点。
   int _currentPositionMs() {
     final c = _c;
-    if (!c.isPlaying) return c.positionMs;
-    _reanchorIfSnapshotChanged();
-    return _anchorPosMs + (_elapsed - _anchorElapsed).inMilliseconds;
+    // 播放中才重锚：暂停时 Ticker 已停、[_elapsed] 不推进，锚点没有意义。
+    // （主窗每次快照都换 `anchorWall`，视为新锚点。）
+    if (c.isPlaying) _reanchorIfSnapshotChanged();
+    return sweepPositionMs(
+      isPlaying: c.isPlaying,
+      snapshotPositionMs: c.positionMs,
+      anchorPosMs: _anchorPosMs,
+      anchorElapsed: _anchorElapsed,
+      elapsed: _elapsed,
+    );
   }
 
   /// 计算扫光边界 x（相对文本左缘，已 clamp 到 [0, textWidth]）。
-  double _computeSweepX(double textWidth) {
-    final line = _c.currentLyric;
-    if (line == null || line.text.isEmpty || textWidth <= 0) return 0;
-
-    final pos = _currentPositionMs();
-
-    // 无逐字时间轴（LRC）：整行线性扫。
-    if (!line.hasCharTiming) {
-      final start = line.timeMs;
-      final end = line.endMs ?? start + 3000;
-      if (pos <= start) return 0;
-      if (pos >= end) return textWidth;
-      return textWidth * (pos - start) / (end - start);
-    }
-
-    // KRC 逐字：二分找当前字（chars[i].startMs <= pos），再做字内插值。
-    final chars = line.chars;
-    if (pos <= chars.first.startMs) return 0;
-
-    var lo = 0, hi = chars.length - 1, idx = -1;
-    while (lo <= hi) {
-      final mid = (lo + hi) >> 1;
-      if (chars[mid].startMs <= pos) {
-        idx = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-
-    // 当前字结束（行尾/字间空隙在时间轴内）：按下一字起点前的位置推进。
-    final cur = chars[idx];
-    final nextStart =
-        idx + 1 < chars.length ? chars[idx + 1].startMs : cur.endMs;
-    final w0 = _prefixWidth[idx];
-    final w1 = (idx + 1 < _prefixWidth.length)
-        ? _prefixWidth[idx + 1]
-        : textWidth;
-    if (pos >= nextStart && pos >= cur.endMs) {
-      // 字间空隙：停在下一字起点（视觉上「即将点亮」）。
-      return w1.clamp(0, textWidth);
-    }
-
-    final dur = cur.endMs - cur.startMs;
-    final f = dur > 0 ? (pos - cur.startMs) / dur : 1.0;
-    return (w0 + (w1 - w0) * f).clamp(0, textWidth);
-  }
+  double _computeSweepX(double textWidth) => sweepBoundaryX(
+        line: _c.currentLyric,
+        posMs: _currentPositionMs(),
+        textWidth: textWidth,
+        prefixWidth: _prefixWidth,
+      );
 
   /// 布局（缓存）：文本 / 字号 / 可用宽度 / 样式任一变化才重算。
   /// 返回未唱层 painter（前缀表一并重建）。
