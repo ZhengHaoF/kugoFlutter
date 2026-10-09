@@ -35,10 +35,11 @@ class SourceAccount {
   final String userId;
 }
 
-/// 该源的登录页路由（酷狗 `/login`，网易 `/netease-login`）。
+/// 该源的登录页路由（酷狗 `/login`，网易 `/netease-login`，B 站 `/bili-login`）。
 String loginRouteFor(MusicPlatform platform) => switch (platform) {
       MusicPlatform.kugou => '/login',
       MusicPlatform.netease => '/netease-login',
+      MusicPlatform.bili => '/bili-login',
     };
 
 /// 退出该源的账号（酷狗走 [AuthController]，网易走 [NeteaseLoginController]）。
@@ -48,6 +49,8 @@ Future<void> logoutSource(WidgetRef ref, MusicPlatform platform) =>
         ref.read(authControllerProvider.notifier).logout(),
       MusicPlatform.netease =>
         ref.read(neteaseLoginControllerProvider.notifier).logout(),
+      // B 站登录控制器（B3）落地前无可退账号；BiliSource 未注册也到不了这里。
+      MusicPlatform.bili => Future<void>.value(),
     };
 
 /// 退出该源账号前的二次确认：会掉云端歌单/「我喜欢」与付费播放权限，误点代价高。
@@ -145,5 +148,8 @@ final sourceAccountProvider =
         isVip: acc?.isVip ?? false,
         userId: acc?.userId ?? '',
       );
+    case MusicPlatform.bili:
+      // B 站扫码登录（B3）落地前：按游客渲染，不造假账号摘要。
+      return const SourceAccount(platform: MusicPlatform.bili);
   }
 });

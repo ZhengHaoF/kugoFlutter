@@ -1,7 +1,8 @@
 /// 音源平台标识。身份键为 `(platform, id)`，禁止用裸 hash 当全局身份。
 enum MusicPlatform {
   kugou,
-  netease;
+  netease,
+  bili;
 
   String get wireName => name;
 
@@ -9,6 +10,7 @@ enum MusicPlatform {
   String get label => switch (this) {
         MusicPlatform.kugou => '酷狗',
         MusicPlatform.netease => '网易云',
+        MusicPlatform.bili => '哔哩哔哩',
       };
 
   static MusicPlatform fromWire(String raw) {
@@ -20,6 +22,10 @@ enum MusicPlatform {
       case 'ncm':
       case '163':
         return MusicPlatform.netease;
+      case 'bili':
+      case 'bilibili':
+      case 'b站':
+        return MusicPlatform.bili;
       default:
         return MusicPlatform.kugou;
     }

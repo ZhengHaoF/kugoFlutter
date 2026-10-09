@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/features.dart';
 import 'package:kugo/core/source/music_platform.dart';
+import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/data/sources/sources.dart';
 import 'package:kugo/features/auth/netease_login_controller.dart';
 import 'package:kugo/features/cloud/cloud_page.dart';
@@ -62,7 +63,9 @@ void main() {
     test('全新安装：所有「源 × 功能」子开关默认全开', () async {
       final c = await restored({});
       expect(settingsOf(c).disabledFeatures, isEmpty);
-      for (final p in MusicPlatform.values) {
+      // 只断言默认音源集里的源（bili 未进默认集也未注册——B5 装配后
+      // 加入默认集即自动纳入本断言）。
+      for (final p in settingsOf(c).enabledSources) {
         for (final f in SourceFeature.values) {
           expect(settingsOf(c).isFeatureEnabled(p, f), isTrue,
               reason: '${p.wireName}:${f.id} 默认应为开');
@@ -345,9 +348,13 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 50));
 
-      // 两源都具备这几项能力 → 各 5 个子开关（含「音乐云盘」）。
-      for (final p in MusicPlatform.values) {
+      // 已注册的源各自列出其具备能力的子开关（bili 未注册 → 整行不出现，
+      // 与设置页 `_enabledPlatformRows` 同口径；B5 注册后自动纳入）。
+      final registered = musicSourceRegistry?.platforms.toList() ??
+          const [MusicPlatform.kugou];
+      for (final p in registered) {
         for (final f in SourceFeature.values) {
+          if (!f.supportedBy(musicSourceRegistry, p)) continue;
           expect(
             find.byKey(ValueKey('feature_switch_${p.wireName}_${f.id}')),
             findsOneWidget,

@@ -635,6 +635,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
     switch (_sourceFilter) {
       case MusicPlatform.netease:
         return '网易云「我喜欢」还没有红心歌曲\n在网易云点 ♥ 即可同步到此处';
+      case MusicPlatform.bili:
+        // B 站无云端「我喜欢」曲库，红心只写本地（方案 §5.3 #1）。
+        return 'B 站没有云端「我喜欢」\n红心只保存在本机';
       case MusicPlatform.kugou:
       case null:
         return !accountLogged
