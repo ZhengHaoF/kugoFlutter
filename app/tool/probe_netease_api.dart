@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:kugo/core/api/netease/netease_client.dart';
 import 'package:kugo/core/api/netease/netease_endpoints.dart';
 import 'package:kugo/core/source/music_source.dart';
@@ -62,6 +64,15 @@ import 'package:qr/qr.dart';
 /// dart run tool/probe_netease_api.dart --suite account --qr
 /// dart run tool/probe_netease_api.dart --suite account --cookie "MUSIC_U=xxx"
 /// dart run tool/probe_netease_api.dart --suite account --uid 32953014 --cookie "MUSIC_U=xxx"
+///
+/// # J 组音乐云盘（需登录；对齐 api-enhanced `module/user_cloud*.js` / `cloud*.js`）
+/// #   第一轮目标：列表字段形态 / 取流两路对照 / 歌词 / 删除 dry-run / 秒传判定
+/// dart run tool/probe_netease_api.dart --suite cloud --cookie "MUSIC_U=xxx"
+/// dart run tool/probe_netease_api.dart --suite cloud --qr
+/// # 秒传判定（--file 本地算 md5+size，也可 --md5/--size 手给）
+/// dart run tool/probe_netease_api.dart --suite cloud --cookie "MUSIC_U=xxx" --file D:\a.mp3
+/// # 真删一条（默认 dry-run 只打印将要发的内容）
+/// dart run tool/probe_netease_api.dart --suite cloud --cookie "MUSIC_U=xxx" --write
 /// ```
 Future<void> main(List<String> args) async {
   final o = _Args.parse(args);
@@ -73,6 +84,19 @@ Future<void> main(List<String> args) async {
     final seeded = _parseCookieHeader(o.cookie);
     client.seedCookies(seeded);
     print('[S2] seeded cookie keys=${seeded.keys.join(',')}');
+  }
+
+  // J7 秒传判定：--file 本地算 md5 + size（也验证 Dart 侧算 MD5 的可行性）。
+  if (o.file.isNotEmpty) {
+    try {
+      final f = File(o.file);
+      final bytes = await f.readAsBytes();
+      o.size = bytes.length;
+      o.md5 = md5.convert(bytes).toString();
+      print('[J7] file=${f.path} size=${o.size} md5=${o.md5}');
+    } catch (e) {
+      print('[J7] file FAIL ${_err(e)}');
+    }
   }
 
   try {
@@ -93,6 +117,7 @@ Future<void> main(List<String> args) async {
   if (o.suites.contains('albumnew')) await _probeAlbumNew(client);
   if (o.suites.contains('artistlist')) await _probeArtistList(client);
   if (o.suites.contains('account')) await _probeAccount(client, o);
+  if (o.suites.contains('cloud')) await _probeCloud(client, o);
 
   print('== done · cookies=${client.cookies.keys.join(',')} ==');
 }
@@ -871,6 +896,179 @@ Future<void> _probeUserDetail(NeteaseClient client, int uid) async {
   }
 }
 
+// ── J 组：音乐云盘 ───────────────────────────────────────────
+
+/// J 组云盘探针（第一轮）。
+///
+/// **背景**：`多音源接入方案.md` §11.1 写的「网易侧不做云盘入口，`NeteaseClient` 里
+/// 确无对应对口」只对了一半——本仓 client 确实没写，但上游 api-enhanced 有**整套**
+/// 云盘 module（列表/详情/删除/取流/歌词/匹配/秒传/直传/导入）。该结论原先只记在
+/// 已删除的《网易云接入排期.md》里，现全仓无记录，故这里按「先探针后落地」补上。
+///
+/// 第一轮只回答四个问题，都**不写账号**（删除默认 dry-run）：
+/// 1. 列表口通不通、字段叫什么（api-enhanced 不解析，没有第二个 Dart 参考可抄）；
+/// 2. 取流走「云盘原始文件」还是「曲库 song/url」——两条路各打一发对照；
+/// 3. 云盘歌词（文件 `LYRICS` 标签）有没有内容；
+/// 4. 秒传判定（`upload/check`）通不通，为上传链铺路。
+///
+/// 列表故意打**三种形态**：weapi 正常前缀 / weapiAt 原 `/api` 路径 / 明文。
+/// G13 的教训是 weapi 会换路径前缀、且旧路由会静默丢参数，不多打一发看不出真假。
+Future<void> _probeCloud(NeteaseClient client, _Args o) async {
+  if (!client.hasLogin && o.qr) await _probeQrLogin(client, o);
+
+  var uid = o.uid;
+  if (client.hasLogin && uid == 0) {
+    try {
+      final acc = parseProbeAccount(await client.accountRaw());
+      uid = (acc['userId'] as num?)?.toInt() ?? 0;
+    } catch (e) {
+      print('[J0] account FAIL ${_err(e)}');
+    }
+  }
+  print('[J0] uid=$uid hasLogin=${client.hasLogin} '
+      'cookieKeys=${client.cookies.keys.join(',')}');
+
+  // 未登录也打一发列表：游客态能区分「路由存在(301 需登录)」与「404 路由写错」，
+  // 和 G2「301 需登录（预期）」是同一类有效信息。
+  final firstSongId = await _probeCloudList(client);
+
+  if (!client.hasLogin) {
+    print('[J] 未登录 — 加 --qr 进程内扫码，或 --cookie "MUSIC_U=..."（其余项跳过）');
+    return;
+  }
+  if (firstSongId == null) {
+    print('[J2–J5] 列表无首条 songId — skip（空盘或字段未认出来）');
+  } else {
+    print('[J1] firstSongId=$firstSongId');
+    await _probeCloudDetail(client, firstSongId);
+    await _probeCloudDownload(client, firstSongId);
+    await _probeCloudLyric(client, uid, firstSongId);
+    await _probeCloudDelete(client, firstSongId, write: o.write);
+  }
+  await _probeCloudUploadCheck(client, o);
+}
+
+/// J1 列表：三形态对照，回传首条 `songId`（供后续 Detail/取流/歌词/删除复用）。
+///
+/// 第四发 `limit=5` 是**分页探针**：2026-10-09 第一轮 `limit=30` 把 460 条全返回了，
+/// 分不清是「limit 被忽略」还是「count 是总数而列表也真是 460」。这发若回 5 条，
+/// 说明 `limit` 生效、产品侧可以翻页；若仍回 460，则要走 `cursor`/`hasMore`
+/// （响应顶层两者都有）。
+Future<int?> _probeCloudList(NeteaseClient client) async {
+  final variants = <({String label, Future<String> Function() call})>[
+    (
+      label: 'weapi /weapi/v1/cloud/get',
+      call: () => client.cloudDiskListRaw(limit: 30),
+    ),
+    (
+      label: 'weapiAt /api/v1/cloud/get(原路径)',
+      call: () => client.callWeApiAt(
+        '${NeteaseEndpoints.mainHost}/api/v1/cloud/get',
+        params: {'limit': 30, 'offset': 0},
+      ),
+    ),
+    (
+      label: 'plain /api/v1/cloud/get',
+      call: () => client.callPlainApi(
+        '/api/v1/cloud/get',
+        {'limit': 30, 'offset': 0},
+      ),
+    ),
+    (
+      label: 'plain limit=5(分页探针)',
+      call: () => client.callPlainApi(
+        '/api/v1/cloud/get',
+        {'limit': 5, 'offset': 0},
+      ),
+    ),
+  ];
+  int? firstSongId;
+  for (final v in variants) {
+    try {
+      final raw = await v.call();
+      final s = parseProbeCloudList(raw);
+      print('[J1] ${v.label} $s');
+      firstSongId ??= (s['firstId'] as num?)?.toInt();
+    } catch (e) {
+      print('[J1] ${v.label} FAIL ${_err(e)}');
+    }
+  }
+  return firstSongId;
+}
+
+/// J2 详情：按 songIds 取，用来核对「列表字段是否已经够用」（够就不用每次打详情）。
+///
+/// **2026-10-09 实测**：云盘文件自己的字段（`fileName`/`fileSize`/`addTime`/`cover`/
+/// `lyricId`/`matchType`/`bitrate`）**只在详情口**；列表口给的是 simpleSong 形态的歌。
+Future<void> _probeCloudDetail(NeteaseClient client, int songId) async {
+  try {
+    final raw = await client.cloudDiskDetailRaw(['$songId']);
+    print('[J2] detail ${parseProbeCloudDetail(raw)}');
+    print('      raw=${_short(raw, 500)}');
+  } catch (e) {
+    print('[J2] detail FAIL ${_err(e)}');
+  }
+}
+
+/// J4 取流：云盘原始文件口。与曲库 `/eapi/song/enhance/player/url/v1` 是两条路，
+/// 这里只打云盘这条；曲库那条由产品侧 `resolvePlayUrl` 已有的实现覆盖，探针阶段
+/// 需要时再补对照（未匹配曲目 `asid=0` 预期只有云盘这条能播）。
+Future<void> _probeCloudDownload(NeteaseClient client, int songId) async {
+  try {
+    final raw = await client.cloudDownloadRaw(songId);
+    print('[J4] download ${parseProbeCloudDownload(raw)}');
+  } catch (e) {
+    print('[J4] download FAIL ${_err(e)}');
+  }
+}
+
+/// J5 云盘歌词：来自文件 `LYRICS` 标签，没标签就是空——空不代表口不通。
+Future<void> _probeCloudLyric(NeteaseClient client, int uid, int songId) async {
+  if (uid == 0) {
+    print('[J5] lyric skip（无 uid，传 --uid）');
+    return;
+  }
+  try {
+    final raw = await client.cloudLyricRaw(uid: uid, songId: songId);
+    print('[J5] lyric ${parseProbeCloudLyric(raw)}');
+  } catch (e) {
+    print('[J5] lyric FAIL ${_err(e)}');
+  }
+}
+
+/// J3 删除：**默认 dry-run**，只打印将要发送的 payload；`--write` 才真删。
+Future<void> _probeCloudDelete(NeteaseClient client, int songId,
+    {required bool write}) async {
+  if (!write) {
+    print('[J3] del dry-run songIds=["$songId"]（真删加 --write）');
+    return;
+  }
+  try {
+    final raw = await client.cloudDiskDeleteRaw(['$songId']);
+    print('[J3] del WRITE ${_summary(raw)} raw=${_short(raw, 200)}');
+  } catch (e) {
+    print('[J3] del FAIL ${_err(e)}');
+  }
+}
+
+/// J7 秒传判定：`upload/check`。md5+size 由 `--file` 本地算，或 `--md5`/`--size` 手给。
+///
+/// 只读不发文件，安全；`needUpload=false` 即服务端已有该文件（秒传）。
+Future<void> _probeCloudUploadCheck(NeteaseClient client, _Args o) async {
+  final md5 = o.md5;
+  final size = o.size;
+  if (md5.isEmpty || size <= 0) {
+    print('[J7] upload/check skip（传 --file <path> 或 --md5 + --size）');
+    return;
+  }
+  try {
+    final raw = await client.cloudUploadCheckRaw(fileSize: size, md5: md5);
+    print('[J7] check md5=$md5 size=$size ${_summary(raw)} raw=${_short(raw, 200)}');
+  } catch (e) {
+    print('[J7] check FAIL ${_err(e)}');
+  }
+}
+
 // ── 小工具 ──────────────────────────────────────────────────
 
 /// 参数解析。
@@ -899,6 +1097,15 @@ class _Args {
   ///
   /// 与 `--qr` 二选一；都给了以 `--cookie` 为准（seedCookies 会覆盖同名键）。
   String cookie = '';
+
+  /// J7 秒传判定：文件 MD5（小写 hex）。`--file` 给了就由它算，不必手给。
+  String md5 = '';
+
+  /// J7 秒传判定：文件字节数。
+  int size = 0;
+
+  /// J7 秒传判定：本地文件路径，探针自己算 md5 + size。
+  String file = '';
 
   /// F5b：把 `--playlist` + `--id` 的动作用 `op=del` 发（默认 `add`）。
   bool del = false;
@@ -939,6 +1146,12 @@ class _Args {
         o.qr = true;
       } else if (a == '--cookie') {
         o.cookie = next();
+      } else if (a == '--md5') {
+        o.md5 = next().toLowerCase();
+      } else if (a == '--size') {
+        o.size = int.tryParse(next()) ?? 0;
+      } else if (a == '--file') {
+        o.file = next();
       } else if (a == '--qr-timeout') {
         o.qrTimeout = int.tryParse(next()) ?? o.qrTimeout;
       } else if (a == '--send-sms') {

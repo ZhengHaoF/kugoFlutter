@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../models/audio_quality.dart';
 import '../../models/catalog_models.dart';
+import '../../models/cloud_models.dart';
 import '../../models/comment.dart';
 import '../../models/mv_models.dart';
 import '../../models/search_result.dart';
@@ -389,11 +390,15 @@ List<Track> mapNeteaseSongs(Object? list) {
 }
 
 /// 单曲节点 → [Track]。`id` 非数字视为无效，返回 null。
+///
+/// 嵌套拆包：G5 新歌把曲目塞 `song` 里；**云盘列表 / 详情把曲目塞 `simpleSong` 里**
+/// （2026-10-09 实测，见 `mapNeteaseCloudPage`）。不拆这层会每一项都取不到
+/// `id` 而被静默丢弃——云盘页「有容量无歌曲」就是这么来的。
 Track? mapNeteaseSong(Object? node) {
   if (node is! Map) return null;
   var m = Map<String, dynamic>.from(node);
-  // G5 新歌等把曲目塞在 `song` 里。
-  final nested = m['song'];
+  // G5 新歌等把曲目塞在 `song` 里；云盘两口塞在 `simpleSong` 里。
+  final nested = m['song'] ?? m['simpleSong'];
   if (nested is Map) m = Map<String, dynamic>.from(nested);
 
   final id = _int(m['id']);
@@ -913,6 +918,120 @@ NeteaseVipMembership? _vipMembership(Object? node) {
 
 /// 非正数 → null（网易用 `0` / 负值表示「无此项」，如 `birthday=-2209017600000`）。
 int? _positiveOrNull(int v) => v > 0 ? v : null;
+
+// ── J. 音乐云盘 ──────────────────────────────────────────────
+//
+// 协议面来自 api-enhanced `module/user_cloud*.js` / `cloud*.js`（2026-10-09 接）。
+// 字段形态来自 2026-10-09 真机探针（uid=1593114455：460 个文件 / 19.3G of 60G）。
+
+/// J1 云盘列表 → [CloudDiskPage]。
+///
+/// 实测两点关键形态：
+/// 1. **`data[]` 是 `{simpleSong: {...}}` 包裹**（2026-10-09 实测，与详情口同形），
+///    由 [mapNeteaseSong] 拆包后与曲库歌曲同构——云盘页能显示正规歌名/歌手/专辑/
+///    时长/封面，不必为了展示先打详情。未匹配曲库的文件（`ar`/`al` 为空）也有
+///    `name`（= 文件名），不会出现空白行。
+/// 2. **容量在顶层**：`size`（已用字节）/ `maxSize`（总额字节），故容量条可直接做。
+///
+/// 云盘文件自己的字段（`fileName`/`fileSize`/`addTime`/`cover`/`lyricId`/
+/// `matchType`）**不在列表口**，只在 J2 详情口；产品侧当前不消费，故本 mapper
+/// 不解析详情（要显示「上传时间/文件大小」时再补批量详情）。
+///
+/// 分页：`limit`/`offset` 是否生效待二轮探针确认，故 [CloudDiskPage.hasMore]
+/// 以响应自带的 `hasMore` 为准——limit 被忽略时首屏即返回全量、`hasMore=false`，
+/// 两种形态下都不会漏数据也不会翻过头。
+CloudDiskPage mapNeteaseCloudPage(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '云盘');
+  // `cloudFileId` 记 songId：它是 `isCloudTrack` 的判据，也是删除 / 取流 / 歌词
+  // 三处的身份键（网易云盘没有酷狗那种 kv_id + hash 双键）。
+  final tracks = [
+    for (final t in mapNeteaseSongs(root['data'])) t.copyWith(cloudFileId: t.id),
+  ];
+  final total = _int(root['count']);
+  return CloudDiskPage(
+    tracks: tracks,
+    total: total > 0 ? total : tracks.length,
+    capacity: CloudDiskCapacity(
+      usedBytes: _int(root['size']),
+      totalBytes: _int(root['maxSize']),
+    ),
+    page: 1,
+    hasMore: root['hasMore'] == true,
+  );
+}
+
+/// J4 云盘取流 → [PlayUrlResult]。
+///
+/// **响应是平铺的**（2026-10-09 实测）：`{code, size, name, url}` 全在顶层，
+/// 不是曲库那套 `data[0].url` 包裹。URL 是 `http://m803.music.126.net/...` 带
+/// `vuutv` 时效签名的直链，和曲库取流一样短时有效，故照旧下发防盗链头。
+PlayUrlResult mapNeteaseCloudPlayUrl(String raw) {
+  final root = _decode(raw);
+  final code = _int(root['code']);
+  if (code == 301) throw const LoginRequired('网易云会话失效 code=301');
+  if (code != 200) throw mapNeteaseCode(code, message: '云盘取流 code=$code');
+  final url = _str(root['url']);
+  if (url.isEmpty) throw const NotFound('云盘文件没有取流地址');
+  return PlayUrlResult(
+    url: url,
+    backupUrls: const [],
+    headers: neteasePlaybackHeaders,
+    isPreviewClip: false,
+  );
+}
+
+/// J5 云盘歌词 → [LyricPayload]。
+///
+/// 歌词来自**文件里的 `LYRICS` 标签**（不是曲库歌词口），响应是**顶层字符串**
+/// `{lrc, krc}`（2026-10-09 实测；注意与曲库那套 `lrc:{version,lyric}` 对象不同）。
+/// 两者皆空 = 该文件没内嵌歌词，**口是通的**，返回 [LyricPayload.empty] 而非抛错。
+///
+/// `krc` 的格式未实测（盘里没带歌词的文件），故先按 YRC 解、解不出来按 LRC 解，
+/// 两种格式都不会把内容丢掉。
+LyricPayload mapNeteaseCloudLyric(String raw) {
+  final root = _decode(raw);
+  final code = _int(root['code']);
+  if (code != 0 && code != 200) {
+    throw mapNeteaseCode(code, message: '云盘歌词 code=$code');
+  }
+  final krc = _str(root['krc']);
+  final lrc = _str(root['lrc']);
+  var lines = const <LyricLine>[];
+  var fromKrc = false;
+  if (krc.isNotEmpty) {
+    lines = parseYrc(krc);
+    fromKrc = lines.isNotEmpty;
+  }
+  if (lines.isEmpty && krc.isNotEmpty) lines = parseLrc(krc);
+  if (lines.isEmpty && lrc.isNotEmpty) lines = parseLrc(lrc);
+  if (lines.isEmpty) return LyricPayload.empty;
+  return LyricPayload(
+    lines: lines,
+    sourceTag: fromKrc ? 'netease-cloud-krc' : 'netease-cloud-lrc',
+  );
+}
+
+/// J2 云盘详情：`data[]` 每项 `{simpleSong, songId, fileName, fileSize, addTime,
+/// cover, coverId, lyricId, matchType, bitrate, album, artist, ...}`。
+///
+/// 列表口给不到这些，故「上传时间 / 文件大小 / 文件名」要展示时再调它
+/// （按 songId 与列表项对齐，可批量）。当前产品不消费，先只做探针摘要用。
+List<Track> mapNeteaseCloudDetails(String raw) {
+  final root = _decode(raw);
+  _throwIfBadCode(root, '云盘详情');
+  final data = root['data'];
+  if (data is! List) return const [];
+  final out = <Track>[];
+  for (final node in data) {
+    if (node is! Map) continue;
+    final song = node['simpleSong'];
+    final track = mapNeteaseSong(song is Map ? song : node);
+    if (track == null) continue;
+    out.add(track.copyWith(cloudFileId: _str(node['songId'])));
+  }
+  return out;
+}
 
 // ── 内部工具 ─────────────────────────────────────────────────
 

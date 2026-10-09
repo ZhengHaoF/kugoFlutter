@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kugo/core/api/netease/netease_account_models.dart';
 import 'package:kugo/core/api/netease/netease_account_source.dart';
 import 'package:kugo/core/api/netease/netease_mappers.dart';
+import 'package:kugo/core/models/cloud_models.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/core/source/music_platform.dart';
@@ -16,6 +17,8 @@ import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/data/storage/kugo_db.dart';
 import 'package:kugo/data/storage/queue_store.dart';
 import 'package:kugo/features/auth/netease_login_controller.dart';
+import 'package:kugo/features/cloud/cloud_page.dart';
+import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/features/profile/netease_account_profile.dart';
 import 'package:kugo/features/profile/netease_collections_controller.dart';
 import 'package:kugo/features/profile/profile_detail_page.dart';
@@ -24,6 +27,7 @@ import 'package:kugo/features/profile/source_account.dart';
 import 'package:kugo/features/settings/settings_controller.dart';
 import 'package:kugo/shared/widgets/common.dart';
 
+import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_device_login_source.dart';
 import 'fakes/fake_music_source.dart';
 
@@ -43,6 +47,36 @@ class FakeUserPlaylistReadSource implements UserPlaylistReadSource {
     if (e != null) throw e;
     return page;
   }
+}
+
+/// 带云盘能力的假源：单独子类，不污染 [FakeMusicSource]（否则
+/// 「两源都没云盘」用例会永远显示入口——`capability<T>()` 是 `is T` 判定）。
+class _FakeCloudMusicSource extends FakeMusicSource
+    implements CloudDiskSource {
+  _FakeCloudMusicSource(MusicPlatform platform, {required this.page})
+      : super(platform: platform);
+
+  final CloudDiskPage page;
+  final List<String> requestedPages = [];
+
+  @override
+  bool get isCloudDiskLoggedIn => true;
+
+  @override
+  Future<CloudDiskPage> fetchCloudDiskPage({
+    int page = 1,
+    int pageSize = 30,
+  }) async {
+    requestedPages.add('page=$page,size=$pageSize');
+    return this.page;
+  }
+
+  @override
+  Future<PlayUrlResult> resolveCloudPlayUrl(Track track) async =>
+      nextPlayUrl!;
+
+  @override
+  Future<void> deleteCloudTracks(List<CloudDeleteTarget> targets) async {}
 }
 
 /// 测试用假「账号档案」源（H 组三口）：不碰网络，可注入错误。
@@ -377,13 +411,16 @@ void main() {
           // 不 override 会落到全局 neteaseSource → widget 测试打真实网络。
           neteaseAccountSourceProvider
               .overrideWithValue(account ?? FakeNeteaseAccountSource()),
+          // 云盘页 build 会 watch 播放器（MediaKit 未初始化会炸），统一顶掉。
+          playerControllerProvider
+              .overrideWith(() => PlayerController(engine: FakeAudioPlayer())),
         ],
       );
       addTearDown(container.dispose);
       return container;
     }
 
-    Future<void> pumpPage(WidgetTester tester, ProviderContainer container,
+    Future<GoRouter> pumpPage(WidgetTester tester, ProviderContainer container,
         Widget page) async {
       tester.view.physicalSize = const Size(1200, 4000);
       tester.view.devicePixelRatio = 1.0;
@@ -405,6 +442,7 @@ void main() {
             path: '/netease-login',
             builder: (_, _) => const Scaffold(body: Text('网易登录页')),
           ),
+          GoRoute(path: '/cloud', builder: (_, _) => const CloudPage()),
         ],
       );
       addTearDown(router.dispose);
@@ -418,7 +456,243 @@ void main() {
       for (var i = 0; i < 20; i++) {
         await tester.pump(const Duration(milliseconds: 20));
       }
+      return router;
     }
+
+    testWidgets('云盘页按账号源取数：网易源出网易的盘', (tester) async {
+      final netease = _FakeCloudMusicSource(
+        MusicPlatform.netease,
+        page: CloudDiskPage(
+          tracks: const [
+            Track(
+              id: '2165810543',
+              name: '独庄子（3）',
+              artist: '未知艺术家',
+              album: '',
+              coverUrl: '',
+              durationMs: 1370196,
+              cloudFileId: '2165810543',
+            ),
+          ],
+          total: 1,
+          capacity: const CloudDiskCapacity(
+            usedBytes: 20795339420,
+            totalBytes: 64424509440,
+          ),
+        ),
+      );
+      final container = containerWith(
+        enabledSources: ['kugou', 'netease'],
+        defaultSource: 'netease',
+      );
+      // 只给网易云盘能力：酷狗源没有（模拟「酷狗侧没实现」）。
+      musicSourceRegistry = MusicSourceRegistry([
+        FakeMusicSource(platform: MusicPlatform.kugou),
+        netease,
+      ]);
+
+      await pumpPage(tester, container, const Scaffold(body: ProfilePage()));
+      await tester.tap(find.text('音乐云盘'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('独庄子（3）'), findsOneWidget);
+      // 容量条该出现（19.3G / 60G）；多源启用时顶部是切源栏而非只读小字。
+      expect(find.textContaining('60'), findsWidgets);
+      expect(find.byType(SourceFilterBar), findsOneWidget);
+      expect(netease.requestedPages, isNotEmpty);
+    });
+
+    testWidgets('云盘页内可直接切源：chips 一点就换盘', (tester) async {
+      final kugou = _FakeCloudMusicSource(
+        MusicPlatform.kugou,
+        page: const CloudDiskPage(
+          tracks: [
+            Track(
+              id: 'hash-k',
+              name: '酷狗云盘曲',
+              artist: '歌手',
+              album: '',
+              coverUrl: '',
+              durationMs: 1000,
+              cloudFileId: '99',
+            ),
+          ],
+          total: 1,
+        ),
+      );
+      final netease = _FakeCloudMusicSource(
+        MusicPlatform.netease,
+        page: const CloudDiskPage(
+          tracks: [
+            Track(
+              id: '2165810543',
+              name: '网易云盘曲',
+              artist: '未知艺术家',
+              album: '',
+              coverUrl: '',
+              durationMs: 1370196,
+              cloudFileId: '2165810543',
+            ),
+          ],
+          total: 1,
+        ),
+      );
+      final container = containerWith(
+        enabledSources: ['kugou', 'netease'],
+        defaultSource: 'netease',
+      );
+      musicSourceRegistry = MusicSourceRegistry([kugou, netease]);
+
+      await pumpPage(tester, container, const Scaffold(body: ProfilePage()));
+      await tester.tap(find.text('音乐云盘'));
+      await tester.pumpAndSettle();
+      expect(find.text('网易云盘曲'), findsOneWidget);
+
+      // 云盘页内的切源栏（不用回「我的」页）。
+      expect(find.byType(SourceFilterBar), findsOneWidget);
+      await tester.tap(find.text('酷狗'));
+      await tester.pumpAndSettle();
+      expect(find.text('酷狗云盘曲'), findsOneWidget);
+      expect(find.text('网易云盘曲'), findsNothing);
+      // 切源同时同步全局默认源（与其它多源页面同口径）。
+      expect(
+        container.read(settingsControllerProvider).defaultSource,
+        MusicPlatform.kugou,
+      );
+    });
+
+    testWidgets('单源启用：云盘页只给只读来源小字，不出 chips', (tester) async {
+      final container = containerWith(
+        enabledSources: ['netease'],
+        defaultSource: 'netease',
+      );
+      musicSourceRegistry = MusicSourceRegistry([
+        _FakeCloudMusicSource(
+          MusicPlatform.netease,
+          page: const CloudDiskPage(
+            tracks: [
+              Track(
+                id: '1',
+                name: '网易云盘曲',
+                artist: 'a',
+                album: '',
+                coverUrl: '',
+                durationMs: 1,
+                cloudFileId: '1',
+              ),
+            ],
+            total: 1,
+          ),
+        ),
+      ]);
+
+      await pumpPage(tester, container, const Scaffold(body: ProfilePage()));
+      await tester.tap(find.text('音乐云盘'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SourceFilterBar), findsNothing);
+      expect(find.textContaining('来源：网易云'), findsOneWidget);
+    });
+
+    testWidgets('账号源切到酷狗：云盘页跟着换（不混源）', (tester) async {
+      final kugou = _FakeCloudMusicSource(
+        MusicPlatform.kugou,
+        page: const CloudDiskPage(
+          tracks: [
+            Track(
+              id: 'hash-k',
+              name: '酷狗云盘曲',
+              artist: '歌手',
+              album: '',
+              coverUrl: '',
+              durationMs: 1000,
+              cloudFileId: '99',
+            ),
+          ],
+          total: 1,
+        ),
+      );
+      final netease = _FakeCloudMusicSource(
+        MusicPlatform.netease,
+        page: const CloudDiskPage(
+          tracks: [
+            Track(
+              id: '2165810543',
+              name: '网易云盘曲',
+              artist: '未知艺术家',
+              album: '',
+              coverUrl: '',
+              durationMs: 1370196,
+              cloudFileId: '2165810543',
+            ),
+          ],
+          total: 1,
+        ),
+      );
+      final container = containerWith(
+        enabledSources: ['kugou', 'netease'],
+        defaultSource: 'netease',
+      );
+      musicSourceRegistry = MusicSourceRegistry([kugou, netease]);
+
+      final router = await pumpPage(
+        tester,
+        container,
+        const Scaffold(body: ProfilePage()),
+      );
+      await tester.tap(find.text('音乐云盘'));
+      await tester.pumpAndSettle();
+      expect(find.text('网易云盘曲'), findsOneWidget);
+
+      // 回「我的」页切账号源 → 再进云盘，应换成酷狗的盘。
+      container.read(accountSourceProvider.notifier).state =
+          MusicPlatform.kugou;
+      router.go('/profile');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('音乐云盘'));
+      await tester.pumpAndSettle();
+      expect(find.text('酷狗云盘曲'), findsOneWidget);
+      expect(find.text('网易云盘曲'), findsNothing);
+    });
+
+    testWidgets('入口显隐看能力：只有网易有云盘时仍显示', (tester) async {
+      final container = containerWith(
+        enabledSources: ['kugou', 'netease'],
+        defaultSource: 'netease',
+      );
+      musicSourceRegistry = MusicSourceRegistry([
+        FakeMusicSource(platform: MusicPlatform.kugou),
+        _FakeCloudMusicSource(
+          MusicPlatform.netease,
+          page: const CloudDiskPage(
+            tracks: [
+              Track(
+                id: '1',
+                name: '网易云盘曲',
+                artist: 'a',
+                album: '',
+                coverUrl: '',
+                durationMs: 1,
+                cloudFileId: '1',
+              ),
+            ],
+            total: 1,
+          ),
+        ),
+      ]);
+
+      await pumpPage(tester, container, const Scaffold(body: ProfilePage()));
+      expect(find.text('音乐云盘'), findsOneWidget);
+    });
+
+    testWidgets('入口显隐看能力：两源都没云盘时隐藏', (tester) async {
+      final container = containerWith(
+        enabledSources: ['kugou', 'netease'],
+        defaultSource: 'netease',
+      );
+
+      await pumpPage(tester, container, const Scaffold(body: ProfilePage()));
+      expect(find.text('音乐云盘'), findsNothing);
+    });
 
     testWidgets('多源启用：出账号切源条，默认源为网易云时走网易口径', (tester) async {
       final container = containerWith(
@@ -584,6 +858,28 @@ void main() {
       expect(find.text('音乐包'), findsOneWidget);
       // 「暂不提供」那句说明应该没了。
       expect(find.textContaining('暂不提供等级'), findsNothing);
+      // 档案两列对齐（和酷狗源同一套 _ArchiveRow）：标签左边缘成列、数值贴右。
+      for (final label in const [
+        '用户 ID',
+        '性别',
+        '乐龄',
+        '累计听歌',
+        '所在地区',
+        '云贝',
+        '自建歌单',
+      ]) {
+        final rowFinder = find.ancestor(
+          of: find.text(label),
+          matching: find.byType(Row),
+        ).first;
+        expect(
+          tester.getRect(
+            find.descendant(of: rowFinder, matching: find.byType(Text)).at(1),
+          ).right,
+          moreOrLessEquals(tester.getRect(rowFinder).right, epsilon: 0.5),
+          reason: '「$label」的数值没有贴右',
+        );
+      }
       // 退出登录入口在页尾红字行，两源通用（登录态才渲染）。
       expect(find.text('退出登录'), findsOneWidget);
     });

@@ -5,6 +5,7 @@ import '../../../core/api/netease/netease_failures.dart';
 import '../../../core/api/netease/netease_mappers.dart';
 import '../../../core/models/audio_quality.dart';
 import '../../../core/models/catalog_models.dart';
+import '../../../core/models/cloud_models.dart';
 import '../../../core/models/comment.dart';
 import '../../../core/models/daily_recommend.dart';
 import '../../../core/models/mv_models.dart';
@@ -44,7 +45,8 @@ class NeteaseSource
         ResourceCommentSource,
         SearchHotSource,
         MvDetailSource,
-        NeteaseAccountSource {
+        NeteaseAccountSource,
+        CloudDiskSource {
   NeteaseSource({NeteaseClient? client}) : _client = client ?? neteaseClient;
 
   final NeteaseClient _client;
@@ -89,6 +91,9 @@ class NeteaseSource
 
   /// 「我喜欢」详情单批 id 数：一次 `song/detail` 带 100 个 id（实测形态安全）。
   static const int _likedDetailBatch = 100;
+
+  /// 当前登录 uid 缓存（[NeteaseClient.currentAccount] 一次请求换来的）。
+  int? _cachedUid;
 
   // ── MusicSource ──────────────────────────────────────────
 
@@ -157,6 +162,11 @@ class NeteaseSource
     Track track, {
     AppQuality? preferred,
   }) async {
+    // 云盘曲目走云盘取流（拿原始上传文件），不进曲库 player/url 链
+    // （同酷狗口径，见 KugouSource.resolvePlayUrl 的 isCloudTrack 分支）。
+    if (track.isCloudTrack) {
+      return resolveCloudPlayUrl(track);
+    }
     final songId = _songId(track);
     if (songId <= 0) throw const NotFound('曲目缺少网易云 songId');
     final raw = await _client.songPlayUrlRaw(
@@ -168,10 +178,85 @@ class NeteaseSource
 
   @override
   Future<LyricPayload> fetchLyric(Track track) async {
+    // 云盘歌词在文件 `LYRICS` 标签里，和曲库歌词口不是一套（J5）。
+    if (track.isCloudTrack) return _fetchCloudLyric(track);
     final songId = _songId(track);
     if (songId <= 0) return LyricPayload.empty;
     final raw = await _client.songLyricRaw(songId);
     return mapNeteaseLyric(raw);
+  }
+
+  // ── CloudDiskSource（J 组，需登录） ─────────────────────────
+
+  /// 网易的登录态看 `MUSIC_U` cookie（与 [isLoggedIn] 同源）。
+  @override
+  bool get isCloudDiskLoggedIn => _client.hasLogin;
+
+  /// J1 云盘列表。
+  ///
+  /// `limit`/`offset` 是否生效待二轮探针确认，故 [CloudDiskPage.hasMore] 以响应
+  /// 自带字段为准：limit 被忽略时首屏即返回全量、`hasMore=false`，两种形态都正确。
+  @override
+  Future<CloudDiskPage> fetchCloudDiskPage({
+    int page = 1,
+    int pageSize = 30,
+  }) async {
+    if (!_client.hasLogin) {
+      throw const LoginRequired('请先登录网易云后查看云盘');
+    }
+    final offset = page > 1 ? (page - 1) * pageSize : 0;
+    return mapNeteaseCloudPage(
+      await _client.cloudDiskListRaw(limit: pageSize, offset: offset),
+    );
+  }
+
+  /// J4 云盘取流：原始文件直链（平铺响应，见 [mapNeteaseCloudPlayUrl]）。
+  @override
+  Future<PlayUrlResult> resolveCloudPlayUrl(Track track) async {
+    final songId = _songId(track);
+    if (songId <= 0) throw const NotFound('云盘曲目缺少 songId');
+    return mapNeteaseCloudPlayUrl(await _client.cloudDownloadRaw(songId));
+  }
+
+  /// J3 删除云盘文件。目标用 `cloudFileId`（列表项的 songId）。
+  @override
+  Future<void> deleteCloudTracks(List<CloudDeleteTarget> targets) async {
+    final ids = <String>[];
+    for (final t in targets) {
+      final id = t.cloudFileId.trim();
+      if (id.isNotEmpty) ids.add(id);
+    }
+    if (ids.isEmpty) throw const NotFound('云盘文件 id 缺失');
+    if (!_client.hasLogin) {
+      throw const LoginRequired('请先登录网易云后操作云盘');
+    }
+    throwIfNeteaseWriteFailed(
+      await _client.cloudDiskDeleteRaw(ids),
+      '云盘删除',
+    );
+  }
+
+  /// J5 云盘歌词。uid 走 [currentAccount]（与歌单/我喜欢同源）并缓存——
+  /// 云盘曲目逐首播放时不该每首都打一次 `account/get`。
+  /// 取不到就返回空：没内嵌歌词的文件同样是空，UI 无需区分。
+  Future<LyricPayload> _fetchCloudLyric(Track track) async {
+    final songId = _songId(track);
+    if (songId <= 0 || !_client.hasLogin) return LyricPayload.empty;
+    final uid = await _uid();
+    if (uid <= 0) return LyricPayload.empty;
+    return mapNeteaseCloudLyric(
+      await _client.cloudLyricRaw(uid: uid, songId: songId),
+    );
+  }
+
+  /// 当前登录 uid（缓存；失败不缓存，下次再试）。
+  Future<int> _uid() async {
+    final cached = _cachedUid;
+    if (cached != null && cached > 0) return cached;
+    final account = await currentAccount();
+    final uid = int.tryParse(account?.userId ?? '') ?? 0;
+    if (uid > 0) _cachedUid = uid;
+    return uid;
   }
 
   // ── DailyRecommendSource（G3） ────────────────────────────

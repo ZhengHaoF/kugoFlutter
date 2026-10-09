@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/playback_source.dart';
 import '../../core/platform.dart';
 import '../../core/source/capabilities.dart';
-import '../../core/source/music_platform.dart';
+import '../../features/profile/source_account.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
@@ -243,9 +243,9 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                       selected: widget.location.startsWith('/likes'),
                       onTap: () => widget.onNavigate('/likes'),
                     ),
-                    // 云盘是酷狗专属资产；能力不存在（如仅网易）时隐藏。
+                    // 云盘是账号资产：当前账号源具备该能力才显示（酷狗/网易都有）。
                     if (musicSourceRegistry?.capability<CloudDiskSource>(
-                          MusicPlatform.kugou,
+                          ref.watch(effectiveAccountSourceProvider),
                         ) !=
                         null)
                       _SidebarItem(

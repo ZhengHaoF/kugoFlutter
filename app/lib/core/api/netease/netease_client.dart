@@ -566,6 +566,145 @@ class NeteaseClient {
   /// `POST /weapi/w/nuser/account/get`（游客 code 可能非 200）。
   Future<String> accountRaw() => callWeApi(NeteaseEndpoints.account, const {});
 
+  // ── J 组：音乐云盘（对齐 api-enhanced `module/user_cloud*.js` / `cloud*.js`） ──
+  //
+  // 加密口径见 `netease_endpoints.dart` J 组注释：列表/详情/删除/匹配 = weapi，
+  // 取流/歌词 = eapi，上传链 = 明文。**全部要登录**。
+  //
+  // 字段形态（songId / fileName / fileSize / bitrate / addTime / 容量）api-enhanced
+  // 不解析、直接代理，故本组只保证「口通 + 打原样」，映射留到探针实测后补。
+
+  /// J1 云盘列表：`/weapi/v1/cloud/get`，`limit` 默认 30 / `offset`。
+  Future<String> cloudDiskListRaw({int limit = 30, int offset = 0}) {
+    return callWeApi(NeteaseEndpoints.cloudGet, {
+      'limit': limit,
+      'offset': offset,
+    });
+  }
+
+  /// J2 云盘详情：`/weapi/v1/cloud/get/byids`，`songIds` 为字符串数组。
+  Future<String> cloudDiskDetailRaw(List<String> songIds) {
+    return callWeApi(NeteaseEndpoints.cloudGetByIds, {'songIds': songIds});
+  }
+
+  /// J3 删除云盘文件：`/weapi/cloud/del`，`songIds` 为字符串数组。
+  ///
+  /// **写操作**，探针默认 dry-run，只有显式要求才真发。
+  Future<String> cloudDiskDeleteRaw(List<String> songIds) {
+    return callWeApi(NeteaseEndpoints.cloudDel, {'songIds': songIds});
+  }
+
+  /// J4 云盘取流：`/eapi/cloud/dowonload`（上游拼写少一个 `l`）。
+  ///
+  /// 拿的是**原始上传文件**，与曲库 `/eapi/song/enhance/player/url/v1` 是两条路：
+  /// 已匹配曲库的云盘曲目两者可能都可播，未匹配（`asid=0`）只有这条能播。
+  /// 码率与 URL 时效需探针对照后定产品走哪条。
+  Future<String> cloudDownloadRaw(int songId) {
+    return callEApi(NeteaseEndpoints.cloudDownload, {'songId': songId});
+  }
+
+  /// J5 云盘歌词：`/eapi/cloud/lyric/get`。
+  ///
+  /// 歌词来自**文件里的 `LYRICS` 标签**，不是曲库歌词口；没标签的文件返回空。
+  Future<String> cloudLyricRaw({required int uid, required int songId}) {
+    return callEApi(NeteaseEndpoints.cloudLyric, {
+      'userId': uid,
+      'songId': songId,
+      'lv': -1,
+      'kv': -1,
+    });
+  }
+
+  /// J6 云盘曲目信息匹配纠正：`/weapi/cloud/user/song/match`。
+  ///
+  /// [adjustSongId] 传 `0` = 取消匹配。**写操作**。
+  Future<String> cloudMatchRaw({
+    required int uid,
+    required int songId,
+    required int adjustSongId,
+  }) {
+    return callWeApi(NeteaseEndpoints.cloudMatch, {
+      'userId': uid,
+      'songId': songId,
+      'adjustSongId': adjustSongId,
+    });
+  }
+
+  /// J7 秒传判定：`/api/cloud/upload/check`（明文）。
+  ///
+  /// 回 `needUpload`：false = 服务端已有该文件（秒传，跳过分片直传）。
+  Future<String> cloudUploadCheckRaw({
+    required int fileSize,
+    required String md5,
+    int bitrate = 999000,
+  }) {
+    return callPlainApi(NeteaseEndpoints.cloudUploadCheck, {
+      'bitrate': '$bitrate',
+      'ext': '',
+      'length': fileSize,
+      'md5': md5,
+      'songId': '0',
+      'version': 1,
+    });
+  }
+
+  /// J8 NOS 上传凭证：`/api/nos/token/alloc`（明文）。
+  ///
+  /// 与 J7 同链：先 check 拿 `songId`，再 alloc 拿 `token`/`resourceId`/`objectKey`，
+  /// 客户端直 PUT 到 LBS 返回的上传节点，最后 J9 收尾。
+  Future<String> cloudNosTokenRaw({
+    required String md5,
+    required String filename,
+    String bucket = NeteaseEndpoints.cloudNosBucket,
+  }) {
+    return callPlainApi(NeteaseEndpoints.cloudNosTokenAlloc, {
+      'bucket': bucket,
+      'ext': filename.contains('.') ? filename.split('.').last : 'mp3',
+      'filename': filename,
+      'local': false,
+      'nos_product': 3,
+      'type': 'audio',
+      'md5': md5,
+    });
+  }
+
+  /// J9 完成导入：`/api/upload/cloud/info/v2` + `/api/cloud/pub/v2`（两步都明文）。
+  ///
+  /// 回传第二步（pub）的响应体；info 步失败会抛 [SourceFailure]。
+  Future<String> cloudUploadCompleteRaw({
+    required int songId,
+    required String resourceId,
+    required String md5,
+    required String filename,
+    String song = '',
+    String artist = '',
+    String album = '',
+    int bitrate = 999000,
+  }) async {
+    final info = await callPlainApi(NeteaseEndpoints.cloudUploadInfo, {
+      'md5': md5,
+      'songid': songId,
+      'filename': filename,
+      'song': song.isEmpty ? filename : song,
+      'album': album.isEmpty ? '未知专辑' : album,
+      'artist': artist.isEmpty ? '未知艺术家' : artist,
+      'bitrate': '$bitrate',
+      'resourceId': resourceId,
+    });
+    _throwIfCloudInfoFailed(info);
+    return callPlainApi(NeteaseEndpoints.cloudPub, {'songid': songId});
+  }
+
+  /// info/v2 的 `code != 200` → 抛 [SourceFailure]（上游只回 msg，没结构）。
+  static void _throwIfCloudInfoFailed(String raw) {
+    final code = RegExp(r'"code"\s*:\s*(-?\d+)').firstMatch(raw)?.group(1);
+    if (code != null && code != '200') {
+      final msg =
+          RegExp(r'"msg"\s*:\s*"([^"]*)"').firstMatch(raw)?.group(1) ?? '云盘导入失败';
+      throw UpstreamChanged('云盘信息上传失败（$code）：$msg');
+    }
+  }
+
   // ── 扫码登录（E2/E3，对齐 Neri `NeteaseQrLoginClient`） ─────
 
   /// Neri 扫码链路专用桌面 UA（与常规探测 UA 不同）。
@@ -1809,5 +1948,170 @@ Map<String, Object?> parseProbeAccountProfile(String raw) {
       'djStatus',
     ])
       if (p[k] != null) k: p[k],
+  };
+}
+
+/// J1：云盘列表摘要。
+///
+/// **这个口返回什么形状全未实测**（api-enhanced 只代理不解析），所以输出刻意
+/// 「宽」：顶层键名 + 列表定位 + 首条**全部键名** + 容量相关标量 + 体积。
+/// 判据：`count > 0` 且 `firstKeys` 能认出路标字段（`songId`/`fileName`/`fileSize`/
+/// `bitrate`/`addTime`/`simpleSong`），再据此定 `mapNeteaseCloudPage` 的键。
+///
+/// 列表可能在 `data`（数组）或 `data.data`（像酷狗那样是 JSON 字符串），两种都探。
+Map<String, Object?> parseProbeCloudList(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  Object? node = root['data'] ?? root['result'] ?? root;
+  // 酷狗云盘的 `data.list` 是 JSON 字符串；网易若也这么干，先解一层。
+  if (node is String && node.isNotEmpty) {
+    try {
+      node = jsonDecode(node);
+    } catch (_) {}
+  }
+  List? list;
+  if (node is List) {
+    list = node;
+  } else if (node is Map) {
+    for (final k in const ['data', 'list', 'songs', 'cloud']) {
+      final v = node[k];
+      if (v is List) {
+        list = v;
+        break;
+      }
+      if (v is String && v.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(v);
+          if (decoded is List) {
+            list = decoded;
+            break;
+          }
+        } catch (_) {}
+      }
+    }
+  }
+  final first = list != null && list.isNotEmpty && list.first is Map
+      ? list.first as Map
+      : null;
+  final inner = first?['simpleSong'] ?? first?['song'] ?? first;
+  final item = inner is Map ? inner : first;
+  return {
+    'code': root['code'],
+    'count': list?.length ?? 0,
+    'total': root['count'],
+    'hasMore': root['hasMore'],
+    'cursor': root['cursor'],
+    'topKeys': root.keys.join(','),
+    'dataKeys': node is Map ? node.keys.join(',') : node.runtimeType.toString(),
+    // 列表项是 **simpleSong 形态**（2026-10-09 实测），不是云盘文件对象——
+    // 文件名/大小/上传时间只在详情口，见 parseProbeCloudDetail。
+    'firstKeys': item?.keys.take(24).join(','),
+    'firstId': item?['songId'] ?? item?['id'],
+    'name': item?['name'],
+    'dt': item?['dt'],
+    'ar': item?['ar'] is List && (item!['ar'] as List).isNotEmpty
+        ? ((item['ar'] as List).first as Map)['name']
+        : null,
+    'al': item?['al'] is Map ? (item!['al'] as Map)['name'] : null,
+    'cover': item?['al'] is Map ? (item!['al'] as Map)['picUrl'] : null,
+    // 容量：网易云盘容量与 VIP 等级相关；列表口**确实带**（2026-10-09 实测）。
+    'size': root['size'],
+    'maxSize': root['maxSize'],
+    'bytes': raw.length,
+    'firstRaw': first == null
+        ? 'n/a'
+        : (_shortJson(first) ),
+  };
+}
+
+/// 探针用：Map → 紧凑 JSON 串（截断），用于比对各形态首条差异。
+String _shortJson(Object? value, [int max = 700]) {
+  final s = jsonEncode(value);
+  return s.length <= max ? s : '${s.substring(0, max)}…';
+}
+
+/// J2：云盘详情摘要——**云盘文件自己的字段全在这里**。
+///
+/// 2026-10-09 实测（`/weapi/v1/cloud/get/byids`）：`data[]` 每项是
+/// `{simpleSong, bitrate, album, artist, songId, pcId, songName, addTime,
+/// cover, coverId, lyricId, matchType, version, fileSize, fileName}`。
+/// 列表口只给 simpleSong，故「文件名/大小/上传时间/封面」必须打这一发。
+Map<String, Object?> parseProbeCloudDetail(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final list = _probeList(root, const ['data', 'songs']);
+  final first = _probeFirstMap(list);
+  if (first == null) {
+    return {'code': root['code'], 'count': 0};
+  }
+  return {
+    'code': root['code'],
+    'count': list.length,
+    'keys': first.keys.join(','),
+    'songId': first['songId'],
+    'songName': first['songName'],
+    'fileName': first['fileName'],
+    'fileSize': first['fileSize'],
+    'bitrate': first['bitrate'],
+    'addTime': first['addTime'],
+    'cover': first['cover'],
+    'coverId': first['coverId'],
+    'lyricId': first['lyricId'],
+    'matchType': first['matchType'],
+    'version': first['version'],
+    'album': first['album'] is Map
+        ? (first['album'] as Map)['name']
+        : null,
+    'artist': first['artist'] is Map
+        ? (first['artist'] as Map)['name']
+        : null,
+  };
+}
+
+/// J4：云盘取流摘要（`/eapi/cloud/dowonload`）。
+///
+/// **2026-10-09 实测：响应是平铺的**（`{code, size, name, url}` 在顶层），
+/// 不是曲库那套 `data.url` 包裹——第一版按 `data.url` 读，全读出 `hasUrl:false`。
+/// 故这里顶层优先、`data.url` 兜底。
+Map<String, Object?> parseProbeCloudDownload(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  final data = root['data'];
+  final d = data is Map ? data : root;
+  final url = d['url'];
+  return {
+    'code': root['code'],
+    'hasUrl': url is String && url.isNotEmpty,
+    'name': root['name'] ?? d['name'],
+    'size': root['size'] ?? d['size'],
+    'br': d['br'],
+    'type': d['type'],
+    'level': d['level'],
+    'md5': d['md5'],
+    'urlHost': url is String && url.isNotEmpty
+        ? Uri.tryParse(url)?.host ?? '?'
+        : 'n/a',
+    'urlScheme': url is String && url.isNotEmpty
+        ? Uri.tryParse(url)?.scheme ?? '?'
+        : 'n/a',
+    'keys': root.keys.join(','),
+    'raw': raw.length <= 400 ? raw : '${raw.substring(0, 400)}…',
+  };
+}
+
+/// J5：云盘歌词摘要。歌词来自文件 `LYRICS` 标签，没标签就是空串。
+///
+/// **2026-10-09 实测：`lrc` / `krc` 是顶层字符串**（不是曲库那套
+/// `lrc: {version, lyric}` 对象）。两者皆空 = 该文件没内嵌歌词，口是通的。
+Map<String, Object?> parseProbeCloudLyric(String raw) {
+  final root = jsonDecode(raw) as Map<String, dynamic>;
+  String textOf(Object? v) => v is String ? v : '';
+  final lrc = textOf(root['lrc']);
+  final krc = textOf(root['krc']);
+  return {
+    'code': root['code'],
+    'topKeys': root.keys.join(','),
+    'lrcLen': lrc.length,
+    'krcLen': krc.length,
+    'lrcHead': lrc.isNotEmpty ? lrc.split('\n').take(3).join(' / ') : 'n/a',
+    'krcHead': krc.isNotEmpty ? krc.split('\n').take(2).join(' / ') : 'n/a',
+    'raw': raw.length <= 300 ? raw : '${raw.substring(0, 300)}…',
   };
 }

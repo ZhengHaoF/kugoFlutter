@@ -120,6 +120,41 @@ abstract final class NeteaseEndpoints {
   static const commentLike = '/weapi/v1/comment/like';
   static const commentUnlike = '/weapi/v1/comment/unlike';
 
+  /// J 组音乐云盘（对齐 api-enhanced `module/user_cloud*.js` / `cloud*.js`，
+  /// 2026-10-09 起接；协议面齐全，字段形态待探针实测）。
+  ///
+  /// **全部要登录**（游客预期 `301`）。加密口径分三族，别混：
+  /// - 列表 / 详情 / 删除 / 匹配 = **weapi**（走 [NeteaseClient.callWeApi]，
+  ///   这里写不带 `/api` 的短路径，由它补 `/weapi`）；
+  /// - 取流 / 歌词 = **eapi**（走 [NeteaseClient.callEApi]，补 `/eapi`）；
+  /// - 上传链（check / nos token / info / pub）= **明文**（[NeteaseClient.callPlainApi]）。
+  ///
+  /// ⚠️ [cloudDownload] 上游拼写就是 `dowonload`（少一个 `l`），照抄才不会 404
+  /// ——和 `/api/subcount` 少一段 `user/`、`/api/v1/artist/list` 缺 `v1` 同类。
+  ///
+  /// ⚠️ weapi 的坑（G13 实测）：NeteaseCloudMusicApi 对 weapi 会把**路径前缀**
+  /// 一起换掉（`/api/v1/...` → `/weapi/v1/...`），不是「加密体 + 原 `/api/` 路径」。
+  /// 故 weapi 口一律写已剥前缀的短路径，别图省事把 `/api/...` 塞给 `callWeApiAt`。
+  static const cloudGet = '/v1/cloud/get';
+  static const cloudGetByIds = '/v1/cloud/get/byids';
+  static const cloudDel = '/cloud/del';
+  static const cloudDownload = '/cloud/dowonload';
+  static const cloudLyric = '/cloud/lyric/get';
+  static const cloudMatch = '/cloud/user/song/match';
+
+  /// 上传链（明文）。[cloudNosTokenAlloc] 的 bucket 由上游固定。
+  static const cloudUploadCheck = '/api/cloud/upload/check';
+  static const cloudNosTokenAlloc = '/api/nos/token/alloc';
+  static const cloudUploadInfo = '/api/upload/cloud/info/v2';
+  static const cloudPub = '/api/cloud/pub/v2';
+  static const cloudImport = '/api/cloud/user/song/import';
+
+  /// 网易云盘上传对象存储 bucket（api-enhanced `module/cloud_upload_token.js` 硬编码）。
+  static const cloudNosBucket = 'jd-musicrep-privatecloud-audio-public';
+
+  /// NOS 上传节点发现（LBS）：`GET {cloudNosLbs}{bucket}` → `upload[0]`。
+  static const cloudNosLbs = 'https://wanproxy.127.net/lbs?version=1.0&bucketname=';
+
   static String weapiUrl(String path, {String host = mainHost}) {
     final p = path.startsWith('/') ? path : '/$path';
     return '$host/weapi$p'.replaceFirst('/weapi/weapi', '/weapi');

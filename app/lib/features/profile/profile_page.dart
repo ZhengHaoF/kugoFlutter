@@ -280,10 +280,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     // * 「播放历史」与用户卡「最近播放」重复，统一从统计进
                     //   /history。
                     // 将来新增入口时在此重建卡片；不要留只弹提示的假入口。
-                    if (musicSourceRegistry
-                            ?.capability<CloudDiskSource>(
-                              MusicPlatform.kugou,
-                            ) !=
+                    // 云盘是账号资产：当前账号源具备该能力才显示（酷狗/网易都有）。
+                    if (musicSourceRegistry?.capability<CloudDiskSource>(
+                          accountPlatform,
+                        ) !=
                         null) ...[
                       GlassSurface(
                         padding: const EdgeInsets.symmetric(vertical: 4),

@@ -674,11 +674,16 @@ abstract interface class MvBarrageSource {
 
 /// 音乐云盘（用户上传到云端的私有文件）。
 ///
-/// **酷狗专属**：网易无对口，`NeteaseSource` 不 implements，UI 用
+/// **双源都实现了**：酷狗（`CloudRepository`）与网易（J 组，2026-10-09 接，
+/// 协议面对齐 api-enhanced `module/user_cloud*.js` / `cloud*.js`）。UI 用
 /// `registry.capability<CloudDiskSource>()` 显隐，不写 `platform == kugou`。
 ///
 /// 一期只读：列表 / 播放 / 删除。上传见二期 [CloudUploadSource]。
 /// 协议对照见 `docs/api-notes.md`「音乐云盘」节。
+///
+/// 两源身份键不同：酷狗是 `cloudFileId`(kv_id) + `hash` 双键，网易只有
+/// songId（`cloudFileId` 即 songId，`hash` 为空）——删除/取流都认
+/// [CloudDeleteTarget.cloudFileId]，故契约不用分叉。
 abstract interface class CloudDiskSource {
   /// 当前源是否已登录（云盘是登录态资产）。
   bool get isCloudDiskLoggedIn;

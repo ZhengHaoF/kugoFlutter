@@ -15,15 +15,17 @@ import '../../core/theme/kugo_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/profile/source_account.dart';
+import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 import 'cloud_upload_picker.dart';
 
-/// 音乐云盘（酷狗专属资产）。
+/// 音乐云盘（用户私有文件库，按当前账号源取数）。
 ///
 /// 取数一律经 `registry.capability<CloudDiskSource>()`，不直连 Repository。
-/// 网易无对口，入口由能力显隐（见 profile 卡片）。
+/// 酷狗 / 网易双源都实现了该能力（网易 J 组 2026-10-09 接），入口由能力显隐；
+/// 当前看哪个源由「账号源」决定（与「我的 / 个人中心」同一份选择）。
 class CloudPage extends ConsumerStatefulWidget {
   const CloudPage({super.key});
 
@@ -43,6 +45,9 @@ class _CloudPageState extends ConsumerState<CloudPage> {
   bool _resolvingRest = false;
   bool _deleting = false;
   String _error = '';
+
+  /// 已加载完毕的账号源；与当前源不一致就重拉（切源重取）。
+  MusicPlatform? _loadedPlatform;
   String _searchQuery = '';
   final Set<String> _pendingDeleteIds = {};
 
@@ -54,11 +59,14 @@ class _CloudPageState extends ConsumerState<CloudPage> {
   int _uploadFailed = 0;
   String _uploadLabel = '';
 
-  CloudDiskSource? get _source => musicSourceRegistry
-      ?.capability<CloudDiskSource>(MusicPlatform.kugou);
+  /// 当前账号源（与「我的 / 个人中心」共用同一份选择；被停用时回落默认源）。
+  MusicPlatform get _platform => ref.watch(effectiveAccountSourceProvider);
 
-  CloudUploadSource? get _uploader => musicSourceRegistry
-      ?.capability<CloudUploadSource>(MusicPlatform.kugou);
+  CloudDiskSource? get _source =>
+      musicSourceRegistry?.capability<CloudDiskSource>(_platform);
+
+  CloudUploadSource? get _uploader =>
+      musicSourceRegistry?.capability<CloudUploadSource>(_platform);
 
   @override
   void initState() {
@@ -214,7 +222,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
     if (uploader == null || _uploading) return;
     final disk = _source;
     if (disk == null || !disk.isCloudDiskLoggedIn) {
-      context.push(loginRouteFor(MusicPlatform.kugou));
+      context.push(loginRouteFor(_platform));
       return;
     }
 
@@ -391,9 +399,18 @@ class _CloudPageState extends ConsumerState<CloudPage> {
     final kugo = KugoTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final desktop = isDesktopView(context);
+    final platforms = ref.watch(accountSourcePlatformsProvider);
     final src = _source;
     final logged = src?.isCloudDiskLoggedIn ?? false;
     final displayed = _displayed;
+
+    // 切源重取：云盘是账号资产，换源必须整块重拉（不混源、不清空旧数据）。
+    if (_loadedPlatform != _platform) {
+      _loadedPlatform = _platform;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
 
     return Scaffold(
       body: Column(
@@ -437,6 +454,42 @@ class _CloudPageState extends ConsumerState<CloudPage> {
               ],
             ),
           ),
+          // 账号源切换：多源启用才出 chips（云盘是账号资产，不混排）；
+          // 单源给一行只读小字——与其它多源页面同一套口径（见「我的」页）。
+          if (platforms.length > 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KugoSpacing.lg,
+                0,
+                KugoSpacing.lg,
+                KugoSpacing.sm,
+              ),
+              child: SourceFilterBar(
+                platforms: platforms,
+                selected: _platform,
+                showAll: false,
+                horizontalPadding: 0,
+                onSelect: (p) {
+                  // 切源同时改写全局默认源（「全部」不写），下个入口跟着走同一源。
+                  ref
+                      .read(settingsControllerProvider.notifier)
+                      .syncDefaultSourceFromFilter(p);
+                  if (p != null) {
+                    ref.read(accountSourceProvider.notifier).state = p;
+                  }
+                },
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                KugoSpacing.lg,
+                0,
+                KugoSpacing.lg,
+                KugoSpacing.sm,
+              ),
+              child: SourceLabel(platform: _platform, compact: true),
+            ),
           if (logged && _capacity.totalBytes > 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -626,6 +679,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
   }
 
   Widget _buildLoginPrompt(KugoTheme kugo) {
+    final label = _platform.label;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(KugoSpacing.xl),
@@ -644,15 +698,14 @@ class _CloudPageState extends ConsumerState<CloudPage> {
             ),
             const SizedBox(height: KugoSpacing.sm),
             Text(
-              '云盘是酷狗账号的私有文件库',
+              '云盘是$label账号的私有文件库',
               style: kugo.caption,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: KugoSpacing.lg),
             FilledButton(
-              onPressed: () =>
-                  context.push(loginRouteFor(MusicPlatform.kugou)),
-              child: const Text('登录酷狗账号'),
+              onPressed: () => context.push(loginRouteFor(_platform)),
+              child: Text('登录$label账号'),
             ),
           ],
         ),
