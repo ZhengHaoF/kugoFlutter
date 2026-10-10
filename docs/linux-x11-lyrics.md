@@ -66,7 +66,7 @@ nonce 是防止无凭据 loopback 连接误接的防护，不是对同一用户�
 
 证据保存在 `docs/linux-x11-evidence/`，其中 [合成器探针日志](linux-x11-evidence/composited.log)、[卡片降级探针日志](linux-x11-evidence/fallback.log)、[高 DPI 探针日志](linux-x11-evidence/hidpi.log)、[正式主窗探针日志](linux-x11-evidence/main.log) 为自动断言。透明对照、无合成器大字号卡片、高 DPI 和重启后正式主窗截图也随 Git 提交，截图本身不替代事件与像素断言。
 
-`.github/workflows/linux.yml` 在 Ubuntu 22.04/24.04 x64 运行分析、全量测试、Release、三种生产歌词探针及 P0/P1 X11/Wayland 探针，并保存产物。正式主窗的固定坐标 GUI 操作脚本只作本地复跑，不放进跨版本 CI；远端结果以 PR checks 和 Actions 状态为准，新增配置本身不算远端通过。
+历史上 `.github/workflows/linux.yml` 在 Ubuntu 22.04/24.04 x64 运行分析、全量测试、Release、三种生产歌词探针及 P0/P1 X11/Wayland 探针，并保存产物；2026-10-10 按用户要求删除该配置并禁用 `Linux desktop`，当前不再提供此 CI 入口。正式主窗脚本、下方本地复跑命令和已有验收证据保留，不因删除工作流而改写历史结果。
 
 ## 复跑命令
 

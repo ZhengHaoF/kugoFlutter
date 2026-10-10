@@ -26,7 +26,9 @@
 
 ## Linux 边界
 
-现有 Linux 流程继续保留两版本的静态分析和全量测试。原生构建、原生探针、Linux 制品上传调整为手动 `build_native=true` 才执行，本轮不会主动启动新的 Linux 交付。安全存储插件生成的 Linux 注册代码及 libsecret 编译依赖仍维护，避免依赖变更留下已知编译缺口；这不表示本轮完成 Linux 安全存储原生验收。
+2026-10-10 按用户要求移除 `.github/workflows/linux.yml`，并禁用 GitHub 中的 `Linux desktop` 工作流，不再保留 Linux 自动回归或手动原生构建入口。日常检查和 Android/Windows 制品交付统一由 `apps.yml` 承担；其中 quality 使用 Ubuntu runner 运行 Flutter 分析与测试，不构建 Linux 应用。
+
+Linux 应用源码、探针脚本和历史验收记录保留，删除工作流不等于删除 Linux 平台支持。此前的 Linux 构建及制品记录是历史证据，不代表当前仍提供 Linux CI 交付。
 
 ## 验收清单
 
