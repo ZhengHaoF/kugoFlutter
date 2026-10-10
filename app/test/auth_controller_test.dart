@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/data/repositories/login_repository.dart';
 import 'package:kugo/data/storage/device_identity.dart';
+import 'package:kugo/data/storage/credential_store.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
 import 'package:kugo/features/auth/auth_token_holder.dart';
 import 'package:kugo/features/profile/user_profile_detail.dart';
@@ -157,9 +158,15 @@ void main() {
 
       // 落盘的是 `k=v&k=v` 扁平串（AuthUser.toJson 的编码）。
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('auth.user.v1'), isNotNull);
-      expect(prefs.getString('auth.user.v1'), contains('userId=12345'));
-      expect(prefs.getString('auth.user.v1'), contains('token=tok-abc'));
+      expect(prefs.getString('auth.user.v1'), isNull);
+      expect(
+        await CredentialStore.read('auth.user.v1'),
+        contains('userId=12345'),
+      );
+      expect(
+        await CredentialStore.read('auth.user.v1'),
+        contains('token=tok-abc'),
+      );
       // 登录成功会摘掉 guest 标记（remove 后 getBool 返回 null）。
       expect(prefs.getBool('auth.guest.v1'), isNull);
     });
@@ -311,7 +318,8 @@ void main() {
       expect(user.detail, UserProfileDetail.empty);
 
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('auth.user.v1'), contains('nickname='));
+      expect(prefs.getString('auth.user.v1'), isNull);
+      expect(await CredentialStore.read('auth.user.v1'), contains('nickname='));
     });
 
     test('fetchMyInfo 返回 null 时保留网关给的基本身份', () async {

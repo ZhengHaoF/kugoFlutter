@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   audio_service_win
   desktop_multi_window
   flutter_acrylic
+  flutter_secure_storage_windows
   media_kit_libs_windows_video
   media_kit_video
   screen_retriever_windows

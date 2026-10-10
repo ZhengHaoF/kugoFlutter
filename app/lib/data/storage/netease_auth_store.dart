@@ -1,8 +1,7 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../core/api/netease/netease_client.dart';
+import 'credential_store.dart';
 
 /// 网易云登录态落盘（对齐 Neri `NeteaseCookieRepository`）。
 ///
@@ -69,12 +68,17 @@ class NeteaseAuthStore {
 
   /// 启动时把磁盘凭据灌回 [client]；无有效凭据返回 false。
   static Future<bool> restoreInto(NeteaseClient client) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null || raw.isEmpty) return false;
+    final revision = CredentialStore.revision(_key);
+    final raw = await CredentialStore.read(_key);
+    if (revision != CredentialStore.revision(_key)) return false;
+    if (raw == null || raw.isEmpty) {
+      client.clearLogin();
+      return false;
+    }
     final cookies = decode(raw);
     if (cookies.isEmpty) {
-      await prefs.remove(_key);
+      client.clearLogin();
+      await CredentialStore.clear(_key);
       return false;
     }
     client.seedCookies(cookies);
@@ -83,18 +87,16 @@ class NeteaseAuthStore {
 
   /// 落盘当前会话；无登录 cookie 时清掉旧记录。
   static Future<void> save(NeteaseClient client) async {
-    final prefs = await SharedPreferences.getInstance();
     final raw = encode(client.cookies);
     if (raw == null) {
-      await prefs.remove(_key);
+      await CredentialStore.clear(_key);
       return;
     }
-    await prefs.setString(_key, raw);
+    await CredentialStore.write(_key, raw);
   }
 
   /// 清除本地登录记录。
   static Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+    await CredentialStore.clear(_key);
   }
 }

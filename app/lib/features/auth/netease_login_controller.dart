@@ -50,10 +50,16 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
   Timer? _timer;
   int _generation = 0;
   LoginQrSession? _session;
+  bool _disposed = false;
 
   @override
   NeteaseLoginState build() {
-    ref.onDispose(_stopPolling);
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+      _generation++;
+      _stopPolling();
+    });
     // 首次创建时回填已恢复的登录态；游客态 currentAccount() 直接返回 null，
     // 不发请求。microtask 确保晚于 build() 返回再写 state。
     Future.microtask(refreshAccount);
@@ -122,7 +128,14 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
 
   Future<void> _onConfirmed(int gen) async {
     // 803 后 cookie 已在客户端内存里，这里落盘 + 确认账号。
-    await NeteaseAuthStore.save(neteaseClient);
+    var persistenceError = '';
+    try {
+      await NeteaseAuthStore.save(
+        neteaseClient,
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      persistenceError = '已登录，但安全存储不可用；本次登录无法保存。';
+    }
     LoginAccount? account;
     try {
       account = await _source.currentAccount();
@@ -133,7 +146,7 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
     state = state.copyWith(
       phase: account == null ? NeteaseQrPhase.error : NeteaseQrPhase.success,
       account: account,
-      errorMessage: account == null ? '登录态确认失败，请重试' : '',
+      errorMessage: account == null ? '登录态确认失败，请重试' : persistenceError,
     );
     // 登录成功：网易云音源需登录才生效，扫码确认后自动并入启用集。
     if (account != null) {
@@ -145,18 +158,17 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
 
   /// 读取当前登录账号（启动恢复后 / 进入设置页时调用）。
   Future<void> refreshAccount() async {
+    final gen = _generation;
     LoginAccount? account;
     try {
       account = await _source.currentAccount();
     } catch (_) {
       account = null;
     }
+    if (_disposed || gen != _generation) return;
     state = account == null
         ? const NeteaseLoginState()
-        : NeteaseLoginState(
-            phase: NeteaseQrPhase.success,
-            account: account,
-          );
+        : NeteaseLoginState(phase: NeteaseQrPhase.success, account: account);
   }
 
   /// 退出登录：清客户端内存会话 + 本地落盘。
@@ -164,8 +176,14 @@ class NeteaseLoginController extends Notifier<NeteaseLoginState> {
     _generation++;
     _stopPolling();
     await _source.logout();
-    await NeteaseAuthStore.clear();
-    state = const NeteaseLoginState();
+    var error = '';
+    try {
+      await NeteaseAuthStore.clear().timeout(const Duration(seconds: 8));
+    } catch (_) {
+      error = '已退出登录；安全存储清理未完成，请检查系统权限。';
+    }
+    if (_disposed) return;
+    state = NeteaseLoginState(errorMessage: error);
     // 退出登录：网易云音源随登录态失效，移出启用集（含默认源回退）。
     await ref.read(settingsControllerProvider.notifier).setNeteaseAccess(false);
   }
@@ -193,5 +211,5 @@ final neteaseLoginPollIntervalProvider = Provider<Duration>(
 
 final neteaseLoginControllerProvider =
     NotifierProvider<NeteaseLoginController, NeteaseLoginState>(
-  NeteaseLoginController.new,
-);
+      NeteaseLoginController.new,
+    );

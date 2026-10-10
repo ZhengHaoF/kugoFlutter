@@ -1,0 +1,141 @@
+name: Android and Windows apps
+on:
+  pull_request:
+  push:
+    branches: [main, 'fix/rework-p1-*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apps-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: flutter/flutter
+          ref: '3.47.7'
+          path: .flutter-sdk
+      - run: echo "$GITHUB_WORKSPACE/.flutter-sdk/bin" >> "$GITHUB_PATH"
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub --reporter expanded
+  android:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    env:
+      ORG_GRADLE_PROJECT_kugoAllowTestSigning: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: flutter/flutter
+          ref: '3.47.7'
+          path: .flutter-sdk
+      - run: echo "$GITHUB_WORKSPACE/.flutter-sdk/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: flutter pub get --enforce-lockfile
+      - name: Build Android TEST-ONLY release APK
+        run: flutter build apk --release --no-pub
+      - name: Verify APK signature
+        run: |
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$tools/apksigner" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
+      - name: Package build identity and checksums
+        run: |
+          mkdir -p build/deliverables/android
+          cp build/app/outputs/flutter-apk/app-release.apk build/deliverables/android/kugo-android-test-only.apk
+          printf 'kugo Android TEST-ONLY\ncommit=%s\nrun=%s\nsigning=debug test key, NOT a production release\nInstall: adb install -r kugo-android-test-only.apk\nReal-account and physical-device acceptance remains pending.\n' \
+            "$GITHUB_SHA" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            > build/deliverables/android/BUILD-INFO.txt
+          cd build/deliverables/android
+          sha256sum kugo-android-test-only.apk > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kugo-android-test-only-${{ github.sha }}
+          path: app/build/deliverables/android/
+          if-no-files-found: error
+          retention-days: 30
+  windows:
+    needs: quality
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: flutter/flutter
+          ref: '3.47.7'
+          path: .flutter-sdk
+      - run: '"$env:GITHUB_WORKSPACE\.flutter-sdk\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append'
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get --enforce-lockfile
+      - name: Build Windows x64 release bundle
+        run: flutter build windows --release --no-pub
+      - name: Package complete portable application
+        run: |
+          $out = "build\deliverables\windows"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse
+          if (-not (Test-Path "$out\kugo.exe")) { throw "Missing application executable" }
+          @(
+            "kugo Windows x64 portable TEST build"
+            "commit=$env:GITHUB_SHA"
+            "run=$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            "Authenticode signing: unsigned"
+            "Extract the ENTIRE artifact before launching kugo.exe; keep DLLs and data next to it."
+            "If the VC++ runtime is missing, install the Microsoft Visual C++ 2015-2022 x64 Redistributable."
+            "Physical-device and real-account acceptance remains pending."
+          ) | Set-Content "$out\BUILD-INFO.txt" -Encoding utf8
+          Get-ChildItem $out -Recurse -File | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $relative"
+          } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
+      - name: Native Windows secure storage probe
+        run: |
+          # The production bundle above is already copied into deliverables.
+          flutter build windows --release --no-pub -t tool/native_credential_probe.dart
+          if ($LASTEXITCODE -ne 0) { throw "Probe build failed" }
+          $report = Join-Path $env:RUNNER_TEMP "native-credentials.txt"
+          $exe = (Resolve-Path "build\windows\x64\runner\Release\kugo.exe").Path
+          $p = Start-Process -FilePath $exe -ArgumentList "--probe-report=$report" -PassThru
+          if (-not $p.WaitForExit(60000)) {
+            Stop-Process -Id $p.Id -Force
+            throw "Native credential probe timed out"
+          }
+          if ($p.ExitCode -ne 0 -or -not (Test-Path $report)) { throw "Native probe failed" }
+          $text = Get-Content $report -Raw
+          Write-Host $text
+          if ($text -match "FAIL" -or ($text | Select-String "PASS" -AllMatches).Matches.Count -ne 5) {
+            throw "Native probe evidence incomplete"
+          }
+          Copy-Item $report "build\deliverables\windows\NATIVE-CREDENTIALS.txt"
+          $out = "build\deliverables\windows"
+          Get-ChildItem $out -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $relative"
+          } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kugo-windows-x64-portable-${{ github.sha }}
+          path: app/build/deliverables/windows/
+          if-no-files-found: error
+          retention-days: 30

@@ -14,6 +14,7 @@ dependencies:
   go_router: ^14.8.0
   dio: ^5.8.0+1
   shared_preferences: ^2.5.2
+  flutter_secure_storage: 10.3.4
   path_provider: ^2.1.5
   path: ^1.9.0
   drift: ^2.28.2
@@ -51,6 +52,7 @@ dev_dependencies:
   path_provider_platform_interface: ^2.1.3
   # 控制落盘完成顺序，覆盖退出登录与在途会话写入的竞态。
   shared_preferences_platform_interface: ^2.4.2
+  flutter_secure_storage_platform_interface: 2.1.1
   # Direct access creates genuine v1/v2 SQLite migration fixtures.
   sqlite3: ^3.5.2
   # 探针 tool/probe_netease_api.dart 终端渲染二维码用（qr_flutter 的传递依赖）。

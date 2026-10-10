@@ -1,0 +1,104 @@
+00:00 +0: loading /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart
+00:00 +0: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: legacy credentials migrate and disappear from ordinary preferences
+00:00 +1: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: new writes never persist plaintext
+00:00 +2: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: failed migration preserves legacy without authenticating from it
+00:00 +3: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: read-back mismatch keeps legacy and reports failure
+00:00 +4: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: failed replacement blocks restoration of the prior account
+00:00 +5: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: logout remains effective even when secure deletion fails
+00:00 +6: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: logout is ordered after an already-started secure write
+00:00 +7: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: failed operation does not poison later successful login
+00:00 +8: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: logout guard is persisted before a stalled native save completes
+00:00 +9: /home/user/workspace/kugoFlutter/app/test/credential_store_test.dart: late Bilibili restore cannot revive cookies after logout
+00:00 +10: loading /home/user/workspace/kugoFlutter/app/test/startup_gate_test.dart
+00:01 +10: /home/user/workspace/kugoFlutter/app/test/startup_gate_test.dart: shell appears immediately before initialization completes
+00:02 +11: /home/user/workspace/kugoFlutter/app/test/startup_gate_test.dart: timeout stays visible without starting overlapping services
+00:02 +12: /home/user/workspace/kugoFlutter/app/test/startup_gate_test.dart: settled failure is logged and can be retried
+00:02 +13: /home/user/workspace/kugoFlutter/app/test/startup_gate_test.dart: completion after disposal does not update a dead shell
+00:02 +14: loading /home/user/workspace/kugoFlutter/app/test/startup_services_test.dart
+00:09 +14: /home/user/workspace/kugoFlutter/app/test/startup_services_test.dart: optional failure keeps the app usable and starts later services
+00:10 +15: /home/user/workspace/kugoFlutter/app/test/startup_services_test.dart: timeout does not cancel or restart the native operation
+00:10 +16: loading /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart
+00:13 +16: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 网关返回会话 → 登录态落盘（扁平 key=value），不编造本地会话
+00:13 +17: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 网关失败（无会话）→ 不进本地会话，错误码上抛，且不写盘
+00:13 +18: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 lastError 为空时给中文兜底文案
+00:13 +19: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 非法手机号 / 验证码过短 → 短路，根本不调仓库
+00:13 +20: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 手机号首尾空白被裁掉后再传给仓库
+00:13 +21: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 验证码发送 非法手机号短路，不起 60 秒倒计时
+00:13 +22: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 验证码发送 发送成功 → 倒计时从 60 开始并逐秒递减
+00:13 +23: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 验证码发送 发送失败 → 带回错误文案，不倒计时
+00:13 +24: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 密码登录 空账号/密码短路，不调仓库
+00:13 +25: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 密码登录 网关失败 → error 态 + 不写盘
+00:13 +26: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 fetchMyInfo 补昵称 / 头像 / VIP，并写回落盘
+00:13 +27: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 fetchMyInfo 返回 null 时保留网关给的基本身份
+00:13 +28: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 refreshProfile 未登录时直接返回，不发请求
+00:13 +29: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 refreshProfile 合并档案并只在校验变化时重算
+00:13 +30: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 本地会话恢复 有落盘用户 → 冷启动直接进登录态（无网络）
+00:13 +31: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 本地会话恢复 无落盘用户 → 游客态，并写下 guest 标记
+00:13 +32: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 continueAsGuest 清掉 token 并落 guest 标记
+00:13 +33: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 logout 回到游客并清掉落盘用户
+00:13 +34: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 onUnauthorized 未登录时是空操作
+00:13 +35: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 onUnauthorized 已登录时执行登出
+00:13 +36: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 拿到二维码 → waiting 态 + 内容 URL
+00:14 +37: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 创建失败 → error 态带错误文案
+00:14 +38: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 轮询到已确认 → 完成登录并停止轮询
+00:14 +39: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 已扫码 / 已过期 两个中间态
+00:14 +40: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 stopQrPolling 之后迟到的轮询结果被丢弃（代数守卫）
+00:14 +41: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 重新发起二维码会取消上一轮轮询
+00:14 +42: loading /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart
+00:22 +42: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: R06 logout wins over late profile refresh
+00:22 +43: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: R06 continueAsGuest wins over late profile refresh
+00:23 +44: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: late profile A cannot replace successful account B
+00:23 +45: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout wins over login profile enrichment
+00:23 +46: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout discards late SMS login response
+00:23 +47: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout discards late password login response
+00:23 +48: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: newer login wins when A profile completes after B
+00:23 +49: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout disk clear follows an already-started session save
+00:23 +50: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: disposed controller cannot apply a late profile response
+00:23 +51: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout wins over confirmed QR profile enrichment
+00:23 +52: loading /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart
+00:31 +52: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R11 current authenticated 401 synchronizes holder/UI/prefs (response=false)
+00:31 +53: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R11 current authenticated 401 synchronizes holder/UI/prefs (response=true)
+00:31 +54: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R11 obsolete authenticated 401 cannot expire newly logged-in account
+00:31 +55: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R11 anonymous 401 does not expire current account
+00:31 +56: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R11 repeated 401 notification happens once per credential generation
+00:31 +57: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 isolated QR request never sends persistent or Dio default cookies
+00:31 +58: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 no new credential cannot confirm existing account as QR success
+00:31 +59: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 confirmed QR replaces old account and old CSRF rather than merging
+[preheat] status=200 setCookie=0
+00:31 +60: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 old QR response cookies cannot pollute a newer QR generation
+00:31 +61: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 old QR session is rejected before sending a new request
+00:31 +62: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 logout invalidates in-flight QR response cookies
+00:31 +63: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 isolation preserves non-QR phone-login response cookies
+00:31 +64: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 source does not report 803 as successful without new credentials
+00:31 +65: loading /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart
+00:34 +65: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 凭据解码拒绝损坏内容、非字符串值、无 SESSDATA
+00:35 +66: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 保存、重启恢复与清理只影响 B 站独立 key
+00:35 +67: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 扫码确认验证账号后持久化，切换账号不会混入旧 Cookie
+00:35 +68: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 确认码但没有凭据必须报错，不能生成假账号
+00:35 +69: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: nav 校验失败不保存凭据
+00:35 +70: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 退出使在途轮询失效，旧结果不能重新写入 Cookie
+00:35 +71: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 刷新二维码使旧会话失效
+00:35 +72: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 二维码页等待、扫码、过期、刷新
+00:35 +73: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 轮询不重叠，离页停止，确认后回显账号
+00:35 +74: loading /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart
+00:40 +74: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseQrStatus 800/801/802/803 映射
+00:40 +75: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseQrStatus 未知码保持 unknown（不误判成功）
+00:40 +76: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 chainId 格式 v1_<device>_web_login_<ms>
+00:40 +77: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 chainId 使用传入的 sDeviceId
+00:40 +78: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 二维码内容是 scanlogin URL，不是裸 unikey
+00:40 +79: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 mergeQrCredentialCookies 用 refresh token 顶替 MUSIC_U
+00:40 +80: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 已有 MUSIC_U 时不被 refresh token 覆盖
+00:40 +81: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseAccount 登录态解析 profile
+00:40 +82: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseAccount 游客态 / 坏响应返回 null
+00:40 +83: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore encode/decode 往返
+00:40 +84: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore 无登录 cookie 不落盘 / 不还原
+00:40 +85: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore 非法键值被拒收
+00:40 +86: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore 坏 JSON 返回空 Map
+00:40 +87: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 801 → 802 → 803 走到 success 并回填账号
+00:40 +88: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 800 过期后停止轮询
+00:40 +89: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 建码失败 → error 并带错误文案
+00:40 +90: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController bootstrap 已登录时不重复扫码
+00:40 +91: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController logout 清状态并调用源登出
+00:40 +92: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 登录成功自动并入网易云音源
+00:40 +93: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 退出登录自动移出网易云音源并回落默认源
+00:40 +94: All tests passed!
