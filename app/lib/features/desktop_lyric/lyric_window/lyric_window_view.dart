@@ -24,9 +24,11 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
 
   /// 锁定态下的 hover：整窗点击穿透收不到鼠标事件，只能轮询系统光标判断。
   bool _lockedHover = false;
+
   /// 锁定态下光标是否落在控制条热区（此时临时关掉穿透，让按钮可点）。
   bool _overBar = false;
   Timer? _lockPoll;
+
   /// 已经应用到原生窗口的穿透态（去重，避免每拍重复 IPC）。
   bool? _appliedIgnore;
 
@@ -57,8 +59,10 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
   /// 锁定 → 起轮询；解锁 → 停轮询并恢复可交互。
   void _syncLockPoll() {
     if (_c.locked) {
-      _lockPoll ??=
-          Timer.periodic(const Duration(milliseconds: 100), (_) => _pollLocked());
+      _lockPoll ??= Timer.periodic(
+        const Duration(milliseconds: 100),
+        (_) => _pollLocked(),
+      );
       return;
     }
     if (_lockPoll == null) return;
@@ -83,9 +87,7 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
       final inWindow =
           lx >= -2 && ly >= -2 && lx <= b.width + 2 && ly <= b.height + 2;
       // 锁定态控制条只有一个解锁按钮（右下角，约 34×30）；命中区对准它即可。
-      final overBar = inWindow &&
-          lx >= b.width - 80 &&
-          ly >= b.height - 46;
+      final overBar = inWindow && lx >= b.width - 80 && ly >= b.height - 46;
       if (inWindow != _lockedHover || overBar != _overBar) {
         setState(() {
           _lockedHover = inWindow;
@@ -100,7 +102,12 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
   void _applyIgnore(bool ignore) {
     if (_appliedIgnore == ignore) return;
     _appliedIgnore = ignore;
-    unawaited(DesktopLyricHost.setIgnoreMouseEvents(ignore));
+    unawaited(
+      DesktopLyricHost.setIgnoreMouseEvents(ignore).catchError((Object e) {
+        _appliedIgnore = null;
+        debugPrint('[desktop_lyric] input shape unavailable: ${e.runtimeType}');
+      }),
+    );
   }
 
   Future<void> _onDragStart(DragStartDetails d) async {
@@ -131,7 +138,9 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _c.transparentBackground
+            ? Colors.transparent
+            : const Color(0xFF0D0F14),
         body: GestureDetector(
           onPanStart: _onDragStart,
           onPanUpdate: _onDragUpdate,
@@ -141,10 +150,14 @@ class _DesktopLyricViewState extends State<DesktopLyricView> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             child: Stack(
+              fit: StackFit.expand,
               clipBehavior: Clip.none,
               children: [
                 // 歌词本体：左对齐，撑满窗宽。
-                SizedBox(width: double.infinity, child: _LyricBlock(controller: _c)),
+                SizedBox(
+                  width: double.infinity,
+                  child: _LyricBlock(controller: _c),
+                ),
                 // 控制条：右下角 hover 浮出（与左侧歌词错开，不压字）。
                 if (showControls)
                   Positioned(
@@ -264,7 +277,9 @@ class _ControlBar extends StatelessWidget {
           else ...[
             _Btn(
               tooltip: snap.isPlaying ? '暂停' : '播放',
-              icon: snap.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              icon: snap.isPlaying
+                  ? Icons.pause_rounded
+                  : Icons.play_arrow_rounded,
               onTap: hasTrack ? controller.playPause : null,
             ),
             _Btn(
@@ -295,11 +310,7 @@ class _ControlBar extends StatelessWidget {
 }
 
 class _Btn extends StatelessWidget {
-  const _Btn({
-    required this.tooltip,
-    required this.icon,
-    required this.onTap,
-  });
+  const _Btn({required this.tooltip, required this.icon, required this.onTap});
 
   final String tooltip;
   final IconData icon;
@@ -320,7 +331,9 @@ class _Btn extends StatelessWidget {
             child: Icon(
               icon,
               size: 16,
-              color: onTap == null ? Colors.white24 : Colors.white.withValues(alpha: 0.88),
+              color: onTap == null
+                  ? Colors.white24
+                  : Colors.white.withValues(alpha: 0.88),
             ),
           ),
         ),

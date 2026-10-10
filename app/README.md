@@ -22,7 +22,8 @@ flutter run -d 127.0.0.1:5557   # 或你的设备 ID
 ## Release 打包
 
 Linux P0/P1 构建与原生探针见 [Linux 实施记录](../docs/linux-implementation.md)。
-本轮固定验证 SDK 为 Flutter 3.47.7 / Dart 3.13.5；Linux 不支持悬浮歌词，
+本轮固定验证 SDK 为 Flutter 3.47.7 / Dart 3.13.5；X11 悬浮歌词实现与证据见
+[X11 歌词记录](../docs/linux-x11-lyrics.md)，原生 Wayland 不开放全局悬浮歌词。
 Wayland 小窗不承诺绝对定位或始终置顶，真实 GNOME/KDE 与实体音频验收尚待完成。
 
 ```bash
@@ -67,7 +68,7 @@ lib/
 - [x] 评论读写：歌曲/歌单/专辑 + 楼层 + 分类/热词 + 弹幕档位 + 网易点赞；热搜按源能力
 - [x] MV：酷狗搜索/详情/取流/播放页/多版本/收藏/歌手 MV/弹幕/小窗与画中画；网易详情+取流
 - [x] 酷狗音乐云盘：列表/容量/播放/删除/上传（曲库匹配 + 秒传）
-- [x] 桌面歌词：Windows 双进程窗（KRC 逐字扫光 + 样式自定义）+ 安卓悬浮歌词 overlay
+- [x] 桌面歌词：Windows / Linux X11 双进程窗（KRC 逐字扫光 + 样式自定义）+ 安卓悬浮歌词 overlay
 - [x] 歌词：LRC + **KRC 逐字**（卡拉 OK）+ 译文/音译副行（播放页入口开关）
 - [x] 本地库：队列/历史 **Drift (SQLite)**（自动迁移旧 SharedPreferences；含 `platform` 列）
 - [ ] 未做：自建歌单 CRUD、倍速 UI、分享、网易 MV 搜索/收藏（见 `docs/gap-vs-echomusic.md`）

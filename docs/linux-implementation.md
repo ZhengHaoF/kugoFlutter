@@ -1,5 +1,7 @@
 # kugoFlutter Linux P0/P1 实施与验收记录
 
+> 历史阶段记录：下文“P2 暂不做”“Linux 不开放悬浮歌词”等描述仅指 P0/P1 交付时。后续获授权实施的 X11 歌词方案与验收见 [X11 歌词记录](linux-x11-lyrics.md)，不改写本轮历史测试结果。
+
 本次按授权实施 Linux P0/P1，P2 暂不做。代码基于主分支 `1e8acaf6a5504e62433adcfc26346e67cb5e2ae2`，适配分支为 `feat/linux-p0-p1`；原来的只读评估保存在 [兼容评估](linux-compatibility-assessment.md)，不改写其历史结论。
 
 ## 交付与状态

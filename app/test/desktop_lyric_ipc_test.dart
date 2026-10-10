@@ -6,6 +6,39 @@ import 'package:kugo/features/desktop_lyric/desktop_lyric_ipc.dart';
 
 void main() {
   group('LyricIpc codec', () {
+    test(
+      'Linux hello requires a nonempty matching token and correct envelope',
+      () {
+        expect(
+          LyricIpc.isAuthenticatedHello(
+            LyricIpc.cmd('hello', {'token': 'secret'}),
+            'secret',
+          ),
+          isTrue,
+        );
+        expect(
+          LyricIpc.isAuthenticatedHello(
+            LyricIpc.cmd('hello', {'token': 'wrong'}),
+            'secret',
+          ),
+          isFalse,
+        );
+        expect(
+          LyricIpc.isAuthenticatedHello(
+            LyricIpc.cmd('hello', {'token': ''}),
+            '',
+          ),
+          isFalse,
+        );
+        expect(
+          LyricIpc.isAuthenticatedHello(
+            LyricIpc.cmd('ready', {'token': 'secret'}),
+            'secret',
+          ),
+          isFalse,
+        );
+      },
+    );
     test('encode/decode roundtrip keeps type and payload', () {
       final line = LyricIpc.encodeLine(LyricIpc.snapshot({'a': 1}));
       final msg = LyricIpc.decodeLine(line)!;
@@ -14,9 +47,9 @@ void main() {
     });
 
     test('cmd messages carry method and optional data', () {
-      final withData = LyricIpc.decodeLine(LyricIpc.encodeLine(
-        LyricIpc.cmd('bounds', {'x': 1.5}),
-      ))!;
+      final withData = LyricIpc.decodeLine(
+        LyricIpc.encodeLine(LyricIpc.cmd('bounds', {'x': 1.5})),
+      )!;
       expect(withData['t'], LyricIpc.typeCmd);
       expect(withData['m'], 'bounds');
       expect((withData['d'] as Map)['x'], 1.5);
@@ -35,7 +68,10 @@ void main() {
     });
 
     test('portFromArgs reads --ipc-port=', () {
-      expect(LyricIpc.portFromArgs(['desktop_lyric', '--ipc-port=12345']), 12345);
+      expect(
+        LyricIpc.portFromArgs(['desktop_lyric', '--ipc-port=12345']),
+        12345,
+      );
       expect(LyricIpc.portFromArgs(['desktop_lyric']), isNull);
     });
 
@@ -46,6 +82,25 @@ void main() {
   });
 
   group('LyricIpc socket framing', () {
+    test(
+      'writer closes promptly after the shared reader destroys its socket',
+      () async {
+        final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        final accepted = server.first;
+        final client = await Socket.connect('127.0.0.1', server.port);
+        final peer = await accepted;
+        final reader = LyricIpcReader(client);
+        final writer = LyricIpcWriter(client);
+        try {
+          await reader.close().timeout(const Duration(seconds: 2));
+          await writer.close().timeout(const Duration(seconds: 2));
+        } finally {
+          client.destroy();
+          peer.destroy();
+          await server.close();
+        }
+      },
+    );
     test('reader splits newline-delimited frames', () async {
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       final got = <Map<String, Object?>>[];
@@ -87,7 +142,10 @@ void main() {
       unawaited(probe.close());
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, port);
+      final server = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        port,
+      );
       final socketFut = connectLyricIpc(port, retries: 30);
       final accepted = await server.first;
       final socket = await socketFut;

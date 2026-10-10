@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'desktop_capabilities.dart';
 
 /// Desktop (Windows / Linux / macOS) runtime detection.
 ///
@@ -13,9 +14,10 @@ bool get isWindowsPlatform => !kIsWeb && Platform.isWindows;
 
 bool get isLinuxPlatform => !kIsWeb && Platform.isLinux;
 
-/// The native lyric host is currently implemented only by the Windows runner.
-/// Linux overlays are intentionally outside P0/P1.
-bool get supportsDesktopLyrics => isWindowsPlatform;
+/// X11 has a dedicated GTK host; native Wayland remains unavailable.
+bool get supportsDesktopLyrics =>
+    isWindowsPlatform ||
+    (isLinuxPlatform && DesktopCapabilities.current.desktopLyrics);
 
 /// Android runtime detection — mobile-only integrations (PiP 等).
 bool get isAndroidPlatform => !kIsWeb && Platform.isAndroid;

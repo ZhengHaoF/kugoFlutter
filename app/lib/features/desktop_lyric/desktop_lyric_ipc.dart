@@ -27,12 +27,27 @@ abstract final class LyricIpc {
   /// 环境变量兜底（CLI 传参之外，原生层也能读到）。
   static const envProcess = 'KUGO_LYRIC_PROCESS';
   static const envPort = 'KUGO_LYRIC_IPC_PORT';
+  static const envToken = 'KUGO_LYRIC_IPC_TOKEN';
 
-  static Map<String, Object?> snapshot(Object? wire) =>
-      {'t': typeSnapshot, 'd': wire};
+  static bool isAuthenticatedHello(Map<String, Object?> message, String token) {
+    final data = message['d'];
+    return token.isNotEmpty &&
+        message['t'] == typeCmd &&
+        message['m'] == 'hello' &&
+        data is Map &&
+        data['token'] == token;
+  }
 
-  static Map<String, Object?> cmd(String method, [Object? data]) =>
-      {'t': typeCmd, 'm': method, 'd': ?data};
+  static Map<String, Object?> snapshot(Object? wire) => {
+    't': typeSnapshot,
+    'd': wire,
+  };
+
+  static Map<String, Object?> cmd(String method, [Object? data]) => {
+    't': typeCmd,
+    'm': method,
+    'd': ?data,
+  };
 
   static Map<String, Object?> signal(String type) => {'t': type};
 
@@ -48,8 +63,7 @@ abstract final class LyricIpc {
   static bool isLyricProcessArgs(List<String> args) =>
       args.contains(argProcess) || Platform.environment[envProcess] == '1';
 
-  static String encodeLine(Map<String, Object?> msg) =>
-      jsonEncode(msg);
+  static String encodeLine(Map<String, Object?> msg) => jsonEncode(msg);
 
   static Map<String, Object?>? decodeLine(String line) {
     final t = line.trim();

@@ -66,13 +66,17 @@ Future<void> _bootApp(List<String> args) async {
   // 双进程（不再用 desktop_multi_window）：主窗 spawn 本 exe 并带上
   // `desktop_lyric --ipc-port=N`，两边走 TCP。见 桌面歌词接入方案.md §12。
   await DesktopCapabilities.initialize();
-  if (supportsDesktopLyrics) {
+  if (isDesktopPlatform) {
     final lyricArgs = LyricIpc.isLyricProcessArgs(args);
     debugPrint(
       '[desktop_lyric] main args=$args lyric=$lyricArgs '
       'envPort=${Platform.environment[LyricIpc.envPort]}',
     );
     if (lyricArgs) {
+      if (!supportsDesktopLyrics) {
+        debugPrint('[desktop_lyric] unsupported backend; refusing lyric child');
+        exit(64);
+      }
       runApp(DesktopLyricApp(ipcPort: LyricIpc.portFromArgs(args)));
       return;
     }

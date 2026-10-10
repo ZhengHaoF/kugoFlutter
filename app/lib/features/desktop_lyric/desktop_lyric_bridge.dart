@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +38,8 @@ class DesktopLyricBridge {
   StreamSubscription<Map<String, Object?>>? _msgSub;
   StreamSubscription<Socket>? _connSub;
   Process? _process;
+  String _ipcToken = '';
+  Timer? _readyTimeout;
 
   bool _handlerReady = false;
   bool _windowOpen = false;
@@ -75,11 +79,14 @@ class DesktopLyricBridge {
 
     _container.listen<PlayerState>(playerControllerProvider, (prev, next) {
       if (!_windowOpen || !_childReady) return;
-      final trackChanged = prev?.current?.identityKey != next.current?.identityKey;
-      final lyricsChanged = !identical(prev?.lyrics, next.lyrics) ||
+      final trackChanged =
+          prev?.current?.identityKey != next.current?.identityKey;
+      final lyricsChanged =
+          !identical(prev?.lyrics, next.lyrics) ||
           prev?.lyricsStatus != next.lyricsStatus;
       final playChanged = prev?.isPlaying != next.isPlaying;
-      final discretePos = prev?.positionMs != next.positionMs &&
+      final discretePos =
+          prev?.positionMs != next.positionMs &&
           (trackChanged || playChanged || lyricsChanged);
       if (trackChanged || lyricsChanged) _lyricsDirty = true;
       if (trackChanged || lyricsChanged || playChanged || discretePos) {
@@ -103,9 +110,11 @@ class DesktopLyricBridge {
     if (_settings.desktopLyricEnabled && kAutoRestoreDesktopLyric) {
       unawaited(Future<void>.delayed(const Duration(milliseconds: 800), open));
     } else if (_settings.desktopLyricEnabled) {
-      unawaited(_container
-          .read(settingsControllerProvider.notifier)
-          .setDesktopLyricEnabled(false));
+      unawaited(
+        _container
+            .read(settingsControllerProvider.notifier)
+            .setDesktopLyricEnabled(false),
+      );
     }
   }
 
@@ -125,6 +134,7 @@ class DesktopLyricBridge {
   Future<void> _handleCmd(String method, Object? args) async {
     switch (method) {
       case DesktopLyricCommand.ready:
+        _readyTimeout?.cancel();
         _childReady = true;
         _lyricsDirty = true;
         _startPositionTimer();
@@ -143,9 +153,11 @@ class DesktopLyricBridge {
       case DesktopLyricCommand.close:
         unawaited(close());
       case DesktopLyricCommand.toggleLock:
-        unawaited(_container
-            .read(settingsControllerProvider.notifier)
-            .setDesktopLyricLocked(!_settings.desktopLyricLocked));
+        unawaited(
+          _container
+              .read(settingsControllerProvider.notifier)
+              .setDesktopLyricLocked(!_settings.desktopLyricLocked),
+        );
       case DesktopLyricCommand.bounds:
         final b = DesktopLyricBounds.fromWire(args);
         _bounds = b;
@@ -176,10 +188,12 @@ class DesktopLyricBridge {
     await _ensureHandler();
 
     // 1. 歌词进程仍在：直接 show（hide/show 复用，不重复 spawn）。
-    // 每次显示都回屏幕顶部居中，保持默认位稳定（用户拖动仅在当次会话有效）。
+    // Windows 保持原有顶部居中；Linux 恢复上次拖动位置并校验可见区域。
     if (_childReady && _writer?.isOpen == true) {
       _windowOpen = true;
-      _writer!.send(LyricIpc.signal(LyricIpc.typeReposition));
+      if (!isLinuxPlatform) {
+        _writer!.send(LyricIpc.signal(LyricIpc.typeReposition));
+      }
       _writer!.send(LyricIpc.signal(LyricIpc.typeShow));
       _startPositionTimer();
       Timer.run(() {
@@ -187,15 +201,23 @@ class DesktopLyricBridge {
           unawaited(_pushSnapshot(forceLyrics: true));
         }
       });
-      unawaited(_container
-          .read(settingsControllerProvider.notifier)
-          .setDesktopLyricEnabled(true));
+      unawaited(
+        _container
+            .read(settingsControllerProvider.notifier)
+            .setDesktopLyricEnabled(true),
+      );
       return;
     }
 
     // 2. 首次：起 IPC server → spawn 歌词进程 → 等它连上。
     try {
       final server = LyricIpcServer();
+      if (isLinuxPlatform) {
+        final random = Random.secure();
+        _ipcToken = base64UrlEncode(
+          List<int>.generate(32, (_) => random.nextInt(256)),
+        );
+      }
       final port = await server.listen();
       _server = server;
 
@@ -215,26 +237,52 @@ class DesktopLyricBridge {
           ...Platform.environment,
           LyricIpc.envProcess: '1',
           LyricIpc.envPort: '$port',
+          if (isLinuxPlatform) LyricIpc.envToken: _ipcToken,
         },
       );
       _process = process;
-      process.exitCode.then((code) {
-        lyricLog('lyric process exit code=$code');
-        if (_process == process) {
-          _process = null;
-          _windowOpen = false;
-          _childReady = false;
-          _stopPositionTimer();
-          unawaited(_teardownIpc());
-        }
-      }).catchError((_) {});
+      if (isLinuxPlatform) {
+        // The independent child's pipes must not fill during a long session.
+        unawaited(process.stdout.drain<void>().catchError((Object _) {}));
+        unawaited(process.stderr.drain<void>().catchError((Object _) {}));
+      }
+      process.exitCode
+          .then((code) {
+            lyricLog('lyric process exit code=$code');
+            if (_process == process) {
+              _process = null;
+              _windowOpen = false;
+              _childReady = false;
+              _stopPositionTimer();
+              unawaited(_teardownIpc());
+              if (isLinuxPlatform) {
+                unawaited(
+                  _container
+                      .read(settingsControllerProvider.notifier)
+                      .setDesktopLyricEnabled(false),
+                );
+              }
+            }
+          })
+          .catchError((_) {});
 
       _windowOpen = true;
       _childReady = false;
+      if (isLinuxPlatform) {
+        _readyTimeout?.cancel();
+        _readyTimeout = Timer(const Duration(seconds: 8), () {
+          if (!_childReady && identical(_process, process)) {
+            lyricLog('X11 lyric startup timed out');
+            process.kill();
+          }
+        });
+      }
       _lyricsDirty = true;
-      unawaited(_container
-          .read(settingsControllerProvider.notifier)
-          .setDesktopLyricEnabled(true));
+      unawaited(
+        _container
+            .read(settingsControllerProvider.notifier)
+            .setDesktopLyricEnabled(true),
+      );
     } catch (e, st) {
       debugPrint('[desktop_lyric] open failed: $e\n$st');
       _windowOpen = false;
@@ -244,13 +292,27 @@ class DesktopLyricBridge {
   }
 
   Future<void> _onConnected(Socket socket) async {
+    final reader = LyricIpcReader(socket);
+    if (isLinuxPlatform) {
+      try {
+        final hello = await reader.messages.first.timeout(
+          const Duration(seconds: 3),
+        );
+        if (!LyricIpc.isAuthenticatedHello(hello, _ipcToken)) {
+          await reader.close();
+          return;
+        }
+      } catch (_) {
+        await reader.close();
+        return;
+      }
+    }
     lyricLog('lyric process connected');
     // 单连接：后连上的顶掉旧的（异常残留）。
     await _reader?.close();
     await _writer?.close();
     await _msgSub?.cancel();
 
-    final reader = LyricIpcReader(socket);
     _reader = reader;
     _writer = LyricIpcWriter(socket);
     _msgSub = reader.messages.listen(_onIpcMessage);
@@ -259,17 +321,26 @@ class DesktopLyricBridge {
   }
 
   Future<void> _teardownIpc() async {
-    await _msgSub?.cancel();
+    _readyTimeout?.cancel();
+    _readyTimeout = null;
+    final messages = _msgSub;
     _msgSub = null;
-    await _reader?.close();
+    final reader = _reader;
     _reader = null;
-    await _writer?.close();
+    final writer = _writer;
     _writer = null;
-    await _connSub?.cancel();
+    final connections = _connSub;
     _connSub = null;
-    await _server?.close();
+    final server = _server;
     _server = null;
     _childReady = false;
+    // Capture old resources before yielding so a new open cannot be torn down
+    // by a delayed exit callback from the previous child.
+    await messages?.cancel();
+    await reader?.close();
+    await writer?.close();
+    await connections?.cancel();
+    await server?.close();
   }
 
   Future<void> close() async {
@@ -277,9 +348,11 @@ class DesktopLyricBridge {
     _windowOpen = false;
     // 隐藏歌词窗，保留进程与连接，下次 open 秒开。
     _writer?.send(LyricIpc.signal(LyricIpc.typeHide));
-    unawaited(_container
-        .read(settingsControllerProvider.notifier)
-        .setDesktopLyricEnabled(false));
+    unawaited(
+      _container
+          .read(settingsControllerProvider.notifier)
+          .setDesktopLyricEnabled(false),
+    );
   }
 
   Future<void> toggle() async {
@@ -333,7 +406,10 @@ class DesktopLyricBridge {
     _lastPushedPos = -1;
   }
 
-  Future<void> _pushSnapshot({bool forceLyrics = false, bool positionOnly = false}) async {
+  Future<void> _pushSnapshot({
+    bool forceLyrics = false,
+    bool positionOnly = false,
+  }) async {
     if (!_windowOpen || !_childReady) return;
     final writer = _writer;
     if (writer == null || !writer.isOpen) return;
@@ -342,7 +418,8 @@ class DesktopLyricBridge {
     final track = state.current;
     final lyrics = state.lyrics;
     final hash = desktopLyricHash(lyrics);
-    final lyricKey = '${track?.identityKey ?? ''}|$hash|${state.lyricsStatus.name}';
+    final lyricKey =
+        '${track?.identityKey ?? ''}|$hash|${state.lyricsStatus.name}';
     if (lyricKey != _lastLyricKey) {
       _lastLyricKey = lyricKey;
       _revision++;

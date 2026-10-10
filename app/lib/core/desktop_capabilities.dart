@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'platform.dart';
+bool get _nativeDesktop =>
+    !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
 
 /// Capabilities are about the actual GDK backend, not just the login session.
 /// A Wayland session can run this process through XWayland.
@@ -27,21 +29,22 @@ class DesktopCapabilities {
   factory DesktopCapabilities.linux(String backend) => DesktopCapabilities(
     isLinux: true,
     backend: backend,
+    desktopLyrics: backend == 'x11',
     absolutePosition: backend == 'x11',
     alwaysOnTop: backend == 'x11',
   );
 
-  static DesktopCapabilities current = isLinuxPlatform
+  static DesktopCapabilities current = !kIsWeb && Platform.isLinux
       ? DesktopCapabilities.linux('unknown')
       : DesktopCapabilities(
-          desktopLyrics: isWindowsPlatform,
-          trayTooltip: isDesktopPlatform,
-          absolutePosition: isDesktopPlatform,
-          alwaysOnTop: isDesktopPlatform,
+          desktopLyrics: !kIsWeb && Platform.isWindows,
+          trayTooltip: _nativeDesktop,
+          absolutePosition: _nativeDesktop,
+          alwaysOnTop: _nativeDesktop,
         );
 
   static Future<void> initialize() async {
-    if (!isLinuxPlatform) return;
+    if (kIsWeb || !Platform.isLinux) return;
     try {
       final backend = await const MethodChannel(
         'kugo/linux_desktop',
@@ -58,5 +61,6 @@ final desktopTrayAvailableProvider = StateProvider<bool>((ref) => false);
 
 /// Safe startup policy: Linux must have a session bus, not a system bus.
 bool get hasLinuxSessionBus =>
-    isLinuxPlatform &&
+    !kIsWeb &&
+    Platform.isLinux &&
     (Platform.environment['DBUS_SESSION_BUS_ADDRESS'] ?? '').isNotEmpty;

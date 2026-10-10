@@ -1,0 +1,7 @@
+PASS production parent rejects invalid IPC token
+PASS invalid peer does not replace the existing lyric window
+PASS production parent persists native drag position
+PASS production child exits when parent stops
+PASS production restart restores saved lyric position and enabled setting
+PASS production child failure resets enabled setting
+ALL_MAIN_LYRIC_CHECKS_PASSED

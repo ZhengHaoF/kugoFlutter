@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 import '../../../core/theme/kugo_theme.dart';
 import '../desktop_lyric_bridge.dart';
@@ -36,6 +37,11 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
   Future<void> _boot() async {
     await _connectIpc();
     try {
+      if (Platform.isLinux) {
+        DesktopLyricHost.listenBounds(_controller.reportBounds);
+        final caps = await DesktopLyricHost.capabilities();
+        _controller.transparentBackground = caps['transparent'] == true;
+      }
       final bounds = await DesktopLyricBoundsStore.load();
       await initDesktopLyricWindow(bounds: bounds);
     } catch (e) {
@@ -48,8 +54,9 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
     // 窗口创建时保持隐藏，渲染可在隐藏态完成。只等一帧让歌词卡上屏，
     // 超时 50ms 直接 show——宁可极短空窗，也不要把首次开窗拖到 300ms。
     try {
-      await WidgetsBinding.instance.endOfFrame
-          .timeout(const Duration(milliseconds: 50));
+      await WidgetsBinding.instance.endOfFrame.timeout(
+        const Duration(milliseconds: 50),
+      );
     } catch (_) {}
     try {
       await showDesktopLyricWindow();
@@ -62,20 +69,28 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
   Future<void> _connectIpc() async {
     final port = widget.ipcPort;
     if (port == null) {
+      if (Platform.isLinux) exit(64);
       lyricLog('missing ipc port, lyric process will idle');
       return;
     }
     try {
       final socket = await connectLyricIpc(port);
       await _controller.attachIpc(socket);
+      if (Platform.isLinux) {
+        final token = Platform.environment[LyricIpc.envToken];
+        if (token == null || token.isEmpty) exit(64);
+        await _controller.send('hello', {'token': token});
+      }
       lyricLog('ipc connected to port $port');
     } catch (e) {
       lyricLog('ipc connect failed: $e');
+      if (Platform.isLinux) exit(2);
     }
   }
 
   @override
   void dispose() {
+    if (Platform.isLinux) DesktopLyricHost.listenBounds(null);
     _controller.dispose();
     super.dispose();
   }
@@ -87,9 +102,9 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         textTheme: ThemeData.dark(useMaterial3: true).textTheme.apply(
-              fontFamily: kugoFontFamily,
-              fontFamilyFallback: kugoFontFamilyFallback,
-            ),
+          fontFamily: kugoFontFamily,
+          fontFamilyFallback: kugoFontFamilyFallback,
+        ),
       ),
       home: !_booted
           ? const SizedBox.shrink()
