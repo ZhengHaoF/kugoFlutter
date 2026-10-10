@@ -24,7 +24,7 @@ Wayland 使用独立门控：后端未知或原生 Wayland 时不展示该入口
 - **位置持久化**：原生 configure-event 在 150 ms 防抖后发送 `boundsChanged`，子进程经 IPC 回传主窗写 SharedPreferences。不依赖可能被 WM 吃掉的 Flutter onPanEnd；允许有限负坐标以适配左侧/上方屏幕，恢复时检查显示器工作区，越界回默认位。
 - **字号与热区**：Linux 字号对应 88–176 逻辑像素高度；歌词视图 Stack 撑满窗口，修正解锁按钮可见位置与光标轮询命中区不一致。
 
-新增系统构建依赖为 `libx11-dev`、`libxext-dev`，不引入新的 Dart package。运行时还依赖 X11/Shape 扩展和现有 GTK/媒体库；完整 Flutter bundle 的 lib/data 目录仍必须一起分发，不能只复制 ELF。[Flutter Linux 构建与分发](https://docs.flutter.dev/platform-integration/linux/building)
+新增系统构建依赖为 `libx11-dev`、`libxext-dev`，runner 显式要求 C++17，不引入新的 Dart package。首次 Ubuntu 22.04 CI 的全量测试通过，但较旧编译器因未声明 C++17 而无法识别 `std::clamp`；已补齐目标标准声明，不能用本地较新编译器的默认行为代替兼容要求。运行时还依赖 X11/Shape 扩展和现有 GTK/媒体库；完整 Flutter bundle 的 lib/data 目录仍必须一起分发，不能只复制 ELF。[Flutter Linux 构建与分发](https://docs.flutter.dev/platform-integration/linux/building)
 
 ### 双进程生命周期与 IPC
 
