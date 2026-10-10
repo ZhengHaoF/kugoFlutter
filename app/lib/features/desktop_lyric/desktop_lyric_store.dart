@@ -18,11 +18,11 @@ class DesktopLyricBounds {
   bool get hasPosition => x != null && y != null;
 
   Map<String, Object?> toWire() => {
-        'x': x,
-        'y': y,
-        'width': width,
-        'height': height,
-      };
+    'x': x,
+    'y': y,
+    'width': width,
+    'height': height,
+  };
 
   static DesktopLyricBounds fromWire(Object? raw) {
     final m = (raw as Map?)?.cast<String, Object?>() ?? const {};
@@ -52,8 +52,8 @@ class DesktopLyricBoundsStore {
       final x = prefs.getDouble(_kX);
       final y = prefs.getDouble(_kY);
       return DesktopLyricBounds(
-        x: (x != null && x >= 0) ? x : null,
-        y: (y != null && y >= 0) ? y : null,
+        x: (x != null && x.isFinite) ? x : null,
+        y: (y != null && y.isFinite) ? y : null,
         width: (prefs.getDouble(_kW) ?? 720).clamp(320, 1600),
         height: (prefs.getDouble(_kH) ?? 88).clamp(60, 600),
       );

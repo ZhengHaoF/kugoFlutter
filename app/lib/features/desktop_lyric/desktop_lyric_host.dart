@@ -2,12 +2,36 @@ import 'package:flutter/services.dart';
 
 /// 桌面歌词窗口原生操作（`kugo/desktop_lyric_host`）。
 ///
-/// 每个 Flutter 引擎（主窗 / 歌词子窗）各自绑定自己的 HWND，
+/// 每个 Flutter 引擎（主窗 / 歌词子窗）各自绑定自己的原生窗口，
 /// **不要用 window_manager**：多引擎下它会串窗导致主窗假死。
 class DesktopLyricHost {
   DesktopLyricHost._();
 
   static const _channel = MethodChannel('kugo/desktop_lyric_host');
+
+  static Future<Map<Object?, Object?>> capabilities() async =>
+      await _channel.invokeMethod<Map<Object?, Object?>>('getCapabilities') ??
+      {};
+
+  static void listenBounds(
+    Future<void> Function(double x, double y, double width, double height)?
+    listener,
+  ) {
+    _channel.setMethodCallHandler(
+      listener == null
+          ? null
+          : (call) async {
+              if (call.method != 'boundsChanged') return;
+              final data = call.arguments as Map;
+              await listener(
+                (data['x'] as num).toDouble(),
+                (data['y'] as num).toDouble(),
+                (data['width'] as num).toDouble(),
+                (data['height'] as num).toDouble(),
+              );
+            },
+    );
+  }
 
   static Future<int> getHwnd() async {
     final v = await _channel.invokeMethod<int>('getHwnd');
@@ -26,12 +50,11 @@ class DesktopLyricHost {
     double width = 720,
     double height = 88,
     double top = 56,
-  }) =>
-      _channel.invokeMethod('centerTop', {
-        'width': width.round(),
-        'height': height.round(),
-        'top': top.round(),
-      });
+  }) => _channel.invokeMethod('centerTop', {
+    'width': width.round(),
+    'height': height.round(),
+    'top': top.round(),
+  });
 
   static Future<void> setPosition(double x, double y) =>
       _channel.invokeMethod('setPosition', {'x': x, 'y': y});
@@ -44,7 +67,7 @@ class DesktopLyricHost {
   }
 
   static Future<({double x, double y, double width, double height})>
-      getPosition() async {
+  getPosition() async {
     final m = await _channel.invokeMethod<Map>('getPosition');
     return (
       x: (m?['x'] as num?)?.toDouble() ?? 0,

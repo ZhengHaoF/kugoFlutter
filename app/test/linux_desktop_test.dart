@@ -15,7 +15,7 @@ void main() {
   test('Linux X11, Wayland and unknown backend are separate capabilities', () {
     for (final backend in ['x11', 'wayland', 'unknown']) {
       final c = DesktopCapabilities.linux(backend);
-      expect(c.desktopLyrics, isFalse);
+      expect(c.desktopLyrics, backend == 'x11');
       expect(c.trayTooltip, isFalse);
       expect(c.absolutePosition, backend == 'x11');
       expect(c.alwaysOnTop, backend == 'x11');
@@ -63,10 +63,7 @@ void main() {
           .setMockMethodCallHandler(channel, (call) async {
             calls.add(call.method);
             if (call.method == 'setContextMenu') {
-              expect(
-                call.arguments.toString(),
-                isNot(contains('desktop_lyric')),
-              );
+              expect(call.arguments.toString(), contains('desktop_lyric'));
             }
             return true;
           });

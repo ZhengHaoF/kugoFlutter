@@ -1,0 +1,6 @@
+Analyzing app...
+No issues found! (ran in 2.1s)
+10:00 +1022: /home/user/workspace/kugoFlutter/app/test/mv_barrage_test.dart: MvBarrageLayer — 显隐、发射与暂停 开启后按密度间隔发射；暂停时不发射
+10:00 +1023: All tests passed!
+Building Linux application...
+✓ Built build/linux/x64/release/bundle/kugo

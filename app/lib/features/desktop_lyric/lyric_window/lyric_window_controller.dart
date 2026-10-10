@@ -17,6 +17,14 @@ import '../desktop_lyric_style.dart';
 class DesktopLyricController extends ChangeNotifier {
   DesktopLyricController();
 
+  @visibleForTesting
+  DesktopLyricController.withSnapshot(DesktopLyricSnapshot snapshot) {
+    _snap = snapshot;
+    _lyrics = snapshot.lyrics;
+    _localPosMs = snapshot.effectivePositionMs;
+    _anchorPosMs = _localPosMs;
+  }
+
   DesktopLyricSnapshot _snap = const DesktopLyricSnapshot();
   List<LyricLine> _lyrics = const [];
   int _revision = -1;
@@ -26,6 +34,9 @@ class DesktopLyricController extends ChangeNotifier {
   Timer? _tick;
   bool _readySent = false;
   bool _windowReady = false;
+  bool transparentBackground = true;
+  bool _detaching = false;
+  double? _windowFontScale;
   DesktopLyricSnapshot? _pendingSnap;
   bool? _pendingLock;
 
@@ -83,16 +94,28 @@ class DesktopLyricController extends ChangeNotifier {
     final reader = LyricIpcReader(socket);
     _reader = reader;
     _writer = LyricIpcWriter(socket);
-    _msgSub = reader.messages.listen(_onIpcMessage);
+    _msgSub = reader.messages.listen(
+      _onIpcMessage,
+      onDone: () {
+        // The main process is gone: an orphan click-through window must not stay.
+        if (Platform.isLinux &&
+            Platform.environment[LyricIpc.envProcess] == '1' &&
+            !_detaching) {
+          exit(0);
+        }
+      },
+    );
   }
 
   Future<void> detachIpc() async {
+    _detaching = true;
     await _msgSub?.cancel();
     _msgSub = null;
     await _reader?.close();
     _reader = null;
     await _writer?.close();
     _writer = null;
+    _detaching = false;
   }
 
   void _onIpcMessage(Map<String, Object?> msg) {
@@ -103,12 +126,38 @@ class DesktopLyricController extends ChangeNotifier {
         final lyricsOmitted = (wire as Map?)?['lyricsOmitted'] == true;
         _applySnap(snap, lyricsOmitted: lyricsOmitted);
       case LyricIpc.typeClose:
+        if (Platform.isLinux &&
+            Platform.environment[LyricIpc.envProcess] == '1') {
+          exit(0);
+        }
+        unawaited(DesktopLyricHost.hide());
       case LyricIpc.typeHide:
         unawaited(DesktopLyricHost.hide());
       case LyricIpc.typeShow:
-        unawaited(DesktopLyricHost.show(inactive: true));
+        unawaited(_showVisible());
       case LyricIpc.typeReposition:
         unawaited(resetPosition());
+    }
+  }
+
+  Future<void> _showVisible() async {
+    if (Platform.isLinux) await DesktopLyricHost.ensureVisible();
+    await DesktopLyricHost.show(inactive: true);
+  }
+
+  Future<void> _fitWindow(DesktopLyricSnapshot snapshot) async {
+    if (!Platform.isLinux || Platform.environment[LyricIpc.envProcess] != '1') {
+      return;
+    }
+    final scale = snapshot.style.fontScale.clamp(0.6, 2.0);
+    if (_windowFontScale == scale) return;
+    _windowFontScale = scale;
+    try {
+      final bounds = await DesktopLyricHost.getPosition();
+      await DesktopLyricHost.setSize(bounds.width, (88 * scale).clamp(88, 176));
+      await DesktopLyricHost.ensureVisible();
+    } catch (e) {
+      debugPrint('[desktop_lyric] resize unavailable: ${e.runtimeType}');
     }
   }
 
@@ -123,11 +172,13 @@ class DesktopLyricController extends ChangeNotifier {
       _pendingSnap = snap;
       return;
     }
+    unawaited(_fitWindow(snap));
 
     final trackChanged = snap.trackId != _snap.trackId;
     final revChanged = snap.revision != _revision;
 
-    if (!lyricsOmitted && (trackChanged || revChanged || snap.lyrics.isNotEmpty)) {
+    if (!lyricsOmitted &&
+        (trackChanged || revChanged || snap.lyrics.isNotEmpty)) {
       _lyrics = snap.lyrics;
       _revision = snap.revision;
     } else if (trackChanged || revChanged) {
@@ -156,16 +207,16 @@ class DesktopLyricController extends ChangeNotifier {
   /// 触发重建只取决这些量：外形（标题/播放态/锁定/译文/字号/样式）+ 当前行内容。
   /// 游标推进本身不需要重建——[KaraokeSweepLine] 有独立 Ticker 自算扫光。
   Object _visibleSignature() => visibleLyricSignature(
-        title: _snap.title,
-        artist: _snap.artist,
-        isPlaying: _snap.isPlaying,
-        locked: _snap.locked,
-        translation: _snap.translation,
-        fontScale: _snap.fontScale,
-        style: _snap.style,
-        activeIndex: activeIndex,
-        lyrics: _lyrics,
-      );
+    title: _snap.title,
+    artist: _snap.artist,
+    isPlaying: _snap.isPlaying,
+    locked: _snap.locked,
+    translation: _snap.translation,
+    fontScale: _snap.fontScale,
+    style: _snap.style,
+    activeIndex: activeIndex,
+    lyrics: _lyrics,
+  );
 
   bool _visibleSignatureChanged() {
     final next = _visibleSignature();
@@ -214,8 +265,7 @@ class DesktopLyricController extends ChangeNotifier {
     _tick = null;
     if (!_snap.isPlaying) return;
     _tick = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      final elapsed =
-          DateTime.now().difference(_anchorWall).inMilliseconds;
+      final elapsed = DateTime.now().difference(_anchorWall).inMilliseconds;
       _localPosMs = _anchorPosMs + elapsed;
       // 只在跨到新歌词行时才通知：游标推进本身由 [KaraokeSweepLine] 的
       // 独立 Ticker 自算扫光，原先每 100ms 无条件重建整个歌词窗。
@@ -306,10 +356,8 @@ Object visibleLyricSignature({
 ///
 /// 样式旗标互不依赖，一次发出（平台线程仍按序执行）以省掉串行 round-trip；
 /// 几何随后设。默认位固定为**屏幕（工作区）顶部居中**，离顶端 12px——
-/// 不恢复历史拖动坐标，避免脏存档把窗甩到角落。
-Future<void> initDesktopLyricWindow({
-  DesktopLyricBounds? bounds,
-}) async {
+/// Windows 保持顶部居中；Linux 恢复历史坐标后检查显示器工作区。
+Future<void> initDesktopLyricWindow({DesktopLyricBounds? bounds}) async {
   await Future.wait([
     DesktopLyricHost.setFrameless(),
     DesktopLyricHost.setTransparentBg(),
@@ -319,7 +367,13 @@ Future<void> initDesktopLyricWindow({
 
   final w = bounds?.width ?? 720;
   final h = bounds?.height ?? 88;
-  await DesktopLyricHost.centerTop(width: w, height: h, top: 12);
+  if (Platform.isLinux && bounds?.hasPosition == true) {
+    await DesktopLyricHost.setSize(w, h);
+    await DesktopLyricHost.setPosition(bounds!.x!, bounds.y!);
+    await DesktopLyricHost.ensureVisible();
+  } else {
+    await DesktopLyricHost.centerTop(width: w, height: h, top: 12);
+  }
 }
 
 Future<void> showDesktopLyricWindow() async {

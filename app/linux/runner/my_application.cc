@@ -1,4 +1,5 @@
 #include "my_application.h"
+#include "desktop_lyric_host.h"
 
 #include <flutter_linux/flutter_linux.h>
 #ifdef GDK_WINDOWING_X11
@@ -36,7 +37,9 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
-  gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  GtkWidget* window = gtk_widget_get_toplevel(GTK_WIDGET(view));
+  if (!GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "kugo-lyric")))
+    gtk_widget_show(window);
 }
 
 // Implements GApplication::activate.
@@ -79,11 +82,23 @@ static void my_application_activate(GApplication* application) {
       project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
+  gboolean lyric_process = g_strcmp0(g_getenv("KUGO_LYRIC_PROCESS"), "1") == 0;
+  if (self->dart_entrypoint_arguments) {
+    for (int i = 0; self->dart_entrypoint_arguments[i]; i++) {
+      if (g_strcmp0(self->dart_entrypoint_arguments[i], "desktop_lyric") == 0)
+        lyric_process = TRUE;
+    }
+  }
+  gboolean x11 = FALSE;
+#ifdef GDK_WINDOWING_X11
+  x11 = GDK_IS_X11_DISPLAY(gdk_display_get_default());
+#endif
   GdkRGBA background_color;
   // Background defaults to black, override it here if necessary, e.g. #00000000
   // for transparent.
   gdk_rgba_parse(&background_color, "#000000");
   fl_view_set_background_color(view, &background_color);
+  if (lyric_process && x11) prepare_desktop_lyric_window(window, view);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
@@ -94,6 +109,7 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+  register_desktop_lyric_host(window, view);
 
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) capabilities = fl_method_channel_new(

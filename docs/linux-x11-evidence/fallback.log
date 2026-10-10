@@ -1,0 +1,15 @@
+PASS underlying click fixture records actual X11 events
+PASS production child authenticates before ready
+PASS X11 window is above
+PASS lyric skips taskbar
+PASS no-compositor card fallback
+PASS playing and paused seek snapshots accepted
+PASS locked native client has an empty X11 input region
+PASS locked lyric clicks reach actual underlying window
+PASS click-through can be unlocked from lyric control
+PASS native drag moves lyric window
+PASS native configure events report position to parent
+PASS reset returns lyric window to visible work area
+PASS hide/show reuses the same lyric process
+PASS IPC disconnect exits lyric child without orphan
+ALL_X11_LYRIC_CHECKS_PASSED

@@ -115,10 +115,12 @@ class SettingsPage extends ConsumerWidget {
                   subtitle: Text(
                     isAndroidPlatform
                         ? '悬浮窗显示当前歌词，可拖动、锁定点击穿透'
-                        : (kAutoRestoreDesktopLyric
-                            ? '独立悬浮窗显示当前歌词，可置顶、锁定穿透'
-                            : '独立悬浮窗显示当前歌词。实验功能：开启后主窗口会失去响应，'
-                                '且不会开机自启，谨慎开启（排查见 桌面歌词接入方案.md §12）'),
+                        : isLinuxPlatform
+                            ? 'X11 独立歌词窗，可拖动和锁定穿透；无合成器时使用歌词卡片'
+                            : (kAutoRestoreDesktopLyric
+                                ? '独立悬浮窗显示当前歌词，可置顶、锁定穿透'
+                                : '独立悬浮窗显示当前歌词。实验功能：开启后主窗口会失去响应，'
+                                    '且不会开机自启，谨慎开启（排查见 桌面歌词接入方案.md §12）'),
                     style: kugo.caption,
                   ),
                   value: settings.desktopLyricEnabled,
