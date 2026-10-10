@@ -73,7 +73,11 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
   Stream<PlayerIdleReason> get completionStream => _completion.stream;
 
   @override
-  Future<void> playUrl(String url, {Map<String, String>? headers}) async {
+  Future<void> playUrl(
+    String url, {
+    Map<String, String>? headers,
+    bool play = true,
+  }) async {
     _loadingSource = true;
     _expectingAudio = false;
     _lastError = '';
@@ -90,10 +94,7 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
     });
 
     try {
-      await _player.open(
-        Media(url, httpHeaders: headers),
-        play: false,
-      );
+      await _player.open(Media(url, httpHeaders: headers), play: false);
 
       // 时长要等 demuxer 读完头才有；等不到也不算致命（渐进流可能只是慢）。
       var duration = _player.state.duration;
@@ -116,6 +117,10 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
     }
 
     _loadingSource = false;
+    if (!play) {
+      _expectingAudio = false;
+      return;
+    }
     unawaited(
       _player.play().catchError((Object e) {
         if (_expectingAudio) {

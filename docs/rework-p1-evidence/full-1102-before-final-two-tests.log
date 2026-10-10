@@ -1,0 +1,1147 @@
+00:00 +0: loading /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart
+00:00 +0: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: canOpenMv — 宽松门控 registry 未装配 → false
+00:00 +1: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: canOpenMv — 宽松门控 无 mixSongId → false（即便有能力）
+00:00 +2: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: canOpenMv — 宽松门控 音源未实现 MvSearchSource → false
+00:00 +3: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: canOpenMv — 宽松门控 有 mixSongId + 能力 → true
+00:00 +4: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: loadSongMvs — 短路与缓存 无 mixSongId：空列表且不打网络
+00:00 +5: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: loadSongMvs — 短路与缓存 无 MvSearchSource 能力：空列表且不打网络
+00:00 +6: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: loadSongMvs — 短路与缓存 首次拉取并缓存：第二次不再调源
+00:00 +7: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: loadSongMvs — 短路与缓存 空结果也缓存：不重复请求
+00:00 +8: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +9: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +10: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +11: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +12: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +13: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +14: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +15: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +16: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +17: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +18: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +19: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +20: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +21: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +22: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +23: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +24: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +25: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +26: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +27: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +28: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:00 +29: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:01 +30: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:01 +31: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:01 +32: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:01 +33: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 有能力且带 mixSongId：露出 MV 图标
+00:01 +34: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +35: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +36: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +37: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +38: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +39: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +40: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +41: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +42: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +43: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +44: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +45: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +46: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +47: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +48: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +49: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +50: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +51: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +52: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +53: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +54: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +55: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +56: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +57: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +58: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +59: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +60: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +61: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +62: /home/user/workspace/kugoFlutter/app/test/history_count_test.dart: history is capped at 200 rows by appendHistory
+00:01 +63: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 点图标 → 跳 /mv 并带上 id
+00:01 +64: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: MvEntryButton — 显隐与跳转 无 MV：只提示「这首歌暂无 MV」，不跳转
+00:01 +65: /home/user/workspace/kugoFlutter/app/test/mv_entry_test.dart: TrackTile — 行级 hover 显隐 桌面：整行 hover 才显现 MV 图标
+00:02 +66: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 两源启用：显示切源栏（无「全部」），并取默认源歌单
+00:02 +67: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 两源启用：显示切源栏（无「全部」），并取默认源歌单
+00:03 +68: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 切到酷狗：清缓存重取，换成酷狗标签与歌单
+00:03 +69: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 单源启用：隐藏切源栏
+00:03 +70: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 网易源：新碟上架走 NewAlbumFeedSource，地区取值来自能力并原样回传
+00:03 +71: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 点击网易新碟：详情路由带 ?src=netease
+00:03 +72: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 网易源：歌手 Tab 走 ArtistListSource，三项筛选取自能力并原样回传
+00:04 +73: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 点击网易歌手：详情路由带 ?src=netease
+00:04 +74: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 源缺能力：新碟上架 / 歌手 Tab 出「暂不支持」空态，不建假入口
+00:04 +75: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 网易源：新歌速递 Tab 走 NewSongFeedSource 取曲目
+00:04 +76: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 点击网易歌单：详情路由带 ?src=netease
+00:04 +77: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 点击酷狗歌单：详情路由不带 src（默认酷狗）
+00:05 +78: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 无具备发现页能力的可用源：出整页停用空态
+00:05 +79: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 关闭酷狗的「发现」功能：该源从本页可用源中移除
+00:05 +80: /home/user/workspace/kugoFlutter/app/test/discovery_dispatch_test.dart: 两源的「发现」功能都关掉：整页停用且文案归因到功能
+00:06 +81: /home/user/workspace/kugoFlutter/app/test/desktop_layout_test.dart: desktop wide screen (1280x720) displays DesktopSidebar and DesktopPlayerBar
+00:07 +82: /home/user/workspace/kugoFlutter/app/test/desktop_layout_test.dart: desktop wide screen (1280x720) displays DesktopSidebar and DesktopPlayerBar
+00:07 +83: /home/user/workspace/kugoFlutter/app/test/desktop_layout_test.dart: desktop wide screen (1280x720) displays DesktopSidebar and DesktopPlayerBar
+00:08 +84: /home/user/workspace/kugoFlutter/app/test/desktop_layout_test.dart: desktop wide screen (1280x720) displays DesktopSidebar and DesktopPlayerBar
+00:08 +85: /home/user/workspace/kugoFlutter/app/test/desktop_layout_test.dart: desktop wide screen (1280x720) displays DesktopSidebar and DesktopPlayerBar
+00:09 +86: /home/user/workspace/kugoFlutter/app/test/linux_desktop_test.dart: no-tray close dialog keeps cancel/quit and removes hide option
+00:09 +87: /home/user/workspace/kugoFlutter/app/test/linux_desktop_test.dart: no-tray close dialog keeps cancel/quit and removes hide option
+00:09 +88: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:09 +89: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:09 +90: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:10 +91: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:10 +92: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:10 +93: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +94: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +95: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +96: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +97: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +98: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +99: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +100: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +101: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +102: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +103: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +104: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 两源启用：出切源栏（无「全部」），按设置默认源取数
+00:11 +105: /home/user/workspace/kugoFlutter/app/test/comment_repository_test.dart: 无 token 时不会因为 SSA 文案误报「请重新登录」
+00:11 +106: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +107: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +108: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +109: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +110: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +111: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +112: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +113: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +114: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +115: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +116: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +117: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +118: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +119: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:11 +120: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +121: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +122: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +123: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +124: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +125: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +126: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +127: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +128: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +129: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +130: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:12 +131: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:13 +132: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:13 +133: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:13 +134: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:13 +135: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 点击酷狗 chip：结束当前会话并以酷狗重开（不混源）
+00:13 +136: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 单源启用：隐藏切源栏
+00:13 +137: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 无具备 FM 能力的可用源：出停用空态
+00:13 +138: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 网易源：隐藏档位/曲库轴，角标按源写成「网易云私人 FM」
+00:13 +139: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 网易一次只回 1 首：控制器拼装到目标批量
+00:14 +140: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 网易一次只回 1 首：控制器拼装到目标批量
+00:14 +141: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 网易一次只回 1 首：控制器拼装到目标批量
+00:14 +142: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_signature_test.dart: first line is a distinct state from "before any line"
+00:14 +143: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 切源先停后切：取数窗口旧队列已停，新队列到位才起播
+00:14 +144: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 切源先停后切：取数窗口旧队列已停，新队列到位才起播
+00:14 +145: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 切源先停后切：取数窗口旧队列已停，新队列到位才起播
+00:14 +146: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 切源先停后切：取数窗口旧队列已停，新队列到位才起播
+00:14 +147: /home/user/workspace/kugoFlutter/app/test/fm_source_dispatch_test.dart: 切源先停后切：取数窗口旧队列已停，新队列到位才起播
+00:14 +148: /home/user/workspace/kugoFlutter/app/test/lyric_display_sheet_test.dart: lyric display sheet toggles translation and romanization
+00:14 +149: /home/user/workspace/kugoFlutter/app/test/lyric_display_sheet_test.dart: lyric display sheet toggles translation and romanization
+00:15 +150: /home/user/workspace/kugoFlutter/app/test/lyric_display_sheet_test.dart: lyric display sheet toggles translation and romanization
+00:15 +151: /home/user/workspace/kugoFlutter/app/test/lyric_display_sheet_test.dart: lyric display sheet toggles translation and romanization
+00:15 +152: /home/user/workspace/kugoFlutter/app/test/lyric_display_sheet_test.dart: reset button restores default font and spacing scale
+00:15 +153: /home/user/workspace/kugoFlutter/app/test/lyric_display_sheet_test.dart: LyricDisplayButton opens the sheet
+00:18 +154: /home/user/workspace/kugoFlutter/app/test/player_controller_test.dart: queue advance and wrap by listLoop
+00:18 +155: /home/user/workspace/kugoFlutter/app/test/player_controller_test.dart: seek clamps to duration
+00:18 +156: /home/user/workspace/kugoFlutter/app/test/player_controller_test.dart: toggle play pauses timer state
+00:18 +157: /home/user/workspace/kugoFlutter/app/test/player_controller_test.dart: user pause wins over late engine playing=true
+00:18 +158: /home/user/workspace/kugoFlutter/app/test/player_controller_test.dart: demo track toggle after pause resumes without resolve
+00:18 +159: /home/user/workspace/kugoFlutter/app/test/player_controller_test.dart: hash track fails resolve cleanly without inventing play
+00:22 +160: /home/user/workspace/kugoFlutter/app/test/search_result_row_test.dart: SearchResultRow renders title, subtitle and trailing count
+00:23 +161: /home/user/workspace/kugoFlutter/app/test/search_result_row_test.dart: SearchResultRow hides the trailing label when empty
+00:23 +162: /home/user/workspace/kugoFlutter/app/test/search_result_row_test.dart: SearchResultRow fires onTap
+00:23 +163: /home/user/workspace/kugoFlutter/app/test/search_result_row_test.dart: SearchResultRow round mode draws the person fallback for artists
+00:23 +164: /home/user/workspace/kugoFlutter/app/test/search_result_row_test.dart: SearchResultRow a disabled row (null onTap) does not crash on tap
+00:30 +165: /home/user/workspace/kugoFlutter/app/test/x11_lyric_layout_test.dart: unlock button stays inside the native polling hot region
+00:33 +166: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil parse quality tokens
+00:33 +167: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil parse levels like EchoMusic
+00:33 +168: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil candidates go preferred → downward
+00:33 +169: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil unknown availability does not filter options
+00:33 +170: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil known availability filters missing tiers
+00:33 +171: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil inferred catalog keeps hiRes tryable
+00:33 +172: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: AudioQualityUtil buildRelateGoods from mobile search shape
+00:33 +173: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: mapMobileSearchSong quality fills availableQualities from 320hash/sqhash
+00:33 +174: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: mapMobileSearchSong quality free song without sq still has standard+hq
+00:33 +175: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: Track quality helpers withAvailableQualities sets display tag
+00:33 +176: /home/user/workspace/kugoFlutter/app/test/audio_quality_test.dart: Track quality helpers quality known availability
+00:34 +177: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractPlaylistTagGroups 二级分组：tag_name + son[]
+00:34 +178: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractPlaylistTagGroups child / list 别名都能当子数组
+00:34 +179: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractPlaylistTagGroups 顶层 info 也能识别
+00:34 +180: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractPlaylistTagGroups id 或 name 缺失的子标签被丢弃
+00:34 +181: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractPlaylistTagGroups 整组子标签全非法 → 该组被丢弃
+00:34 +182: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractPlaylistTagGroups 非 Map / 无 list → 空列表，不抛
+00:34 +183: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractAlbumsByType type=all 把四个地区桶拼起来
+00:34 +184: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractAlbumsByType 指定 type 只取该地区桶
+00:34 +185: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractAlbumsByType 指定 type 为空串时按 all 处理
+00:34 +186: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractAlbumsByType 跨桶重复的专辑按 id 去重
+00:34 +187: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractAlbumsByType 缺 id 的条目被丢弃
+00:34 +188: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractAlbumsByType 非 Map / 无数据 → 空列表
+00:34 +189: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists 扁平 info[] 直接映射
+00:34 +190: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists 分组形状：info[].singer[]，组名作 letter
+00:34 +191: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists 跨组重复歌手按 id 去重
+00:34 +192: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists singer_id / name 等别名也能取到
+00:34 +193: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists 缺 id 的条目被丢弃
+00:34 +194: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists 头像缺失时用 id 兜底，不返回空串
+00:34 +195: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractDiscoveryArtists 非 Map / 无数据 → 空列表
+00:34 +196: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractListTotal 顶层 total 优先
+00:34 +197: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractListTotal 退回 data.total
+00:34 +198: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractListTotal 再退回 data.count
+00:34 +199: /home/user/workspace/kugoFlutter/app/test/discovery_repository_test.dart: extractListTotal 都没有 → 0
+00:36 +200: /home/user/workspace/kugoFlutter/app/test/fm_repository_parse_test.dart: parses a real personal_recommend payload into tracks
+00:36 +201: /home/user/workspace/kugoFlutter/app/test/fm_repository_parse_test.dart: everyday-style ms time_length is preserved
+00:36 +202: /home/user/workspace/kugoFlutter/app/test/fm_repository_parse_test.dart: meta-only success (remain_songcnt>4) is accepted, not a load failure
+00:36 +203: /home/user/workspace/kugoFlutter/app/test/fm_repository_parse_test.dart: empty + status=0 is still an error
+00:36 +204: /home/user/workspace/kugoFlutter/app/test/fm_repository_parse_test.dart: clampRemainSongcnt fresh fetch always asks for songs with 0
+00:36 +205: /home/user/workspace/kugoFlutter/app/test/fm_repository_parse_test.dart: clampRemainSongcnt refill keeps real remaining but caps at 4
+00:38 +206: /home/user/workspace/kugoFlutter/app/test/desktop_page_transition_test.dart: windows theme uses DesktopPageTransitionsBuilder
+00:39 +207: /home/user/workspace/kugoFlutter/app/test/desktop_page_transition_test.dart: settled route keeps identity wrappers (no remount, no layer)
+00:39 +208: /home/user/workspace/kugoFlutter/app/test/desktop_page_transition_test.dart: push fades through and drifts horizontally without scaling
+00:40 +209: /home/user/workspace/kugoFlutter/app/test/widgets_test.dart: TrackTile shows name and artist
+00:40 +210: /home/user/workspace/kugoFlutter/app/test/widgets_test.dart: MiniBar play icon toggles with controller state
+00:40 +211: /home/user/workspace/kugoFlutter/app/test/widgets_test.dart: Profile shortcut tiles open their sheets
+00:41 +212: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: settling one pitch to the right plays that queue index
+00:42 +213: /home/user/workspace/kugoFlutter/app/test/widgets_test.dart: Profile stats never show hardcoded numbers
+00:42 +214: /home/user/workspace/kugoFlutter/app/test/widgets_test.dart: Profile stats never show hardcoded numbers
+00:42 +215: /home/user/workspace/kugoFlutter/app/test/widgets_test.dart: Profile stats never show hardcoded numbers
+00:42 +216: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: external currentIndex change scrolls without onPlayIndex
+00:42 +217: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: empty queue shows one placeholder and no ListView
+00:42 +218: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: tapping a non-current disc reports that index
+00:42 +219: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: one hard fling advances exactly one disc
+00:42 +220: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: one hard fling advances exactly one disc
+00:42 +221: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: one hard fling advances exactly one disc
+00:42 +222: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: one hard fling advances exactly one disc
+00:42 +223: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: one hard fling advances exactly one disc
+00:42 +224: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: a long drag cannot pull more than one disc away
+00:42 +225: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: a slow drag under half a disc snaps back without playing
+00:43 +226: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: a quick flick under half a disc still advances one disc
+00:43 +227: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: grabbing mid-snap still lands on a grid line
+00:43 +228: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: playAtIndex from settle updates player currentIndex
+00:43 +229: /home/user/workspace/kugoFlutter/app/test/fm_vinyl_carousel_test.dart: (tearDownAll)
+00:48 +229: /home/user/workspace/kugoFlutter/app/test/desktop_navigation_test.dart: Desktop nested navigation tests Navigating to /daily, /ranks, and /settings on desktop keeps DesktopSidebar and DesktopPlayerBar mounted
+00:50 +230: /home/user/workspace/kugoFlutter/app/test/desktop_navigation_test.dart: Desktop nested navigation tests Pushing detail page /playlist/test_1 retains shell, and AppBar back pops cleanly
+00:50 +231: /home/user/workspace/kugoFlutter/app/test/desktop_navigation_test.dart: Desktop nested navigation tests Sidebar switch fades/drifts the content pane instead of hard-cutting
+00:50 +232: /home/user/workspace/kugoFlutter/app/test/desktop_navigation_test.dart: Desktop nested navigation tests Mobile narrow screen drops the dock on subpages but keeps the mini player bar
+00:51 +233: /home/user/workspace/kugoFlutter/app/test/list_row_repaint_boundary_test.dart: TrackTile wraps its row in a repaint boundary
+00:52 +234: /home/user/workspace/kugoFlutter/app/test/list_row_repaint_boundary_test.dart: SearchResultRow wraps its row in a repaint boundary
+00:58 +235: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: submit searches the active tab and marks the state as searched
+00:58 +236: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: submit ignores blank keywords
+00:58 +237: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: submit trims the keyword
+00:58 +238: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: submit a new keyword clears previously loaded tabs
+00:58 +239: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: submit does not accumulate duplicate items on repeat submits
+00:58 +240: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: select — no refetch of loaded tabs submit loads every tab up front
+00:58 +241: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: select — no refetch of loaded tabs switching back to an already-loaded tab does not refetch
+00:58 +242: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: select — no refetch of loaded tabs selecting the already-active tab is a no-op
+00:58 +243: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: select — no refetch of loaded tabs selecting before any search does not hit the network
+00:58 +244: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: per-tab pagination each tab keeps its own page counter
+00:58 +245: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: per-tab pagination loadMore appends rather than replacing
+00:58 +246: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: per-tab pagination loadMore does nothing when the tab is unloaded
+00:58 +247: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: per-tab pagination stops paginating once the page count covers total
+00:58 +248: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: per-tab pagination falls back to page fullness when total is absent (artist tab)
+00:58 +249: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: errors records a friendly message on failure and clears loading
+00:58 +250: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: errors uses the network wording for gateway-blocked failures
+00:58 +251: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: errors retry refetches the tab
+00:58 +252: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: reset clears keyword, tabs and searched flag
+00:58 +253: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: stale responses a slow earlier search cannot clobber a newer one
+00:58 +254: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: typed accessors expose correctly typed lists per tab
+00:58 +255: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: typed accessors the active tab only ever holds its own type
+00:58 +256: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: multi-source mixing interleaves both sources round-robin
+00:58 +257: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: multi-source mixing loadMore appends the next interleaved page
+00:58 +258: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: multi-source mixing a failing source is ignored while the other still answers
+00:58 +259: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: multi-source mixing the tab errors only when every source fails
+00:58 +260: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter setSourceFilter re-searches against that source only
+00:58 +261: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter the filter survives a new keyword
+00:58 +262: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter setSourceFilter(null) goes back to mixing
+00:58 +263: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter picking the current filter is a no-op
+00:58 +264: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter changing the filter before any search does not hit the network
+00:58 +265: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter applyDefaultSourceFilter seeds the filter before the first search
+00:58 +266: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: source filter applyDefaultSourceFilter does not override a manual choice
+00:58 +267: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: enabled sources (整源开关) 停用的源不参与混排
+00:58 +268: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: enabled sources (整源开关) 筛选指向已停用的源时回落到全部启用源
+00:58 +269: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: tab count label（A 方案：标签优先显示服务端总数） total 存在时显示总数，而不是已加载的一页
+00:58 +270: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: tab count label（A 方案：标签优先显示服务端总数） total 缺失（歌手口 / 混排）时回退已加载条数
+00:58 +271: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: tab count label（A 方案：标签优先显示服务端总数） total 异常（<= 0）时回退已加载条数
+00:58 +272: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: tab count label（A 方案：标签优先显示服务端总数） 全部加载完后 total 与已加载数一致
+00:58 +273: /home/user/workspace/kugoFlutter/app/test/search_controller_test.dart: tab count label（A 方案：标签优先显示服务端总数） 单源筛选后 total 透传服务端数；混排时控制器不编造
+01:00 +274: /home/user/workspace/kugoFlutter/app/test/everyday_recommend_mapper_test.dart: extractEverydayList reads data.list
+01:00 +275: /home/user/workspace/kugoFlutter/app/test/everyday_recommend_mapper_test.dart: extractEverydayList reads data.songs.list
+01:00 +276: /home/user/workspace/kugoFlutter/app/test/everyday_recommend_mapper_test.dart: extractEverydayList reads top-level special_list
+01:00 +277: /home/user/workspace/kugoFlutter/app/test/everyday_recommend_mapper_test.dart: mapEverydaySong maps flat top-level song
+01:00 +278: /home/user/workspace/kugoFlutter/app/test/everyday_recommend_mapper_test.dart: mapEverydaySong maps nested base/audio_info/rec_song_info
+01:00 +279: /home/user/workspace/kugoFlutter/app/test/everyday_recommend_mapper_test.dart: mapEverydaySong maps singer list
+01:03 +280: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_protocol_test.dart: desktop lyric protocol snapshot wire roundtrip keeps lyrics and settings
+01:03 +281: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_protocol_test.dart: desktop lyric protocol snapshot wire roundtrip keeps desktop lyric style
+01:03 +282: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_protocol_test.dart: desktop lyric protocol style fromWire falls back to defaults for dirty values
+01:03 +283: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_protocol_test.dart: desktop lyric protocol position-only push can omit lyrics without losing hash identity
+01:03 +284: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_protocol_test.dart: desktop lyric protocol desktopLyricHash is stable for same content and differs otherwise
+01:03 +285: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_protocol_test.dart: desktop lyric protocol bounds wire clamps insane sizes
+01:10 +286: /home/user/workspace/kugoFlutter/app/test/user_collections_test.dart: UserRepository parses created playlists, collected playlists, and albums correctly
+01:10 +287: /home/user/workspace/kugoFlutter/app/test/user_collections_test.dart: UserRepository parses followed singers correctly
+01:11 +288: /home/user/workspace/kugoFlutter/app/test/user_collections_test.dart: ProfilePage User Playlists Tabs shows playlists when logged in with collections
+01:12 +289: /home/user/workspace/kugoFlutter/app/test/user_collections_test.dart: ProfilePage User Playlists Tabs shows dedicated covers for 我喜欢 and 默认收藏
+01:12 +290: /home/user/workspace/kugoFlutter/app/test/user_collections_test.dart: ProfilePage User Playlists Tabs Profile detail page shows identity, archive and membership
+01:12 +291: /home/user/workspace/kugoFlutter/app/test/desktop_sidebar_collapse_test.dart: 展开态：侧栏 220，导航项带文案
+01:12 +292: /home/user/workspace/kugoFlutter/app/test/desktop_sidebar_collapse_test.dart: 展开态：侧栏 220，导航项带文案
+01:13 +293: /home/user/workspace/kugoFlutter/app/test/user_collections_test.dart: LikesPage Multi-dimensional Tabs can switch between songs, singers, and albums tabs
+01:13 +294: /home/user/workspace/kugoFlutter/app/test/desktop_sidebar_collapse_test.dart: 折叠态：侧栏 64，无文案、无布局异常
+01:13 +295: /home/user/workspace/kugoFlutter/app/test/desktop_sidebar_collapse_test.dart: 折叠态：侧栏 64，无文案、无布局异常
+01:15 +296: /home/user/workspace/kugoFlutter/app/test/search_page_reset_test.dart: revisiting Search clears results left from the last visit
+01:17 +297: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: record：最新搜索排在最前
+01:18 +298: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: record：重复关键词去重并置顶
+01:18 +299: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: record：去首尾空白，空串忽略
+01:18 +300: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: record：超过上限时截断，保留最近 20 条
+01:18 +301: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: remove：只删指定的一条
+01:18 +302: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: clear：清空全部
+01:18 +303: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: 持久化：新容器能读回历史
+01:18 +304: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: 持久化：clear 后新容器读回为空
+01:18 +305: /home/user/workspace/kugoFlutter/app/test/search_history_test.dart: 损坏的存储不崩，历史为空
+01:21 +306: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: shows translation and romanization when both enabled
+01:21 +307: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: hides secondary lines when toggles are off
+01:22 +308: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: shows only translation when romanization is off
+01:22 +309: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: karaoke paints sung prefix via Text.rich
+01:22 +310: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: active line ticker survives play/pause/play without build errors
+01:22 +311: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: sweep does not count the pause gap when resuming
+01:22 +312: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: default scales keep the base font size and row extent
+01:22 +313: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: font scale enlarges lyric font size
+01:22 +314: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: font scale grows the row extent so text is not clipped
+01:22 +315: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: line spacing scale grows the row extent
+01:22 +316: /home/user/workspace/kugoFlutter/app/test/lyrics_view_test.dart: row extent never shrinks below the text height
+01:23 +317: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: fitStripRow：一行铺满 超宽窗口（2560 屏，12 个榜单）整行刚好铺满
+01:23 +318: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: fitStripRow：一行铺满 中等窗口：只放得下 7 张，这 7 张拉伸铺满，其余横滚
+01:23 +319: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: fitStripRow：一行铺满 窄窗口：放得下 4 张，仍不小于最小宽度
+01:23 +320: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: fitStripRow：一行铺满 窗口极窄：只放得下 1 张，且不小于最小宽度
+01:23 +321: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: fitStripRow：一行铺满 条目很少：封顶在 maxWidth，不把一张卡拉成一整行
+01:23 +322: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: fitStripRow：一行铺满 退化输入不抛异常
+01:23 +323: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: DesktopContentConstraint：表单类页面仍按固定上限收边 宽屏收边到 maxWidth
+01:23 +324: /home/user/workspace/kugoFlutter/app/test/desktop_content_width_test.dart: DesktopContentConstraint：表单类页面仍按固定上限收边 手机宽度不下发约束，内容铺满
+01:26 +325: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS artwork exports cached file URI, not remote signed URL
+01:26 +326: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS metadata has a valid stable object-path track ID, no stream URLs
+01:26 +327: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS Play dispatches the real action
+01:26 +328: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS Pause dispatches the real action
+01:26 +329: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS PlayPause dispatches the real action
+01:26 +330: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS Stop dispatches the real action
+01:26 +331: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS Next dispatches the real action
+01:26 +332: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: MPRIS Previous dispatches the real action
+01:26 +333: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: empty queue advertises no transport capability and does not start
+01:26 +334: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: Seek uses microseconds and clamps negative / oversized offsets
+01:26 +335: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: SetPosition checks current track ID and ignores stale/invalid positions
+01:26 +336: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: Volume has actual state, rejects nonfinite values and clamps
+01:26 +337: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: unsupported methods, bad signatures and read-only properties report errors
+01:26 +338: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: loop and shuffle setters update actual playback modes
+01:26 +339: /home/user/workspace/kugoFlutter/app/test/linux_media_bridge_test.dart: a real private D-Bus bus transports commands and distinguishes watcher from host
+01:29 +340: /home/user/workspace/kugoFlutter/app/test/cover_box_test.dart: CoverBox(size: 0) fills its parent box
+01:29 +341: /home/user/workspace/kugoFlutter/app/test/cover_box_test.dart: CoverBox(size: 56) keeps its fixed size
+01:29 +342: /home/user/workspace/kugoFlutter/app/test/cover_box_test.dart: coverDecodeWidth scales by device pixel ratio
+01:29 +343: /home/user/workspace/kugoFlutter/app/test/cover_box_test.dart: coverDecodeWidth degrades safely on unknown geometry
+01:35 +344: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 默认源网易：四块内容都用网易数据，不带切源栏
+01:36 +345: /home/user/workspace/kugoFlutter/app/test/router_push_page_key_test.dart: A. 顶级 → 顶级 push（/player → /song，修复后的形状）
+01:37 +346: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 默认源酷狗：内容回落到酷狗，网易零请求
+01:37 +347: /home/user/workspace/kugoFlutter/app/test/router_push_page_key_test.dart: B. 对照：/song 留在 branch，从同 shell 内 push
+01:37 +348: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 歌单卡片深链带 ?src=（非酷狗源）
+01:37 +349: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 歌单卡片深链带 ?src=（非酷狗源）
+01:37 +350: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +351: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +352: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +353: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +354: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +355: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +356: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +357: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +358: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +359: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 可用源为 0：内容区出停用空态，不再整页报错
+01:38 +360: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 关闭酷狗的「发现」功能：首页回落到网易取数
+01:38 +361: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 别处切源改写默认源：首页按新源重取（标签与数据一致）
+01:38 +362: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 默认源同值写入：首页不重取
+01:38 +363: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 默认源同值写入：首页不重取
+01:38 +364: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 发现页（首页）按源取数 默认源同值写入：首页不重取
+01:38 +365: /home/user/workspace/kugoFlutter/app/test/cloud_upload_test.dart: CloudRepository.uploadCloudFile second-upload path: empty upload_id skips multipart
+01:39 +366: /home/user/workspace/kugoFlutter/app/test/cloud_upload_test.dart: CloudRepository.uploadCloudFile second-upload path: empty upload_id skips multipart
+01:39 +367: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 两源启用：切源栏（无「全部」）+ 网易形态三板块
+01:39 +368: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 两源启用：切源栏（无「全部」）+ 网易形态三板块
+01:39 +369: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 两源启用：切源栏（无「全部」）+ 网易形态三板块
+01:39 +370: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 切换风格标签：只重取歌单，不重取标签，重复点当前标签忽略
+01:39 +371: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 切换风格标签：只重取歌单，不重取标签，重复点当前标签忽略
+01:39 +372: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 切换风格标签：只重取歌单，不重取标签，重复点当前标签忽略
+01:39 +373: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 切换风格标签：只重取歌单，不重取标签，重复点当前标签忽略
+01:39 +374: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 切换风格标签：只重取歌单，不重取标签，重复点当前标签忽略
+01:40 +375: /home/user/workspace/kugoFlutter/app/test/bili_content_test.dart: 错误内容 ID 在发请求前拒绝
+01:40 +376: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +377: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +378: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +379: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +380: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +381: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +382: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 单源启用：隐藏切源栏
+01:40 +383: /home/user/workspace/kugoFlutter/app/test/bili_content_test.dart: 收藏口 count 分页和 type=21 合集不会误走收藏夹端点
+01:40 +384: /home/user/workspace/kugoFlutter/app/test/recommend_dispatch_test.dart: 为你推荐页按源分发 可用源为 0：整页停用空态
+01:41 +385: /home/user/workspace/kugoFlutter/app/test/bili_content_test.dart: 多 P 视频展开独立身份
+01:44 +386: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc codec Linux hello requires a nonempty matching token and correct envelope
+01:45 +387: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc codec encode/decode roundtrip keeps type and payload
+01:45 +388: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc codec cmd messages carry method and optional data
+01:45 +389: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc codec garbage lines decode to null instead of throwing
+01:45 +390: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc codec portFromArgs reads --ipc-port=
+01:45 +391: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc codec isLyricProcessArgs detects the process flag
+01:45 +392: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc socket framing writer closes promptly after the shared reader destroys its socket
+01:45 +393: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc socket framing reader splits newline-delimited frames
+01:45 +394: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_ipc_test.dart: LyricIpc socket framing connectLyricIpc retries then succeeds
+01:49 +395: /home/user/workspace/kugoFlutter/app/test/widget_test.dart: app boots into explore shell
+01:52 +396: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 凭据解码拒绝损坏内容、非字符串值、无 SESSDATA
+01:53 +397: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 保存、重启恢复与清理只影响 B 站独立 key
+01:53 +398: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 扫码确认验证账号后持久化，切换账号不会混入旧 Cookie
+01:53 +399: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 确认码但没有凭据必须报错，不能生成假账号
+01:53 +400: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: nav 校验失败不保存凭据
+01:53 +401: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 退出使在途轮询失效，旧结果不能重新写入 Cookie
+01:53 +402: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 刷新二维码使旧会话失效
+01:53 +403: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 二维码页等待、扫码、过期、刷新
+01:53 +404: /home/user/workspace/kugoFlutter/app/test/bili_auth_test.dart: 轮询不重叠，离页停止，确认后回显账号
+01:56 +405: /home/user/workspace/kugoFlutter/app/test/desktop_lyric_bounds_test.dart: preserves finite negative coordinates for left or upper monitors
+02:00 +406: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: onPlatformError 吞掉异常并返回 true（阻止继续往上抛）
+02:00 +407: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: write / summary 空日志时 summary 为 null
+02:00 +408: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: write / summary 写一条后 summary 报条数与时间戳
+02:00 +409: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: write / summary 多条累加计数
+02:01 +410: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: write / summary 写进去的内容包含 kind 与错误串
+02:01 +411: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: write / summary 空白文件（只有换行）summary 仍为 null
+02:01 +412: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: readText 无文件时返回空串
+02:01 +413: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: readText 短文件原样返回
+02:01 +414: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: readText 超长只返回尾部 8000 字符
+02:01 +415: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: 512KB 上限 超限后从头重写，不再无限追加
+02:02 +416: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: 512KB 上限 未超限时是追加，不丢历史
+02:02 +417: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: clear 删除日志文件
+02:02 +418: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: clear 文件不存在时 clear 不抛
+02:02 +419: /home/user/workspace/kugoFlutter/app/test/crash_log_test.dart: install 装上后 FlutterError.onError 被替换，原 handler 仍被调用
+02:03 +420: /home/user/workspace/kugoFlutter/app/test/hero_transitions_test.dart: KugoHeroTags generates expected namespace tags
+02:03 +421: /home/user/workspace/kugoFlutter/app/test/hero_transitions_test.dart: Hero widget integration PlaylistCard wraps cover with playlistCover Hero
+02:03 +422: /home/user/workspace/kugoFlutter/app/test/hero_transitions_test.dart: Hero widget integration SearchResultRow wraps cover with provided heroTag
+02:04 +423: /home/user/workspace/kugoFlutter/app/test/hero_transitions_test.dart: Hero widget integration CoverHero supports placeholder child for empty art
+02:04 +424: /home/user/workspace/kugoFlutter/app/test/hero_transitions_test.dart: Hero widget integration DailyRecommendPage mounts dailyRecommendBadge Hero on initial loading frame
+02:04 +425: /home/user/workspace/kugoFlutter/app/test/hero_transitions_test.dart: Hero widget integration dailyRecommendBadgeFlightShuttle builds valid widget tree for push and pop
+02:06 +426: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: 候选解析 宽松正则从非 JSON 文本抓 id + accesskey，最多 3 条
+02:06 +427: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: 候选解析 宽松正则抓不到 accesskey 时退回只取 id
+02:06 +428: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: 候选解析 搜索本身抛错 → 一次下载都不发起
+02:06 +429: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: 候选解析 候选为空 → 只有搜索那一次请求
+02:06 +430: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: 候选解析 下载 URL 带上 id / accesskey / charset
+02:06 +431: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: 搜索关键词与 hash 关键词是「歌手 歌名」，hash 转小写，timelength 带时长
+02:06 +432: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: LRC 正文提取 JSON 包裹的 base64 content 被解出来
+02:06 +433: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: LRC 正文提取 base64 content 不是合法 base64 时退回原文
+02:06 +434: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: LRC 正文提取 裸 LRC 文本原样使用
+02:06 +435: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: LRC 正文提取 无 JSON 包裹的 base64 串也能解
+02:06 +436: /home/user/workspace/kugoFlutter/app/test/lyric_repository_test.dart: LRC 正文提取 既不是 LRC 也不是 base64 → 解析不出行
+02:09 +437: /home/user/workspace/kugoFlutter/app/test/profile_page_tabs_test.dart: 页头：居中标题「我的」+ 页签栏，默认落在「歌单」
+02:10 +438: /home/user/workspace/kugoFlutter/app/test/profile_page_tabs_test.dart: 切到「设置」页签：出快捷设置，歌单卡片收起
+02:10 +439: /home/user/workspace/kugoFlutter/app/test/profile_page_tabs_test.dart: 身份卡常驻：切到「设置」页签后账号与统计仍在
+02:12 +440: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: mapNeteaseUserPlaylists 自建 / 收藏按 subscribed 分流，specialType==5 归自建并打 isDefault
+02:12 +441: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: mapNeteaseUserPlaylists more=true 透传
+02:12 +442: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: mapNeteaseUserPlaylists playlist 缺失 / 非数组返回空（不抛）
+02:12 +443: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: mapNeteaseUserPlaylists 业务码非 200 抛 SourceFailure
+02:12 +444: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: NeteaseCollectionsNotifier 未登录不发请求，只给「需登录」提示
+02:12 +445: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: NeteaseCollectionsNotifier 登录态回填后自动拉取歌单，并能找到「我喜欢」
+02:12 +446: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: NeteaseCollectionsNotifier 失败时保留错误文案且不抛
+02:12 +447: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: NeteaseCollectionsNotifier 登出清空已加载的歌单
+02:12 +448: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 账号源 默认取设置里的默认源，可页面级切换
+02:12 +449: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 账号源 单源启用：账号源只有一个（切源条由组件自行隐藏）
+02:12 +450: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 账号源 选择值对应的源被停用：回退默认源
+02:12 +451: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 账号源 网易账号摘要来自登录控制器
+02:12 +452: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 账号源 登录路由按源区分
+02:12 +453: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 云盘页按账号源取数：网易源出网易的盘
+02:13 +454: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 云盘页内可直接切源：chips 一点就换盘
+02:14 +455: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 单源启用：云盘页只给只读来源小字，不出 chips
+02:14 +456: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 账号源切到酷狗：云盘页跟着换（不混源）
+02:14 +457: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 入口显隐看能力：只有网易有云盘时仍显示
+02:14 +458: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 入口显隐看能力：两源都没云盘时隐藏
+02:14 +459: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 多源启用：出账号切源条，默认源为网易云时走网易口径
+02:14 +460: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 切到酷狗：空态文案与登录按钮改走酷狗
+02:14 +461: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 单源启用：不出切源条
+02:14 +462: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 网易已登录：展示昵称与云端歌单
+02:15 +463: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 个人中心：网易侧不出酷狗等级块，未登录时提示按源区分
+02:15 +464: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 个人中心：网易已登录时显示等级/档案/会员区块
+02:15 +465: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 B 站账号源（B3/B4 落地前按游客渲染，不出死路由入口） 我的页：歌单占位说明没有云端歌单，不出登录按钮
+02:15 +466: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 B 站账号源（B3/B4 落地前按游客渲染，不出死路由入口） 个人中心：B 站出游客说明，不出「立即登录」
+02:15 +467: /home/user/workspace/kugoFlutter/app/test/account_source_dispatch_test.dart: 「我的」页按账号源渲染 B 站账号源（B3/B4 落地前按游客渲染，不出死路由入口） 我喜欢：B 站出「没有云端我喜欢」空态，不引导登录
+02:18 +468: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: (setUpAll)
+02:18 +468: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: headersFor — 防盗链按域名下发 网易系域名带 music.163.com Referer
+02:18 +469: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: headersFor — 防盗链按域名下发 酷狗系 / 其他域名带 kugou.com Referer
+02:18 +470: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: headersFor — 防盗链按域名下发 域名匹配大小写不敏感
+02:18 +471: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: headersFor — 防盗链按域名下发 B 站系封面（hdslb / biliimg）带 www.bilibili.com Referer
+02:18 +472: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: headersFor — 防盗链按域名下发 两种域名共用同一个移动端 User-Agent
+02:18 +473: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: get — 非网络 URL 直接放弃 空串 / 空白 / mock:// / 相对路径都返回 null
+02:18 +474: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: get — 非网络 URL 直接放弃 http:// 前缀（不只是 https）也放行
+02:18 +475: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 磁盘命中 peek 在未加载前是 null（首帧不同步读盘）
+02:18 +476: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 磁盘命中 磁盘命中 → get 返回字节，并把内存也填上
+02:18 +477: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 磁盘命中 peek 会裁掉首尾空白再查
+02:18 +478: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 磁盘命中 磁盘上的空文件被当作未命中，转而走网络
+02:18 +479: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 网络下载 下载成功 → 返回字节、写盘、填内存
+02:18 +480: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 网络下载 下载失败（非 2xx）→ null，不抛
+CoverCache load failed: https://imge.kugou.com/boom.jpg (DioException [bad response]: This exception was thrown because the response has a status code of 500 and RequestOptions.validateStatus was configured to throw for this status code.
+The status code of 500 has the following meaning: "Server error - the server failed to fulfil an apparently valid request"
+Read more about status codes at https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+In order to resolve this exception you typically have either to verify and fix your request code or you have to fix the server code.
+)
+02:18 +481: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 网络下载 空响应体 → null
+02:18 +482: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: 网络下载 请求头带上该域名的防盗链 Referer
+02:18 +483: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: clear 清掉内存与磁盘
+02:18 +484: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: clear 没有缓存目录时 clear 不抛
+02:18 +485: /home/user/workspace/kugoFlutter/app/test/cover_cache_test.dart: (tearDownAll)
+02:24 +485: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: R06 logout wins over late profile refresh
+02:24 +486: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: R06 continueAsGuest wins over late profile refresh
+02:24 +487: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: late profile A cannot replace successful account B
+02:24 +488: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout wins over login profile enrichment
+02:24 +489: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout discards late SMS login response
+02:24 +490: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout discards late password login response
+02:24 +491: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: newer login wins when A profile completes after B
+02:24 +492: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout disk clear follows an already-started session save
+02:24 +493: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: disposed controller cannot apply a late profile response
+02:24 +494: /home/user/workspace/kugoFlutter/app/test/p0_auth_session_test.dart: logout wins over confirmed QR profile enrichment
+02:31 +495: /home/user/workspace/kugoFlutter/app/test/fm_controls_test.dart: pill names the station and the pool, without a pending dot
+02:32 +496: /home/user/workspace/kugoFlutter/app/test/fm_controls_test.dart: switching an axis marks the pill as pending
+02:32 +497: /home/user/workspace/kugoFlutter/app/test/fm_controls_test.dart: tapping the pill opens the sheet with both axes
+02:32 +498: /home/user/workspace/kugoFlutter/app/test/fm_controls_test.dart: picking Gamma in the sheet is pending, not immediate
+02:33 +499: /home/user/workspace/kugoFlutter/app/test/fm_controls_test.dart: 不喜欢 in the sheet drops the track from the live queue
+02:37 +500: /home/user/workspace/kugoFlutter/app/test/android_lyric_wire_test.dart: snapshot wire keys match Android LyricWire parser
+02:37 +501: /home/user/workspace/kugoFlutter/app/test/android_lyric_wire_test.dart: positionOnly omission marker is understood by native
+02:37 +502: /home/user/workspace/kugoFlutter/app/test/android_lyric_wire_test.dart: findLyricIndex semantics used by native activeIndex
+02:42 +503: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: mapCloudTrack maps kv_id / hash / capacity fields with multi-key fallback
+02:42 +504: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: mapCloudTrack falls back to hash id when kv_id missing; artist from filename
+02:42 +505: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: mapCloudTrack mapCloudCapacity reads max_size / availble_size spelling
+02:42 +506: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: mapCloudTrack cloudDeleteTargetFromTrack prefers kv_id over hash
+02:42 +507: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository fetchCloudDiskPage requires login
+02:42 +508: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository fetchCloudDiskPage maps list + capacity and dedups ids
+02:42 +509: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository fetchCloudDiskPage parses JSON-string list (kugou get_list shape)
+02:42 +510: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository fetchCloudDiskPage treats empty-string list as an empty disk
+02:42 +511: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository resolveCloudPlayUrl uses signCloudKey and returns backup urls
+02:42 +512: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository deleteCloudTracks sends kv_id list and reports skipped
+02:42 +513: /home/user/workspace/kugoFlutter/app/test/cloud_repository_test.dart: CloudRepository deleteCloudTracks rejects when no file id at all
+02:46 +514: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: playQueue loads lyrics for hashed track even if play resolve fails
+02:46 +515: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: next() requests lyrics for the new track
+02:46 +516: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: demo track without hash marks lyrics empty without fetching
+02:46 +517: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: empty lyric payload becomes empty status, not stuck loading
+02:46 +518: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: retryIfEmpty retries at most once per track (no loading/empty flicker)
+02:46 +519: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: ensureLyricsForCurrent dedupes after a definitive answer
+02:46 +520: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: stale lyric result is dropped when track already advanced
+02:46 +521: /home/user/workspace/kugoFlutter/app/test/lyrics_state_test.dart: play-resolve failure path still surfaces lyrics for current track
+02:54 +522: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: rank/list item maps via mapRankBrief (rankid, not specialid)
+02:54 +523: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: mapRankBrief reads updatefrequency / type_info fallbacks
+02:54 +524: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: rank/list trackCount prefers extra.resp.all_total over degraded total
+02:54 +525: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: rank/song item maps authors[] into artist + artistId
+02:54 +526: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: rank/audio songlist item maps nested audio_info hash/duration/cover
+02:54 +527: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: extractRankAudioSongs/Total read data.songlist + data.total
+02:54 +528: /home/user/workspace/kugoFlutter/app/test/rank_mapper_test.dart: rank/list body path is data.info — mapper accepts nested rankname
+03:00 +529: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 解析出的 mixsongid 会被缓存：翻页不再重搜
+03:00 +530: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 首个候选没有评论时继续试下一个候选（同名其他版本）
+03:00 +531: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 候选全部为空：记住第一个「可用」的 id，下次不再重搜
+03:00 +532: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 候选全部报错：不缓存，且把失败原因透出来
+03:00 +533: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 连候选都凑不出来：给可读文案，不发请求
+03:00 +534: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: hash 形态的值不会被当成 mixsongid
+03:00 +535: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: commentCount 用 track.hash，不用 mixsongid
+03:00 +536: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 写侧从 track 取歌名与已解析的 mixsongid
+03:00 +537: /home/user/workspace/kugoFlutter/app/test/kugou_comment_source_test.dart: 楼层取源：有缓存用缓存，没有就退回 track 自带的 mixSongId
+03:02 +538: /home/user/workspace/kugoFlutter/app/test/taskbar_progress_test.dart: taskbarModeFor no track is none
+03:02 +539: /home/user/workspace/kugoFlutter/app/test/taskbar_progress_test.dart: taskbarModeFor unknown duration while playing is indeterminate
+03:02 +540: /home/user/workspace/kugoFlutter/app/test/taskbar_progress_test.dart: taskbarModeFor playing with duration is normal
+03:02 +541: /home/user/workspace/kugoFlutter/app/test/taskbar_progress_test.dart: taskbarModeFor paused with duration is paused
+03:02 +542: /home/user/workspace/kugoFlutter/app/test/taskbar_progress_test.dart: TaskbarProgressModeWire wire names match native ParseProgressMode
+03:08 +543: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM session start start seeds from every keyword of the pool, not just one
+03:08 +544: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM session start queue is handed to the player as an FM stream, not a playlist
+03:08 +545: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM axes switching the pool is pending until the next track
+03:08 +546: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM axes crossing to the next track applies the pending pool
+03:08 +547: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM axes applyPendingNow restarts the session immediately
+03:08 +548: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM axes 速览 keeps only short tracks when the pool allows it
+03:08 +549: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM dislike removes the track from the live queue and advances
+03:08 +550: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM stream never wraps next() stops at the pool tail instead of looping to song 1
+03:08 +551: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: FM step back disabled at the session head, then steps inside the pool
+03:08 +552: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: real-endpoint params mode maps to the endpoint mode token
+03:08 +553: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: real-endpoint params song pool maps to the endpoint song_pool_id
+03:08 +554: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: real-endpoint params the two axes stay independent
+03:08 +555: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: real-endpoint params labels use the upstream codenames
+03:08 +556: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: automatic real recommendation strategy when logged in and the source returns tracks, uses them directly
+03:08 +557: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: automatic real recommendation strategy when logged in but the source fails, falls back to the keyword pool
+03:08 +558: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: automatic real recommendation strategy when not logged in, directly uses the keyword pool without a request
+03:08 +559: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: automatic real recommendation strategy fresh fetch reports fresh=true even with a leftover queue
+03:08 +560: /home/user/workspace/kugoFlutter/app/test/fm_controller_test.dart: automatic real recommendation strategy source-accepted empty page falls back without gatewayError
+03:13 +561: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: MIXIN_INDEX 是 0..63 的一个排列（64 位）
+03:14 +562: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: mixinKey 已知向量：imgKey+subKey → mixinKey（32 位）
+03:14 +563: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: mixinKey 从 nav 的 img_url/sub_url 取文件名主体
+03:14 +564: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: mixinKey 空 URL 抛 ArgumentError
+03:14 +565: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: wrid 已知向量：固定 wts + 中文关键词
+03:14 +566: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: wrid 值里的 !'()* 先过滤再签（与已过滤值等价）
+03:14 +567: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: wrid key 不过滤（只过滤值）
+03:14 +568: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: wrid 同 wts 稳定；参数 / mixinKey 变则变
+03:14 +569: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: wrid 输出 32 位小写 hex
+03:14 +570: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: encodeUriComponent unreserved 不编码；空格是 %20 不是 +
+03:14 +571: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: encodeUriComponent 中文按 UTF-8 百分号编码（大写 hex）
+03:14 +572: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: encodeUriComponent & = # ? / 均编码
+03:14 +573: /home/user/workspace/kugoFlutter/app/test/bili_sign_test.dart: hmacSha256Hex WebTicket 已知向量
+03:19 +574: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserDetail（H6） 真实响应：社交数 / 生涯统计 / 档案全部落位
+03:19 +575: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserDetail（H6） profile 缺失时退化为空模型，不抛
+03:19 +576: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserDetail（H6） 业务码非 200 抛 SourceFailure
+03:19 +577: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseVipInfo（H1） 真实响应：等级 + 两条会员，未开通的 redplus 为 null
+03:19 +578: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseVipInfo（H1） 判生效必须比对 expireTime：等级 7 但已过期 → 无生效会员
+03:19 +579: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseVipInfo（H1） 无到期时间视为长期有效
+03:19 +580: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseVipInfo（H1） 业务码非 200 抛 SourceFailure
+03:19 +581: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserLevel（H2） 真实响应：progress 原样 + info 拆成权益列表
+03:19 +582: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserLevel（H2） 派生量：下一级 / 还差多少首 / 登录要求已满足
+03:19 +583: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserLevel（H2） progress 脏值钳到 0–1；info 缺省返回空列表
+03:19 +584: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: mapNeteaseUserLevel（H2） 业务码非 200 抛 SourceFailure
+03:19 +585: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: 格式化 省级编码 → 名称，取前两位
+03:19 +586: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: 格式化 乐龄把毫秒转成秒再算
+03:19 +587: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: 格式化 徽章文案：生效中给会员名，过期不给
+03:19 +588: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: 格式化 累计听歌是歌曲数，不是时长
+03:19 +589: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: 格式化 等级标签与酷狗同形
+03:19 +590: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: NeteaseAccountProfileNotifier 未登录不发请求
+03:21 +591: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: NeteaseAccountProfileNotifier 登录后三个口各拉一次并全部落位
+03:21 +592: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: NeteaseAccountProfileNotifier 单口失败不拖垮另外两个
+03:21 +593: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: NeteaseAccountProfileNotifier loaded 后不重复拉；force 才重拉
+03:21 +594: /home/user/workspace/kugoFlutter/app/test/netease_account_profile_test.dart: NeteaseAccountProfileNotifier uid 缺失（登录态异常）时不发请求，给「需登录」
+03:22 +595: /home/user/workspace/kugoFlutter/app/test/fm_page_test.dart: idle FM page shows start CTA and starts the session
+03:23 +596: /home/user/workspace/kugoFlutter/app/test/fm_page_test.dart: active FM page surfaces the current track name
+03:28 +597: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 歌单评论：走 B 组 cmtlist，带 PLAYLIST code 与 content_type/tag
+03:28 +598: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 专辑评论：同端点但换 ALBUM code，不带 content_type/tag
+03:28 +599: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 楼层：走 B 组 hot_replylist，不是歌曲的 /mcomment/v1/
+03:28 +600: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 评论数：用 childrenid 口径（不是 hash），且换对应的 code
+03:28 +601: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 资源 id 缺失：不请求，给可读文案
+03:28 +602: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 发歌单评论：commentsv3/add + 资源 code，body 不带 album_audio_id
+03:28 +603: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 回复歌单楼层：commentsv2/reply，key 不含 body
+03:28 +604: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 发歌单评论：未登录直接抛 LoginRequired，不发请求
+03:28 +605: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: KugouSource 把 kind 原样传给 repository（不自己做 code 计算）
+03:28 +606: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: KugouSource 资源 id 为空：不请求，文案可读
+03:28 +607: /home/user/workspace/kugoFlutter/app/test/resource_comment_test.dart: 歌单 0 条评论时仍带出评论池 id（否则发评论会误报「评论池未知」）
+03:31 +608: /home/user/workspace/kugoFlutter/app/test/cloud_disk_sign_test.dart: KugoSign.signCloudKey matches KuGouMusicApi signCloudKey formula
+03:32 +609: /home/user/workspace/kugoFlutter/app/test/cloud_disk_sign_test.dart: KugoSign.signCloudKey is deterministic for same inputs
+03:32 +610: /home/user/workspace/kugoFlutter/app/test/cloud_disk_sign_test.dart: mcloud envelope (playlistAes + rsa p) playlistAesEncrypt/Decrypt roundtrip preserves JSON
+03:32 +611: /home/user/workspace/kugoFlutter/app/test/cloud_disk_sign_test.dart: mcloud envelope (playlistAes + rsa p) body is raw AES ciphertext (base64 of str)
+03:32 +612: /home/user/workspace/kugoFlutter/app/test/cloud_disk_sign_test.dart: mcloud envelope (playlistAes + rsa p) signParamsKey(clienttime) is md5(appid+salt+clientver+data)
+03:35 +613: /home/user/workspace/kugoFlutter/app/test/playback_position_store_test.dart: 保存 / 读取 roundtrip
+03:35 +614: /home/user/workspace/kugoFlutter/app/test/playback_position_store_test.dart: 曲目身份不一致 → null（不能把上一首的位置套到这一首）
+03:35 +615: /home/user/workspace/kugoFlutter/app/test/playback_position_store_test.dart: 无记录 / 零位 / 负位 → null
+03:35 +616: /home/user/workspace/kugoFlutter/app/test/playback_position_store_test.dart: 负位按 0 落盘（int key 不接受负数）
+03:35 +617: /home/user/workspace/kugoFlutter/app/test/playback_position_store_test.dart: 空 key 不写入
+03:35 +618: /home/user/workspace/kugoFlutter/app/test/playback_position_store_test.dart: clear 清掉
+03:42 +619: /home/user/workspace/kugoFlutter/app/test/bili_qr_login_test.dart: BiliQrLoginClient.statusFromCode 已知码映射
+03:42 +620: /home/user/workspace/kugoFlutter/app/test/bili_qr_login_test.dart: BiliQrLoginClient.statusFromCode 未知码 → unknown（不猜）
+03:42 +621: /home/user/workspace/kugoFlutter/app/test/bili_qr_login_test.dart: BiliQrLoginPoll isConfirmed 仅 code==0
+03:47 +622: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R03 stale catalog cannot replace new track (cross-source=false)
+03:47 +623: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R03 stale catalog cannot replace new track (cross-source=true)
+03:47 +624: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R03 catalog is stale after same-track reload generation
+03:47 +625: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 quality preserves paused=false at 0 ms
+03:47 +626: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 quality preserves paused=false at 45000 ms
+03:47 +627: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 quality preserves paused=true at 0 ms
+03:48 +628: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 quality preserves paused=true at 45000 ms
+03:48 +629: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 user pause during quality resolution wins
+03:49 +630: /home/user/workspace/kugoFlutter/app/test/netease_crypto_test.dart: randomKey is 16-char base62
+03:49 +631: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +632: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +633: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +634: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +635: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +636: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +637: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +638: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +639: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +640: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R04 old in-flight quality seek settles before new native source
+03:49 +641: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R03 current catalog patches metadata and keeps track duration
+03:49 +642: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +643: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +644: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +645: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +646: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +647: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +648: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +649: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +649: /home/user/workspace/kugoFlutter/app/test/p1_auth_transport_test.dart: R09 confirmed QR replaces old account and old CSRF rather than merging
+[preheat] status=200 setCookie=0
+03:50 +650: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +651: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +652: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +653: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:50 +654: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 first successful play saves periodically without pause/resume
+03:53 +655: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:55 +656: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:55 +657: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:55 +658: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:55 +659: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:55 +660: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:55 +661: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +662: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +663: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +664: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +665: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +666: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +667: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +668: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:56 +669: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +670: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +671: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +672: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +673: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +674: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +675: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +676: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +677: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +678: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+03:59 +679: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:00 +680: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:00 +681: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:00 +682: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:01 +683: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:01 +684: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:01 +685: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:01 +686: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:02 +687: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:02 +688: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:02 +689: /home/user/workspace/kugoFlutter/app/test/p1_player_lifecycle_test.dart: R12 stopped playback does not overwrite saved cursor periodically
+04:02 +690: /home/user/workspace/kugoFlutter/app/test/kugo_h_scroll_test.dart: 横排滚到边缘再给滚轮，delta 放行给外层页面
+04:02 +691: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +692: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +693: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +694: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +695: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +696: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +697: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +698: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:03 +699: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +700: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +701: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +702: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +703: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +704: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +705: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +706: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +707: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +708: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +709: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +710: /home/user/workspace/kugoFlutter/app/test/feature_switches_test.dart: 消费点过滤 设置页：子开关列全四个功能，父开关关闭时置灰但取值保留
+04:04 +711: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: LikesPage interactive features search and sorting work correctly
+04:06 +712: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: HistoryPage interactive features loads entries and can switch between records and stats
+04:06 +713: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: HistoryPage interactive features loads entries and can switch between records and stats
+04:06 +714: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: HistoryPage interactive features loads entries and can switch between records and stats
+04:06 +715: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: HistoryPage interactive features loads entries and can switch between records and stats
+04:06 +716: /home/user/workspace/kugoFlutter/app/test/player_sleep_timer_test.dart: 取消后原定时器不再触发（不会误暂停）
+04:07 +717: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: ProfilePage entry tiles 已砍掉的假入口不再出现，页面仍可渲染到底部
+04:07 +718: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: ProfilePage entry tiles 已砍掉的假入口不再出现，页面仍可渲染到底部
+04:07 +719: /home/user/workspace/kugoFlutter/app/test/profile_user_modules_test.dart: ProfilePage entry tiles 已砍掉的假入口不再出现，页面仍可渲染到底部
+04:07 +720: /home/user/workspace/kugoFlutter/app/test/player_sleep_timer_test.dart: 重新设定会作废上一个定时器
+04:07 +721: /home/user/workspace/kugoFlutter/app/test/player_sleep_timer_test.dart: 剩余分钟向上取整
+04:07 +722: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 全新安装默认全部启用
+04:07 +723: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 落盘还原（只启用网易云）
+04:07 +724: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 空列表（非法态）回退全集
+04:07 +725: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 未知取值被丢弃，不误读成酷狗
+04:07 +726: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: setEnabledSources 落盘并生效
+04:07 +727: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 关闭网易云后可重新启用（关→开往返）
+04:07 +728: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 空集合被拒绝（至少保留一个源）
+04:07 +729: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 停用当前默认源时默认源联动回退
+04:07 +730: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: effectiveDefaultSource：默认源可用时原样返回
+04:07 +731: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 网易云需登录才生效（setNeteaseAccess） 未登录：移出启用集、回落默认源并落盘
+04:07 +732: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 网易云需登录才生效（setNeteaseAccess） 未登录且只启用了网易云：回落酷狗，不落到空集
+04:07 +733: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 网易云需登录才生效（setNeteaseAccess） 登录：并入启用集
+04:07 +734: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: 网易云需登录才生效（setNeteaseAccess） 幂等：状态一致时不改动
+04:07 +735: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +736: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +737: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +738: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +739: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +740: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +741: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:08 +742: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:10 +743: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:10 +744: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:10 +745: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:10 +746: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:10 +747: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云已登录可关闭再启用（回归：再点开关无反应）
+04:12 +748: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: system media pause/stop actually pause the player
+04:12 +749: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云未登录时开关置灰、显示为关并提示先登录
+04:12 +750: /home/user/workspace/kugoFlutter/app/test/settings_enabled_sources_test.dart: UI：网易云未登录时开关置灰、显示为关并提示先登录
+04:12 +751: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:13 +752: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +753: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +754: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +755: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +756: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +757: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +758: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +759: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +760: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +761: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +762: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +763: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:14 +764: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: media position never goes backwards between pushes
+04:16 +765: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: track switch resets media position despite leftover engine samples
+04:17 +766: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: swiping the notification away keeps the session usable
+04:17 +767: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: carousel keeps a fixed 3-slot shape across play/pause
+04:17 +768: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: notification card MediaItem carries song identity (acceptance C)
+04:17 +769: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: paused session still exposes card fields (acceptance lifecycle B)
+04:17 +770: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: stop() drops session to idle (card may disappear)
+04:17 +771: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: FM tracks use the same notification card path (acceptance A/FM)
+04:17 +772: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: stop() pauses the engine and holds the queue
+04:17 +773: /home/user/workspace/kugoFlutter/app/test/audio_service_handler_test.dart: (tearDownAll)
+04:18 +773: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: normalizeMvCollectId — 收藏 ID 坑 只接受正整数 video_id；hash / 0 / 负数 / 小数一律拒绝
+04:18 +774: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: mvCoverUrl — MV 封面 CDN 裸文件名走 mvhdpic，不走 soft/collection
+04:18 +775: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: mvCoverUrl — MV 封面 CDN 完整 URL 原样保留（只做协议/域名归一）
+04:18 +776: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: mvCoverUrl — MV 封面 CDN 空串返回空，不用 hash 兜底
+04:18 +777: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: searchMvs — 富/简映射 富版：MvID / MvHash / MixSongID 各归其位，Pic 走 mvhdpic
+04:18 +778: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: searchMvs — 富/简映射 简版兜底：hash 来自 search/mv 的 hash，不是 mvhash
+04:18 +779: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: songMvs — album_audio_id 必须是 MixSongID body.data[0].album_audio_id = track.mixSongId
+04:18 +780: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: songMvs — album_audio_id 必须是 MixSongID 无 mixSongId 时直接返回空，不打网络
+04:18 +781: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: fetchMvDetail — 片源抽取 扁平形态：ld/sd/qhd/hd/fhd + _265，按清到糊排序
+04:18 +782: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: fetchMvDetail — 片源抽取 嵌套形态：h264/h265/mkv 的 {q}_hash 都能抽出
+04:18 +783: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: fetchMvDetail — 片源抽取 video_id 为空时返回 null，不打网络
+04:18 +784: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: resolveMvPlayUrl — 播放 hash key=signKey(hash)，响应按 hash 取 downurl
+04:18 +785: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: resolveMvPlayUrl — 播放 hash 空 hash 抛 NotFound
+04:18 +786: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: setMvCollected — 收藏协议 hash id 直接拒绝，不打网络
+04:18 +787: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: setMvCollected — 收藏协议 未登录抛 LoginRequired
+04:18 +788: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: setMvCollected — 收藏协议 登录后走 collectservice + ctype=2
+04:18 +789: /home/user/workspace/kugoFlutter/app/test/mv_repository_test.dart: setMvCollected — 收藏协议 取消收藏走 cancel_collect
+04:21 +790: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 网关返回会话 → 登录态落盘（扁平 key=value），不编造本地会话
+04:21 +791: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 网关失败（无会话）→ 不进本地会话，错误码上抛，且不写盘
+04:21 +792: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 lastError 为空时给中文兜底文案
+04:21 +793: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 非法手机号 / 验证码过短 → 短路，根本不调仓库
+04:21 +794: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 短信登录 手机号首尾空白被裁掉后再传给仓库
+04:21 +795: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 验证码发送 非法手机号短路，不起 60 秒倒计时
+04:21 +796: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 验证码发送 发送成功 → 倒计时从 60 开始并逐秒递减
+04:21 +797: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 验证码发送 发送失败 → 带回错误文案，不倒计时
+04:21 +798: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 密码登录 空账号/密码短路，不调仓库
+04:21 +799: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 密码登录 网关失败 → error 态 + 不写盘
+04:21 +800: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 fetchMyInfo 补昵称 / 头像 / VIP，并写回落盘
+04:21 +801: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 fetchMyInfo 返回 null 时保留网关给的基本身份
+04:21 +802: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 refreshProfile 未登录时直接返回，不发请求
+04:21 +803: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 资料补全 refreshProfile 合并档案并只在校验变化时重算
+04:21 +804: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 本地会话恢复 有落盘用户 → 冷启动直接进登录态（无网络）
+04:21 +805: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 本地会话恢复 无落盘用户 → 游客态，并写下 guest 标记
+04:21 +806: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 continueAsGuest 清掉 token 并落 guest 标记
+04:21 +807: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 logout 回到游客并清掉落盘用户
+04:21 +808: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 onUnauthorized 未登录时是空操作
+04:21 +809: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 游客 / 登出 / 未授权 onUnauthorized 已登录时执行登出
+04:21 +810: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 拿到二维码 → waiting 态 + 内容 URL
+04:22 +811: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 创建失败 → error 态带错误文案
+04:22 +812: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 轮询到已确认 → 完成登录并停止轮询
+04:22 +813: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 已扫码 / 已过期 两个中间态
+04:22 +814: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 stopQrPolling 之后迟到的轮询结果被丢弃（代数守卫）
+04:22 +815: /home/user/workspace/kugoFlutter/app/test/auth_controller_test.dart: 二维码登录 重新发起二维码会取消上一轮轮询
+04:25 +816: /home/user/workspace/kugoFlutter/app/test/likes_controller_test.dart: like toggle adds and removes
+04:25 +817: /home/user/workspace/kugoFlutter/app/test/likes_controller_test.dart: like is idempotent
+04:28 +818: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety query, duplicate keys, fragment, userinfo and internal id are safe
+04:28 +819: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety nested maps and lists are immutable sanitized snapshots
+04:28 +820: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety body format {"data":{"to is redacted
+04:28 +821: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety body format token=AUDIT_ is redacted
+04:28 +822: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety body format %74%6f%6b%65 is redacted
+04:28 +823: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety body format {"token":"AU is redacted
+04:28 +824: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety body format {token: AUDI is redacted
+04:28 +825: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety ordinary HTML percent text never breaks business response logging
+04:28 +826: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety malformed encoded form fails closed without throwing
+04:28 +827: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety malformed credential URL fails closed without throwing
+04:28 +828: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety provider signed media URLs are scrubbed before storage
+04:28 +829: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety encoded secret keys in error assignments are scrubbed
+04:28 +830: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety secrets embedded in diagnostic map keys are scrubbed
+04:28 +831: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety redaction precedes truncation
+04:28 +832: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety authentication payloads are omitted even for opaque unknown fields
+04:28 +833: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R10 centralized log safety error text redacts URLs, bearer and credential header lines
+04:28 +834: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport blocks http://gateway.kugou.com/a before the adapter sends it
+04:28 +835: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport blocks http://gateway.kugou.com/a before the adapter sends it
+04:28 +836: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport blocks https://kugou.com.attacker.invalid/a before the adapter sends it
+04:28 +837: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport blocks https://attacker.invalid/a before the adapter sends it
+04:28 +838: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport secure auth request cannot follow redirects
+04:29 +839: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport public HTTP media has no auto-injected account header
+04:29 +840: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport HTTPS non-account host also has no auto-injected account header
+04:29 +841: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport trusted gateway receives auth but its diagnostic record does not
+04:29 +842: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport profile uses only HTTPS usercenter and VIP, never legacy hosts
+04:29 +843: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport SMS gateway route is TLS-only and does not perform a real send
+04:29 +844: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport new profile t1 never borrows the previous account credential
+04:29 +845: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport TLS transport failure has no HTTP retry or certificate bypass
+04:29 +846: /home/user/workspace/kugoFlutter/app/test/p0_network_security_test.dart: R01 credential transport upload origin upgrades known HTTP host and rejects arbitrary targets
+04:32 +847: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepPositionMs — 帧计时游标 暂停时回传主窗快照游标，完全忽略锚点与帧计时
+04:32 +848: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepPositionMs — 帧计时游标 刚锚定（elapsed == anchorElapsed）时游标就是锚点
+04:32 +849: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepPositionMs — 帧计时游标 播放中 = 锚点 + 自锚点起的帧计时增量
+04:32 +850: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepPositionMs — 帧计时游标 帧计时增量按毫秒取整，不受微秒抖动影响
+04:32 +851: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepPositionMs — 帧计时游标 掉帧（elapsed 大幅跳变）时游标跟着跳，不回退
+04:32 +852: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — 退化输入 无当前行 / 空文本 / 非正宽度一律不扫
+04:32 +853: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — LRC 整行线性扫 行首之前不扫
+04:32 +854: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — LRC 整行线性扫 行中点扫到一半
+04:32 +855: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — LRC 整行线性扫 行尾之后扫满
+04:32 +856: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — LRC 整行线性扫 LRC 缺 endMs 时按 3 秒默认行宽兜底
+04:32 +857: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 第一个字起点之前不扫
+04:32 +858: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 字内线性插值
+04:32 +859: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 落在某个字起点时停在该字左缘
+04:32 +860: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 字尾之前逼近下一字左缘
+04:32 +861: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 末字唱完直接扫满（字间空隙分支的唯一边界）
+04:32 +862: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 二分定位：长行也能找到正确的字
+04:32 +863: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 前缀表末项缺省时 w1 回退到整行宽
+04:32 +864: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: sweepBoundaryX — KRC 逐字插值 零时长字不退化成 NaN，直接推进到右缘
+04:32 +865: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: KaraokeSweepLine — 挂载与无界约束 无歌词时渲染标题占位，不抛
+04:32 +866: /home/user/workspace/kugoFlutter/app/test/karaoke_sweep_line_test.dart: KaraokeSweepLine — 挂载与无界约束 无界宽度约束回落默认窗宽，不炸 layout
+04:34 +867: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: load 全新安装给默认 1200×820，无坐标、未最大化
+04:34 +868: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: load 读回落盘的坐标 / 尺寸 / 最大化
+04:34 +869: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: load 尺寸缺失时回默认，不影响已存的坐标
+04:34 +870: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: load 脏数据（字符串塞进 double 槽）不抛，回落默认
+04:34 +871: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: save / load 往返 四个字段都落盘
+04:34 +872: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: save / load 往返 坐标为 null 时不写 x/y（尺寸照写）
+04:34 +873: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: save / load 往返 x 有 y 无时只写存在的那个
+04:34 +874: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: clearPosition 只清坐标，尺寸与最大化标记保留
+04:34 +875: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: clearPosition 无坐标时调用也不抛
+04:34 +876: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: DesktopWindowBounds hasPosition 要求 x 和 y 都在
+04:34 +877: /home/user/workspace/kugoFlutter/app/test/window_bounds_store_test.dart: DesktopWindowBounds 默认值就是兜底尺寸
+04:37 +878: /home/user/workspace/kugoFlutter/app/test/linux_player_cursor_test.dart: buffering engine cursor is independent of session prediction
+04:39 +879: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseQrStatus 800/801/802/803 映射
+04:39 +880: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseQrStatus 未知码保持 unknown（不误判成功）
+04:39 +881: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 chainId 格式 v1_<device>_web_login_<ms>
+04:39 +882: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 chainId 使用传入的 sDeviceId
+04:39 +883: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 二维码内容是 scanlogin URL，不是裸 unikey
+04:39 +884: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 mergeQrCredentialCookies 用 refresh token 顶替 MUSIC_U
+04:39 +885: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseClient 扫码构造 已有 MUSIC_U 时不被 refresh token 覆盖
+04:39 +886: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseAccount 登录态解析 profile
+04:39 +887: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: mapNeteaseAccount 游客态 / 坏响应返回 null
+04:39 +888: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore encode/decode 往返
+04:39 +889: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore 无登录 cookie 不落盘 / 不还原
+04:39 +890: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore 非法键值被拒收
+04:39 +891: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseAuthStore 坏 JSON 返回空 Map
+04:39 +892: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 801 → 802 → 803 走到 success 并回填账号
+04:39 +893: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 800 过期后停止轮询
+04:39 +894: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 建码失败 → error 并带错误文案
+04:39 +895: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController bootstrap 已登录时不重复扫码
+04:39 +896: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController logout 清状态并调用源登出
+04:39 +897: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 登录成功自动并入网易云音源
+04:39 +898: /home/user/workspace/kugoFlutter/app/test/netease_login_test.dart: NeteaseLoginController 退出登录自动移出网易云音源并回落默认源
+04:42 +899: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — endpoint routing song tab hits search/song and parses songs
+04:42 +900: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — endpoint routing searchSongs returns the item list without pagination metadata
+04:42 +901: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — endpoint routing playlist tab hits search/special
+04:42 +902: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — endpoint routing album tab hits search/album and keeps numeric albumid
+04:42 +903: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — singer shape parses a bare array under `data` (no `info` wrapper)
+04:42 +904: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — singer shape drops entries with no usable id
+04:42 +905: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — singer shape total is null when the payload omits it
+04:42 +906: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchRepository — singer shape total tolerates a numeric string
+04:42 +907: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: mapPlaylistInfo id selection prefers numeric specialid over global_collection_id
+04:42 +908: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: mapPlaylistInfo id selection falls back to global_collection_id when no numeric id exists
+04:42 +909: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: mapAlbumBrief / mapArtistBrief album prefers albumid and normalizes the {size} cover
+04:42 +910: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: mapAlbumBrief / mapArtistBrief artist maps singerid/singername
+04:42 +911: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: SearchType exposes the five Chinese tab labels
+04:42 +912: /home/user/workspace/kugoFlutter/app/test/search_repository_test.dart: hotKeywords parses the data.info keyword list
+04:45 +913: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: parseProbeSongs reads ar/al/dt
+04:45 +914: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: mapNeteaseSearchSongs 旧口形态：封面从 album.picId 拼出
+04:45 +915: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: mapNeteaseSearchSongs 新口形态：优先用 al.picUrl
+04:45 +916: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: parseProbePlayUrl success
+04:45 +917: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: parseProbePlayUrl throws LoginRequired on 301
+04:45 +918: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: parseProbePlayUrl missing url maps to NoPermission
+04:45 +919: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: parseProbePlayUrl marks preview clip
+04:45 +920: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: parseProbeLyric fields
+04:45 +921: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: mapNeteaseCode distinguishes 301 / rate limit
+04:45 +922: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: D 详情页映射 mapNeteasePlaylistDetail：playlist 头 + tracks（榜单/歌单共用）
+04:45 +923: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: D 详情页映射 mapNeteasePlaylistDetail：无 playlist 返回 null
+04:45 +924: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: D 详情页映射 mapNeteaseAlbumDetail：album 头 + 顶层 songs[]
+04:45 +925: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: D 详情页映射 mapNeteaseAlbumDetail：id 非数字返回 null
+04:45 +926: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: D 详情页映射 mapNeteaseArtistDetail：data.artist 头部字段
+04:45 +927: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: D 详情页映射 mapNeteaseArtistSongs：songs + more + total 分页
+04:45 +928: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G 探索发现映射 mapNeteaseTopPlaylists：顶点 playlists[] 复用歌单 brief 映射
+04:45 +929: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G 探索发现映射 mapNeteaseTopPlaylists：id 非数字的节点被剔除
+04:45 +930: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G 探索发现映射 mapNeteasePlaylistTags：tags[] 拍成单组并前置「全部」
+04:45 +931: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G 探索发现映射 mapNeteasePlaylistTags：接口无 tags 时仍给「全部」兜底
+04:45 +932: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G 探索发现映射 mapNeteasePersonalizedNewSongs：result[].song 内层解包
+04:45 +933: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G11 榜单列表（toplist/detail） mapNeteaseToplistBoards：只取 id/name/封面，跳过无 id 节点
+04:45 +934: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G11 榜单列表（toplist/detail） mapNeteaseToplistBoards：无 list 时返回空
+04:45 +935: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G11 榜单列表（toplist/detail） boardsFromWhitelist：按白名单顺序保留主流榜，剔除活动/车友榜
+04:45 +936: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G11 榜单列表（toplist/detail） boardsFromWhitelist：G11 不可用时退回内置名（封面空）
+04:45 +937: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G13 歌手列表入参（artist/list） initial 字母转大写 ASCII 码（a→65 / z→90 / A→65）
+04:45 +938: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G13 歌手列表入参（artist/list） initial 空串省略字段；纯数字原样透传
+04:45 +939: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G13 歌手列表入参（artist/list） 必带 total=true（少了会退化为忽略筛选的旧路由）
+04:45 +940: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1 搜索入参（search/get） 必带 total=true（让服务端回 result.<x>Count 总数）
+04:45 +941: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1 搜索入参（search/get） offset / type 透传（第二页 + 专辑分类码）
+04:45 +942: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G12 新碟 / G13 歌手列表映射 mapNeteaseNewAlbums：顶层 albums[]，节点只有 picId 时拼 CDN 封面
+04:45 +943: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G12 新碟 / G13 歌手列表映射 mapNeteaseNewAlbums：data.albums[] 同样可解析；有 picUrl 时优先
+04:45 +944: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G12 新碟 / G13 歌手列表映射 mapNeteaseNewAlbums：无 albums 返回空
+04:45 +945: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G12 新碟 / G13 歌手列表映射 mapNeteaseArtistList：顶层 artists[]，头像走 img1v1Url
+04:45 +946: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: G12 新碟 / G13 歌手列表映射 mapNeteaseArtistList：无 artists 返回空
+04:45 +947: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1-MV 详情 / 取流（mvid@r） mapNeteaseMvDetail：brs 为 List 枚举档位，hash=mvid@br，mp.pl 封顶
+04:45 +948: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1-MV 详情 / 取流（mvid@r） mapNeteaseMvDetail：brs 缺失时兜底单档（mp.pl 或 1080）
+04:45 +949: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1-MV 详情 / 取流（mvid@r） mapNeteaseMvDetail：无 data 抛 NotFound
+04:45 +950: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1-MV 详情 / 取流（mvid@r） mapNeteaseMvUrl：data.url → MvPlayUrlResult；空 url 抛 NotFound
+04:45 +951: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1-MV 详情 / 取流（mvid@r） mapNeteaseMvUrl：code=301 → LoginRequired
+04:45 +952: /home/user/workspace/kugoFlutter/app/test/netease_client_parse_test.dart: A1-MV 详情 / 取流（mvid@r） parseNeteaseMvSourceHash：mvid@r 拆分；无 @ 时 r 默认 1080
+04:48 +953: /home/user/workspace/kugoFlutter/app/test/settings_volume_test.dart: 默认音量 100%
+04:48 +954: /home/user/workspace/kugoFlutter/app/test/settings_volume_test.dart: 读取已保存音量（非 bool 值按字符串落盘）
+04:48 +955: /home/user/workspace/kugoFlutter/app/test/settings_volume_test.dart: 脏数据回落默认 1.0
+04:48 +956: /home/user/workspace/kugoFlutter/app/test/settings_volume_test.dart: setVolume 夹到 0..1 并落盘为字符串
+04:52 +957: /home/user/workspace/kugoFlutter/app/test/close_behavior_dialog_test.dart: 选择「退出应用」并勾选记住
+04:53 +958: /home/user/workspace/kugoFlutter/app/test/close_behavior_dialog_test.dart: 不勾记住时 remember 为 false
+04:53 +959: /home/user/workspace/kugoFlutter/app/test/close_behavior_dialog_test.dart: 取消返回 null
+04:55 +960: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseLikedSongIds 顶层 ids → int 列表
+04:55 +961: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseLikedSongIds 非数字 / 非正数 id 丢弃
+04:55 +962: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseLikedSongIds ids 缺失返回空（不抛）
+04:55 +963: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseLikedSongIds 业务码非 200 抛 SourceFailure
+04:55 +964: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseSongDetails 新结构：ar / al.picUrl / dt
+04:55 +965: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseSongDetails id 非数字的节点被跳过
+04:55 +966: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: mapNeteaseSongDetails 业务码非 200 抛 SourceFailure
+04:55 +967: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: NeteaseLikesNotifier 未登录不发请求，只给「需登录」提示
+04:55 +968: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: NeteaseLikesNotifier 登录态回填后自动拉取我喜欢
+04:55 +969: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: NeteaseLikesNotifier 已登录时 build 即拉取（不依赖登录态变化）
+04:55 +970: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: NeteaseLikesNotifier 失败时保留错误文案且不抛
+04:55 +971: /home/user/workspace/kugoFlutter/app/test/netease_likes_test.dart: NeteaseLikesNotifier 登出清空已加载的列表
+04:59 +972: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum 空 id 直接返回 null，不发请求
+04:59 +973: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum data.list 里的歌曲被映射，字段回填
+04:59 +974: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum 顶层 list 也能识别（部分上游把歌曲放最外层）
+04:59 +975: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum info 里没歌 → 回退到 album/song 接口再要一次
+04:59 +976: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum 两个接口都拿不到歌 → 仍返回专辑头信息（歌曲为空）
+04:59 +977: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum 接口抛错 → 返回 null 而不是往上抛
+04:59 +978: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchAlbum 封面缺失时用专辑 id 兜底，不让 UI 拿到空串
+04:59 +979: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtist 空 id 直接返回 null
+04:59 +980: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtist 歌手头信息映射（含粉丝数格式化与计数别名）
+04:59 +981: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtist 计数字段用下划线别名（song_count 等）也能取到
+04:59 +982: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtist 粉丝数为 0 时 fansLabel 留空（不显示 "0 粉丝"）
+04:59 +983: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtist 接口抛错 → 返回 null
+04:59 +984: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtistSongs 空 id 返回空页
+04:59 +985: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtistSongs 分页参数与 sort 透传到 URL
+04:59 +986: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtistSongs total 已知时按 total 判 hasMore
+04:59 +987: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtistSongs total 已知且已到末尾 → hasMore false
+04:59 +988: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtistSongs total 缺失时退回用本页条数填 total
+04:59 +989: /home/user/workspace/kugoFlutter/app/test/catalog_repository_test.dart: fetchArtistSongs 接口抛错 → 空页
+05:04 +990: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R07 SQLite retains identical ids from different platforms
+05:04 +991: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R07 store cache and deletion are scoped to platform
+05:04 +992: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R07 history primary key includes platform even for equal timestamps
+05:04 +993: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R08 queue and both history APIs preserve full route metadata
+05:04 +994: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R08 metadata tolerates invalid JSON and future quality values
+05:04 +995: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R07/R08 real v1 SQLite migration preserves queue and history
+WARNING (drift): It looks like you've created the database class KugoDb multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$KugoDb (package:kugo/data/storage/kugo_db.g.dart:1859:31)
+#4      new KugoDb.forTesting (package:kugo/data/storage/kugo_db.dart)
+#5      main.<anonymous closure> (file:///home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart:180:31)
+#6      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
+<asynchronous suspension>
+#7      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#8      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+05:04 +996: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R07/R08 real v2 SQLite migration preserves queue and history
+WARNING (drift): It looks like you've created the database class KugoDb multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$KugoDb (package:kugo/data/storage/kugo_db.g.dart:1859:31)
+#4      new KugoDb.forTesting (package:kugo/data/storage/kugo_db.dart)
+#5      main.<anonymous closure> (file:///home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart:180:31)
+#6      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
+<asynchronous suspension>
+#7      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#8      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+05:04 +997: /home/user/workspace/kugoFlutter/app/test/p1_storage_test.dart: R12 serialized position save/clear retains last requested identity
+05:12 +998: /home/user/workspace/kugoFlutter/app/test/user_playlist_tracks_test.dart: fetchUserPlaylistTracks calls /v4/get_list_all_file_v3 with proper headers, params, and maps songs
+05:12 +999: /home/user/workspace/kugoFlutter/app/test/user_playlist_tracks_test.dart: fetchUserPlaylistTracks returns error when status is 0 or network is intercepted
+05:12 +1000: /home/user/workspace/kugoFlutter/app/test/user_playlist_tracks_test.dart: fetchUserPlaylistTracks correctly extracts artist and cleans audio extensions from composite names
+05:12 +1001: /home/user/workspace/kugoFlutter/app/test/user_playlist_tracks_test.dart: UserCollectionsController favorite tracks sync loadFavoriteTracks populates cloudFavoriteTracks from default playlist
+05:12 +1002: /home/user/workspace/kugoFlutter/app/test/user_playlist_tracks_test.dart: PlaylistDetailPage with user cloud playlist loads user tracks via KugouSource (page does not touch UserRepository)
+05:18 +1003: /home/user/workspace/kugoFlutter/app/test/daily_recommend_dispatch_test.dart: 两源启用：显示切源栏（无「全部」），按默认源取数
+05:19 +1004: /home/user/workspace/kugoFlutter/app/test/daily_recommend_dispatch_test.dart: 切到酷狗：重新取数并换成酷狗日推
+05:20 +1005: /home/user/workspace/kugoFlutter/app/test/daily_recommend_dispatch_test.dart: 单源启用：隐藏切源栏
+05:20 +1006: /home/user/workspace/kugoFlutter/app/test/daily_recommend_dispatch_test.dart: 无具备日推能力的可用源：出停用空态
+05:22 +1007: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1008: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1009: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1010: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1011: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1012: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1013: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1014: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1015: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1016: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1017: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1018: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1019: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1020: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:24 +1021: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:25 +1022: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:25 +1023: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:25 +1024: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero takes its own full-width row above entry cards
+05:25 +1025: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: narrow phone stacks recommend and discovery entry cards
+05:25 +1026: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: discovery entry card navigates to /discovery
+05:25 +1027: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1028: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1029: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1030: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1031: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1032: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1033: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero keeps radio card and vinyl on one row on phone width
+05:25 +1034: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero starts a session without navigating to the player
+05:26 +1035: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM hero starts loading without waiting for the pool
+05:26 +1036: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: recommend hub stays reachable as a full-width row
+05:26 +1037: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM mode capsule allows switching mode directly on the hero card
+05:26 +1038: /home/user/workspace/kugoFlutter/app/test/quick_entries_test.dart: FM mode capsule immediately switches session and starts new mode when FM is active
+05:29 +1039: /home/user/workspace/kugoFlutter/app/test/search_history_page_test.dart: 提交即记录，返回搜索页展示历史，可单条删除
+05:33 +1040: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 1 月 1 日是第 1 天
+05:33 +1041: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 平年 12 月 31 日是第 365 天
+05:33 +1042: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 闰年 12 月 31 日是第 366 天
+05:33 +1043: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 闰年 2 月 29 存在且算得对
+05:33 +1044: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 跨月累加正确
+05:33 +1045: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 忽略时分秒，只按日期算
+05:33 +1046: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: dayOfYear 不传日期用今天，结果落在 1..366
+05:33 +1047: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: moodLabel 返回值一定在 moods 池里
+05:33 +1048: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: moodLabel 同一天在任何年份落到同一个标签（标签不乱跳）
+05:33 +1049: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: moodLabel 八种心情都会出现（池子真的被用满）
+05:33 +1050: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: moodLabel  moods 池本身没有重复项
+05:33 +1051: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: moodLabel 不传日期用今天，返回池中的某一项
+05:33 +1052: /home/user/workspace/kugoFlutter/app/test/recommend_repository_test.dart: 分类常量至少包含「推荐」与 Hi-Res
+05:35 +1053: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: first load works when controller was created in FakeAsync
+05:35 +1054: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: R02 obsolete A success cannot replace B
+05:36 +1055: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: R02 obsolete A failure cannot replace B
+05:36 +1056: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: R02 obsolete queued B is skipped when C arrives
+05:36 +1057: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: current A can still use backup and does not poison next load
+05:36 +1058: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: stop invalidates in-flight source and leaves engine paused
+05:36 +1059: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: stop invalidates resolver before native loading begins
+05:36 +1060: /home/user/workspace/kugoFlutter/app/test/p0_playback_race_test.dart: dispose drops late native failure without accessing provider state
+05:39 +1061: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: parseLrc parses time tags and back-fills endMs
+05:39 +1062: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: parseLrc findLyricIndex walks by time
+05:39 +1063: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: parseLrc findLyricIndex boundary: exact hit, just-before, past end
+05:39 +1064: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: decryptKrc + parseKrc round-trips word timing
+05:39 +1065: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: decryptKrc + parseKrc language block yields translation and romanization rows
+05:39 +1066: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: decryptKrc + parseKrc LRC-only line inside KRC falls back to whole-line char
+05:39 +1067: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: decryptKrc + parseKrc plain LRC text is rejected by decryptKrc unless bracketed
+05:39 +1068: /home/user/workspace/kugoFlutter/app/test/krc_parser_test.dart: LyricLine.sungCharCount without chars uses line start
+05:44 +1069: /home/user/workspace/kugoFlutter/app/test/discovery_mapper_test.dart: extractPlaylistTagGroups maps tag_name + son[].tag_id
+05:44 +1070: /home/user/workspace/kugoFlutter/app/test/discovery_mapper_test.dart: extractAlbumsByType flattens region buckets for all
+05:44 +1071: /home/user/workspace/kugoFlutter/app/test/discovery_mapper_test.dart: extractAlbumsByType filters a single region
+05:44 +1072: /home/user/workspace/kugoFlutter/app/test/discovery_mapper_test.dart: extractDiscoveryArtists keeps letter groups and drops duplicates
+05:47 +1073: /home/user/workspace/kugoFlutter/app/test/settings_close_behavior_test.dart: 全新安装默认「每次询问」
+05:47 +1074: /home/user/workspace/kugoFlutter/app/test/settings_close_behavior_test.dart: 迁移旧 closeToTray=true → 最小化到托盘
+05:47 +1075: /home/user/workspace/kugoFlutter/app/test/settings_close_behavior_test.dart: 迁移旧 closeToTray=false → 退出应用
+05:47 +1076: /home/user/workspace/kugoFlutter/app/test/settings_close_behavior_test.dart: 新 key 优先于旧 key
+05:47 +1077: /home/user/workspace/kugoFlutter/app/test/settings_close_behavior_test.dart: 未知取值回退到「每次询问」
+05:47 +1078: /home/user/workspace/kugoFlutter/app/test/settings_close_behavior_test.dart: setCloseBehavior 落盘并清理旧 key
+05:53 +1079: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 点分类 chip 后 chips 行仍在，再点同一个可取消（回归：无法取消筛选）
+05:55 +1080: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1081: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1082: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1083: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1084: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1085: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1086: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1087: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 热词 chip 同样可选中 / 取消，且与分类互斥
+05:56 +1088: /home/user/workspace/kugoFlutter/app/test/mv_barrage_test.dart: fetchMvBarrage — 视频弹幕读协议 GET index.php + x-router + 视频 code + extdata=hash，解析 content/user_id
+05:56 +1089: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1090: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1091: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1092: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1093: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1094: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1095: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1096: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 切到「最热」档：chips 行隐藏，切回「全部」仍在（筛选项没被清）
+05:56 +1097: /home/user/workspace/kugoFlutter/app/test/mv_barrage_test.dart: MvBarrageLayer — 显隐、发射与暂停 关闭时不拉弹幕、不渲染
+05:56 +1098: /home/user/workspace/kugoFlutter/app/test/mv_barrage_test.dart: MvBarrageLayer — 显隐、发射与暂停 关闭时不拉弹幕、不渲染
+05:57 +1099: /home/user/workspace/kugoFlutter/app/test/mv_barrage_test.dart: MvBarrageLayer — 显隐、发射与暂停 关闭时不拉弹幕、不渲染
+05:57 +1100: /home/user/workspace/kugoFlutter/app/test/song_detail_page_test.dart: 无点赞能力（如酷狗）：赞数是静态文字，不是可点按钮
+05:57 +1101: /home/user/workspace/kugoFlutter/app/test/mv_barrage_test.dart: MvBarrageLayer — 显隐、发射与暂停 开启后按密度间隔发射；暂停时不发射
+05:57 +1102: All tests passed!

@@ -25,7 +25,8 @@ class CoverCache {
   /// 不带 Referer 会 403；与取流直链同一套口径）。
   static Map<String, String> headersFor(String url) {
     final u = url.toLowerCase();
-    final isNetease = u.contains('126.net') ||
+    final isNetease =
+        u.contains('126.net') ||
         u.contains('163.com') ||
         u.contains('music.126') ||
         u.contains('p1.music.126');
@@ -35,8 +36,8 @@ class CoverCache {
       'Referer': isNetease
           ? 'https://music.163.com'
           : isBili
-              ? 'https://www.bilibili.com'
-              : 'http://www.kugou.com/',
+          ? 'https://www.bilibili.com'
+          : 'http://www.kugou.com/',
     };
   }
 
@@ -53,6 +54,7 @@ class CoverCache {
   final Map<String, Uint8List> _mem = {};
   int _memBytes = 0;
   final Map<String, Future<Uint8List?>> _inflight = {};
+  final Set<Future<void>> _diskWrites = {};
   Directory? _dir;
 
   void _remember(String url, Uint8List bytes) {
@@ -98,6 +100,14 @@ class CoverCache {
   /// Synchronous memory hit — used on first paint so Hero landing never
   /// flashes a gradient placeholder after the mini-player already showed art.
   Uint8List? peek(String url) => _mem[url.trim()];
+
+  /// Explicit completion contract for tests and shutdown; downloads remain
+  /// non-blocking, while callers can await all already scheduled disk writes.
+  Future<void> flushDiskWrites() async {
+    while (_diskWrites.isNotEmpty) {
+      await Future.wait(List.of(_diskWrites));
+    }
+  }
 
   /// Export only a local cover file to desktop media clients. Remote artwork
   /// may require Referer headers, and signed URLs must not go onto D-Bus.
@@ -156,9 +166,11 @@ class CoverCache {
       if (data == null || data.isEmpty) return null;
       final bytes = Uint8List.fromList(data);
       _remember(url, bytes);
-      unawaited(
-        file.writeAsBytes(bytes, flush: true).catchError((Object _) => file),
-      );
+      final write = file
+          .writeAsBytes(bytes, flush: true)
+          .then<void>((_) {}, onError: (Object _) {});
+      _diskWrites.add(write);
+      unawaited(write.whenComplete(() => _diskWrites.remove(write)));
       return bytes;
     } catch (e) {
       debugPrint('CoverCache load failed: $url ($e)');

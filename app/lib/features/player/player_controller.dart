@@ -340,6 +340,7 @@ class PlayerController extends Notifier<PlayerState> {
   /// 清空队列（游客/无数据时）
   void clearQueue() {
     _stopDemoTick();
+    _stopPosSave();
     _seq++;
     _sourceReady = false;
     _acceptEnginePosition = false;
@@ -422,6 +423,7 @@ class PlayerController extends Notifier<PlayerState> {
   Future<void> stopPlayback() async {
     ++_seq;
     _stopDemoTick();
+    _stopPosSave();
     _wantPlaying = false;
     _ignoreEnginePlayUntil = DateTime.now().add(const Duration(seconds: 1));
     _sourceReady = false;
@@ -549,8 +551,8 @@ class PlayerController extends Notifier<PlayerState> {
     // until the new one is actually live (see [_acceptEnginePosition]).
     _acceptEnginePosition = false;
     _resetMediaPosition(0);
+    _stopPosSave();
 
-    _wantPlaying = true;
     _ignoreEnginePlayUntil = null;
     state = state.copyWith(
       display: PlayerDisplayState.loading,
@@ -565,6 +567,7 @@ class PlayerController extends Notifier<PlayerState> {
       _wantPlaying = true;
       state = state.copyWith(display: PlayerDisplayState.playing);
       _startDemoTick();
+      _startPosSave();
       _syncBridge(track: track);
       return;
     }
@@ -642,8 +645,8 @@ class PlayerController extends Notifier<PlayerState> {
       return;
     }
     if (!_wantPlaying) {
-      // User paused while URL was resolving — stop engine, keep paused icon.
-      unawaited(_engine.pause());
+      // The native tail already honored pause intent. Do not issue a second
+      // pause outside that tail: it could overlap a newer song's native load.
       _sourceReady = true;
       _armEnginePositionAfterLoad();
       state = state.copyWith(
@@ -661,7 +664,7 @@ class PlayerController extends Notifier<PlayerState> {
       resolvedQuality: () => granted,
     );
     _syncBridge(track: liveTrack);
-    unawaited(_applyResumeSeek(liveTrack, seq));
+    _startPosSave();
   }
 
   bool _isCurrentLoad(int seq) => !_disposed && seq == _seq;
@@ -677,7 +680,22 @@ class PlayerController extends Notifier<PlayerState> {
     Future<bool> perform() async {
       if (!_isCurrentLoad(seq)) return false;
       try {
-        await _engine.playUrl(url, headers: headers);
+        // Same-track reloads must seek before playback, even at position zero.
+        // Keep seek in the native serialization tail: an old in-flight seek
+        // must finish before a newer song enters the engine.
+        final resume = _resumeSeekMs;
+        final startPlaying = _wantPlaying && resume == null;
+        await _engine.playUrl(url, headers: headers, play: startPlaying);
+        if (!_isCurrentLoad(seq)) return false;
+        if (resume != null) {
+          await _applyResumeSeek(state.current!, seq);
+          if (!_isCurrentLoad(seq)) return false;
+          if (_wantPlaying) unawaited(_engine.play());
+        } else if (!_wantPlaying) {
+          await _engine.pause();
+        } else if (!startPlaying) {
+          unawaited(_engine.play());
+        }
         return _isCurrentLoad(seq);
       } catch (_) {
         if (!_isCurrentLoad(seq)) return false;
@@ -702,32 +720,36 @@ class PlayerController extends Notifier<PlayerState> {
     return load;
   }
 
-  /// 冷启动恢复出的「上次位置」：等引擎真正起播后再 seek——
-  /// mpv 在 open/play 时会把位置重置，提前 seek 会白做。
+  /// 同曲重载 / 冷启动恢复：先静默加载并等时钟稳定，再 seek、再按意图起播。
+  /// 调用方持有原生串行尾部，旧 seek 不会越过新曲目的 load。
   Future<void> _applyResumeSeek(Track track, int seq) async {
     final resume = _resumeSeekMs;
-    if (resume == null || resume <= 0 || !track.canResolveStream) return;
-    _resumeSeekMs = null;
+    if (resume == null || !track.canResolveStream) return;
     await Future<void>.delayed(const Duration(milliseconds: 350));
     if (!_isCurrentLoad(seq)) return;
-    if (state.durationMs > 0 && resume >= state.durationMs) return;
+    final target = state.durationMs > 0
+        ? resume.clamp(0, state.durationMs - 1)
+        : resume;
     try {
-      await _engine.seek(Duration(milliseconds: resume));
-    } catch (_) {}
+      await _engine.seek(Duration(milliseconds: target));
+    } catch (_) {
+      // Keep the requested cursor for a backup URL attempt.
+      rethrow;
+    }
     if (!_isCurrentLoad(seq)) return;
-    if (position.value != resume) position.value = resume;
-    _resetMediaPosition(resume);
-    _publishMediaPosition(resume, force: true);
-    _startPosSave();
+    _resumeSeekMs = null;
+    if (position.value != target) position.value = target;
+    state = state.copyWith(positionMs: target);
+    _resetMediaPosition(target);
+    _publishMediaPosition(target, force: true);
   }
 
   /// 播放中 4s 一拍落盘当前位置。
   void _startPosSave() {
     _posSaveTimer?.cancel();
-    _posSaveTimer = Timer.periodic(
-      const Duration(seconds: 4),
-      (_) => _persistPosition(),
-    );
+    _posSaveTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (state.isPlaying) _persistPosition();
+    });
   }
 
   void _stopPosSave() => _posSaveTimer?.cancel();
@@ -739,19 +761,21 @@ class PlayerController extends Notifier<PlayerState> {
     unawaited(PlaybackPositionStore.save(track.identityKey, position.value));
   }
 
-  /// New source is live: re-accept engine samples and force the platform cursor
-  /// back to 0 so a car head unit cannot keep the previous track's elapsed time.
+  /// New source is live: re-accept engine samples at the loaded source's cursor.
+  /// Track switches start at zero; same-track quality reloads keep their seek.
   void _armEnginePositionAfterLoad() {
     _acceptEnginePosition = true;
-    _resetMediaPosition(0);
-    _publishMediaPosition(0, force: true);
+    _resetMediaPosition(position.value);
+    _publishMediaPosition(position.value, force: true);
   }
 
   void _patchCurrentTrack(Track updated) {
     final q = state.queue.toList();
     if (state.currentIndex < 0 || state.currentIndex >= q.length) return;
+    if (q[state.currentIndex].identityKey != updated.identityKey) return;
     q[state.currentIndex] = updated;
     state = state.copyWith(queue: List.unmodifiable(q));
+    unawaited(_persistQueue());
   }
 
   /// Resolve + load the current track into the engine (cold start / failed source).
@@ -780,11 +804,14 @@ class PlayerController extends Notifier<PlayerState> {
 
   /// 播放页切换音质：写入默认偏好并立即重载当前曲（对齐 EchoMusic）。
   Future<void> applyQuality(AppQuality quality) async {
+    final trackKey = state.current?.identityKey;
+    final seq = _seq;
     final settings = ref.read(settingsControllerProvider.notifier);
     await settings.setQuality(quality);
+    if (!_isCurrentLoad(seq) || state.current?.identityKey != trackKey) return;
     if (state.current == null) return;
     // Preserve play intent: if currently paused, stay paused after reload.
-    await _reloadCurrent();
+    await _reloadCurrent(preservePlayback: true);
   }
 
   /// 打开音质 sheet 前懒加载当前曲可用音质；已知则跳过。
@@ -792,6 +819,7 @@ class PlayerController extends Notifier<PlayerState> {
     bool forceRefresh = false,
   }) async {
     final track = state.current;
+    final seq = _seq;
     if (track == null || !track.canResolveStream) return const {};
     if (!forceRefresh && track.availableQualities.isNotEmpty) {
       return track.availableQualities;
@@ -802,11 +830,15 @@ class PlayerController extends Notifier<PlayerState> {
         : null;
     if (qualitySource == null) return track.availableQualities;
     final fetched = await qualitySource.fetchQualityCatalog(track);
+    if (!_isCurrentLoad(seq) ||
+        state.current?.identityKey != track.identityKey) {
+      return const {};
+    }
     if (fetched == null) return track.availableQualities;
     final goods = fetched.goods;
     final available = AudioQualityUtil.availableFromGoods(goods);
     if (available.isEmpty) return track.availableQualities;
-    final updated = track
+    final updated = state.current!
         .copyWith(
           relateGoods: goods,
           availableQualities: available,
@@ -882,7 +914,7 @@ class PlayerController extends Notifier<PlayerState> {
   void togglePlay() {
     final track = state.current;
     if (track == null) return;
-    if (state.isPlaying) {
+    if (state.isPlaying || (state.isLoading && _wantPlaying)) {
       // Intent first so late engine playing=true cannot flip the icon back.
       _wantPlaying = false;
       _ignoreEnginePlayUntil = DateTime.now().add(
@@ -916,18 +948,21 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   /// Resolve + load the current track into the engine (cold start / failed source).
-  Future<void> _reloadCurrent() async {
+  Future<void> _reloadCurrent({bool preservePlayback = false}) async {
     if (state.current == null) return;
+    final resume = preservePlayback ? position.value : _resumeSeekMs;
+    final wantPlaying = preservePlayback ? _wantPlaying : true;
     final seq = ++_seq;
     _sourceReady = false;
-    _wantPlaying = true;
+    _wantPlaying = wantPlaying;
+    _resumeSeekMs = resume;
     _ignoreEnginePlayUntil = null;
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
-    _zeroCursor();
+    if (!preservePlayback) _zeroCursor();
     state = state.copyWith(
       display: PlayerDisplayState.loading,
-      positionMs: 0,
+      positionMs: preservePlayback ? position.value : 0,
       errorCode: '',
       seq: seq,
       resolvedQuality: () => null,
@@ -1090,8 +1125,9 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   void _onPlayError({String message = '播放出错'}) {
+    _stopPosSave();
     _failStreak += 1;
-    if (_failStreak < 3 && state.queue.length > 1) {
+    if (_wantPlaying && _failStreak < 3 && state.queue.length > 1) {
       unawaited(next());
       return;
     }

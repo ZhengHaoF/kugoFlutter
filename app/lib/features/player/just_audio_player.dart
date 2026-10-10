@@ -6,7 +6,7 @@ import 'audio_player_port.dart';
 
 class JustAudioPlayerImpl implements AudioPlayerPort {
   JustAudioPlayerImpl({AudioPlayer? player})
-      : _player = player ?? AudioPlayer() {
+    : _player = player ?? AudioPlayer() {
     _completionSub = _player.processingStateStream.listen((state) {
       // Source swap (stop/setUrl) parks in idle — not a load failure.
       if (_loadingSource) return;
@@ -19,10 +19,13 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
         }
       }
     });
-    _player.playbackEventStream.listen((_) {}, onError: (Object e) {
-      if (_loadingSource) return;
-      _completion.add(PlayerIdleReason.error);
-    });
+    _player.playbackEventStream.listen(
+      (_) {},
+      onError: (Object e) {
+        if (_loadingSource) return;
+        _completion.add(PlayerIdleReason.error);
+      },
+    );
   }
 
   final AudioPlayer _player;
@@ -47,7 +50,11 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
   Stream<PlayerIdleReason> get completionStream => _completion.stream;
 
   @override
-  Future<void> playUrl(String url, {Map<String, String>? headers}) async {
+  Future<void> playUrl(
+    String url, {
+    Map<String, String>? headers,
+    bool play = true,
+  }) async {
     _loadingSource = true;
     // Intentional stop must not surface as a load error / auto-next.
     _expectingAudio = false;
@@ -97,6 +104,10 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
     // completionStream 该报的加载失败。
     _loadingSource = false;
 
+    if (!play) {
+      _expectingAudio = false;
+      return;
+    }
     unawaited(
       _player.play().catchError((Object _) {
         if (_expectingAudio) _completion.add(PlayerIdleReason.error);

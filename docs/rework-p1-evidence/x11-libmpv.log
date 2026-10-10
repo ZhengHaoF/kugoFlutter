@@ -1,0 +1,22 @@
+[linux-probe] backend=x11
+[linux-probe] PASS native SharedPreferences window settings persist
+[linux-probe] PASS native SQLite queue survives database reopen
+[linux-probe] PASS native SQLite history persists
+[linux-probe] PASS MPRIS registered on real session bus
+[linux-probe] PASS application playback cursor advances
+[linux-probe] PASS libmpv HTTP headers, decoding and progressing clock
+[linux-probe] PASS R12 first native playback periodically saves cursor
+[linux-probe] PASS MPRIS Pause
+[linux-probe] PASS R04 native paused quality reload preserves pause and cursor
+[linux-probe] PASS MPRIS Play resumes native quality source at restored cursor
+[linux-probe] PASS R04 native playing quality reload preserves intent and cursor
+[linux-probe] PASS MPRIS SetPosition microseconds
+[linux-probe] PASS MPRIS Next
+[linux-probe] PASS MPRIS Previous
+[linux-probe] PASS MPRIS volume updates actual player
+[linux-probe] PASS MPRIS Stop
+[linux-probe] PASS desktop mini-window entry
+[linux-probe] PASS desktop mini-window restores normal size
+[linux-probe] PASS native video texture decoded frame
+[linux-probe] ALL_CHECKS_PASSED
+PASS virtual audio output: peak=8000, nonzeroSamples=361566

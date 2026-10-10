@@ -9,7 +9,12 @@ abstract class AudioPlayerPort {
   Stream<bool> get playingStream;
   Stream<PlayerIdleReason> get completionStream;
 
-  Future<void> playUrl(String url, {Map<String, String>? headers});
+  /// Load a source without audible playback when [play] is false.
+  Future<void> playUrl(
+    String url, {
+    Map<String, String>? headers,
+    bool play = true,
+  });
   Future<void> play();
   Future<void> pause();
   Future<void> stop();

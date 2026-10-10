@@ -69,8 +69,9 @@ void main() {
     SharedPreferences.setMockInitialValues(prefs);
     final container = ProviderContainer(
       overrides: [
-        playerControllerProvider
-            .overrideWith(() => PlayerController(engine: FakeAudioPlayer())),
+        playerControllerProvider.overrideWith(
+          () => PlayerController(engine: FakeAudioPlayer()),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -86,7 +87,10 @@ void main() {
     return (kugou: kugou, netease: netease);
   }
 
-  Future<void> pumpPage(WidgetTester tester, ProviderContainer container) async {
+  Future<void> pumpPage(
+    WidgetTester tester,
+    ProviderContainer container,
+  ) async {
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
@@ -145,7 +149,9 @@ void main() {
 
     await tester.tap(find.text('酷狗'));
     await tester.pump();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 60)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(container.read(fmControllerProvider).source, MusicPlatform.kugou);
@@ -184,8 +190,7 @@ void main() {
     expect(find.text('网易云音源已停用'), findsOneWidget);
   });
 
-  testWidgets('网易源：隐藏档位/曲库轴，角标按源写成「网易云私人 FM」',
-      (tester) async {
+  testWidgets('网易源：隐藏档位/曲库轴，角标按源写成「网易云私人 FM」', (tester) async {
     twoSources();
     final container = await containerWith({
       'settings.enabledSources': ['kugou', 'netease'],
@@ -245,7 +250,8 @@ void main() {
     await tester.tap(find.text('网易云'));
     await tester.pump();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     // 旧队列当场停掉并清空：不会出现「旧源的歌挂新源角标」。
@@ -258,12 +264,17 @@ void main() {
     // 放行取数：新队列（网易一次 1 首拼到批量）起播。
     gate.complete();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     final queue = container.read(playerControllerProvider).queue;
     expect(queue.length, 10);
     expect(queue.every((t) => t.platform == MusicPlatform.netease), isTrue);
+    // A successful source switch now owns a periodic playback-position timer.
+    // Unmount and dispose before flutter_test verifies fake-time invariants.
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
   });
 
   testWidgets('切源取数失败：停在新源并报错，旧队列不续播', (tester) async {
@@ -286,7 +297,8 @@ void main() {
     await tester.tap(find.text('网易云'));
     await tester.pump();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     // 选择停在新源、失败原因如实报出；旧队列已停，不会「旧歌新角标」续播。
@@ -320,7 +332,8 @@ void main() {
     );
     await tester.pump();
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 60)));
+      () => Future<void>.delayed(const Duration(milliseconds: 60)),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(container.read(fmControllerProvider).source, MusicPlatform.netease);
@@ -342,7 +355,7 @@ void main() {
     await prefs.setString(
       'fm.session',
       '{"mode":"heart","pool":"taste","pendingMode":"heart",'
-      '"pendingPool":"taste","disliked":[],"usedQueries":[],"fromServer":false}',
+          '"pendingPool":"taste","disliked":[],"usedQueries":[],"fromServer":false}',
     );
     expect(fmSessionStore.loadSync(prefs)?.source, isNull);
   });

@@ -75,32 +75,36 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   /// [animate] 为 false 时只做事、不弹 SnackBar——滑删（Dismissible）和
   /// RemovableRow 各自负责动画与提示，这里就不再重复弹一次。
   Future<void> _deleteItem(String trackId, {bool animate = true}) async {
-    final index = _entries.indexWhere((e) => e.track.id == trackId);
+    final index = _entries.indexWhere((e) => e.track.identityKey == trackId);
     if (index < 0) return;
     final entry = _entries[index];
     if (!mounted) return;
     setState(() {
-      _entries = _entries.where((e) => e.track.id != trackId).toList();
+      _entries = _entries.where((e) => e.track.identityKey != trackId).toList();
       _pendingDeletes[trackId] = (index: index, entry: entry);
     });
     if (!animate) return;
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
-    final closed = messenger.showSnackBar(
-      SnackBar(
-        content: const Text('已从播放历史中移除'),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: '撤销',
-          onPressed: () => _undoDelete(trackId),
-        ),
-      ),
-    ).closed;
-    unawaited(closed.then((reason) {
-      if (reason == SnackBarClosedReason.action) return;
-      unawaited(_commitDelete(trackId));
-    }));
+    final closed = messenger
+        .showSnackBar(
+          SnackBar(
+            content: const Text('已从播放历史中移除'),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: '撤销',
+              onPressed: () => _undoDelete(trackId),
+            ),
+          ),
+        )
+        .closed;
+    unawaited(
+      closed.then((reason) {
+        if (reason == SnackBarClosedReason.action) return;
+        unawaited(_commitDelete(trackId));
+      }),
+    );
   }
 
   Future<void> _undoDelete(String trackId) async {
@@ -116,11 +120,15 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 
   Future<void> _commitDelete(String trackId) async {
-    if (_pendingDeletes.remove(trackId) == null) return;
+    final pending = _pendingDeletes.remove(trackId);
+    if (pending == null) return;
     if (!_committedDeletes.add(trackId)) return;
     try {
       final store = await QueueStore.open();
-      await store.deleteHistory(trackId);
+      await store.deleteHistory(
+        pending.entry.track.id,
+        platform: pending.entry.track.platform,
+      );
     } catch (_) {}
   }
 
@@ -137,9 +145,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('清空'),
           ),
         ],
@@ -211,7 +217,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
         actions: [
           if (_selectedTab == 0 && _entries.isNotEmpty) ...[
             IconButton(
-              icon: Icon(_isSearching ? Icons.close_rounded : Icons.search_rounded),
+              icon: Icon(
+                _isSearching ? Icons.close_rounded : Icons.search_rounded,
+              ),
               tooltip: _isSearching ? '关闭搜索' : '搜索历史',
               onPressed: () {
                 setState(() {
@@ -352,7 +360,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             itemBuilder: (context, index) {
               final track = filteredTracks[index];
               return Dismissible(
-                key: Key('history_${track.id}_$index'),
+                key: Key('history_${track.identityKey}_$index'),
                 direction: DismissDirection.endToStart,
                 background: Container(
                   color: Colors.redAccent.withValues(alpha: 0.8),
@@ -360,19 +368,22 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   padding: const EdgeInsets.only(right: 20),
                   child: const Icon(Icons.delete_rounded, color: Colors.white),
                 ),
-                onDismissed: (_) => _deleteItem(track.id, animate: false),
+                onDismissed: (_) =>
+                    _deleteItem(track.identityKey, animate: false),
                 child: RemovableRow(
                   message: '已从播放历史中移除',
                   // 只动内存：撤销要能按原位置放回去。
-                  onRemove: () => _deleteItem(track.id, animate: false),
-                  onUndo: () => _undoDelete(track.id),
-                  onCommit: () => _commitDelete(track.id),
+                  onRemove: () =>
+                      _deleteItem(track.identityKey, animate: false),
+                  onUndo: () => _undoDelete(track.identityKey),
+                  onCommit: () => _commitDelete(track.identityKey),
                   builder: (context, requestRemove) => TrackTile(
                     track: track,
                     // 历史是跨源混排的，标明每首来自哪个音源。
                     showSource: true,
                     isPlaying:
-                        player.current?.id == track.id && player.isPlaying,
+                        player.current?.identityKey == track.identityKey &&
+                        player.isPlaying,
                     trailing: IconButton(
                       icon: Icon(
                         Icons.close_rounded,
@@ -510,7 +521,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.calendar_today_rounded, size: 16, color: kugo.primary),
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    size: 16,
+                    color: kugo.primary,
+                  ),
                   const SizedBox(width: 8),
                   Text('近 7 天听歌频次', style: kugo.section.copyWith(fontSize: 16)),
                 ],
@@ -540,15 +555,14 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                       fontSize: 10,
                                       color: dailyCounts[i] > 0
                                           ? kugo.primary
-                                          : kugo.textSecondary
-                                              .withValues(alpha: 0.5),
+                                          : kugo.textSecondary.withValues(
+                                              alpha: 0.5,
+                                            ),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Container(
-                                    height: (dailyCounts[i] /
-                                            maxDaily *
-                                            70)
+                                    height: (dailyCounts[i] / maxDaily * 70)
                                         .clamp(4.0, 70.0),
                                     decoration: BoxDecoration(
                                       gradient: dailyCounts[i] > 0
@@ -587,7 +601,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.wb_twilight_rounded, size: 16, color: kugo.primary),
+                  Icon(
+                    Icons.wb_twilight_rounded,
+                    size: 16,
+                    color: kugo.primary,
+                  ),
                   const SizedBox(width: 8),
                   Text('听歌时段偏好', style: kugo.section.copyWith(fontSize: 16)),
                 ],
@@ -638,9 +656,16 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.person_pin_rounded, size: 16, color: kugo.primary),
+                    Icon(
+                      Icons.person_pin_rounded,
+                      size: 16,
+                      color: kugo.primary,
+                    ),
                     const SizedBox(width: 8),
-                    Text('常听歌手 TOP 榜', style: kugo.section.copyWith(fontSize: 16)),
+                    Text(
+                      '常听歌手 TOP 榜',
+                      style: kugo.section.copyWith(fontSize: 16),
+                    ),
                   ],
                 ),
                 const SizedBox(height: KugoSpacing.md),
@@ -657,10 +682,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                             color: i == 0
                                 ? const Color(0xFFFFD700).withValues(alpha: 0.2)
                                 : i == 1
-                                    ? const Color(0xFFC0C0C0).withValues(alpha: 0.2)
-                                    : i == 2
-                                        ? const Color(0xFFCD7F32).withValues(alpha: 0.2)
-                                        : kugo.surfaceElevated,
+                                ? const Color(0xFFC0C0C0).withValues(alpha: 0.2)
+                                : i == 2
+                                ? const Color(0xFFCD7F32).withValues(alpha: 0.2)
+                                : kugo.surfaceElevated,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -671,10 +696,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                               color: i == 0
                                   ? const Color(0xFFFFB300)
                                   : i == 1
-                                      ? const Color(0xFF9E9E9E)
-                                      : i == 2
-                                          ? const Color(0xFFB87333)
-                                          : kugo.textSecondary,
+                                  ? const Color(0xFF9E9E9E)
+                                  : i == 2
+                                  ? const Color(0xFFB87333)
+                                  : kugo.textSecondary,
                             ),
                           ),
                         ),
@@ -682,7 +707,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                         Expanded(
                           child: Text(
                             topArtistsList[i].key,
-                            style: kugo.body.copyWith(fontWeight: FontWeight.w600),
+                            style: kugo.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -695,7 +722,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     ),
                   ),
                   if (i < topArtistsList.length - 1)
-                    Divider(height: 1, color: kugo.divider.withValues(alpha: 0.3)),
+                    Divider(
+                      height: 1,
+                      color: kugo.divider.withValues(alpha: 0.3),
+                    ),
                 ],
               ],
             ),

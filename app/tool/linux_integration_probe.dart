@@ -12,8 +12,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kugo/core/desktop_capabilities.dart';
 import 'package:kugo/core/models/track.dart';
+import 'package:kugo/core/models/audio_quality.dart';
 import 'package:kugo/core/source/music_source.dart';
 import 'package:kugo/data/storage/kugo_db.dart';
+import 'package:kugo/data/storage/playback_position_store.dart';
 import 'package:kugo/shared/tray/window_bounds_store.dart';
 import 'package:kugo/features/mv/mv_desktop_mini.dart';
 import 'package:kugo/features/player/linux_media_bridge.dart';
@@ -210,6 +212,11 @@ class _ProbeState extends State<Probe> {
         accepted > 0,
         'libmpv HTTP headers, decoding and progressing clock',
       );
+      await Future<void>.delayed(const Duration(milliseconds: 2400));
+      check(
+        (await PlaybackPositionStore.load(queue.first.identityKey) ?? 0) > 0,
+        'R12 first native playback periodically saves cursor',
+      );
       remoteClient = DBusClient.session();
       final remote = DBusRemoteObject(
         remoteClient,
@@ -219,9 +226,38 @@ class _ProbeState extends State<Probe> {
       await remote.callMethod(mprisPlayer, 'Pause', []);
       await until(() => !controller.snapshot.isPlaying);
       check(true, 'MPRIS Pause');
+      controller.seekTo(5000);
+      await controller.applyQuality(AppQuality.sq);
+      check(
+        !controller.snapshot.isPlaying &&
+            !rawPlayer.state.playing &&
+            controller.position.value >= 4900,
+        'R04 native paused quality reload preserves pause and cursor',
+      );
       await remote.callMethod(mprisPlayer, 'Play', []);
-      await until(() => controller.snapshot.isPlaying);
-      check(true, 'MPRIS Play');
+      await until(
+        () =>
+            controller.snapshot.isPlaying &&
+            rawPlayer.state.playing &&
+            rawPlayer.state.position.inMilliseconds >= 4900,
+      );
+      check(
+        true,
+        'MPRIS Play resumes native quality source at restored cursor',
+      );
+      final beforeQuality = controller.position.value;
+      await controller.applyQuality(AppQuality.hq);
+      await until(
+        () =>
+            rawPlayer.state.playing &&
+            rawPlayer.state.position.inMilliseconds >= beforeQuality - 200,
+      );
+      check(
+        controller.snapshot.isPlaying &&
+            controller.position.value >= beforeQuality - 200 &&
+            rawPlayer.state.position.inMilliseconds >= beforeQuality - 200,
+        'R04 native playing quality reload preserves intent and cursor',
+      );
       await remote.callMethod(mprisPlayer, 'SetPosition', [
         DBusObjectPath(bridge.object.trackPath),
         const DBusInt64(5000000),

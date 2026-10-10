@@ -10,20 +10,30 @@ class PlaybackPositionStore {
 
   static const _kKey = 'playback.position.key';
   static const _kMs = 'playback.position.ms';
+  static Future<void>? _writeTail;
 
-  static Future<void> save(String trackKey, int positionMs) async {
-    if (trackKey.isEmpty) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kKey, trackKey);
-      await prefs.setInt(_kMs, positionMs < 0 ? 0 : positionMs);
-    } catch (_) {}
+  static Future<void> _write(Future<void> Function() action) {
+    final next = _writeTail?.then((_) => action()) ?? action();
+    _writeTail = next.catchError((Object _) {});
+    return _writeTail!;
+  }
+
+  static Future<void> save(String trackKey, int positionMs) {
+    if (trackKey.isEmpty) return Future.value();
+    return _write(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kKey, trackKey);
+        await prefs.setInt(_kMs, positionMs < 0 ? 0 : positionMs);
+      } catch (_) {}
+    });
   }
 
   /// [trackKey] 对应的位置；不匹配 / 无记录 / 零位 → null。
   static Future<int?> load(String trackKey) async {
     if (trackKey.isEmpty) return null;
     try {
+      await _writeTail;
       final prefs = await SharedPreferences.getInstance();
       final key = prefs.getString(_kKey);
       final ms = prefs.getInt(_kMs);
@@ -34,11 +44,11 @@ class PlaybackPositionStore {
     }
   }
 
-  static Future<void> clear() async {
+  static Future<void> clear() => _write(() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kKey);
       await prefs.remove(_kMs);
     } catch (_) {}
-  }
+  });
 }

@@ -42,7 +42,11 @@ class _DelayedEngine extends FakeAudioPlayer {
   int maxConcurrent = 0;
 
   @override
-  Future<void> playUrl(String url, {Map<String, String>? headers}) async {
+  Future<void> playUrl(
+    String url, {
+    Map<String, String>? headers,
+    bool play = true,
+  }) async {
     calls.add(url);
     concurrent++;
     if (concurrent > maxConcurrent) maxConcurrent = concurrent;
@@ -52,7 +56,7 @@ class _DelayedEngine extends FakeAudioPlayer {
         await release.future;
         if (failA) throw StateError('fixture load failure');
       }
-      await super.playUrl(url, headers: headers);
+      await super.playUrl(url, headers: headers, play: play);
     } finally {
       concurrent--;
     }

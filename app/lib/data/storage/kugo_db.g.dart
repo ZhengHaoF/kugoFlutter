@@ -9,6 +9,18 @@ class $QueueTracksTable extends QueueTracks
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $QueueTracksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _trackMetadataMeta = const VerificationMeta(
+    'trackMetadata',
+  );
+  @override
+  late final GeneratedColumn<String> trackMetadata = GeneratedColumn<String>(
+    'track_metadata',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _positionMeta = const VerificationMeta(
     'position',
   );
@@ -148,6 +160,7 @@ class $QueueTracksTable extends QueueTracks
   );
   @override
   List<GeneratedColumn> get $columns => [
+    trackMetadata,
     position,
     trackId,
     name,
@@ -174,6 +187,15 @@ class $QueueTracksTable extends QueueTracks
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('track_metadata')) {
+      context.handle(
+        _trackMetadataMeta,
+        trackMetadata.isAcceptableOrUnknown(
+          data['track_metadata']!,
+          _trackMetadataMeta,
+        ),
+      );
+    }
     if (data.containsKey('position')) {
       context.handle(
         _positionMeta,
@@ -286,6 +308,10 @@ class $QueueTracksTable extends QueueTracks
   QueueTrack map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return QueueTrack(
+      trackMetadata: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_metadata'],
+      )!,
       position: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}position'],
@@ -348,6 +374,7 @@ class $QueueTracksTable extends QueueTracks
 }
 
 class QueueTrack extends DataClass implements Insertable<QueueTrack> {
+  final String trackMetadata;
   final int position;
   final String trackId;
   final String name;
@@ -364,6 +391,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   /// MusicPlatform.wireName；旧库迁移默认 kugou。
   final String platformName;
   const QueueTrack({
+    required this.trackMetadata,
     required this.position,
     required this.trackId,
     required this.name,
@@ -381,6 +409,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['track_metadata'] = Variable<String>(trackMetadata);
     map['position'] = Variable<int>(position);
     map['track_id'] = Variable<String>(trackId);
     map['name'] = Variable<String>(name);
@@ -399,6 +428,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
 
   QueueTracksCompanion toCompanion(bool nullToAbsent) {
     return QueueTracksCompanion(
+      trackMetadata: Value(trackMetadata),
       position: Value(position),
       trackId: Value(trackId),
       name: Value(name),
@@ -421,6 +451,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return QueueTrack(
+      trackMetadata: serializer.fromJson<String>(json['trackMetadata']),
       position: serializer.fromJson<int>(json['position']),
       trackId: serializer.fromJson<String>(json['trackId']),
       name: serializer.fromJson<String>(json['name']),
@@ -440,6 +471,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'trackMetadata': serializer.toJson<String>(trackMetadata),
       'position': serializer.toJson<int>(position),
       'trackId': serializer.toJson<String>(trackId),
       'name': serializer.toJson<String>(name),
@@ -457,6 +489,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   }
 
   QueueTrack copyWith({
+    String? trackMetadata,
     int? position,
     String? trackId,
     String? name,
@@ -471,6 +504,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
     bool? isVip,
     String? platformName,
   }) => QueueTrack(
+    trackMetadata: trackMetadata ?? this.trackMetadata,
     position: position ?? this.position,
     trackId: trackId ?? this.trackId,
     name: name ?? this.name,
@@ -487,6 +521,9 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   );
   QueueTrack copyWithCompanion(QueueTracksCompanion data) {
     return QueueTrack(
+      trackMetadata: data.trackMetadata.present
+          ? data.trackMetadata.value
+          : this.trackMetadata,
       position: data.position.present ? data.position.value : this.position,
       trackId: data.trackId.present ? data.trackId.value : this.trackId,
       name: data.name.present ? data.name.value : this.name,
@@ -510,6 +547,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   @override
   String toString() {
     return (StringBuffer('QueueTrack(')
+          ..write('trackMetadata: $trackMetadata, ')
           ..write('position: $position, ')
           ..write('trackId: $trackId, ')
           ..write('name: $name, ')
@@ -529,6 +567,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
 
   @override
   int get hashCode => Object.hash(
+    trackMetadata,
     position,
     trackId,
     name,
@@ -547,6 +586,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is QueueTrack &&
+          other.trackMetadata == this.trackMetadata &&
           other.position == this.position &&
           other.trackId == this.trackId &&
           other.name == this.name &&
@@ -563,6 +603,7 @@ class QueueTrack extends DataClass implements Insertable<QueueTrack> {
 }
 
 class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
+  final Value<String> trackMetadata;
   final Value<int> position;
   final Value<String> trackId;
   final Value<String> name;
@@ -577,6 +618,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
   final Value<bool> isVip;
   final Value<String> platformName;
   const QueueTracksCompanion({
+    this.trackMetadata = const Value.absent(),
     this.position = const Value.absent(),
     this.trackId = const Value.absent(),
     this.name = const Value.absent(),
@@ -592,6 +634,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     this.platformName = const Value.absent(),
   });
   QueueTracksCompanion.insert({
+    this.trackMetadata = const Value.absent(),
     this.position = const Value.absent(),
     required String trackId,
     required String name,
@@ -617,6 +660,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
        quality = Value(quality),
        isVip = Value(isVip);
   static Insertable<QueueTrack> custom({
+    Expression<String>? trackMetadata,
     Expression<int>? position,
     Expression<String>? trackId,
     Expression<String>? name,
@@ -632,6 +676,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     Expression<String>? platformName,
   }) {
     return RawValuesInsertable({
+      if (trackMetadata != null) 'track_metadata': trackMetadata,
       if (position != null) 'position': position,
       if (trackId != null) 'track_id': trackId,
       if (name != null) 'name': name,
@@ -649,6 +694,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
   }
 
   QueueTracksCompanion copyWith({
+    Value<String>? trackMetadata,
     Value<int>? position,
     Value<String>? trackId,
     Value<String>? name,
@@ -664,6 +710,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
     Value<String>? platformName,
   }) {
     return QueueTracksCompanion(
+      trackMetadata: trackMetadata ?? this.trackMetadata,
       position: position ?? this.position,
       trackId: trackId ?? this.trackId,
       name: name ?? this.name,
@@ -683,6 +730,9 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (trackMetadata.present) {
+      map['track_metadata'] = Variable<String>(trackMetadata.value);
+    }
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
@@ -728,6 +778,7 @@ class QueueTracksCompanion extends UpdateCompanion<QueueTrack> {
   @override
   String toString() {
     return (StringBuffer('QueueTracksCompanion(')
+          ..write('trackMetadata: $trackMetadata, ')
           ..write('position: $position, ')
           ..write('trackId: $trackId, ')
           ..write('name: $name, ')
@@ -1002,6 +1053,18 @@ class $HistoryTracksTable extends HistoryTracks
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $HistoryTracksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _trackMetadataMeta = const VerificationMeta(
+    'trackMetadata',
+  );
+  @override
+  late final GeneratedColumn<String> trackMetadata = GeneratedColumn<String>(
+    'track_metadata',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _playedAtMeta = const VerificationMeta(
     'playedAt',
   );
@@ -1141,6 +1204,7 @@ class $HistoryTracksTable extends HistoryTracks
   );
   @override
   List<GeneratedColumn> get $columns => [
+    trackMetadata,
     playedAt,
     trackId,
     name,
@@ -1167,6 +1231,15 @@ class $HistoryTracksTable extends HistoryTracks
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('track_metadata')) {
+      context.handle(
+        _trackMetadataMeta,
+        trackMetadata.isAcceptableOrUnknown(
+          data['track_metadata']!,
+          _trackMetadataMeta,
+        ),
+      );
+    }
     if (data.containsKey('played_at')) {
       context.handle(
         _playedAtMeta,
@@ -1276,11 +1349,15 @@ class $HistoryTracksTable extends HistoryTracks
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {playedAt, trackId};
+  Set<GeneratedColumn> get $primaryKey => {playedAt, platformName, trackId};
   @override
   HistoryTrack map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return HistoryTrack(
+      trackMetadata: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_metadata'],
+      )!,
       playedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}played_at'],
@@ -1343,6 +1420,7 @@ class $HistoryTracksTable extends HistoryTracks
 }
 
 class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
+  final String trackMetadata;
   final int playedAt;
   final String trackId;
   final String name;
@@ -1359,6 +1437,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   /// MusicPlatform.wireName；旧库迁移默认 kugou。
   final String platformName;
   const HistoryTrack({
+    required this.trackMetadata,
     required this.playedAt,
     required this.trackId,
     required this.name,
@@ -1376,6 +1455,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['track_metadata'] = Variable<String>(trackMetadata);
     map['played_at'] = Variable<int>(playedAt);
     map['track_id'] = Variable<String>(trackId);
     map['name'] = Variable<String>(name);
@@ -1394,6 +1474,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
 
   HistoryTracksCompanion toCompanion(bool nullToAbsent) {
     return HistoryTracksCompanion(
+      trackMetadata: Value(trackMetadata),
       playedAt: Value(playedAt),
       trackId: Value(trackId),
       name: Value(name),
@@ -1416,6 +1497,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return HistoryTrack(
+      trackMetadata: serializer.fromJson<String>(json['trackMetadata']),
       playedAt: serializer.fromJson<int>(json['playedAt']),
       trackId: serializer.fromJson<String>(json['trackId']),
       name: serializer.fromJson<String>(json['name']),
@@ -1435,6 +1517,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'trackMetadata': serializer.toJson<String>(trackMetadata),
       'playedAt': serializer.toJson<int>(playedAt),
       'trackId': serializer.toJson<String>(trackId),
       'name': serializer.toJson<String>(name),
@@ -1452,6 +1535,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   }
 
   HistoryTrack copyWith({
+    String? trackMetadata,
     int? playedAt,
     String? trackId,
     String? name,
@@ -1466,6 +1550,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
     bool? isVip,
     String? platformName,
   }) => HistoryTrack(
+    trackMetadata: trackMetadata ?? this.trackMetadata,
     playedAt: playedAt ?? this.playedAt,
     trackId: trackId ?? this.trackId,
     name: name ?? this.name,
@@ -1482,6 +1567,9 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   );
   HistoryTrack copyWithCompanion(HistoryTracksCompanion data) {
     return HistoryTrack(
+      trackMetadata: data.trackMetadata.present
+          ? data.trackMetadata.value
+          : this.trackMetadata,
       playedAt: data.playedAt.present ? data.playedAt.value : this.playedAt,
       trackId: data.trackId.present ? data.trackId.value : this.trackId,
       name: data.name.present ? data.name.value : this.name,
@@ -1505,6 +1593,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   @override
   String toString() {
     return (StringBuffer('HistoryTrack(')
+          ..write('trackMetadata: $trackMetadata, ')
           ..write('playedAt: $playedAt, ')
           ..write('trackId: $trackId, ')
           ..write('name: $name, ')
@@ -1524,6 +1613,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
 
   @override
   int get hashCode => Object.hash(
+    trackMetadata,
     playedAt,
     trackId,
     name,
@@ -1542,6 +1632,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is HistoryTrack &&
+          other.trackMetadata == this.trackMetadata &&
           other.playedAt == this.playedAt &&
           other.trackId == this.trackId &&
           other.name == this.name &&
@@ -1558,6 +1649,7 @@ class HistoryTrack extends DataClass implements Insertable<HistoryTrack> {
 }
 
 class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
+  final Value<String> trackMetadata;
   final Value<int> playedAt;
   final Value<String> trackId;
   final Value<String> name;
@@ -1573,6 +1665,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
   final Value<String> platformName;
   final Value<int> rowid;
   const HistoryTracksCompanion({
+    this.trackMetadata = const Value.absent(),
     this.playedAt = const Value.absent(),
     this.trackId = const Value.absent(),
     this.name = const Value.absent(),
@@ -1589,6 +1682,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     this.rowid = const Value.absent(),
   });
   HistoryTracksCompanion.insert({
+    this.trackMetadata = const Value.absent(),
     required int playedAt,
     required String trackId,
     required String name,
@@ -1616,6 +1710,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
        quality = Value(quality),
        isVip = Value(isVip);
   static Insertable<HistoryTrack> custom({
+    Expression<String>? trackMetadata,
     Expression<int>? playedAt,
     Expression<String>? trackId,
     Expression<String>? name,
@@ -1632,6 +1727,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (trackMetadata != null) 'track_metadata': trackMetadata,
       if (playedAt != null) 'played_at': playedAt,
       if (trackId != null) 'track_id': trackId,
       if (name != null) 'name': name,
@@ -1650,6 +1746,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
   }
 
   HistoryTracksCompanion copyWith({
+    Value<String>? trackMetadata,
     Value<int>? playedAt,
     Value<String>? trackId,
     Value<String>? name,
@@ -1666,6 +1763,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
     Value<int>? rowid,
   }) {
     return HistoryTracksCompanion(
+      trackMetadata: trackMetadata ?? this.trackMetadata,
       playedAt: playedAt ?? this.playedAt,
       trackId: trackId ?? this.trackId,
       name: name ?? this.name,
@@ -1686,6 +1784,9 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (trackMetadata.present) {
+      map['track_metadata'] = Variable<String>(trackMetadata.value);
+    }
     if (playedAt.present) {
       map['played_at'] = Variable<int>(playedAt.value);
     }
@@ -1734,6 +1835,7 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
   @override
   String toString() {
     return (StringBuffer('HistoryTracksCompanion(')
+          ..write('trackMetadata: $trackMetadata, ')
           ..write('playedAt: $playedAt, ')
           ..write('trackId: $trackId, ')
           ..write('name: $name, ')
@@ -1772,6 +1874,7 @@ abstract class _$KugoDb extends GeneratedDatabase {
 
 typedef $$QueueTracksTableCreateCompanionBuilder =
     QueueTracksCompanion Function({
+      Value<String> trackMetadata,
       Value<int> position,
       required String trackId,
       required String name,
@@ -1788,6 +1891,7 @@ typedef $$QueueTracksTableCreateCompanionBuilder =
     });
 typedef $$QueueTracksTableUpdateCompanionBuilder =
     QueueTracksCompanion Function({
+      Value<String> trackMetadata,
       Value<int> position,
       Value<String> trackId,
       Value<String> name,
@@ -1812,6 +1916,11 @@ class $$QueueTracksTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get trackMetadata => $composableBuilder(
+    column: $table.trackMetadata,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get position => $composableBuilder(
     column: $table.position,
     builder: (column) => ColumnFilters(column),
@@ -1887,6 +1996,11 @@ class $$QueueTracksTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get trackMetadata => $composableBuilder(
+    column: $table.trackMetadata,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get position => $composableBuilder(
     column: $table.position,
     builder: (column) => ColumnOrderings(column),
@@ -1962,6 +2076,11 @@ class $$QueueTracksTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get trackMetadata => $composableBuilder(
+    column: $table.trackMetadata,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
 
@@ -2034,6 +2153,7 @@ class $$QueueTracksTableTableManager
               $$QueueTracksTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> trackMetadata = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 Value<String> trackId = const Value.absent(),
                 Value<String> name = const Value.absent(),
@@ -2048,6 +2168,7 @@ class $$QueueTracksTableTableManager
                 Value<bool> isVip = const Value.absent(),
                 Value<String> platformName = const Value.absent(),
               }) => QueueTracksCompanion(
+                trackMetadata: trackMetadata,
                 position: position,
                 trackId: trackId,
                 name: name,
@@ -2064,6 +2185,7 @@ class $$QueueTracksTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> trackMetadata = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 required String trackId,
                 required String name,
@@ -2078,6 +2200,7 @@ class $$QueueTracksTableTableManager
                 required bool isVip,
                 Value<String> platformName = const Value.absent(),
               }) => QueueTracksCompanion.insert(
+                trackMetadata: trackMetadata,
                 position: position,
                 trackId: trackId,
                 name: name,
@@ -2289,6 +2412,7 @@ typedef $$QueueMetaTableProcessedTableManager =
     >;
 typedef $$HistoryTracksTableCreateCompanionBuilder =
     HistoryTracksCompanion Function({
+      Value<String> trackMetadata,
       required int playedAt,
       required String trackId,
       required String name,
@@ -2306,6 +2430,7 @@ typedef $$HistoryTracksTableCreateCompanionBuilder =
     });
 typedef $$HistoryTracksTableUpdateCompanionBuilder =
     HistoryTracksCompanion Function({
+      Value<String> trackMetadata,
       Value<int> playedAt,
       Value<String> trackId,
       Value<String> name,
@@ -2331,6 +2456,11 @@ class $$HistoryTracksTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get trackMetadata => $composableBuilder(
+    column: $table.trackMetadata,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get playedAt => $composableBuilder(
     column: $table.playedAt,
     builder: (column) => ColumnFilters(column),
@@ -2406,6 +2536,11 @@ class $$HistoryTracksTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get trackMetadata => $composableBuilder(
+    column: $table.trackMetadata,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get playedAt => $composableBuilder(
     column: $table.playedAt,
     builder: (column) => ColumnOrderings(column),
@@ -2481,6 +2616,11 @@ class $$HistoryTracksTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get trackMetadata => $composableBuilder(
+    column: $table.trackMetadata,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get playedAt =>
       $composableBuilder(column: $table.playedAt, builder: (column) => column);
 
@@ -2556,6 +2696,7 @@ class $$HistoryTracksTableTableManager
               $$HistoryTracksTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> trackMetadata = const Value.absent(),
                 Value<int> playedAt = const Value.absent(),
                 Value<String> trackId = const Value.absent(),
                 Value<String> name = const Value.absent(),
@@ -2571,6 +2712,7 @@ class $$HistoryTracksTableTableManager
                 Value<String> platformName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HistoryTracksCompanion(
+                trackMetadata: trackMetadata,
                 playedAt: playedAt,
                 trackId: trackId,
                 name: name,
@@ -2588,6 +2730,7 @@ class $$HistoryTracksTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> trackMetadata = const Value.absent(),
                 required int playedAt,
                 required String trackId,
                 required String name,
@@ -2603,6 +2746,7 @@ class $$HistoryTracksTableTableManager
                 Value<String> platformName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HistoryTracksCompanion.insert(
+                trackMetadata: trackMetadata,
                 playedAt: playedAt,
                 trackId: trackId,
                 name: name,

@@ -9,11 +9,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
 import '../../core/source/music_platform.dart';
+import 'track_metadata.dart';
 
 part 'kugo_db.g.dart';
 
 /// One row of the current play queue (ordered by [position]).
 class QueueTracks extends Table {
+  TextColumn get trackMetadata => text().withDefault(const Constant('{}'))();
   IntColumn get position => integer()();
   TextColumn get trackId => text()();
   TextColumn get name => text()();
@@ -46,6 +48,7 @@ class QueueMeta extends Table {
 
 /// Play history, newest first via [playedAt].
 class HistoryTracks extends Table {
+  TextColumn get trackMetadata => text().withDefault(const Constant('{}'))();
   IntColumn get playedAt => integer()();
   TextColumn get trackId => text()();
   TextColumn get name => text()();
@@ -63,14 +66,11 @@ class HistoryTracks extends Table {
   TextColumn get platformName => text().withDefault(const Constant('kugou'))();
 
   @override
-  Set<Column> get primaryKey => {playedAt, trackId};
+  Set<Column> get primaryKey => {playedAt, platformName, trackId};
 }
 
 class HistoryEntry {
-  const HistoryEntry({
-    required this.track,
-    required this.playedAt,
-  });
+  const HistoryEntry({required this.track, required this.playedAt});
 
   final Track track;
   final int playedAt;
@@ -89,44 +89,52 @@ Track _trackFrom({
   required String quality,
   required bool isVip,
   String platformName = 'kugou',
+  String trackMetadata = '{}',
 }) {
-  return Track(
-    id: id,
-    name: name,
-    artist: artist,
-    album: album,
-    coverUrl: coverUrl,
-    durationMs: durationMs,
-    platform: MusicPlatform.fromWire(platformName),
-    hash: hash,
-    albumId: albumId,
-    mixSongId: mixSongId,
-    quality: quality,
-    isVip: isVip,
+  return decodeTrackMetadata(
+    Track(
+      id: id,
+      name: name,
+      artist: artist,
+      album: album,
+      coverUrl: coverUrl,
+      durationMs: durationMs,
+      platform: MusicPlatform.fromWire(platformName),
+      hash: hash,
+      albumId: albumId,
+      mixSongId: mixSongId,
+      quality: quality,
+      isVip: isVip,
+    ),
+    trackMetadata,
   );
 }
 
 Track _prefsTrack(Map<String, dynamic> j) => _trackFrom(
-      id: j['id']?.toString() ?? '',
-      name: j['name']?.toString() ?? '',
-      artist: j['artist']?.toString() ?? '',
-      album: j['album']?.toString() ?? '',
-      coverUrl: j['coverUrl']?.toString() ?? '',
-      durationMs: (j['durationMs'] as num?)?.toInt() ?? 0,
-      hash: j['hash']?.toString() ?? '',
-      albumId: j['albumId']?.toString() ?? '',
-      mixSongId: j['mixSongId']?.toString() ?? '',
-      quality: j['quality']?.toString() ?? 'SQ',
-      isVip: j['isVip'] == true,
-      platformName: j['platform']?.toString() ?? 'kugou',
-    );
+  id: j['id']?.toString() ?? '',
+  name: j['name']?.toString() ?? '',
+  artist: j['artist']?.toString() ?? '',
+  album: j['album']?.toString() ?? '',
+  coverUrl: j['coverUrl']?.toString() ?? '',
+  durationMs: (j['durationMs'] as num?)?.toInt() ?? 0,
+  hash: j['hash']?.toString() ?? '',
+  albumId: j['albumId']?.toString() ?? '',
+  mixSongId: j['mixSongId']?.toString() ?? '',
+  quality: j['quality']?.toString() ?? 'SQ',
+  isVip: j['isVip'] == true,
+  platformName: j['platform']?.toString() ?? 'kugou',
+);
 
 List<Track> _decodePrefsList(String? raw) {
   if (raw == null || raw.isEmpty) return const [];
   try {
-    final list = (jsonDecode(raw) as List).whereType<Map>().map((e) {
-      return _prefsTrack(Map<String, dynamic>.from(e));
-    }).where((t) => t.id.isNotEmpty || t.hash.isNotEmpty).toList();
+    final list = (jsonDecode(raw) as List)
+        .whereType<Map>()
+        .map((e) {
+          return _prefsTrack(Map<String, dynamic>.from(e));
+        })
+        .where((t) => t.id.isNotEmpty || t.hash.isNotEmpty)
+        .toList();
     return list;
   } catch (_) {
     return const [];
@@ -140,18 +148,28 @@ class KugoDb extends _$KugoDb {
   KugoDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(queueTracks, queueTracks.platformName);
-            await m.addColumn(historyTracks, historyTracks.platformName);
-          }
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(queueTracks, queueTracks.platformName);
+        await m.addColumn(historyTracks, historyTracks.platformName);
+      }
+      if (from < 3) {
+        await m.addColumn(queueTracks, queueTracks.trackMetadata);
+        // Rebuild to add metadata and include platform in the primary key.
+        await m.alterTable(
+          TableMigration(
+            historyTracks,
+            newColumns: [historyTracks.trackMetadata],
+          ),
+        );
+      }
+    },
+  );
 
   static QueryExecutor _open() {
     return LazyDatabase(() async {
@@ -186,6 +204,7 @@ class KugoDb extends _$KugoDb {
               quality: queue[i].quality,
               isVip: queue[i].isVip,
               platformName: Value(queue[i].platform.wireName),
+              trackMetadata: Value(encodeTrackMetadata(queue[i])),
             ),
         ]);
       });
@@ -200,12 +219,13 @@ class KugoDb extends _$KugoDb {
   }
 
   Future<({List<Track> queue, int index, String mode})?> readQueue() async {
-    final meta =
-        await (select(queueMeta)..where((t) => t.id.equals(0))).getSingleOrNull();
+    final meta = await (select(
+      queueMeta,
+    )..where((t) => t.id.equals(0))).getSingleOrNull();
     if (meta == null) return null;
-    final rows = await (select(queueTracks)
-          ..orderBy([(t) => OrderingTerm.asc(t.position)]))
-        .get();
+    final rows = await (select(
+      queueTracks,
+    )..orderBy([(t) => OrderingTerm.asc(t.position)])).get();
     if (rows.isEmpty) return null;
     return (
       queue: [
@@ -223,6 +243,7 @@ class KugoDb extends _$KugoDb {
             quality: row.quality,
             isVip: row.isVip,
             platformName: row.platformName,
+            trackMetadata: row.trackMetadata,
           ),
       ],
       index: meta.currentIndex,
@@ -233,7 +254,11 @@ class KugoDb extends _$KugoDb {
   Future<void> appendHistory(Track track) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await transaction(() async {
-      await (delete(historyTracks)..where((t) => t.trackId.equals(track.id)))
+      await (delete(historyTracks)..where(
+            (t) =>
+                t.trackId.equals(track.id) &
+                t.platformName.equals(track.platform.wireName),
+          ))
           .go();
       await into(historyTracks).insert(
         HistoryTracksCompanion.insert(
@@ -250,22 +275,24 @@ class KugoDb extends _$KugoDb {
           quality: track.quality,
           isVip: track.isVip,
           platformName: Value(track.platform.wireName),
+          trackMetadata: Value(encodeTrackMetadata(track)),
         ),
         mode: InsertMode.insertOrReplace,
       );
       final count = await historyTracks.count().getSingle();
       if (count > 200) {
-        final old = await (select(historyTracks)
-              ..orderBy([(t) => OrderingTerm.desc(t.playedAt)])
-              ..limit(count - 200, offset: 200))
-            .get();
+        final old =
+            await (select(historyTracks)
+                  ..orderBy([(t) => OrderingTerm.desc(t.playedAt)])
+                  ..limit(count - 200, offset: 200))
+                .get();
         for (final row in old) {
-          await (delete(historyTracks)
-                ..where(
-                  (t) =>
-                      t.playedAt.equals(row.playedAt) &
-                      t.trackId.equals(row.trackId),
-                ))
+          await (delete(historyTracks)..where(
+                (t) =>
+                    t.playedAt.equals(row.playedAt) &
+                    t.platformName.equals(row.platformName) &
+                    t.trackId.equals(row.trackId),
+              ))
               .go();
         }
       }
@@ -273,9 +300,9 @@ class KugoDb extends _$KugoDb {
   }
 
   Future<List<Track>> readHistory() async {
-    final rows = await (select(historyTracks)
-          ..orderBy([(t) => OrderingTerm.desc(t.playedAt)]))
-        .get();
+    final rows = await (select(
+      historyTracks,
+    )..orderBy([(t) => OrderingTerm.desc(t.playedAt)])).get();
     return [
       for (final row in rows)
         _trackFrom(
@@ -291,14 +318,15 @@ class KugoDb extends _$KugoDb {
           quality: row.quality,
           isVip: row.isVip,
           platformName: row.platformName,
+          trackMetadata: row.trackMetadata,
         ),
     ];
   }
 
   Future<List<HistoryEntry>> readHistoryEntries() async {
-    final rows = await (select(historyTracks)
-          ..orderBy([(t) => OrderingTerm.desc(t.playedAt)]))
-        .get();
+    final rows = await (select(
+      historyTracks,
+    )..orderBy([(t) => OrderingTerm.desc(t.playedAt)])).get();
     return [
       for (final row in rows)
         HistoryEntry(
@@ -315,6 +343,7 @@ class KugoDb extends _$KugoDb {
             quality: row.quality,
             isVip: row.isVip,
             platformName: row.platformName,
+            trackMetadata: row.trackMetadata,
           ),
           playedAt: row.playedAt,
         ),
@@ -325,8 +354,16 @@ class KugoDb extends _$KugoDb {
     await delete(historyTracks).go();
   }
 
-  Future<void> deleteHistory(String trackId) async {
-    await (delete(historyTracks)..where((t) => t.trackId.equals(trackId))).go();
+  Future<void> deleteHistory(
+    String trackId, {
+    MusicPlatform platform = MusicPlatform.kugou,
+  }) async {
+    await (delete(historyTracks)..where(
+          (t) =>
+              t.trackId.equals(trackId) &
+              t.platformName.equals(platform.wireName),
+        ))
+        .go();
   }
 
   /// Row count only — avoids materialising up to 200 [Track]s just for a badge.
@@ -349,7 +386,8 @@ class KugoDb extends _$KugoDb {
     const kMigrated = 'player.drift_migrated.v1';
     if (prefs.getBool(kMigrated) == true) return;
 
-    final hasLegacy = prefs.containsKey(kQueue) ||
+    final hasLegacy =
+        prefs.containsKey(kQueue) ||
         prefs.containsKey(kHistory) ||
         prefs.containsKey(kIndex);
     if (!hasLegacy) {
