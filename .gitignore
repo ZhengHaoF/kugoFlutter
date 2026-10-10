@@ -25,7 +25,7 @@ Thumbs.db
 .workbuddy/
 .box-agent/
 
-# Local scratch / generated (keep docs/design intentionally)
+# Local scratch / generated
 /generated-*.png
 
 # Analyzer / editor scratch dumps

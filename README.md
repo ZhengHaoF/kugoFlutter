@@ -15,7 +15,6 @@
 | [docs/personal-fm-vs-echomusic.md](docs/personal-fm-vs-echomusic.md) | 私人 FM 现状与差距 |
 | [docs/UI评审与优化清单.md](docs/UI评审与优化清单.md) | UI 评审清单（P0/P1 已落地，P2/P3 开放） |
 | [docs/功能与动画盘点.md](docs/功能与动画盘点.md) | 功能缺口与动画盘点 |
-| [docs/design/](docs/design/) | 视觉稿 |
 
 ## 快速开始
 

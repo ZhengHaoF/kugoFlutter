@@ -4,7 +4,6 @@
 
 - [设计方案.md](../设计方案.md)
 - [多音源接入方案.md](../多音源接入方案.md)
-- [docs/design/](../docs/design/) 视觉稿
 - [docs/api-notes.md](../docs/api-notes.md) 接口与网络说明
 
 ## 环境
