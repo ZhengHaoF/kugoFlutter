@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../core/api/kugou/credential_transport.dart';
 
 import '../../core/api/kugou/kugo_client.dart';
 import '../../core/api/kugou/kugo_sign.dart';
@@ -12,6 +13,7 @@ import '../../features/auth/auth_token_holder.dart';
 /// + `util/request.js` (lite / concept app).
 class PlayRepository {
   PlayRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
     if (dio == null) {
       _dio.interceptors.add(
         InterceptorsWrapper(

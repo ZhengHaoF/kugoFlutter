@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
+import '../../core/api/kugou/credential_transport.dart';
 import '../../core/api/kugou/kugo_client.dart';
 import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart';
@@ -14,7 +15,9 @@ import '../storage/device_identity.dart';
 class PlaylistRepository {
   PlaylistRepository({KugoClient? client, Dio? dio})
       : _client = client ?? kugoClient,
-        _dio = dio ?? _createDio();
+        _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
+  }
 
   /// Wired from main() so signed gateway rank calls show up in network logs.
   

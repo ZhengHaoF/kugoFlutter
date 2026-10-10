@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import '../../core/api/kugou/credential_transport.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
@@ -59,6 +60,7 @@ class FmPage {
 /// 因此解析尽量宽容（详见 [_mapFmSong] / [_extractList] 的字段名假设）。
 class FmRepository {
   FmRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
     if (dio == null) {
       _dio.interceptors.add(
         InterceptorsWrapper(

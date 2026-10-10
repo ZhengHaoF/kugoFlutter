@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
+import '../../core/api/kugou/credential_transport.dart';
 import '../../core/api/kugou/kugo_client.dart';
 import '../../core/api/kugou/kugo_crypto.dart';
 import '../../core/api/kugou/kugo_sign.dart';
@@ -69,7 +70,9 @@ class UserPlaylistTracksResult {
 }
 
 class UserRepository {
-  UserRepository({Dio? dio}) : _dio = dio ?? _createDio();
+  UserRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
+  }
 
   final Dio _dio;
 

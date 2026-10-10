@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import '../../core/api/kugou/credential_transport.dart';
 
 import '../../core/api/kugou/kugo_crypto.dart';
 import '../../core/api/kugou/kugo_sign.dart';
@@ -31,7 +32,9 @@ class DeviceRegistration {
 /// real device once is what EchoMusic does at startup; the official anonymous
 /// value `-` is used as a fallback (see [DeviceIdentity]).
 class DeviceRepository {
-  DeviceRepository({Dio? dio}) : _dio = dio ?? _createDio();
+  DeviceRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio, requireHttps: true);
+  }
 
   static const _baseUrl = 'https://userservice.kugou.com';
   static const _path = '/risk/v2/r_register_dev';
