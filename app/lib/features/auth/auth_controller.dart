@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/repositories/login_repository.dart';
 import '../../data/storage/device_identity.dart';
+import '../../data/storage/credential_store.dart';
 import '../profile/user_profile_detail.dart';
 import 'auth_token_holder.dart';
 
@@ -198,6 +199,21 @@ class AuthController extends Notifier<AuthState> {
     return r.future;
   }
 
+  /// A slow/locked OS vault must not block startup indefinitely. The epoch
+  /// makes a late restoration harmless; existing saved credentials are kept.
+  void abandonPendingRestore() {
+    if (state.restored) return;
+    _sessionEpoch++;
+    AuthTokenHolder.instance.clear();
+    state = const AuthState(
+      status: LoginStatus.guest,
+      restored: true,
+      errorMessage: '登录凭据恢复超时；已进入游客模式，保存的凭据未删除。',
+    );
+    final ready = _ready;
+    if (ready != null && !ready.isCompleted) ready.complete();
+  }
+
   Future<void> _restore() async {
     final epoch = _sessionEpoch;
     try {
@@ -206,7 +222,8 @@ class AuthController extends Notifier<AuthState> {
       // 先从本地恢复登录态，再补设备身份。
       // DeviceIdentity.ensure() 可能走 /risk/v2/r_register_dev，
       // 网络慢/失败时不能把 token 恢复一起堵死（FM 等功能会误判成未登录）。
-      final raw = _prefs?.getString(_kUser);
+      final raw = await CredentialStore.read(_kUser);
+      if (!_isCurrentSession(epoch)) return;
       if (raw != null && raw.isNotEmpty) {
         final map = <String, dynamic>{};
         for (final part in raw.split('&')) {
@@ -246,7 +263,12 @@ class AuthController extends Notifier<AuthState> {
       unawaited(DeviceIdentity.ensure());
     } catch (_) {
       if (_isCurrentSession(epoch)) {
-        state = const AuthState(status: LoginStatus.guest, restored: true);
+        AuthTokenHolder.instance.clear();
+        state = const AuthState(
+          status: LoginStatus.guest,
+          restored: true,
+          errorMessage: '登录凭据恢复失败，请检查系统安全存储后重新登录。',
+        );
       }
     }
   }
@@ -488,7 +510,13 @@ class AuthController extends Notifier<AuthState> {
       restored: true,
       qrPhase: QrPhase.success,
     );
-    await _persistUser(user, epoch);
+    try {
+      await _persistUser(user, epoch).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      if (_isCurrentSession(epoch)) {
+        state = state.copyWith(errorMessage: '已登录，但安全存储不可用；本次登录无法保存，请稍后重试。');
+      }
+    }
     return _isCurrentSession(epoch);
   }
 
@@ -547,7 +575,7 @@ class AuthController extends Notifier<AuthState> {
       await write();
     });
     _prefsTail = next.catchError((Object _) {});
-    return _prefsTail;
+    return next;
   }
 
   Future<void> _persistUser(AuthUser user, int epoch) => _writePrefs(() async {
@@ -560,7 +588,7 @@ class AuthController extends Notifier<AuthState> {
               '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent('${e.value}')}',
         )
         .join('&');
-    await _prefs?.setString(_kUser, encoded);
+    await CredentialStore.write(_kUser, encoded);
     if (!_isCurrentSession(epoch)) return;
     await _prefs?.remove(_kGuest);
     if (!_isCurrentSession(epoch)) return;
@@ -574,11 +602,22 @@ class AuthController extends Notifier<AuthState> {
     state = const AuthState(status: LoginStatus.guest, restored: true);
     // Do not cancel this queued clear on disposal: an earlier in-flight save
     // must still be removed. A later successful login is queued after it.
-    await _writePrefs(() async {
-      await _prefs?.remove(_kUser);
-      await _prefs?.setBool(_kGuest, true);
-      if (markSeen) await _prefs?.setBool(_kSeen, true);
-    });
+    // Start the vault tombstone immediately, even if a prior save is stalled.
+    final clear = CredentialStore.clear(
+      _kUser,
+    ).then<Object?>((_) => null, onError: (Object error) => error);
+    try {
+      await _writePrefs(() async {
+        final error = await clear;
+        if (error != null) throw error;
+        await _prefs?.setBool(_kGuest, true);
+        if (markSeen) await _prefs?.setBool(_kSeen, true);
+      }).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      if (!_disposed && !state.isLogged) {
+        state = state.copyWith(errorMessage: '已退出登录；安全存储清理未完成，请检查系统权限。');
+      }
+    }
   }
 
   Future<void> onUnauthorized() async {

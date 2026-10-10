@@ -11,6 +11,19 @@ val keystoreProperties = Properties().apply {
     val f = rootProject.file("key.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+// CI test packages must opt in explicitly. A normal release build never
+// silently falls back to the debug key.
+val allowTestSigning = providers.gradleProperty("kugoAllowTestSigning")
+    .map { it == "true" }.getOrElse(false)
+val isReleaseTask = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
+if (isReleaseTask && keystoreProperties.isEmpty() && !allowTestSigning) {
+    throw GradleException(
+        "Release signing is missing. Configure key.properties, or explicitly " +
+        "use -PkugoAllowTestSigning=true for a TEST-ONLY artifact."
+    )
+}
 
 android {
     namespace = "com.kugo.kugo"
@@ -35,7 +48,7 @@ android {
 
     defaultConfig {
         applicationId = "com.kugo.kugo"
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -45,8 +58,10 @@ android {
         release {
             signingConfig = if (keystoreProperties.isNotEmpty()) {
                 signingConfigs.getByName("release")
-            } else {
+            } else if (allowTestSigning) {
                 signingConfigs.getByName("debug")
+            } else {
+                null
             }
         }
     }

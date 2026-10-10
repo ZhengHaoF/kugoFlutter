@@ -8,6 +8,7 @@ import 'package:kugo/core/api/kugou/kugo_client.dart';
 import 'package:kugo/core/api/netease/netease_client.dart';
 import 'package:kugo/data/repositories/login_repository.dart';
 import 'package:kugo/data/storage/device_identity.dart';
+import 'package:kugo/data/storage/credential_store.dart';
 import 'package:kugo/data/sources/netease/netease_source.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
@@ -144,10 +145,7 @@ void main() {
       await pending;
       expect(AuthTokenHolder.instance.token, 'TOKEN_200');
       expect(c.read(authControllerProvider).user!.userId, '200');
-      expect(
-        (await SharedPreferences.getInstance()).getString('auth.user.v1'),
-        contains('TOKEN_200'),
-      );
+      expect(await CredentialStore.read('auth.user.v1'), contains('TOKEN_200'));
     },
   );
 

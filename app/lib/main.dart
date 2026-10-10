@@ -12,12 +12,15 @@ import 'core/api/kugou/kugo_client.dart';
 import 'core/api/netease/netease_client.dart';
 import 'core/api/network_log.dart';
 import 'core/diagnostics/crash_log.dart';
+import 'core/diagnostics/startup_gate.dart';
+import 'core/diagnostics/startup_services.dart';
 import 'core/platform.dart';
 import 'core/desktop_capabilities.dart';
 import 'core/theme/kugo_theme.dart';
 import 'data/sources/sources.dart';
 import 'data/sources/bili/bili_source.dart';
 import 'data/storage/bili_auth_store.dart';
+import 'data/storage/credential_store.dart';
 import 'data/storage/netease_auth_store.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/fm/fm_controller.dart';
@@ -31,37 +34,24 @@ import 'features/player/linux_media_bridge.dart';
 import 'features/settings/settings_controller.dart';
 import 'shared/tray/desktop_shell.dart';
 
-Future<void> main(List<String> args) async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // ── 崩溃捕获：装在最早，保证后续初始化里的报错也能落盘 ──
-  await CrashLog.install();
-  // zone 级未捕获错误同样收编（框架 / 原生两级在 CrashLog.install 里）。
-  return runZonedGuarded(() async {
-    try {
-      await _bootApp(args);
-    } catch (e, st) {
-      CrashLog.onPlatformError(e, st);
-      runApp(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'kugo 启动失败（${e.runtimeType}）。\n'
-                  'Linux 请检查 libmpv、GTK 与运行依赖；详细记录见应用目录 crash.log。',
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+void main(List<String> args) {
+  runZonedGuarded(() async {
+    // Binding and every runApp call must share the same Zone.
+    WidgetsFlutterBinding.ensureInitialized();
+    await CrashLog.install();
+    runApp(
+      StartupGate(
+        initialize: () => _bootApp(args),
+        onError: (error, stack) {
+          CrashLog.onPlatformError(error, stack);
+        },
+      ),
+    );
   }, CrashLog.onPlatformError);
 }
 
 /// 原 main 内容，仅拆出来以便包进 [runZonedGuarded]。
-Future<void> _bootApp(List<String> args) async {
+Future<Widget> _bootApp(List<String> args) async {
   // ── 桌面歌词独立进程分流：只承载歌词 UI，不做音频/托盘/数据源初始化 ──
   // 双进程（不再用 desktop_multi_window）：主窗 spawn 本 exe 并带上
   // `desktop_lyric --ipc-port=N`，两边走 TCP。见 桌面歌词接入方案.md §12。
@@ -77,8 +67,7 @@ Future<void> _bootApp(List<String> args) async {
         debugPrint('[desktop_lyric] unsupported backend; refusing lyric child');
         exit(64);
       }
-      runApp(DesktopLyricApp(ipcPort: LyricIpc.portFromArgs(args)));
-      return;
+      return DesktopLyricApp(ipcPort: LyricIpc.portFromArgs(args));
     }
   }
 
@@ -90,49 +79,108 @@ Future<void> _bootApp(List<String> args) async {
   PaintingBinding.instance.imageCache.maximumSizeBytes = 64 << 20; // 64 MB
 
   final container = ProviderContainer();
-  final player = container.read(playerControllerProvider.notifier);
+  try {
+    final player = container.read(playerControllerProvider.notifier);
 
-  // Load saved settings first so the very first frame already uses the theme
-  // the user picked (no dark→light flash on launch).
-  await container.read(settingsControllerProvider.notifier).ensureRestored();
-  final themeMode = container
-      .read(settingsControllerProvider)
-      .materialThemeMode;
-  final initialBrightness = switch (themeMode) {
-    ThemeMode.dark => Brightness.dark,
-    ThemeMode.light => Brightness.light,
-    ThemeMode.system =>
-      WidgetsBinding.instance.platformDispatcher.platformBrightness,
-  };
-  applyKugoSystemUi(initialBrightness);
+    // Load saved settings first so the very first frame already uses the theme
+    // the user picked (no dark→light flash on launch).
+    await container.read(settingsControllerProvider.notifier).ensureRestored();
+    final themeMode = container
+        .read(settingsControllerProvider)
+        .materialThemeMode;
+    final initialBrightness = switch (themeMode) {
+      ThemeMode.dark => Brightness.dark,
+      ThemeMode.light => Brightness.light,
+      ThemeMode.system =>
+        WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    };
+    applyKugoSystemUi(initialBrightness);
 
-  // Pipe Dio interceptor logs into Riverpod network log list.
-  void sink(NetworkLog log) {
-    container.read(networkLogProvider.notifier).addLog(log);
+    // Pipe Dio interceptor logs into Riverpod network log list.
+    void sink(NetworkLog log) {
+      container.read(networkLogProvider.notifier).addLog(log);
+    }
+
+    NetworkLogHub.bind(sink);
+    kugoClient.setLogSink(sink);
+
+    // Restore login session (and device mid) BEFORE any play-url resolve.
+    final credentialWarnings = <String>[];
+    final auth = container.read(authControllerProvider.notifier);
+    await auth.ensureReady().timeout(
+      const Duration(seconds: 8),
+      onTimeout: auth.abandonPendingRestore,
+    );
+    if (container.read(authControllerProvider).errorMessage.isNotEmpty) {
+      credentialWarnings.add('酷狗登录恢复');
+    }
+
+    // 网易云登录态：把上次落盘的 cookie 灌回共享客户端，否则重启即掉登录。
+    var neteaseLogged = false;
+    try {
+      neteaseLogged = await NeteaseAuthStore.restoreInto(
+        neteaseClient,
+      ).timeout(const Duration(seconds: 8));
+    } catch (error, stack) {
+      credentialWarnings.add('网易云登录恢复');
+      CredentialStore.invalidateRestore('netease.auth.v1');
+      CrashLog.onPlatformError(error, stack);
+      neteaseClient.clearLogin();
+    }
+    try {
+      await BiliAuthStore.restoreInto(
+        biliSource.client,
+      ).timeout(const Duration(seconds: 8));
+    } catch (error, stack) {
+      credentialWarnings.add('B 站登录恢复');
+      CredentialStore.invalidateRestore(BiliAuthStore.key);
+      CrashLog.onPlatformError(error, stack);
+      biliSource.client.clearCookies();
+    }
+
+    // 网易云音源需登录才生效：未登录时把它从启用集清掉（旧数据 / 默认全集都可能
+    // 带着它）。已登录方向**不动**——保留用户在登录态下对网易云的手动停用；
+    // 只有「登录事件」才会重新并入（见 NeteaseLoginController._onConfirmed）。
+    if (!neteaseLogged) {
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setNeteaseAccess(false);
+    }
+
+    await player.restoreOrSeed();
+    return StartupServices(
+      initialWarnings: credentialWarnings,
+      onError: (error, stack) {
+        CrashLog.onPlatformError(error, stack);
+      },
+      services: {
+        '系统媒体会话': () => _startMediaSession(player, initialBrightness),
+        'FM 会话': () => container.read(fmControllerProvider.notifier).restore(),
+        '桌面托盘与歌词': () async {
+          await DesktopShell.boot(container);
+        },
+        'Android 悬浮歌词': () async {
+          await AndroidLyricBridge.boot(container);
+        },
+      },
+      child: UncontrolledProviderScope(
+        container: container,
+        child: const KugoApp(),
+      ),
+    );
+  } catch (_) {
+    NetworkLogHub.bind(null);
+    kugoClient.setLogSink(null);
+    container.dispose();
+    rethrow;
   }
+}
 
-  NetworkLogHub.bind(sink);
-  kugoClient.setLogSink(sink);
-
-  // Restore login session (and device mid) BEFORE any play-url resolve.
-  await container.read(authControllerProvider.notifier).ensureReady();
-
-  // 网易云登录态：把上次落盘的 cookie 灌回共享客户端，否则重启即掉登录。
-  final neteaseLogged = await NeteaseAuthStore.restoreInto(neteaseClient);
-  await BiliAuthStore.restoreInto(biliSource.client);
-
-  // 网易云音源需登录才生效：未登录时把它从启用集清掉（旧数据 / 默认全集都可能
-  // 带着它）。已登录方向**不动**——保留用户在登录态下对网易云的手动停用；
-  // 只有「登录事件」才会重新并入（见 NeteaseLoginController._onConfirmed）。
-  if (!neteaseLogged) {
-    await container
-        .read(settingsControllerProvider.notifier)
-        .setNeteaseAccess(false);
-  }
-
-  // 系统媒体会话：移动端/macOS 走 audio_service 原生实现，Windows 走
-  // audio_service_win（SMTC / 媒体键 / 系统媒体卡）。Linux 仍无实现。
-  // PlayerController 的 bridge 可空，没挂就没有系统媒体 UI。
+Future<void> _startMediaSession(
+  PlayerController player,
+  Brightness initialBrightness,
+) async {
+  // The nullable bridge allows playback even if the system session fails.
   if (hasSystemMediaSession) {
     // Audio attributes + audio focus. Without this the app may not be treated as
     // the active media player, and some car head units then show no progress bar.
@@ -159,26 +207,10 @@ Future<void> _bootApp(List<String> args) async {
       ),
     );
   }
-  await player.restoreOrSeed();
   if (hasLinuxSessionBus) {
     final bridge = await LinuxMediaBridge.start(
       LinuxMediaActions.player(player),
     );
     if (bridge != null) player.attachBridge(bridge);
   }
-
-  // 冷启动认领 FM 会话：播放器队列已恢复，若与 FM 指纹相符就把来源标回 fm，
-  // 播放页才会继续显示 FM 控件（循环/随机位换成「不喜欢」、上一首带边界禁用）。
-  // 必须晚于 restoreOrSeed()，否则队列还没回来无从比对。
-  await container.read(fmControllerProvider.notifier).restore();
-
-  // 桌面壳：托盘 + 关闭到托盘。必须在 settings/player 就绪之后。
-  await DesktopShell.boot(container);
-
-  // Android 悬浮歌词：同进程 MethodChannel，与桌面双进程桥共用 snapshot 协议。
-  await AndroidLyricBridge.boot(container);
-
-  runApp(
-    UncontrolledProviderScope(container: container, child: const KugoApp()),
-  );
 }

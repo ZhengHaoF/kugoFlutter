@@ -90,11 +90,19 @@ class BiliLoginController extends Notifier<BiliLoginState> {
           state = const BiliLoginState(error: '登录态确认失败，请重试');
           return;
         }
-        await ref.read(biliSaveSessionProvider)();
+        var persistenceError = '';
+        try {
+          await ref
+              .read(biliSaveSessionProvider)()
+              .timeout(const Duration(seconds: 8));
+        } catch (_) {
+          persistenceError = '已登录，但安全存储不可用；本次登录无法保存。';
+        }
         if (!_active(gen)) return;
         state = BiliLoginState(
           account: account,
           status: LoginQrStatus.confirmed,
+          error: persistenceError,
         );
         ref.invalidate(sourceLibraryProvider(MusicPlatform.bili));
         return;
@@ -120,9 +128,14 @@ class BiliLoginController extends Notifier<BiliLoginState> {
   Future<void> logout() async {
     stopPolling();
     await _source.logout();
-    await BiliAuthStore.clear();
+    var error = '';
+    try {
+      await BiliAuthStore.clear().timeout(const Duration(seconds: 8));
+    } catch (_) {
+      error = '已退出登录；安全存储清理未完成，请检查系统权限。';
+    }
     if (_disposed) return;
-    state = const BiliLoginState();
+    state = BiliLoginState(error: error);
     ref.invalidate(sourceLibraryProvider(MusicPlatform.bili));
   }
 }

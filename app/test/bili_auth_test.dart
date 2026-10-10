@@ -9,6 +9,7 @@ import 'package:kugo/core/api/bili/bili_qr_login.dart';
 import 'package:kugo/core/source/capabilities.dart';
 import 'package:kugo/data/sources/bili/bili_source.dart';
 import 'package:kugo/data/storage/bili_auth_store.dart';
+import 'package:kugo/data/storage/credential_store.dart';
 import 'package:kugo/features/auth/bili_login_controller.dart';
 import 'package:kugo/features/auth/bili_login_page.dart';
 
@@ -106,7 +107,9 @@ void main() {
     await BiliAuthStore.save(c);
     final prefs = await SharedPreferences.getInstance();
     expect(
-      BiliAuthStore.decode(prefs.getString(BiliAuthStore.key)!)['SESSDATA'],
+      BiliAuthStore.decode(
+        (await CredentialStore.read(BiliAuthStore.key))!,
+      )['SESSDATA'],
       'session',
     );
     await source.logout();

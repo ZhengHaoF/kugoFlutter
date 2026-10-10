@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/data/repositories/login_repository.dart';
 import 'package:kugo/data/storage/device_identity.dart';
+import 'package:kugo/data/storage/credential_store.dart';
 import 'package:kugo/features/auth/auth_controller.dart';
 import 'package:kugo/features/auth/auth_token_holder.dart';
 import 'package:kugo/features/profile/user_profile_detail.dart';
@@ -81,7 +82,7 @@ class _DelayedStore extends InMemorySharedPreferencesStore {
   final release = Completer<void>();
   @override
   Future<bool> setValue(String valueType, String key, Object value) async {
-    if (key == 'flutter.auth.user.v1') {
+    if (key == 'flutter.auth.user.v1.secure.blocked.v1' && value == true) {
       if (!started.isCompleted) started.complete();
       await release.future;
     }
@@ -164,10 +165,7 @@ void main() {
     expect(c.read(authControllerProvider).user!.userId, '200');
     expect(AuthTokenHolder.instance.token, 'TOKEN_200');
     expect(AuthTokenHolder.instance.t1, 'T1_200');
-    expect(
-      (await SharedPreferences.getInstance()).getString('auth.user.v1'),
-      contains('TOKEN_200'),
-    );
+    expect(await CredentialStore.read('auth.user.v1'), contains('TOKEN_200'));
   });
 
   test('logout wins over login profile enrichment', () async {
@@ -287,7 +285,7 @@ void main() {
     repo.gates['TOKEN_100']!.complete(const MyProfile(nickname: 'late'));
     await refresh;
     expect(
-      (await SharedPreferences.getInstance()).getString('auth.user.v1'),
+      await CredentialStore.read('auth.user.v1'),
       contains('nickname=old'),
     );
   });

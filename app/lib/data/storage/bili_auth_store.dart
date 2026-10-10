@@ -1,9 +1,8 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../core/api/bili/bili_client.dart';
 import '../../core/api/bili/bili_cookies.dart';
+import 'credential_store.dart';
 
 /// 与其他音源隔离的本地凭据；不把 Cookie 写进日志或导出文件。
 abstract final class BiliAuthStore {
@@ -22,27 +21,27 @@ abstract final class BiliAuthStore {
   }
 
   static Future<void> restoreInto(BiliClient client) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cookies = decode(prefs.getString(key) ?? '');
+    final revision = CredentialStore.revision(key);
+    final cookies = decode(await CredentialStore.read(key) ?? '');
+    if (revision != CredentialStore.revision(key)) return;
     if (cookies.isEmpty) {
-      await prefs.remove(key);
+      client.clearCookies();
+      await CredentialStore.clear(key);
     } else {
       client.seedCookies(cookies);
     }
   }
 
   static Future<void> save(BiliClient client) async {
-    final prefs = await SharedPreferences.getInstance();
     final cookies = sanitize(client.cookies);
     if (cookies.isEmpty) {
-      await prefs.remove(key);
+      await CredentialStore.clear(key);
     } else {
-      await prefs.setString(key, jsonEncode({'cookies': cookies}));
+      await CredentialStore.write(key, jsonEncode({'cookies': cookies}));
     }
   }
 
   static Future<void> clear() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(key);
+    await CredentialStore.clear(key);
   }
 }
