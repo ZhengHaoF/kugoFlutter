@@ -10,6 +10,7 @@ import '../../core/source/registry.dart';
 import '../../core/theme/kugo_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/netease_login_controller.dart';
+import '../../features/auth/bili_login_controller.dart';
 import '../../features/debug/crash_log_dialog.dart';
 import '../../features/debug/network_log_dialog.dart';
 import '../../core/theme/kugo_theme.dart';
@@ -33,6 +34,7 @@ class SettingsPage extends ConsumerWidget {
     final controller = ref.read(settingsControllerProvider.notifier);
     final auth = ref.watch(authControllerProvider);
     final netease = ref.watch(neteaseLoginControllerProvider);
+    final bili = ref.watch(biliLoginControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
@@ -344,6 +346,17 @@ class SettingsPage extends ConsumerWidget {
                         ref,
                         MusicPlatform.netease,
                       )
+                    : null,
+              ),
+              _AccountTile(
+                icon: Icons.video_library_outlined,
+                platform: MusicPlatform.bili.label,
+                nickname: bili.account?.nickname ?? '',
+                guestHint: '游客可播放，登录后读取收藏夹',
+                onLogin: () => context.push(
+                  bili.isLogged ? '/bili-login?relogin=1' : '/bili-login'),
+                onLogout: bili.isLogged
+                    ? () => confirmAndLogoutSource(context, ref, MusicPlatform.bili)
                     : null,
               ),
             ],

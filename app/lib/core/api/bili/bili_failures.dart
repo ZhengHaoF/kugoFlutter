@@ -18,6 +18,7 @@ abstract final class BiliFailures {
       -403 => UpstreamChanged('$msg（签名被拒：检查 w_rid / mixinKey 是否过期）'),
       -404 => NotFound(msg),
       -412 => RateLimited('$msg（触发风控：退避重试或更换网络环境）'),
+      -352 || -401 => RateLimited('$msg（B 站风控校验失败，请稍后重试或登录）'),
       -101 => const LoginRequired('B 站：需要登录'),
       -105 => const LoginRequired('B 站：需要登录（验证码）'),
       _ => UpstreamChanged(msg),

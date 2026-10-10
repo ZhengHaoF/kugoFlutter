@@ -13,6 +13,7 @@ import 'core/theme/kugo_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
+import 'features/auth/bili_login_page.dart';
 import 'features/auth/netease_login_page.dart';
 import 'features/cloud/cloud_page.dart';
 import 'features/discovery/discovery_page.dart';
@@ -154,6 +155,16 @@ final _routerProvider = Provider<GoRouter>((ref) {
           // `?relogin=1`：设置页「切换账号」进来，直接出新码顶替旧账号；
           // 否则已登录只回显账号、未登录才拉码。
           child: NeteaseLoginPage(
+            forceRelogin: state.uri.queryParameters['relogin'] == '1',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/bili-login',
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          child: BiliLoginPage(
             forceRelogin: state.uri.queryParameters['relogin'] == '1',
           ),
         ),

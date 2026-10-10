@@ -5,6 +5,7 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../auth/auth_controller.dart';
+import '../auth/bili_login_controller.dart';
 import '../auth/netease_login_controller.dart';
 import '../settings/settings_controller.dart';
 
@@ -63,7 +64,8 @@ Future<void> logoutSource(WidgetRef ref, MusicPlatform platform) =>
       MusicPlatform.netease =>
         ref.read(neteaseLoginControllerProvider.notifier).logout(),
       // B 站登录控制器（B3）落地前无可退账号；BiliSource 未注册也到不了这里。
-      MusicPlatform.bili => Future<void>.value(),
+      MusicPlatform.bili =>
+        ref.read(biliLoginControllerProvider.notifier).logout(),
     };
 
 /// 退出该源账号前的二次确认：会掉云端歌单/「我喜欢」与付费播放权限，误点代价高。
@@ -162,7 +164,13 @@ final sourceAccountProvider =
         userId: acc?.userId ?? '',
       );
     case MusicPlatform.bili:
-      // B 站扫码登录（B3）落地前：按游客渲染，不造假账号摘要。
-      return const SourceAccount(platform: MusicPlatform.bili);
+      final acc = ref.watch(biliLoginControllerProvider).account;
+      return SourceAccount(
+        platform: platform,
+        isLogged: acc != null,
+        nickname: acc?.nickname ?? '',
+        avatarUrl: acc?.avatarUrl ?? '',
+        userId: acc?.userId ?? '',
+      );
   }
 });

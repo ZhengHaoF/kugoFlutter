@@ -186,6 +186,12 @@ abstract interface class ArtistDetailSource {
   });
 }
 
+/// UP 主等创作者的合集/系列；不是音乐平台的专辑。
+abstract interface class ArtistContentSource {
+  Future<SearchPageResult<PlaylistBrief>> artistContents(
+    String artistId, {int page = 1});
+}
+
 /// 可播音质目录（酷狗 relate_goods）。无此能力则跳过懒加载。
 abstract interface class QualityCatalogSource {
   Future<({List<RelateGood> goods, bool catalogComplete})?> fetchQualityCatalog(

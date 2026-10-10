@@ -53,6 +53,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
 
   final List<MvBrief> _mvs = [];
   bool _loadingMvs = false;
+  final List<PlaylistBrief> _contents = [];
+  bool _loadingContents = false;
+  bool _moreContents = false;
+  String _contentsError = '';
+  int _contentPage = 0;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -77,7 +82,32 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       _loadDetail(),
       _loadSongs(reset: true),
       _loadMvs(),
+      _loadContents(),
     ]);
+  }
+
+  Future<void> _loadContents() async {
+    final src = musicSourceRegistry?.capability<ArtistContentSource>(widget.platform);
+    if (src == null || _loadingContents) return;
+    setState(() { _loadingContents = true; _contentsError = ''; });
+    try {
+      final page = await src.artistContents(widget.id, page: _contentPage + 1);
+      if (!mounted) return;
+      setState(() {
+        _contentPage++;
+        _contents.addAll(page.items);
+        _moreContents = page.items.isNotEmpty &&
+            (page.total == null ? page.items.length >= 20 : _contents.length < page.total!);
+        _loadingContents = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingContents = false;
+          _contentsError = e.toString();
+        });
+      }
+    }
   }
 
   /// 歌手 MV 条：有 [MvSearchSource] 能力才拉；失败静默（不挡歌曲区）。
@@ -117,7 +147,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     setState(() {
       _artist = null;
       _loading = false;
-      _error = '歌手加载失败：接口不可用或无公开数据';
+      if (_error.isEmpty) _error = '歌手加载失败：接口不可用或无公开数据';
     });
   }
 
@@ -126,7 +156,12 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     final source = musicSourceRegistry
         ?.capability<ArtistDetailSource>(widget.platform);
     if (source == null) return null;
-    return source.fetchArtistDetail(widget.id);
+    try {
+      return await source.fetchArtistDetail(widget.id);
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    }
   }
 
   /// 按源取歌手歌曲分页：网易 D6（offset 分页）与酷狗 page 分页由 Source 消化。
@@ -134,12 +169,13 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     final source = musicSourceRegistry
         ?.capability<ArtistDetailSource>(widget.platform);
     if (source == null) return const ArtistSongsPage();
-    return source.fetchArtistSongsPage(
-      widget.id,
-      page: page,
-      pageSize: 50,
-      sort: _songSort,
-    );
+    try {
+      return await source.fetchArtistSongsPage(
+        widget.id, page: page, pageSize: 50, sort: _songSort);
+    } catch (e) {
+      _songsError = e.toString();
+      return const ArtistSongsPage();
+    }
   }
 
   Future<void> _loadSongs({bool reset = false}) async {
@@ -178,7 +214,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
       _hasMore = result.hasMore;
       _loadingSongs = false;
       _loadingMore = false;
-      if (reset && _songs.isEmpty) {
+      if (reset && _songs.isEmpty && _songsError.isEmpty) {
         _songsError = '暂无公开歌曲';
       }
     });
@@ -389,6 +425,28 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                 mvs: _mvs,
                 loading: _loadingMvs,
                 onOpen: _openMv,
+              ),
+            ),
+          if (_contents.isNotEmpty || _loadingContents || _contentsError.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(KugoSpacing.lg),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Text('合集 / 系列'),
+                  for (final p in _contents) ListTile(
+                    leading: const Icon(Icons.library_music_outlined),
+                    title: Text(p.name),
+                    subtitle: Text('${p.trackCount} 个视频 · ${p.platform.label}'),
+                    onTap: () => context.push(Uri(
+                      path: '/playlist/${p.id}',
+                      queryParameters: {'src': p.platform.wireName},
+                    ).toString(), extra: p),
+                  ),
+                  if (_loadingContents) const Center(child: CircularProgressIndicator()),
+                  if (_contentsError.isNotEmpty) Text(_contentsError),
+                  if (_moreContents || _contentsError.isNotEmpty)
+                    TextButton(onPressed: _loadContents, child: const Text('加载更多 / 重试')),
+                ]),
               ),
             ),
           SliverToBoxAdapter(

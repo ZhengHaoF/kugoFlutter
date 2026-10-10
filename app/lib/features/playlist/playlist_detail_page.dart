@@ -648,6 +648,8 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
             if (!_loading &&
                 tracks.isNotEmpty &&
                 _searchQuery.isEmpty &&
+                musicSourceRegistry?.capability<ResourceCommentSource>(
+                  widget.platform) != null &&
                 !isRankView)
               SliverToBoxAdapter(
                 child: Padding(
