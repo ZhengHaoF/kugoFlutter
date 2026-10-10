@@ -9,6 +9,28 @@ class AuthTokenHolder {
   String guid = 'kugo_flutter_guid';
   String dfid = '';
   String t1 = '';
+  int _generation = 0;
+  int get generation => _generation;
+  final Set<void Function()> _unauthorizedListeners = {};
+
+  void addUnauthorizedListener(void Function() listener) =>
+      _unauthorizedListeners.add(listener);
+
+  void removeUnauthorizedListener(void Function() listener) =>
+      _unauthorizedListeners.remove(listener);
+
+  /// Only an authenticated request from the current generation can expire it.
+  void invalidate(int? requestGeneration) {
+    if (requestGeneration == null ||
+        requestGeneration != _generation ||
+        !hasToken) {
+      return;
+    }
+    clear();
+    for (final listener in List.of(_unauthorizedListeners)) {
+      listener();
+    }
+  }
 
   bool get hasToken => token.isNotEmpty;
 
@@ -33,6 +55,10 @@ class AuthTokenHolder {
     String? dfid,
     String? t1,
   }) {
+    if ((token != null && token != this.token) ||
+        (userId != null && userId != this.userId)) {
+      _generation++;
+    }
     if (token != null) this.token = token;
     if (userId != null) this.userId = userId;
     if (mid != null) this.mid = mid;
@@ -42,6 +68,7 @@ class AuthTokenHolder {
   }
 
   void clear() {
+    _generation++;
     token = '';
     userId = '';
     t1 = '';

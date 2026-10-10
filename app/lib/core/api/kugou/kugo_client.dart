@@ -70,6 +70,10 @@ class KugoClient {
               }.contains(options.uri.host.toLowerCase())) {
             options.headers['Authorization'] = auth.authorizationHeader;
           }
+          if (auth.hasToken &&
+              options.headers['Authorization'] == auth.authorizationHeader) {
+            options.extra['__authGeneration'] = auth.generation;
+          }
           options.extra['__start'] = DateTime.now().millisecondsSinceEpoch;
           options.extra['__id'] =
               '${DateTime.now().microsecondsSinceEpoch}-${options.uri}';
@@ -89,6 +93,11 @@ class KugoClient {
           handler.next(options);
         },
         onResponse: (res, handler) {
+          if (res.statusCode == 401) {
+            AuthTokenHolder.instance.invalidate(
+              res.requestOptions.extra['__authGeneration'] as int?,
+            );
+          }
           final start =
               res.requestOptions.extra['__start'] as int? ??
               DateTime.now().millisecondsSinceEpoch;
@@ -112,7 +121,9 @@ class KugoClient {
         },
         onError: (err, handler) {
           if (err.response?.statusCode == 401) {
-            AuthTokenHolder.instance.clear();
+            AuthTokenHolder.instance.invalidate(
+              err.requestOptions.extra['__authGeneration'] as int?,
+            );
           }
           final start =
               err.requestOptions.extra['__start'] as int? ??

@@ -193,10 +193,7 @@ void main() {
       expect(await cache.get(url), isNotNull);
       expect(cache.peek(url), isNotNull);
 
-      // 落盘了（异步写，给几轮事件循环）。
-      for (var i = 0; i < 10; i++) {
-        await Future<void>.delayed(Duration.zero);
-      }
+      await cache.flushDiskWrites();
       expect(File(diskPathOf(url)).existsSync(), isTrue);
     });
 

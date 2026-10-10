@@ -27,12 +27,16 @@ class FakeAudioPlayer implements AudioPlayerPort {
   Stream<PlayerIdleReason> get completionStream => _complete.stream;
 
   @override
-  Future<void> playUrl(String url, {Map<String, String>? headers}) async {
+  Future<void> playUrl(
+    String url, {
+    Map<String, String>? headers,
+    bool play = true,
+  }) async {
     lastUrl = url;
     // Real engines reset the cursor when a new source is set.
     position = Duration.zero;
-    playing = true;
-    _playing.add(true);
+    playing = play;
+    _playing.add(play);
   }
 
   @override

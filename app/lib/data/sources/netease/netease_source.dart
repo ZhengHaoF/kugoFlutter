@@ -113,8 +113,12 @@ class NeteaseSource
     int page = 1,
     int pageSize = 30,
   }) async {
-    final raw =
-        await _search(keyword, page, pageSize, _NeteaseSearchKind.playlist);
+    final raw = await _search(
+      keyword,
+      page,
+      pageSize,
+      _NeteaseSearchKind.playlist,
+    );
     return mapNeteaseSearchPlaylists(raw);
   }
 
@@ -124,8 +128,12 @@ class NeteaseSource
     int page = 1,
     int pageSize = 30,
   }) async {
-    final raw =
-        await _search(keyword, page, pageSize, _NeteaseSearchKind.album);
+    final raw = await _search(
+      keyword,
+      page,
+      pageSize,
+      _NeteaseSearchKind.album,
+    );
     return mapNeteaseSearchAlbums(raw);
   }
 
@@ -135,8 +143,12 @@ class NeteaseSource
     int page = 1,
     int pageSize = 30,
   }) async {
-    final raw =
-        await _search(keyword, page, pageSize, _NeteaseSearchKind.artist);
+    final raw = await _search(
+      keyword,
+      page,
+      pageSize,
+      _NeteaseSearchKind.artist,
+    );
     return mapNeteaseSearchArtists(raw);
   }
 
@@ -230,10 +242,7 @@ class NeteaseSource
     if (!_client.hasLogin) {
       throw const LoginRequired('请先登录网易云后操作云盘');
     }
-    throwIfNeteaseWriteFailed(
-      await _client.cloudDiskDeleteRaw(ids),
-      '云盘删除',
-    );
+    throwIfNeteaseWriteFailed(await _client.cloudDiskDeleteRaw(ids), '云盘删除');
   }
 
   /// J5 云盘歌词。uid 走 [currentAccount]（与歌单/我喜欢同源）并缓存——
@@ -288,12 +297,13 @@ class NeteaseSource
   }) async {
     final pid = int.tryParse(id.trim()) ?? 0;
     if (pid <= 0) return null;
-    final detail = mapNeteasePlaylistDetail(await _client.playlistDetailRaw(pid));
+    final detail = mapNeteasePlaylistDetail(
+      await _client.playlistDetailRaw(pid),
+    );
     if (detail == null || detail.tracks.isEmpty) return null;
-    final brief =
-        preferRank && !detail.brief.isRank
-            ? detail.brief.copyWith(isRank: true)
-            : detail.brief;
+    final brief = preferRank && !detail.brief.isRank
+        ? detail.brief.copyWith(isRank: true)
+        : detail.brief;
     return (brief: brief, tracks: detail.tracks);
   }
 
@@ -443,10 +453,7 @@ class NeteaseSource
   }) async {
     final r = region.trim();
     return mapNeteaseNewAlbums(
-      await _client.albumNewRaw(
-        area: r.isEmpty ? 'ALL' : r,
-        limit: pageSize,
-      ),
+      await _client.albumNewRaw(area: r.isEmpty ? 'ALL' : r, limit: pageSize),
     );
   }
 
@@ -671,7 +678,16 @@ class NeteaseSource
     final res = await _client.pollQrLogin(payload);
     final status = mapNeteaseQrStatus(res.code);
     if (status == LoginQrStatus.confirmed) {
-      await _client.confirmQrLogin(refreshToken: res.refreshToken);
+      final confirmed = await _client.confirmQrLogin(
+        refreshToken: res.refreshToken,
+        generation: payload.generation,
+      );
+      if (!confirmed) {
+        return const LoginQrPoll(
+          status: LoginQrStatus.expired,
+          message: '新扫码会话未取得有效凭据，请重新扫码',
+        );
+      }
     }
     return LoginQrPoll(status: status, message: res.message);
   }
@@ -823,7 +839,9 @@ class NeteaseSource
     int pageSize = 20,
   }) async {
     _commentError = '';
-    final threadId = childrenId.isNotEmpty ? childrenId : 'R_SO_4_${_songId(track)}';
+    final threadId = childrenId.isNotEmpty
+        ? childrenId
+        : 'R_SO_4_${_songId(track)}';
     try {
       return await _fetchFloor(
         threadId,
@@ -896,8 +914,10 @@ class NeteaseSource
   }
 
   @override
-  Future<int?> resourceCommentCount(CommentResourceKind kind, String id) async =>
-      null;
+  Future<int?> resourceCommentCount(
+    CommentResourceKind kind,
+    String id,
+  ) async => null;
 
   // ── N2 写侧（发评论 / 回复 / 点赞） ────────────────────────
 
@@ -915,11 +935,11 @@ class NeteaseSource
 
   /// 业务码 → 用户可读文案（301 最常见：登录态失效）。
   static String _writeFailText(int code) => switch (code) {
-        301 || 302 || 800 || 801 || 802 || 803 => '登录状态已失效，请重新登录',
-        -460 || -462 || 405 => '操作太频繁，请稍后再试',
-        403 => '没有权限执行该操作',
-        _ => '操作失败（code=$code）',
-      };
+    301 || 302 || 800 || 801 || 802 || 803 => '登录状态已失效，请重新登录',
+    -460 || -462 || 405 => '操作太频繁，请稍后再试',
+    403 => '没有权限执行该操作',
+    _ => '操作失败（code=$code）',
+  };
 
   /// E3 / E4 的 threadId：优先用评论池（它对网易就是 threadId），
   /// 没有则从 track 拼 —— 与读侧同一个口径。
@@ -1040,12 +1060,12 @@ final neteaseSource = NeteaseSource();
 
 /// E3 状态码 → [LoginQrStatus]（800 过期 / 801 待扫 / 802 待确认 / 803 成功）。
 LoginQrStatus mapNeteaseQrStatus(int code) => switch (code) {
-      800 => LoginQrStatus.expired,
-      801 => LoginQrStatus.waiting,
-      802 => LoginQrStatus.scanned,
-      803 => LoginQrStatus.confirmed,
-      _ => LoginQrStatus.unknown,
-    };
+  800 => LoginQrStatus.expired,
+  801 => LoginQrStatus.waiting,
+  802 => LoginQrStatus.scanned,
+  803 => LoginQrStatus.confirmed,
+  _ => LoginQrStatus.unknown,
+};
 
 /// A1c 分类搜索的 `type` 取值（实测：1 单曲 / 10 专辑 / 100 歌手 / 1000 歌单）。
 enum _NeteaseSearchKind {

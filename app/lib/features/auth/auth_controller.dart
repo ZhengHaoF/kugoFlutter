@@ -169,7 +169,13 @@ class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() {
     _disposed = false;
+    void unauthorized() {
+      if (!_disposed) unawaited(onUnauthorized());
+    }
+
+    AuthTokenHolder.instance.addUnauthorizedListener(unauthorized);
     ref.onDispose(() {
+      AuthTokenHolder.instance.removeUnauthorizedListener(unauthorized);
       _disposed = true;
       _sessionEpoch++;
       _countdownTimer?.cancel();

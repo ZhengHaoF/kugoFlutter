@@ -14,31 +14,42 @@ import '../network_log.dart';
 /// 对齐 NeriPlayer `NeteaseClient` 的请求形态；不做完整 CookieJar 持久化。
 class NeteaseClient {
   NeteaseClient({Dio? dio})
-      : _dio = dio ??
-            Dio(
-              BaseOptions(
-                connectTimeout: const Duration(seconds: 12),
-                receiveTimeout: const Duration(seconds: 15),
-                // 避免 br：一期用 gzip/deflate 即可。
-                headers: {
-                  'Accept': '*/*',
-                  'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
-                  'Accept-Encoding': 'gzip, deflate',
-                  'Connection': 'keep-alive',
-                  'Referer': NeteaseEndpoints.mainHost,
-                  'User-Agent': _ua,
-                },
-                responseType: ResponseType.plain,
-                validateStatus: (c) => c != null && c >= 200 && c < 500,
-              ),
-            ) {
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 12),
+              receiveTimeout: const Duration(seconds: 15),
+              // 避免 br：一期用 gzip/deflate 即可。
+              headers: {
+                'Accept': '*/*',
+                'Accept-Language': 'zh-CN,zh-Hans;q=0.9',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Referer': NeteaseEndpoints.mainHost,
+                'User-Agent': _ua,
+              },
+              responseType: ResponseType.plain,
+              validateStatus: (c) => c != null && c >= 200 && c < 500,
+            ),
+          ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
           options.extra['__start'] = DateTime.now().millisecondsSinceEpoch;
           options.extra['__id'] =
               '${DateTime.now().microsecondsSinceEpoch}-${options.uri}';
-          if (_cookies.isNotEmpty) {
+          if (options.extra['__usePersistedCookies'] == false) {
+            // Explicit Cookie is QR-only; never inherit Dio default headers.
+            for (final key in options.headers.keys.toList()) {
+              if (key.toLowerCase() == 'cookie') options.headers.remove(key);
+            }
+            if (options.extra['__qrRequest'] == true && _qrCookies.isNotEmpty) {
+              options.headers['Cookie'] = _qrCookies.entries
+                  .map((e) => '${e.key}=${e.value}')
+                  .join('; ');
+            }
+          } else if (_cookies.isNotEmpty) {
             options.headers['Cookie'] = _cookieHeader();
           }
           NetworkLogHub.emit(
@@ -58,7 +69,8 @@ class NeteaseClient {
           _absorbSetCookie(res);
           NetworkLogHub.emit(
             NetworkLog(
-              id: res.requestOptions.extra['__id'] as String? ??
+              id:
+                  res.requestOptions.extra['__id'] as String? ??
                   res.requestOptions.uri.toString(),
               type: NetworkLogType.response,
               timestamp: DateTime.now(),
@@ -67,7 +79,8 @@ class NeteaseClient {
               statusCode: res.statusCode,
               data: truncateLogData(res.data),
               duration: Duration(
-                milliseconds: DateTime.now().millisecondsSinceEpoch -
+                milliseconds:
+                    DateTime.now().millisecondsSinceEpoch -
                     (res.requestOptions.extra['__start'] as int? ??
                         DateTime.now().millisecondsSinceEpoch),
               ),
@@ -90,6 +103,8 @@ class NeteaseClient {
     '_ntes_nuid': _randomHex(32),
     'NMTID': _randomHex(32),
   };
+  final Map<String, String> _qrCookies = {};
+  int _qrGeneration = 0;
   bool _preheated = false;
 
   static final Random _rnd = Random.secure();
@@ -125,6 +140,12 @@ class NeteaseClient {
       _cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
 
   void _absorbSetCookie(Response res) {
+    final isolated = res.requestOptions.extra['__qrRequest'] == true;
+    if (isolated &&
+        res.requestOptions.extra['__qrGeneration'] != _qrGeneration) {
+      return;
+    }
+    final target = isolated ? _qrCookies : _cookies;
     final raw = res.headers.map['set-cookie'];
     if (raw == null) return;
     for (final line in raw) {
@@ -135,9 +156,9 @@ class NeteaseClient {
       final value = first.substring(eq + 1).trim();
       if (name.isEmpty) continue;
       if (value.isEmpty || value == 'deleted') {
-        _cookies.remove(name);
+        target.remove(name);
       } else {
-        _cookies[name] = value;
+        target[name] = value;
       }
     }
   }
@@ -158,8 +179,10 @@ class NeteaseClient {
       );
       // eslint-disable-next-line — debug: status + set-cookie 数量
       // ignore: avoid_print
-      print('[preheat] status=${res.statusCode} '
-          'setCookie=${res.headers.map['set-cookie']?.length ?? 0}');
+      print(
+        '[preheat] status=${res.statusCode} '
+        'setCookie=${res.headers.map['set-cookie']?.length ?? 0}',
+      );
     } catch (e) {
       // ignore: avoid_print
       print('[preheat] failed: $e');
@@ -282,19 +305,26 @@ class NeteaseClient {
 
     // 显式 UTF-8 表单体，避免 Dio 对 Map 的编码差异。
     final form = body.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     final res = await _dio.post<String>(
       reqUri.toString(),
       data: form,
       options: Options(
+        extra: {
+          '__usePersistedCookies': usePersistedCookies,
+          '__qrRequest':
+              !usePersistedCookies &&
+              (uri.path == NeteaseEndpoints.qrUnikey ||
+                  uri.path == NeteaseEndpoints.qrCheck),
+          '__qrGeneration': _qrGeneration,
+        },
         contentType: 'application/x-www-form-urlencoded; charset=utf-8',
         responseType: ResponseType.plain,
-        headers: {
-          'Origin': NeteaseEndpoints.mainHost,
-          ...?extraHeaders,
-        },
+        headers: {'Origin': NeteaseEndpoints.mainHost, ...?extraHeaders},
       ),
     );
     return (
@@ -340,12 +370,7 @@ class NeteaseClient {
   }) {
     return callWeApi(
       NeteaseEndpoints.search,
-      searchParams(
-        keyword: keyword,
-        limit: limit,
-        offset: offset,
-        type: type,
-      ),
+      searchParams(keyword: keyword, limit: limit, offset: offset, type: type),
     );
   }
 
@@ -383,8 +408,10 @@ class NeteaseClient {
         final raw = await call();
         final code = RegExp(r'"code"\s*:\s*(-?\d+)').firstMatch(raw)?.group(1);
         // ignore: avoid_print
-        print('[A1-try $label] code=$code len=${raw.length} '
-            '${raw.substring(0, raw.length.clamp(0, 140))}');
+        print(
+          '[A1-try $label] code=$code len=${raw.length} '
+          '${raw.substring(0, raw.length.clamp(0, 140))}',
+        );
         if (code == '200') return raw;
       } catch (err) {
         // ignore: avoid_print
@@ -448,8 +475,10 @@ class NeteaseClient {
       ).replace(queryParameters: {'csrf_token': csrf});
       final enc = NeteaseCrypto.weApiEncrypt(body);
       final form = enc.entries
-          .map((e) =>
-              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+          .map(
+            (e) =>
+                '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+          )
           .join('&');
       final res = await _dio.post<String>(
         uri.toString(),
@@ -468,10 +497,7 @@ class NeteaseClient {
 
   // ── A2 播放 URL ──────────────────────────────────────────
 
-  Future<String> songPlayUrlRaw(
-    int songId, {
-    String level = 'exhigh',
-  }) {
+  Future<String> songPlayUrlRaw(int songId, {String level = 'exhigh'}) {
     return _retryOnceOnLoginRequired(
       () => callEApi(NeteaseEndpoints.songPlayUrlV1, {
         'ids': '[$songId]',
@@ -700,7 +726,8 @@ class NeteaseClient {
     final code = RegExp(r'"code"\s*:\s*(-?\d+)').firstMatch(raw)?.group(1);
     if (code != null && code != '200') {
       final msg =
-          RegExp(r'"msg"\s*:\s*"([^"]*)"').firstMatch(raw)?.group(1) ?? '云盘导入失败';
+          RegExp(r'"msg"\s*:\s*"([^"]*)"').firstMatch(raw)?.group(1) ??
+          '云盘导入失败';
       throw UpstreamChanged('云盘信息上传失败（$code）：$msg');
     }
   }
@@ -708,7 +735,8 @@ class NeteaseClient {
   // ── 扫码登录（E2/E3，对齐 Neri `NeteaseQrLoginClient`） ─────
 
   /// Neri 扫码链路专用桌面 UA（与常规探测 UA 不同）。
-  static const _qrUa = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+  static const _qrUa =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 '
       'Edg/149.0.0.0';
 
@@ -724,13 +752,13 @@ class NeteaseClient {
   static final RegExp _msgRe = RegExp(r'"(?:message|msg)"\s*:\s*"([^"]*)"');
 
   /// 从响应体取 `message`/`msg`（无则空串）。
-  static String messageOf(String raw) =>
-      _msgRe.firstMatch(raw)?.group(1) ?? '';
+  static String messageOf(String raw) => _msgRe.firstMatch(raw)?.group(1) ?? '';
 
   /// chainId 格式：`v1_{sDeviceId|unknown-N}_web_login_{ms}`（Neri L404-408）。
   static String buildLoginChainId({String sDeviceId = ''}) {
-    final deviceId =
-        sDeviceId.isEmpty ? 'unknown-${_rnd.nextInt(1000000)}' : sDeviceId;
+    final deviceId = sDeviceId.isEmpty
+        ? 'unknown-${_rnd.nextInt(1000000)}'
+        : sDeviceId;
     return 'v1_${deviceId}_web_login_${DateTime.now().millisecondsSinceEpoch}';
   }
 
@@ -738,14 +766,15 @@ class NeteaseClient {
   static String buildScanLoginUrl(String key, String chainId) {
     return Uri.parse('${NeteaseEndpoints.mainHost}/st/platform/scanlogin')
         .replace(
-      queryParameters: {
-        'codekey': key,
-        'chainId': chainId,
-        'hdw_device': 'web',
-        'hdw_appid': 'web',
-        'hitExp': '1',
-      },
-    ).toString();
+          queryParameters: {
+            'codekey': key,
+            'chainId': chainId,
+            'hdw_device': 'web',
+            'hdw_appid': 'web',
+            'hitExp': '1',
+          },
+        )
+        .toString();
   }
 
   /// 合并 cookies + refresh token（`MUSIC_U` 缺失时用 refresh token 顶替）。
@@ -767,6 +796,9 @@ class NeteaseClient {
   ///
   /// 不发 csrf / 不预热（对齐 Neri：QR 走独立客户端，不做 weapi 预热）。
   Future<NeteaseQrSession> createQrSession() async {
+    _qrGeneration++;
+    _qrCookies.clear();
+    final generation = _qrGeneration;
     final raw = await _request(
       url: '${NeteaseEndpoints.mainHost}${NeteaseEndpoints.qrUnikey}',
       params: {'type': 1, 'noCheckToken': true},
@@ -777,12 +809,11 @@ class NeteaseClient {
     final code = bodyCode(raw);
     final key = _unikeyRe.firstMatch(raw)?.group(1)?.trim() ?? '';
     if (code != 200 || key.isEmpty) {
-      throw UpstreamChanged(
-        '扫码会话创建失败 code=$code ${messageOf(raw)}'.trim(),
-      );
+      throw UpstreamChanged('扫码会话创建失败 code=$code ${messageOf(raw)}'.trim());
     }
     final chainId = buildLoginChainId();
     return NeteaseQrSession(
+      generation: generation,
       key: key,
       chainId: chainId,
       qrContent: buildScanLoginUrl(key, chainId),
@@ -798,6 +829,9 @@ class NeteaseClient {
     NeteaseQrSession session, {
     String ydDeviceToken = '',
   }) async {
+    if (session.generation != _qrGeneration) {
+      return const NeteaseQrCheckResult(code: 800, message: '扫码会话已失效');
+    }
     final res = await _requestDetailed(
       url: '${NeteaseEndpoints.mainHost}${NeteaseEndpoints.qrCheck}',
       params: {
@@ -822,15 +856,21 @@ class NeteaseClient {
   }
 
   /// 803 后的登录态确认（Neri `verifyConfirmedLogin` L307-339）：
-  /// 先直接验账号；失败则把 `x-refresh-token` 当 `MUSIC_U` 合并后再验一次；
-  /// 仍失败则保留该凭据（尽力而为）。
-  Future<bool> confirmQrLogin({required String refreshToken}) async {
-    if (await _verifyAccount()) return true;
-    final credential = mergeQrCredentialCookies(cookies, refreshToken);
+  /// 仅提交新扫码会话的 Cookie/refresh token，不把旧登录当作扫码成功。
+  /// 账号核验失败时仍保留新凭据（既有尽力而为语义）。
+  Future<bool> confirmQrLogin({
+    required String refreshToken,
+    int? generation,
+  }) async {
+    final expected = generation ?? _qrGeneration;
+    if (expected != _qrGeneration) return false;
+    final credential = mergeQrCredentialCookies(_qrCookies, refreshToken);
     if ((credential['MUSIC_U'] ?? '').isEmpty) return false;
+    reset();
     seedCookies(credential);
-    if (await _verifyAccount()) return true;
-    return hasLogin;
+    final verified = await _verifyAccount();
+    if (expected != _qrGeneration) return false;
+    return verified || hasLogin;
   }
 
   /// 把外部 cookies（持久化恢复 / refresh token 兜底）灌回内存会话。
@@ -843,6 +883,8 @@ class NeteaseClient {
 
   /// 退出登录：清掉登录凭据（本地登出，不调远端 logout 口）。
   void clearLogin() {
+    _qrGeneration++;
+    _qrCookies.clear();
     _cookies.remove('MUSIC_U');
     _cookies.remove('__csrf');
     _preheated = false;
@@ -869,17 +911,13 @@ class NeteaseClient {
     String password, {
     int countryCode = 86,
   }) {
-    return callEApi(
-      NeteaseEndpoints.loginCellphone,
-      {
-        'phone': phone,
-        'countrycode': countryCode,
-        'remember': 'true',
-        'password': NeteaseCrypto.md5Hex(password),
-        'type': '1',
-      },
-      usePersistedCookies: false,
-    );
+    return callEApi(NeteaseEndpoints.loginCellphone, {
+      'phone': phone,
+      'countrycode': countryCode,
+      'remember': 'true',
+      'password': NeteaseCrypto.md5Hex(password),
+      'type': '1',
+    }, usePersistedCookies: false);
   }
 
   /// 短信验证码登录。
@@ -888,17 +926,13 @@ class NeteaseClient {
     String captcha, {
     int ctcode = 86,
   }) {
-    return callEApi(
-      NeteaseEndpoints.loginCellphone,
-      {
-        'phone': phone,
-        'countrycode': ctcode,
-        'remember': 'true',
-        'type': '1',
-        'captcha': captcha,
-      },
-      usePersistedCookies: false,
-    );
+    return callEApi(NeteaseEndpoints.loginCellphone, {
+      'phone': phone,
+      'countrycode': ctcode,
+      'remember': 'true',
+      'type': '1',
+      'captcha': captcha,
+    }, usePersistedCookies: false);
   }
 
   /// 发送短信验证码（interface host weapi）。
@@ -919,11 +953,7 @@ class NeteaseClient {
   }) {
     return callWeApi(
       NeteaseEndpoints.smsVerify,
-      {
-        'cellphone': phone,
-        'captcha': captcha,
-        'ctcode': ctcode.toString(),
-      },
+      {'cellphone': phone, 'captcha': captcha, 'ctcode': ctcode.toString()},
       host: NeteaseEndpoints.interfaceHost,
       usePersistedCookies: false,
     );
@@ -931,7 +961,11 @@ class NeteaseClient {
 
   // ── 我喜欢 / 用户歌单 ─────────────────────────────────────
 
-  Future<String> userPlaylistsRaw(int userId, {int offset = 0, int limit = 30}) {
+  Future<String> userPlaylistsRaw(
+    int userId, {
+    int offset = 0,
+    int limit = 30,
+  }) {
     return callWeApi(NeteaseEndpoints.userPlaylist, {
       'uid': userId.toString(),
       'offset': offset.toString(),
@@ -941,9 +975,7 @@ class NeteaseClient {
   }
 
   Future<String> likedSongIdsRaw(int userId) {
-    return callWeApi(NeteaseEndpoints.songLikeGet, {
-      'uid': userId.toString(),
-    });
+    return callWeApi(NeteaseEndpoints.songLikeGet, {'uid': userId.toString()});
   }
 
   Future<String> likeSongRaw(int songId, {bool like = true, int? time}) {
@@ -982,25 +1014,25 @@ class NeteaseClient {
 
   /// 收藏专辑（interface3 eapi）。
   Future<String> userAlbumsRaw(int userId, {int offset = 0, int limit = 30}) {
-    return callEApi(
-      NeteaseEndpoints.userAlbums,
-      {
-        'userId': userId.toString(),
-        'offset': offset.toString(),
-        'limit': limit.toString(),
-        'pageType': '3',
-        'needRcmd': '0',
-        'isVistor': 'false',
-        'includeStarPodcast': 'true',
-      },
-      host: NeteaseEndpoints.interface3Host,
-    );
+    return callEApi(NeteaseEndpoints.userAlbums, {
+      'userId': userId.toString(),
+      'offset': offset.toString(),
+      'limit': limit.toString(),
+      'pageType': '3',
+      'needRcmd': '0',
+      'isVistor': 'false',
+      'includeStarPodcast': 'true',
+    }, host: NeteaseEndpoints.interface3Host);
   }
 
   // ── 详情：歌单 / 专辑 / 歌人（对齐 Neri） ────────────────────
 
   /// `POST /api/v6/playlist/detail`（明文 CryptoMode.API）。
-  Future<String> playlistDetailRaw(int playlistId, {int n = 100000, int s = 8}) {
+  Future<String> playlistDetailRaw(
+    int playlistId, {
+    int n = 100000,
+    int s = 8,
+  }) {
     return callPlainApi(NeteaseEndpoints.playlistDetail, {
       'id': playlistId.toString(),
       'n': n.toString(),
@@ -1123,11 +1155,10 @@ class NeteaseClient {
 
   /// `POST /weapi/v1/album/{id}`（interface host）。
   Future<String> albumDetailRaw(int albumId, {int n = 100000, int s = 8}) {
-    return callWeApi(
-      '${NeteaseEndpoints.albumDetail}$albumId',
-      {'n': n.toString(), 's': s.toString()},
-      host: NeteaseEndpoints.interfaceHost,
-    );
+    return callWeApi('${NeteaseEndpoints.albumDetail}$albumId', {
+      'n': n.toString(),
+      's': s.toString(),
+    }, host: NeteaseEndpoints.interfaceHost);
   }
 
   Future<String> artistDetailRaw(int artistId) {
@@ -1158,7 +1189,11 @@ class NeteaseClient {
     });
   }
 
-  Future<String> artistAlbumsRaw(int artistId, {int offset = 0, int limit = 30}) {
+  Future<String> artistAlbumsRaw(
+    int artistId, {
+    int offset = 0,
+    int limit = 30,
+  }) {
     return callPlainApi('${NeteaseEndpoints.artistAlbums}$artistId', {
       'limit': limit.toString(),
       'offset': offset.toString(),
@@ -1383,11 +1418,13 @@ class NeteaseQrSession {
     required this.key,
     required this.chainId,
     required this.qrContent,
+    this.generation = 0,
   });
 
   final String key;
   final String chainId;
   final String qrContent;
+  final int generation;
 }
 
 /// 扫码轮询结果（800 过期 / 801 待扫 / 802 待确认 / 803 成功）。
@@ -1484,8 +1521,12 @@ List<ProbeSong> parseProbeSongs(String raw) {
           var pic = album is Map ? '${album['picUrl'] ?? ''}' : '';
           // 旧 search/get：album.artist / album.picUrl 等。
           if (album is Map) {
-            albumName = albumName.isEmpty ? '${album['name'] ?? ''}' : albumName;
-            pic = pic.isEmpty ? '${album['picUrl'] ?? album['blurPicUrl'] ?? ''}' : pic;
+            albumName = albumName.isEmpty
+                ? '${album['name'] ?? ''}'
+                : albumName;
+            pic = pic.isEmpty
+                ? '${album['picUrl'] ?? album['blurPicUrl'] ?? ''}'
+                : pic;
           }
           final artistList = <String>[];
           if (artists is List) {
@@ -1536,7 +1577,7 @@ ProbePlayUrl parseProbePlayUrl(String raw) {
   if (url.isEmpty || url == 'null') {
     final cannot = (m['freeTrialPrivilege'] is Map)
         ? ((m['freeTrialPrivilege'] as Map)['cannotListenReason'] as num?)
-            ?.toInt()
+              ?.toInt()
         : null;
     throw mapNeteasePlayFailure(
       dataCode: dataCode,
@@ -1673,9 +1714,11 @@ Map<String, Object?> parseProbeRecommend(String raw, {String label = ''}) {
   if (result is List) {
     list = result;
   } else if (result is Map) {
-    list = (result['songs'] ?? result['tracks'] ?? result['dailySongs']) as List?;
+    list =
+        (result['songs'] ?? result['tracks'] ?? result['dailySongs']) as List?;
   }
-  list ??= (root['playlists'] as List?) ??
+  list ??=
+      (root['playlists'] as List?) ??
       (root['recommend'] as List?) ??
       (data is List ? data : null) ??
       (data is Map ? (data['dailySongs'] as List?) : null);
@@ -1705,9 +1748,7 @@ Map<String, Object?> parseProbeToplist(String raw) {
     final cover = e['coverImgUrl'];
     if (cover is String && cover.isNotEmpty) withCovers++;
   }
-  final first = list.isNotEmpty && list.first is Map
-      ? list.first as Map
-      : null;
+  final first = list.isNotEmpty && list.first is Map ? list.first as Map : null;
   // 体积观测：63 榜里若每条都带整榜 `tracks`，响应会到 MB 级，就不适合每次
   // 首页加载都真拉。`firstTracks` 与首条曲目的键名用于判断 tracks 是「整对象」
   // 还是「仅 id」。
@@ -1722,8 +1763,9 @@ Map<String, Object?> parseProbeToplist(String raw) {
     'bytes': raw.length,
     'firstKeys': first?.keys.take(14).join(','),
     'firstTracks': firstTracks?.length ?? 0,
-    'firstTrackKeys':
-        firstTrack is Map ? firstTrack.keys.take(10).join(',') : 'n/a',
+    'firstTrackKeys': firstTrack is Map
+        ? firstTrack.keys.take(10).join(',')
+        : 'n/a',
     'boards': boards.join(' | '),
   };
 }
@@ -1744,8 +1786,8 @@ Map<String, Object?> parseProbeAlbumNew(String raw, {String label = ''}) {
   final artists = first?['artists'];
   final firstArtist =
       artists is List && artists.isNotEmpty && artists.first is Map
-          ? artists.first as Map
-          : null;
+      ? artists.first as Map
+      : null;
   final cover = first?['picUrl'];
   return {
     'code': root['code'],
@@ -1755,7 +1797,7 @@ Map<String, Object?> parseProbeAlbumNew(String raw, {String label = ''}) {
     'first': first == null
         ? null
         : '${first['name']}(${first['id']}) size=${first['size']}'
-            ' art=${firstArtist?['name'] ?? 'n/a'}',
+              ' art=${firstArtist?['name'] ?? 'n/a'}',
     'head': _probeHead(list),
     'firstKeys': first?.keys.take(12).join(','),
     'cover': cover is String && cover.isNotEmpty,
@@ -1785,8 +1827,8 @@ Map<String, Object?> parseProbeArtistList(String raw, {String label = ''}) {
     'first': first == null
         ? null
         : '${first['name']}(${first['id']})'
-            ' mus=${first['musicSize']} alb=${first['albumSize']}'
-            ' alias=${alias is List ? alias.take(2).join('/') : ''}',
+              ' mus=${first['musicSize']} alb=${first['albumSize']}'
+              ' alias=${alias is List ? alias.take(2).join('/') : ''}',
     'head': _probeHead(list),
     'firstKeys': first?.keys.take(12).join(','),
     'cover': cover is String && cover.isNotEmpty,
@@ -1796,10 +1838,7 @@ Map<String, Object?> parseProbeArtistList(String raw, {String label = ''}) {
 
 /// 探针用：从响应里挖出列表，兼容 `key[]` / `result.key[]`。
 List _probeList(Map<String, dynamic> root, List<String> keys) {
-  final scopes = <Map>[
-    root,
-    if (root['result'] is Map) root['result'] as Map,
-  ];
+  final scopes = <Map>[root, if (root['result'] is Map) root['result'] as Map];
   for (final scope in scopes) {
     for (final k in keys) {
       final v = scope[k];
@@ -2017,9 +2056,7 @@ Map<String, Object?> parseProbeCloudList(String raw) {
     'size': root['size'],
     'maxSize': root['maxSize'],
     'bytes': raw.length,
-    'firstRaw': first == null
-        ? 'n/a'
-        : (_shortJson(first) ),
+    'firstRaw': first == null ? 'n/a' : (_shortJson(first)),
   };
 }
 
@@ -2057,12 +2094,8 @@ Map<String, Object?> parseProbeCloudDetail(String raw) {
     'lyricId': first['lyricId'],
     'matchType': first['matchType'],
     'version': first['version'],
-    'album': first['album'] is Map
-        ? (first['album'] as Map)['name']
-        : null,
-    'artist': first['artist'] is Map
-        ? (first['artist'] as Map)['name']
-        : null,
+    'album': first['album'] is Map ? (first['album'] as Map)['name'] : null,
+    'artist': first['artist'] is Map ? (first['artist'] as Map)['name'] : null,
   };
 }
 

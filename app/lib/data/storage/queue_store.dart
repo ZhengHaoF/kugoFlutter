@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
+import '../../core/source/music_platform.dart';
 import 'kugo_db.dart';
 
 /// Queue + play-history persistence backed by Drift (SQLite).
@@ -54,7 +55,7 @@ class QueueStore {
   ({List<Track> queue, int index, String mode})? loadQueue() => _queueCache;
 
   Future<({List<Track> queue, int index, String mode})?>
-      loadQueueAsync() async {
+  loadQueueAsync() async {
     final q = await _db.readQueue();
     _queueCache = q;
     return q;
@@ -62,9 +63,13 @@ class QueueStore {
 
   Future<void> appendHistory(Track track) async {
     await _db.appendHistory(track);
-    final next = [track, ..._historyCache.where((t) => t.id != track.id)];
-    _historyCache =
-        next.length > 200 ? next.sublist(0, 200) : List.unmodifiable(next);
+    final next = [
+      track,
+      ..._historyCache.where((t) => t.identityKey != track.identityKey),
+    ];
+    _historyCache = next.length > 200
+        ? next.sublist(0, 200)
+        : List.unmodifiable(next);
   }
 
   List<Track> loadHistory() => _historyCache;
@@ -84,9 +89,14 @@ class QueueStore {
     return _db.readHistoryEntries();
   }
 
-  Future<void> deleteHistory(String trackId) async {
-    await _db.deleteHistory(trackId);
-    _historyCache = _historyCache.where((t) => t.id != trackId).toList();
+  Future<void> deleteHistory(
+    String trackId, {
+    MusicPlatform platform = MusicPlatform.kugou,
+  }) async {
+    await _db.deleteHistory(trackId, platform: platform);
+    _historyCache = _historyCache
+        .where((t) => t.id != trackId || t.platform != platform)
+        .toList();
   }
 
   Future<void> clearHistory() async {
