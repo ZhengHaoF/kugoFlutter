@@ -49,18 +49,22 @@
 | 项目 | 当前证据 | 边界 |
 | --- | --- | --- |
 | 静态分析 | `flutter analyze --no-pub` 无问题 | tool 目录不在常规 analyze 范围，探针另行真实编译 |
-| 全量测试 | 1019 项通过；后续存储路径/托盘并发收尾另跑定向测试，远端 CI 再跑全量 | 单元/Widget 证据，不替代实体桌面 |
+| 全量测试 | 1019 项通过；存储路径/托盘并发收尾后 38 项定向测试通过，远端 CI 再跑全量 | 单元/Widget 证据，不替代实体桌面 |
 | 生产 Release | `flutter build linux --release --no-pub` 成功 | 本机构建，不承诺跨发行版 ABI |
-| 主应用 UI | X11 主界面显示、中文/导航正常 | 无真实账号登录 |
+| 主应用 UI | X11 主界面显示、中文/导航正常；无 session bus 时关闭弹出取消/退出，点击退出进程结束 | 无真实账号登录 |
 | 音频 | 严格检查 Referer/UA 的本地 HTTP WAV，libmpv 解码，实际游标推进，PCM 非零 | 合成音频、虚拟输出，不是听觉验收 |
 | MPRIS | 真实 session D-Bus 的播放/暂停/切歌/Stop/SetPosition/音量操作通过 | GNOME/KDE 媒体卡、物理媒体键待测 |
-| MV | 真实 video 插件输出 320×180 解码纹理，X11 截图可见测试图案 | 软件渲染，不证明各 GPU 的硬件加速 |
+| MV | 真实 video 插件输出 320×180 解码纹理，X11/Wayland 截图均可见测试图案 | 软件渲染，不证明各 GPU 的硬件加速 |
 | 窗口后端 | 原生探测分别返回 x11/wayland，小窗进入与尺寸恢复通过 | 不覆盖多屏、缩放或所有 compositor |
 | 持久化 | 探针读写 SharedPreferences 与 SQLite 关闭重开检查 | 不等于账号凭据/升级验收 |
 | 托盘安全 | mock 方法门控、真实私有 D-Bus 宿主属性、无托盘关闭 UI 单元测试 | 真实 GNOME 扩展/KDE 托盘恢复待测 |
 | 文件选择 | 异常和取消分支单元测试 | 桌面交互/中文路径/权限拒绝仍需实测 |
 
 较早探针曾仅检查纹理创建，截图出现黑区，因此收紧为等待实际 320×180 帧并检查截图；较早探针也暴露游标门控问题，修复后重新执行。失败记录不作为通过证据。
+
+最终 X11/Wayland 原生探针均输出 `ALL_CHECKS_PASSED`，捕获 PCM 峰值均为 8000，非零样本数分别为 102414 / 107812。这是虚拟音频输出证据，不是实体扬声器听觉证据；SQLite 写入后关闭并重开恢复队列和历史，SharedPreferences 也实际落盘。
+
+可审查的证据随本仓库提交：[X11 探针日志](linux-evidence/x11-probe.log)、[Wayland 探针日志](linux-evidence/wayland-probe.log)、[X11 可见视频截图](linux-evidence/x11-probe.png)、[原生 Wayland 可见视频截图](linux-evidence/wayland-probe.png)、[生产版无托盘关闭截图](linux-evidence/no-tray-close.png)。日志仅保留验收结果，截图使用隔离测试目录和游客态，不包含真实登录信息。
 
 ## 本地构建与复跑
 
