@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import '../../core/api/kugou/credential_transport.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/kugo_client.dart';
@@ -50,6 +51,7 @@ class DiscoverySection<T> {
 /// `artist_lists.js` using the same android signature as [RecommendRepository].
 class DiscoveryRepository {
   DiscoveryRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
     if (dio == null) {
       _dio.interceptors.add(
         InterceptorsWrapper(

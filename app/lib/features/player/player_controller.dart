@@ -24,11 +24,11 @@ enum PlayerLoopMode { order, listLoop, shuffle, single }
 
 extension PlayerLoopModeLabel on PlayerLoopMode {
   String get label => switch (this) {
-        PlayerLoopMode.order => '顺序播放',
-        PlayerLoopMode.listLoop => '列表循环',
-        PlayerLoopMode.shuffle => '随机播放',
-        PlayerLoopMode.single => '单曲循环',
-      };
+    PlayerLoopMode.order => '顺序播放',
+    PlayerLoopMode.listLoop => '列表循环',
+    PlayerLoopMode.shuffle => '随机播放',
+    PlayerLoopMode.single => '单曲循环',
+  };
 }
 
 enum PlayerDisplayState { idle, loading, playing, paused, error }
@@ -91,8 +91,8 @@ class PlayerState {
 
   Track? get current =>
       queue.isEmpty || currentIndex < 0 || currentIndex >= queue.length
-          ? null
-          : queue[currentIndex];
+      ? null
+      : queue[currentIndex];
 
   bool get isPlaying => display == PlayerDisplayState.playing;
 
@@ -141,11 +141,9 @@ class PlayerState {
 }
 
 class PlayerController extends Notifier<PlayerState> {
-  PlayerController({
-    AudioPlayerPort? engine,
-    MusicSource? source,
-  })  : _engineOverride = engine,
-        _sourceOverride = source;
+  PlayerController({AudioPlayerPort? engine, MusicSource? source})
+    : _engineOverride = engine,
+      _sourceOverride = source;
 
   final AudioPlayerPort? _engineOverride;
   final MusicSource? _sourceOverride;
@@ -174,7 +172,10 @@ class PlayerController extends Notifier<PlayerState> {
   StreamSubscription<PlayerIdleReason>? _completeSub;
   QueueStore? _store;
   int _seq = 0;
+  bool _disposed = false;
+  Future<void>? _engineLoadTail;
   int _failStreak = 0;
+
   /// 歌词请求身份：`id|hash`。用于去重与「曲目已变则丢弃过期结果」。
   String? _lyricsInFlightKey;
   String? _lyricsLoadedKey;
@@ -185,15 +186,18 @@ class PlayerController extends Notifier<PlayerState> {
   /// 闸门，空结论会被反复清掉又重取，`loading → empty → loading …` 无限循环，
   /// 歌词区就会来回闪「歌词加载中 / 暂无歌词」。
   String? _lyricsRetriedKey;
+
   /// True once this session has a playable engine source for the current track.
   /// Cold-start restore fills the queue but not the engine — play must resolve URL first.
   bool _sourceReady = false;
+
   /// Engine `positionStream` belongs to the *currently loaded* source. During a
   /// track switch the previous source keeps emitting until `playUrl` swaps it,
   /// and those leftovers (e.g. 10s into song A) must not re-anchor the media
   /// tick — that is exactly how a car head unit ends up showing song B starting
   /// at 10s. Cleared on load/stop; re-armed only after the new source is live.
   bool _acceptEnginePosition = false;
+
   /// User/system intent: should audio be playing? Engine events must not flip
   /// the pause/play icon against this (late `playing=true` after user pause).
   bool _wantPlaying = false;
@@ -211,10 +215,12 @@ class PlayerController extends Notifier<PlayerState> {
   int _sleepDeadlineMs = 0;
   String? _lastMediaSubtitle;
   int _bufferedMs = 0;
+
   /// Base used to extrapolate the position between engine events. Only ever
   /// moves forward — see [_publishMediaPosition].
   int _tickBaseMs = 0;
   DateTime _tickBaseAt = DateTime.now();
+
   /// Highest position already pushed to the platform — keeps it monotonic.
   /// `-1` until the first push so a legitimate `0` (track start) is not forced
   /// up to `1`.
@@ -275,6 +281,7 @@ class PlayerController extends Notifier<PlayerState> {
     });
     // Sync play/pause UI from engine, but never override an explicit pause.
     _playingSub = _engine.playingStream.listen((playing) {
+      if (!_sourceReady && state.current?.canResolveStream == true) return;
       if (state.display == PlayerDisplayState.error ||
           state.display == PlayerDisplayState.idle) {
         return;
@@ -302,6 +309,7 @@ class PlayerController extends Notifier<PlayerState> {
       }
     });
     _completeSub = _engine.completionStream.listen((reason) {
+      if (!_sourceReady && state.current?.canResolveStream == true) return;
       if (reason == PlayerIdleReason.completed) {
         _onCompleted();
       } else if (reason == PlayerIdleReason.error) {
@@ -310,6 +318,8 @@ class PlayerController extends Notifier<PlayerState> {
     });
 
     ref.onDispose(() {
+      _disposed = true;
+      _seq++;
       _posSub?.cancel();
       _bufferedSub?.cancel();
       _durationSub?.cancel();
@@ -410,6 +420,7 @@ class PlayerController extends Notifier<PlayerState> {
   /// calls `deactivateMediaSession()` (and `stopSelf()`), killing the very
   /// session the new track was about to use.
   Future<void> stopPlayback() async {
+    ++_seq;
     _stopDemoTick();
     _wantPlaying = false;
     _ignoreEnginePlayUntil = DateTime.now().add(const Duration(seconds: 1));
@@ -492,11 +503,7 @@ class PlayerController extends Notifier<PlayerState> {
     final store = _store;
     if (store == null) return;
     try {
-      await store.saveQueue(
-        state.queue,
-        state.currentIndex,
-        state.mode.name,
-      );
+      await store.saveQueue(state.queue, state.currentIndex, state.mode.name);
       final track = state.current;
       if (track != null) {
         await store.appendHistory(track);
@@ -536,7 +543,7 @@ class PlayerController extends Notifier<PlayerState> {
   Future<void> _loadCurrent({required int seq}) async {
     final track = state.current;
     if (track == null) return;
-    if (seq != state.seq) return;
+    if (!_isCurrentLoad(seq)) return;
 
     // Freeze the media cursor at 0 and ignore the outgoing source's samples
     // until the new one is actually live (see [_acceptEnginePosition]).
@@ -567,11 +574,12 @@ class PlayerController extends Notifier<PlayerState> {
 
     var liveTrack = track;
     final source0 = _sourceFor(liveTrack);
-    final qualitySource =
-        source0 is QualityCatalogSource ? source0 as QualityCatalogSource : null;
+    final qualitySource = source0 is QualityCatalogSource
+        ? source0 as QualityCatalogSource
+        : null;
     if (liveTrack.availableQualities.isEmpty && qualitySource != null) {
       final fetched = await qualitySource.fetchQualityCatalog(liveTrack);
-      if (seq != state.seq) return;
+      if (!_isCurrentLoad(seq)) return;
       final goods = fetched?.goods;
       if (goods != null && goods.isNotEmpty) {
         final available = AudioQualityUtil.availableFromGoods(goods);
@@ -586,8 +594,7 @@ class PlayerController extends Notifier<PlayerState> {
       }
     }
 
-    final preferred =
-        ref.read(settingsControllerProvider).quality;
+    final preferred = ref.read(settingsControllerProvider).quality;
 
     late final List<String> allUrls;
     late final Map<String, String> playHeaders;
@@ -597,16 +604,16 @@ class PlayerController extends Notifier<PlayerState> {
         liveTrack,
         preferred: preferred,
       );
-      if (seq != state.seq) return;
+      if (!_isCurrentLoad(seq)) return;
       allUrls = result.allUrls;
       playHeaders = result.headers;
       granted = result.grantedQuality;
     } on SourceFailure catch (e) {
-      if (seq != state.seq) return;
+      if (!_isCurrentLoad(seq)) return;
       _onPlayError(message: e.message);
       return;
     } catch (e) {
-      if (seq != state.seq) return;
+      if (!_isCurrentLoad(seq)) return;
       _onPlayError(message: e.toString());
       return;
     }
@@ -614,16 +621,18 @@ class PlayerController extends Notifier<PlayerState> {
     var ok = false;
     Object? lastError;
     for (final url in allUrls) {
+      if (!_isCurrentLoad(seq)) return;
       try {
-        await _engine.playUrl(url, headers: playHeaders);
+        if (!await _playUrlForLoad(seq, url, playHeaders)) return;
         ok = true;
         break;
       } catch (e) {
+        if (!_isCurrentLoad(seq)) return;
         lastError = e;
         continue;
       }
     }
-    if (seq != state.seq) return;
+    if (!_isCurrentLoad(seq)) return;
     if (!ok) {
       final engineMsg = lastError?.toString().split('\n').first ?? '';
       final msg = engineMsg.isEmpty
@@ -652,20 +661,60 @@ class PlayerController extends Notifier<PlayerState> {
       resolvedQuality: () => granted,
     );
     _syncBridge(track: liveTrack);
-    unawaited(_applyResumeSeek(liveTrack));
+    unawaited(_applyResumeSeek(liveTrack, seq));
+  }
+
+  bool _isCurrentLoad(int seq) => !_disposed && seq == _seq;
+
+  /// Serialize native source mutations, not URL resolution. A newer request
+  /// waits for an in-flight native operation to settle; obsolete queued loads
+  /// and backup URLs never enter the engine.
+  Future<bool> _playUrlForLoad(
+    int seq,
+    String url,
+    Map<String, String> headers,
+  ) {
+    Future<bool> perform() async {
+      if (!_isCurrentLoad(seq)) return false;
+      try {
+        await _engine.playUrl(url, headers: headers);
+        return _isCurrentLoad(seq);
+      } catch (_) {
+        if (!_isCurrentLoad(seq)) return false;
+        rethrow;
+      } finally {
+        if (!_isCurrentLoad(seq)) {
+          try {
+            await _engine.pause();
+          } catch (_) {}
+        }
+      }
+    }
+
+    // Establish the first tail in the caller's Zone. A pre-created completed
+    // Future can strand runAsync callers behind a Widget test's FakeAsync zone.
+    final load = _engineLoadTail?.then((_) => perform()) ?? perform();
+    // A failed source must not poison the next request's serialization chain.
+    _engineLoadTail = load.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return load;
   }
 
   /// 冷启动恢复出的「上次位置」：等引擎真正起播后再 seek——
   /// mpv 在 open/play 时会把位置重置，提前 seek 会白做。
-  Future<void> _applyResumeSeek(Track track) async {
+  Future<void> _applyResumeSeek(Track track, int seq) async {
     final resume = _resumeSeekMs;
     if (resume == null || resume <= 0 || !track.canResolveStream) return;
     _resumeSeekMs = null;
     await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!_isCurrentLoad(seq)) return;
     if (state.durationMs > 0 && resume >= state.durationMs) return;
     try {
       await _engine.seek(Duration(milliseconds: resume));
     } catch (_) {}
+    if (!_isCurrentLoad(seq)) return;
     if (position.value != resume) position.value = resume;
     _resetMediaPosition(resume);
     _publishMediaPosition(resume, force: true);
@@ -739,15 +788,18 @@ class PlayerController extends Notifier<PlayerState> {
   }
 
   /// 打开音质 sheet 前懒加载当前曲可用音质；已知则跳过。
-  Future<Set<AppQuality>> ensureCurrentQualities({bool forceRefresh = false}) async {
+  Future<Set<AppQuality>> ensureCurrentQualities({
+    bool forceRefresh = false,
+  }) async {
     final track = state.current;
     if (track == null || !track.canResolveStream) return const {};
     if (!forceRefresh && track.availableQualities.isNotEmpty) {
       return track.availableQualities;
     }
     final source = _sourceFor(track);
-    final qualitySource =
-        source is QualityCatalogSource ? source as QualityCatalogSource : null;
+    final qualitySource = source is QualityCatalogSource
+        ? source as QualityCatalogSource
+        : null;
     if (qualitySource == null) return track.availableQualities;
     final fetched = await qualitySource.fetchQualityCatalog(track);
     if (fetched == null) return track.availableQualities;
@@ -778,8 +830,7 @@ class PlayerController extends Notifier<PlayerState> {
     if (track == null) {
       _lyricsInFlightKey = null;
       _lyricsLoadedKey = null;
-      if (state.lyrics.isNotEmpty ||
-          state.lyricsStatus != LyricsStatus.idle) {
+      if (state.lyrics.isNotEmpty || state.lyricsStatus != LyricsStatus.idle) {
         state = state.copyWith(
           lyrics: const [],
           lyricsStatus: LyricsStatus.idle,
@@ -834,8 +885,9 @@ class PlayerController extends Notifier<PlayerState> {
     if (state.isPlaying) {
       // Intent first so late engine playing=true cannot flip the icon back.
       _wantPlaying = false;
-      _ignoreEnginePlayUntil =
-          DateTime.now().add(const Duration(milliseconds: 600));
+      _ignoreEnginePlayUntil = DateTime.now().add(
+        const Duration(milliseconds: 600),
+      );
       if (track.canResolveStream) {
         unawaited(_engine.pause());
       }
@@ -1009,8 +1061,9 @@ class PlayerController extends Notifier<PlayerState> {
       _sleepDeadlineMs = 0;
       return;
     }
-    _sleepDeadlineMs =
-        DateTime.now().add(Duration(minutes: minutes)).millisecondsSinceEpoch;
+    _sleepDeadlineMs = DateTime.now()
+        .add(Duration(minutes: minutes))
+        .millisecondsSinceEpoch;
     _sleepTimer = Timer(Duration(minutes: minutes), () {
       if (state.isPlaying) {
         togglePlay();
@@ -1042,7 +1095,10 @@ class PlayerController extends Notifier<PlayerState> {
       unawaited(next());
       return;
     }
-    state = state.copyWith(display: PlayerDisplayState.error, errorCode: message);
+    state = state.copyWith(
+      display: PlayerDisplayState.error,
+      errorCode: message,
+    );
     _syncBridge();
   }
 
@@ -1184,7 +1240,8 @@ class PlayerController extends Notifier<PlayerState> {
     final bridge = _bridge;
     final queue = state.queue;
     if (bridge == null || queue.isEmpty) return;
-    final sig = '${state.currentIndex}:${queue.length}:'
+    final sig =
+        '${state.currentIndex}:${queue.length}:'
         '${Object.hashAll([for (final t in queue) t.id])}';
     if (sig == _lastQueueSig) return;
     _lastQueueSig = sig;
@@ -1254,10 +1311,7 @@ final playerPositionProvider = Provider<ValueListenable<int>>((ref) {
 
 /// Rebuilds only when the live playback cursor ticks (or [when] changes).
 class PlayerPositionBuilder extends ConsumerWidget {
-  const PlayerPositionBuilder({
-    super.key,
-    required this.builder,
-  });
+  const PlayerPositionBuilder({super.key, required this.builder});
 
   final Widget Function(BuildContext context, int positionMs) builder;
 
@@ -1275,8 +1329,7 @@ class PlayerPositionBuilder extends ConsumerWidget {
 PlayerController createPlayerController(
   AudioPlayerPort engine, {
   MusicSource? source,
-}) =>
-    PlayerController(engine: engine, source: source);
+}) => PlayerController(engine: engine, source: source);
 
 final currentTrackProvider = Provider<Track?>((ref) {
   return ref.watch(playerControllerProvider.select((s) => s.current));
@@ -1292,39 +1345,34 @@ class _MissingSource implements MusicSource {
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   @override
   Future<SearchPageResult<PlaylistBrief>> searchPlaylists(
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   @override
   Future<SearchPageResult<AlbumBrief>> searchAlbums(
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   @override
   Future<SearchPageResult<ArtistBrief>> searchArtists(
     String keyword, {
     int page = 1,
     int pageSize = 30,
-  }) async =>
-      const SearchPageResult.empty();
+  }) async => const SearchPageResult.empty();
 
   @override
   Future<PlayUrlResult> resolvePlayUrl(
     Track track, {
     AppQuality? preferred,
-  }) async =>
-      throw const NotFound('MusicSourceRegistry not initialized');
+  }) async => throw const NotFound('MusicSourceRegistry not initialized');
 
   @override
   Future<LyricPayload> fetchLyric(Track track) async => LyricPayload.empty;

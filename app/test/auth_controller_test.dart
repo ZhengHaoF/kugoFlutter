@@ -76,6 +76,7 @@ class _FakeLoginRepository extends LoginRepository {
   Future<MyProfile?> fetchMyInfo({
     required String token,
     required String userId,
+    String t1 = '',
   }) async {
     fetchMyInfoCalls++;
     return myInfo;
@@ -86,8 +87,7 @@ LoginSession _session({
   String userId = '12345',
   String token = 'tok-abc',
   String nickname = '测试用户',
-}) =>
-    LoginSession(userId: userId, token: token, nickname: nickname);
+}) => LoginSession(userId: userId, token: token, nickname: nickname);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -126,7 +126,9 @@ void main() {
   ) async {
     final container = ProviderContainer(
       overrides: [
-        authControllerProvider.overrideWith(() => AuthController(repository: repo)),
+        authControllerProvider.overrideWith(
+          () => AuthController(repository: repo),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -195,8 +197,14 @@ void main() {
       final (container, _, auth) = await bootstrap(repo);
 
       expect(await auth.loginWithSms(phone: '123', code: '1234'), isFalse);
-      expect(container.read(authControllerProvider).errorMessage, '请输入 11 位手机号');
-      expect(await auth.loginWithSms(phone: '13800138000', code: '12'), isFalse);
+      expect(
+        container.read(authControllerProvider).errorMessage,
+        '请输入 11 位手机号',
+      );
+      expect(
+        await auth.loginWithSms(phone: '13800138000', code: '12'),
+        isFalse,
+      );
       expect(
         container.read(authControllerProvider).errorMessage,
         '请输入至少 4 位验证码',
@@ -221,7 +229,10 @@ void main() {
       final (container, _, auth) = await bootstrap(repo);
 
       await auth.sendSmsCode('123');
-      expect(container.read(authControllerProvider).errorMessage, '请输入 11 位手机号');
+      expect(
+        container.read(authControllerProvider).errorMessage,
+        '请输入 11 位手机号',
+      );
       expect(repo.smsMobiles, isEmpty);
       expect(container.read(authControllerProvider).smsCountdown, 0);
     });
@@ -252,11 +263,11 @@ void main() {
       final repo = _FakeLoginRepository()..passwordSession = _session();
       final (container, _, auth) = await bootstrap(repo);
 
-      expect(await auth.loginWithPassword(username: '', password: 'x'), isFalse);
       expect(
-        container.read(authControllerProvider).errorMessage,
-        '请输入账号和密码',
+        await auth.loginWithPassword(username: '', password: 'x'),
+        isFalse,
       );
+      expect(container.read(authControllerProvider).errorMessage, '请输入账号和密码');
       expect(repo.passwordLogins, isEmpty);
     });
 
@@ -351,19 +362,22 @@ void main() {
 
   group('本地会话恢复', () {
     test('有落盘用户 → 冷启动直接进登录态（无网络）', () async {
-      final encoded = <String, String>{
-        'userId': '777',
-        'nickname': '老用户',
-        'token': 'old-token',
-        'avatarUrl': '',
-        'isVip': 'false',
-        'isLocalDemo': 'false',
-        't1': '',
-        'detailJson': '{}',
-      }.entries
-          .map((e) =>
-              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-          .join('&');
+      final encoded =
+          <String, String>{
+                'userId': '777',
+                'nickname': '老用户',
+                'token': 'old-token',
+                'avatarUrl': '',
+                'isVip': 'false',
+                'isLocalDemo': 'false',
+                't1': '',
+                'detailJson': '{}',
+              }.entries
+              .map(
+                (e) =>
+                    '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
+              )
+              .join('&');
       SharedPreferences.setMockInitialValues({'auth.user.v1': encoded});
       final repo = _FakeLoginRepository();
       final (container, _, _) = await bootstrap(repo);

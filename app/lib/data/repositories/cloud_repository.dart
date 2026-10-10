@@ -16,6 +16,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
+import '../../core/api/kugou/credential_transport.dart';
 import '../../core/api/kugou/kugo_client.dart';
 import '../../core/api/kugou/kugo_crypto.dart';
 import '../../core/api/kugou/kugo_sign.dart';
@@ -27,7 +28,9 @@ import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
 
 class CloudRepository {
-  CloudRepository({Dio? dio}) : _dio = dio ?? _createDio();
+  CloudRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
+  }
 
   final Dio _dio;
   String lastError = '';
@@ -306,7 +309,7 @@ class CloudRepository {
 
     try {
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.kmrService}${KugoEndpoints.albumAudioLookup}',
+        '${KugoEndpoints.gateway}${KugoEndpoints.albumAudioLookup}',
         data: jsonEncode(dataMap),
         options: Options(
           headers: {
@@ -647,7 +650,7 @@ class CloudRepository {
     };
     params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
 
-    final base = host.startsWith('http') ? host : 'http://$host';
+    final base = secureKugouUploadBase(host);
     final res = await _dio.post<dynamic>(
       '$base${KugoEndpoints.cloudMultipartUpload}',
       queryParameters: params,
@@ -699,7 +702,7 @@ class CloudRepository {
     };
     params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
 
-    final base = host.startsWith('http') ? host : 'http://$host';
+    final base = secureKugouUploadBase(host);
     final res = await _dio.post<dynamic>(
       '$base${KugoEndpoints.cloudMultipartComplete}',
       queryParameters: params,

@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import '../../core/api/kugou/credential_transport.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/kugo_client.dart';
@@ -28,7 +29,9 @@ import '../storage/device_identity.dart';
 class MvRepository {
   MvRepository({KugoClient? client, Dio? dio})
       : _client = client ?? kugoClient,
-        _dio = dio ?? _createDio();
+        _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio);
+  }
 
   final KugoClient _client;
   final Dio _dio;

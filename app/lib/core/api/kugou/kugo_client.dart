@@ -4,9 +4,15 @@ import 'package:dio/dio.dart';
 
 import '../../../features/auth/auth_token_holder.dart';
 import '../network_log.dart';
+import 'credential_transport.dart';
 
 class KugoApiException implements Exception {
-  KugoApiException(this.message, {this.code, this.cause, this.filtered = false});
+  KugoApiException(
+    this.message, {
+    this.code,
+    this.cause,
+    this.filtered = false,
+  });
 
   final String message;
   final int? code;
@@ -49,82 +55,90 @@ typedef NetworkLogSink = void Function(NetworkLog log);
 class KugoClient {
   KugoClient({Dio? dio, NetworkLogSink? onLog}) : _dio = dio ?? _createDio() {
     _onLog = onLog;
-    if (dio == null) {
-      _dio.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            options.headers['User-Agent'] = _ua;
-            options.headers['Referer'] ??= 'http://www.kugou.com/';
-            // Inject kugou-style auth if logged in; guests skip.
-            final auth = AuthTokenHolder.instance;
-            if (auth.hasToken) {
-              options.headers['Authorization'] = auth.authorizationHeader;
-            }
-            options.extra['__start'] = DateTime.now().millisecondsSinceEpoch;
-            options.extra['__id'] =
-                '${DateTime.now().microsecondsSinceEpoch}-${options.uri}';
-            _emit(
-              NetworkLog(
-                id: options.extra['__id'] as String,
-                type: NetworkLogType.request,
-                timestamp: DateTime.now(),
-                method: options.method,
-                url: options.uri.toString(),
-                headers: sanitizeHeaders(options.headers),
-                data: options.queryParameters.isEmpty
-                    ? null
-                    : truncateLogData(options.queryParameters),
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.headers['User-Agent'] = _ua;
+          options.headers['Referer'] ??= 'http://www.kugou.com/';
+          // Inject kugou-style auth if logged in; guests skip.
+          final auth = AuthTokenHolder.instance;
+          if (auth.hasToken &&
+              options.uri.scheme == 'https' &&
+              const {
+                'gateway.kugou.com',
+                'kugouvip.kugou.com',
+              }.contains(options.uri.host.toLowerCase())) {
+            options.headers['Authorization'] = auth.authorizationHeader;
+          }
+          options.extra['__start'] = DateTime.now().millisecondsSinceEpoch;
+          options.extra['__id'] =
+              '${DateTime.now().microsecondsSinceEpoch}-${options.uri}';
+          _emit(
+            NetworkLog(
+              id: options.extra['__id'] as String,
+              type: NetworkLogType.request,
+              timestamp: DateTime.now(),
+              method: options.method,
+              url: options.uri.toString(),
+              headers: sanitizeHeaders(options.headers),
+              data: options.queryParameters.isEmpty
+                  ? null
+                  : truncateLogData(options.queryParameters),
+            ),
+          );
+          handler.next(options);
+        },
+        onResponse: (res, handler) {
+          final start =
+              res.requestOptions.extra['__start'] as int? ??
+              DateTime.now().millisecondsSinceEpoch;
+          _emit(
+            NetworkLog(
+              id:
+                  res.requestOptions.extra['__id'] as String? ??
+                  res.requestOptions.uri.toString(),
+              type: NetworkLogType.response,
+              timestamp: DateTime.now(),
+              method: res.requestOptions.method,
+              url: res.requestOptions.uri.toString(),
+              statusCode: res.statusCode,
+              data: truncateLogData(res.data),
+              duration: Duration(
+                milliseconds: DateTime.now().millisecondsSinceEpoch - start,
               ),
-            );
-            handler.next(options);
-          },
-          onResponse: (res, handler) {
-            final start = res.requestOptions.extra['__start'] as int? ??
-                DateTime.now().millisecondsSinceEpoch;
-            _emit(
-              NetworkLog(
-                id: res.requestOptions.extra['__id'] as String? ??
-                    res.requestOptions.uri.toString(),
-                type: NetworkLogType.response,
-                timestamp: DateTime.now(),
-                method: res.requestOptions.method,
-                url: res.requestOptions.uri.toString(),
-                statusCode: res.statusCode,
-                data: truncateLogData(res.data),
-                duration: Duration(
-                  milliseconds: DateTime.now().millisecondsSinceEpoch - start,
-                ),
+            ),
+          );
+          handler.next(res);
+        },
+        onError: (err, handler) {
+          if (err.response?.statusCode == 401) {
+            AuthTokenHolder.instance.clear();
+          }
+          final start =
+              err.requestOptions.extra['__start'] as int? ??
+              DateTime.now().millisecondsSinceEpoch;
+          _emit(
+            NetworkLog(
+              id:
+                  err.requestOptions.extra['__id'] as String? ??
+                  err.requestOptions.uri.toString(),
+              type: NetworkLogType.error,
+              timestamp: DateTime.now(),
+              method: err.requestOptions.method,
+              url: err.requestOptions.uri.toString(),
+              statusCode: err.response?.statusCode,
+              data: truncateLogData(err.response?.data),
+              errorMessage: err.toString().split('\n').first,
+              duration: Duration(
+                milliseconds: DateTime.now().millisecondsSinceEpoch - start,
               ),
-            );
-            handler.next(res);
-          },
-          onError: (err, handler) {
-            if (err.response?.statusCode == 401) {
-              AuthTokenHolder.instance.clear();
-            }
-            final start = err.requestOptions.extra['__start'] as int? ??
-                DateTime.now().millisecondsSinceEpoch;
-            _emit(
-              NetworkLog(
-                id: err.requestOptions.extra['__id'] as String? ??
-                    err.requestOptions.uri.toString(),
-                type: NetworkLogType.error,
-                timestamp: DateTime.now(),
-                method: err.requestOptions.method,
-                url: err.requestOptions.uri.toString(),
-                statusCode: err.response?.statusCode,
-                data: truncateLogData(err.response?.data),
-                errorMessage: err.toString().split('\n').first,
-                duration: Duration(
-                  milliseconds: DateTime.now().millisecondsSinceEpoch - start,
-                ),
-              ),
-            );
-            handler.next(err);
-          },
-        ),
-      );
-    }
+            ),
+          );
+          handler.next(err);
+        },
+      ),
+    );
+    installKugouCredentialGuard(_dio);
   }
 
   static const _ua =
@@ -148,15 +162,12 @@ class KugoClient {
     );
   }
 
-  Future<dynamic> getJson(
-    String url, {
-    Map<String, dynamic>? query,
-  }) async {
+  Future<dynamic> getJson(String url, {Map<String, dynamic>? query}) async {
     try {
       final res = await _dio.get<dynamic>(url, queryParameters: query);
       if (looksLikeUrlFilter(res.data)) {
-        final denied = res.data is String &&
-            (res.data as String).contains('Access Deny');
+        final denied =
+            res.data is String && (res.data as String).contains('Access Deny');
         throw KugoApiException(
           denied ? '接口拒绝访问（Access Deny）' : '网络网关拦截（URL过滤），无法访问酷狗接口',
           code: res.statusCode,
@@ -175,10 +186,7 @@ class KugoClient {
     }
   }
 
-  Future<String> getText(
-    String url, {
-    Map<String, dynamic>? query,
-  }) async {
+  Future<String> getText(String url, {Map<String, dynamic>? query}) async {
     try {
       final res = await _dio.get<String>(
         url,
@@ -210,8 +218,8 @@ final kugoClient = KugoClient();
 String buildUrl(String base, String path, [Map<String, dynamic>? query]) {
   final b = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
   final p = path.startsWith('/') ? path : '/$path';
-  final uri = Uri.parse('$b$p').replace(
-    queryParameters: query?.map((k, v) => MapEntry(k, '$v')),
-  );
+  final uri = Uri.parse(
+    '$b$p',
+  ).replace(queryParameters: query?.map((k, v) => MapEntry(k, '$v')));
   return uri.toString();
 }

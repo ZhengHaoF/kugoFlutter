@@ -288,11 +288,11 @@ dart run tool/probe_mv.dart
 | 云盘列表 | POST | `https://mcloudservice.kugou.com/v1/get_list` | **AES body + RSA `p`** |
 | 云盘播放地址 | GET | `https://gateway.kugou.com/bsstrackercdngz/v2/query_musicclound_url` | Android signature |
 | 云盘删除 | POST | `https://mcloudservice.kugou.com/v1/del_files` | AES body + RSA `p` |
-| 曲库匹配（上传前） | POST | `http://kmr.service.kugou.com/v2/album_audio/audio` | JSON body，**无 signature** |
+| 曲库匹配（上传前） | POST | `https://gateway.kugou.com/v2/album_audio/audio` | JSON body，**无 signature**，`x-router: kmr.service.kugou.com` |
 | 上传授权 | GET | `https://gateway.kugou.com/bsstrackercdngz/v1/upload/auth` | Android signature |
-| 分片初始化 | POST | `http://bssulbig.kugou.com/v2/multipart/initiate/music` | Android signature |
-| 分片上传 | POST | `{external_host}/v3/multipart/upload` | Android signature + binary part |
-| 分片完成 | POST | `{external_host}/v3/multipart/complete` | Android signature |
+| 分片初始化 | POST | `https://bssulbig.kugou.com/v2/multipart/initiate/music` | Android signature |
+| 分片上传 | POST | `{安全 HTTPS external_host}/v3/multipart/upload` | Android signature + binary part |
+| 分片完成 | POST | `{安全 HTTPS external_host}/v3/multipart/complete` | Android signature |
 | 写入云盘 | POST | `https://mcloudservice.kugou.com/v1/add_files` | AES body + RSA `p` |
 
 ### AES + RSA 信封（列表 / 删除 / 写入共用）
@@ -400,6 +400,8 @@ JSON body（无 signature，`x-router: kmr.service.kugou.com`）：
 → `data[]` → 归一化出 `album_audio_id` / `audio_id` / `hash_std` / `author_name` / `audio_name`。
 
 ### 上传（二期，五步）
+
+2026-10-10 P0 返工：账号凭据仅允许可信酷狗 HTTPS 目标，禁止自动重定向/HTTP 回退；动态上传地址必须校验主机并升级 HTTPS，旧 HTTP 协议记录不能作为解除防护的理由。HTTPS bssulbig 的匿名证书验证通过，但安全改路由后的真实匹配/秒传/分片仍待账号验收，见 [实施记录](rework-p0-implementation.md)。
 
 1. **授权** GET `gateway /bsstrackercdngz/v1/upload/auth`
    - `filename` = **文件内容 MD5（小写）**

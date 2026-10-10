@@ -53,16 +53,16 @@ class AuthUser {
   }
 
   Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'nickname': nickname,
-        'token': token,
-        'avatarUrl': avatarUrl,
-        'isVip': isVip,
-        'isLocalDemo': isLocalDemo,
-        't1': t1,
-        // Flat key=value prefs encoding — stash the archive as one JSON blob.
-        'detailJson': jsonEncode(detail.toJson()),
-      };
+    'userId': userId,
+    'nickname': nickname,
+    'token': token,
+    'avatarUrl': avatarUrl,
+    'isVip': isVip,
+    'isLocalDemo': isLocalDemo,
+    't1': t1,
+    // Flat key=value prefs encoding — stash the archive as one JSON blob.
+    'detailJson': jsonEncode(detail.toJson()),
+  };
 
   static AuthUser? fromJson(Map<String, dynamic> json) {
     final id = json['userId']?.toString() ?? '';
@@ -73,7 +73,9 @@ class AuthUser {
       try {
         final decoded = jsonDecode(rawDetail);
         if (decoded is Map) {
-          detail = UserProfileDetail.fromJson(Map<String, dynamic>.from(decoded));
+          detail = UserProfileDetail.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
         }
       } catch (_) {}
     }
@@ -147,7 +149,7 @@ class AuthController extends Notifier<AuthState> {
   /// [repository] 可注入：测试用假仓库替换掉全局单例，避免打真实网关
   /// （默认值即生产用的同一个 `loginRepository`）。
   AuthController({LoginRepository? repository})
-      : _repository = repository ?? loginRepository;
+    : _repository = repository ?? loginRepository;
 
   final LoginRepository _repository;
 
@@ -159,11 +161,17 @@ class AuthController extends Notifier<AuthState> {
   Timer? _countdownTimer;
   Timer? _qrTimer;
   int _qrGeneration = 0;
+  int _sessionEpoch = 0;
+  bool _disposed = false;
+  Future<void> _prefsTail = Future<void>.value();
   Completer<void>? _ready;
 
   @override
   AuthState build() {
+    _disposed = false;
     ref.onDispose(() {
+      _disposed = true;
+      _sessionEpoch++;
       _countdownTimer?.cancel();
       _qrTimer?.cancel();
     });
@@ -185,8 +193,10 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _restore() async {
+    final epoch = _sessionEpoch;
     try {
       _prefs = await SharedPreferences.getInstance();
+      if (!_isCurrentSession(epoch)) return;
       // 先从本地恢复登录态，再补设备身份。
       // DeviceIdentity.ensure() 可能走 /risk/v2/r_register_dev，
       // 网络慢/失败时不能把 token 恢复一起堵死（FM 等功能会误判成未登录）。
@@ -196,8 +206,9 @@ class AuthController extends Notifier<AuthState> {
         for (final part in raw.split('&')) {
           final i = part.indexOf('=');
           if (i <= 0) continue;
-          map[Uri.decodeComponent(part.substring(0, i))] =
-              Uri.decodeComponent(part.substring(i + 1));
+          map[Uri.decodeComponent(part.substring(0, i))] = Uri.decodeComponent(
+            part.substring(i + 1),
+          );
         }
         final user = AuthUser.fromJson(map);
         if (user != null) {
@@ -220,12 +231,17 @@ class AuthController extends Notifier<AuthState> {
           return;
         }
       }
-      await _prefs?.setBool(_kGuest, true);
+      await _writePrefs(() async {
+        if (_isCurrentSession(epoch)) await _prefs?.setBool(_kGuest, true);
+      });
+      if (!_isCurrentSession(epoch)) return;
       AuthTokenHolder.instance.clear();
       state = const AuthState(status: LoginStatus.guest, restored: true);
       unawaited(DeviceIdentity.ensure());
     } catch (_) {
-      state = const AuthState(status: LoginStatus.guest, restored: true);
+      if (_isCurrentSession(epoch)) {
+        state = const AuthState(status: LoginStatus.guest, restored: true);
+      }
     }
   }
 
@@ -244,14 +260,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> continueAsGuest() async {
-    stopQrPolling();
-    AuthTokenHolder.instance.clear();
-    state = const AuthState(status: LoginStatus.guest, restored: true);
-    try {
-      await _prefs?.setBool(_kGuest, true);
-      await _prefs?.remove(_kUser);
-      await _prefs?.setBool(_kSeen, true);
-    } catch (_) {}
+    await _endSession(markSeen: true);
   }
 
   // --- QR ---
@@ -269,7 +278,7 @@ class AuthController extends Notifier<AuthState> {
           : LoginStatus.guest,
     );
     final created = await _repository.createQrLogin();
-    if (gen != _qrGeneration) return;
+    if (_disposed || gen != _qrGeneration) return;
     if (created == null) {
       state = state.copyWith(
         qrPhase: QrPhase.error,
@@ -290,9 +299,9 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _pollQr(int gen, String key) async {
-    if (gen != _qrGeneration) return;
+    if (_disposed || gen != _qrGeneration) return;
     final res = await _repository.checkQrLogin(key);
-    if (gen != _qrGeneration || res == null) return;
+    if (_disposed || gen != _qrGeneration || res == null) return;
     switch (res.status) {
       case 0:
         state = state.copyWith(qrPhase: QrPhase.expired);
@@ -310,7 +319,7 @@ class AuthController extends Notifier<AuthState> {
           return;
         }
         stopQrPolling();
-        await _completeLogin(session);
+        await _completeLogin(session, epoch: _sessionEpoch);
       default:
         state = state.copyWith(qrPhase: QrPhase.waiting);
     }
@@ -320,6 +329,7 @@ class AuthController extends Notifier<AuthState> {
     _qrTimer?.cancel();
     _qrTimer = null;
     _qrGeneration++;
+    _sessionEpoch++;
   }
 
   // --- SMS ---
@@ -330,7 +340,9 @@ class AuthController extends Notifier<AuthState> {
       return false;
     }
     state = state.copyWith(errorMessage: '');
+    final epoch = _sessionEpoch;
     final ok = await _repository.sendSmsCode(phone.trim());
+    if (!_isCurrentSession(epoch)) return false;
     if (!ok) {
       state = state.copyWith(
         errorMessage: _repository.lastError.isEmpty
@@ -370,12 +382,15 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(errorMessage: '请输入至少 4 位验证码');
       return false;
     }
+    stopQrPolling();
+    final epoch = _sessionEpoch;
     state = state.copyWith(status: LoginStatus.loading, errorMessage: '');
     final session = await _repository.loginWithSms(
       mobile: phone.trim(),
       code: code.trim(),
       userid: userid,
     );
+    if (!_isCurrentSession(epoch)) return false;
     if (session == null) {
       state = state.copyWith(
         status: LoginStatus.error,
@@ -385,8 +400,7 @@ class AuthController extends Notifier<AuthState> {
       );
       return false;
     }
-    await _completeLogin(session);
-    return true;
+    return _completeLogin(session, epoch: epoch);
   }
 
   // --- Password ---
@@ -399,11 +413,14 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(errorMessage: '请输入账号和密码');
       return false;
     }
+    stopQrPolling();
+    final epoch = _sessionEpoch;
     state = state.copyWith(status: LoginStatus.loading, errorMessage: '');
     final session = await _repository.loginWithPassword(
       username: username.trim(),
       password: password,
     );
+    if (!_isCurrentSession(epoch)) return false;
     if (session == null) {
       state = state.copyWith(
         status: LoginStatus.error,
@@ -413,17 +430,14 @@ class AuthController extends Notifier<AuthState> {
       );
       return false;
     }
-    await _completeLogin(session);
-    return true;
+    return _completeLogin(session, epoch: epoch);
   }
 
-  Future<void> _completeLogin(LoginSession session) async {
-    AuthTokenHolder.instance.setSession(
-      token: session.token,
-      userId: session.userId,
-      t1: session.t1,
-    );
-
+  Future<bool> _completeLogin(
+    LoginSession session, {
+    required int epoch,
+  }) async {
+    if (!_isCurrentSession(epoch)) return false;
     var nickname = session.nickname.isEmpty ? '用户' : session.nickname;
     var avatarUrl = session.avatarUrl;
     var isVip = session.isVip;
@@ -434,6 +448,7 @@ class AuthController extends Notifier<AuthState> {
       final profile = await _repository.fetchMyInfo(
         token: session.token,
         userId: session.userId,
+        t1: session.t1,
       );
       if (profile != null) {
         if (profile.nickname.isNotEmpty && profile.nickname != '用户') {
@@ -444,6 +459,7 @@ class AuthController extends Notifier<AuthState> {
         detail = profile.detail;
       }
     } catch (_) {}
+    if (!_isCurrentSession(epoch)) return false;
 
     final user = AuthUser(
       userId: session.userId,
@@ -455,39 +471,44 @@ class AuthController extends Notifier<AuthState> {
       t1: session.t1,
       detail: detail,
     );
+    AuthTokenHolder.instance.setSession(
+      token: session.token,
+      userId: session.userId,
+      t1: session.t1,
+    );
     state = AuthState(
       status: LoginStatus.logged,
       user: user,
       restored: true,
       qrPhase: QrPhase.success,
     );
-    try {
-      final encoded = user
-          .toJson()
-          .entries
-          .map((e) =>
-              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent('${e.value}')}')
-          .join('&');
-      await _prefs?.setString(_kUser, encoded);
-      await _prefs?.remove(_kGuest);
-      await _prefs?.setBool(_kSeen, true);
-    } catch (_) {}
+    await _persistUser(user, epoch);
+    return _isCurrentSession(epoch);
   }
 
   /// Re-fetch profile (avatar / nickname / archive) when opening 我的.
   Future<void> refreshProfile() async {
     final user = state.user;
     if (!state.isLogged || user == null || user.token.isEmpty) return;
+    final epoch = _sessionEpoch;
     try {
       final profile = await _repository.fetchMyInfo(
         token: user.token,
         userId: user.userId,
+        t1: user.t1,
       );
+      if (!_isCurrentSession(epoch) ||
+          !state.isLogged ||
+          state.user?.userId != user.userId ||
+          state.user?.token != user.token) {
+        return;
+      }
       if (profile == null) return;
       final next = user.copyWith(
         nickname: profile.nickname.isEmpty ? user.nickname : profile.nickname,
-        avatarUrl:
-            profile.avatarUrl.isEmpty ? user.avatarUrl : profile.avatarUrl,
+        avatarUrl: profile.avatarUrl.isEmpty
+            ? user.avatarUrl
+            : profile.avatarUrl,
         isVip: profile.isVip || user.isVip,
         detail: user.detail.merge(profile.detail),
       );
@@ -501,31 +522,57 @@ class AuthController extends Notifier<AuthState> {
         token: next.token,
         userId: next.userId,
       );
-      state = AuthState(
-        status: LoginStatus.logged,
-        user: next,
-        restored: true,
-      );
-      try {
-        final encoded = next
-            .toJson()
-            .entries
-            .map((e) =>
-                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent('${e.value}')}')
-            .join('&');
-        await _prefs?.setString(_kUser, encoded);
-      } catch (_) {}
+      state = AuthState(status: LoginStatus.logged, user: next, restored: true);
+      await _persistUser(next, epoch);
     } catch (_) {}
   }
 
   Future<void> logout() async {
+    await _endSession();
+  }
+
+  bool _isCurrentSession(int epoch) => !_disposed && epoch == _sessionEpoch;
+
+  /// Serialize disk changes: logout clears AFTER any already-started save.
+  /// A stale save waiting in the queue must not begin after a session change.
+  Future<void> _writePrefs(Future<void> Function() write) {
+    final next = _prefsTail.then((_) async {
+      _prefs ??= await SharedPreferences.getInstance();
+      await write();
+    });
+    _prefsTail = next.catchError((Object _) {});
+    return _prefsTail;
+  }
+
+  Future<void> _persistUser(AuthUser user, int epoch) => _writePrefs(() async {
+    if (!_isCurrentSession(epoch)) return;
+    final encoded = user
+        .toJson()
+        .entries
+        .map(
+          (e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent('${e.value}')}',
+        )
+        .join('&');
+    await _prefs?.setString(_kUser, encoded);
+    if (!_isCurrentSession(epoch)) return;
+    await _prefs?.remove(_kGuest);
+    if (!_isCurrentSession(epoch)) return;
+    await _prefs?.setBool(_kSeen, true);
+  });
+
+  Future<void> _endSession({bool markSeen = false}) async {
     stopQrPolling();
+    _countdownTimer?.cancel();
     AuthTokenHolder.instance.clear();
     state = const AuthState(status: LoginStatus.guest, restored: true);
-    try {
+    // Do not cancel this queued clear on disposal: an earlier in-flight save
+    // must still be removed. A later successful login is queued after it.
+    await _writePrefs(() async {
       await _prefs?.remove(_kUser);
       await _prefs?.setBool(_kGuest, true);
-    } catch (_) {}
+      if (markSeen) await _prefs?.setBool(_kSeen, true);
+    });
   }
 
   Future<void> onUnauthorized() async {
@@ -537,5 +584,6 @@ class AuthController extends Notifier<AuthState> {
       RegExp(r'^1\d{10}$').hasMatch(phone.trim());
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);

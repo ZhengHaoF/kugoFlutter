@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../api/network_log.dart';
+
 /// 崩溃 / 未捕获错误日志 —— 把三类错误汇到同一份文件：
 /// 1. 框架报错（`FlutterError.onError`，build/layout/paint 异常）；
 /// 2. 原生派发的错误（`PlatformDispatcher.onError`，框架之外的异步错误）；
@@ -57,7 +59,7 @@ class CrashLog {
       final overflow = existing > _maxBytes;
       await file.writeAsString(
         '===== ${DateTime.now().toIso8601String()} $kind =====\n'
-        '$error\n${stack ?? ''}\n\n',
+        '${sanitizeLogText('$error')}\n${sanitizeLogText('${stack ?? ''}')}\n\n',
         mode: overflow ? FileMode.write : FileMode.append,
         flush: true,
       );

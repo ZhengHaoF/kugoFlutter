@@ -143,12 +143,14 @@ void main() {
             'status': 1,
             'data': {
               'upload_id': 'UP1',
-              'external_host': 'http://bss.example',
+              'external_host': 'http://bssulbig.kugou.com',
               'x-bss-filename': 'abc',
             },
           });
         }
         if (options.uri.path.endsWith('multipart/upload')) {
+          expect(options.uri.scheme, 'https');
+          expect(options.followRedirects, isFalse);
           return _json({'status': 1});
         }
         if (options.uri.path.endsWith('multipart/complete')) {

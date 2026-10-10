@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '../../core/api/kugou/credential_transport.dart';
 import '../../core/api/kugou/kugo_crypto.dart';
 import '../../core/api/kugou/kugo_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
@@ -54,7 +55,9 @@ class LoginSession {
 
 /// Real gateway login: QR / SMS / password (KuGouMusicApi-compatible).
 class LoginRepository {
-  LoginRepository({Dio? dio}) : _dio = dio ?? _createDio();
+  LoginRepository({Dio? dio}) : _dio = dio ?? _createDio() {
+    installKugouCredentialGuard(_dio, requireHttps: true);
+  }
 
   final Dio _dio;
   String lastError = '';
@@ -139,7 +142,8 @@ class LoginRepository {
 
   String _err(Map<String, dynamic>? body, String fallback) {
     if (body == null) return lastError.isEmpty ? fallback : lastError;
-    final msg = body['error'] ?? body['errmsg'] ?? body['msg'] ?? body['message'];
+    final msg =
+        body['error'] ?? body['errmsg'] ?? body['msg'] ?? body['message'];
     if (msg is String && msg.isNotEmpty) return msg;
     final code = body['error_code'] ?? body['errcode'];
     if (code != null) return '$fallback (code=$code)';
@@ -184,7 +188,9 @@ class LoginRepository {
   }
 
   /// status: 0 expired, 1 waiting, 2 scanned, 4 confirmed+login.
-  Future<({int status, LoginSession? session})?> checkQrLogin(String key) async {
+  Future<({int status, LoginSession? session})?> checkQrLogin(
+    String key,
+  ) async {
     final body = await _signedGet(
       'https://login-user.kugou.com/v2/get_userinfo_qrcode',
       params: {
@@ -223,23 +229,19 @@ class LoginRepository {
     lastError = '';
     final device = await DeviceIdentity.ensure();
     final query = KugoSign.defaultParams(dfid: device.dfid, mid: device.mid);
-    final data = {
-      'businessid': 5,
-      'mobile': mobile,
-      'plat': 3,
-    };
+    final data = {'businessid': 5, 'mobile': mobile, 'plat': 3};
     final bodyJson = jsonEncode(data);
-    query['signature'] =
-        KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
     try {
       final res = await _dio.post<dynamic>(
-        'http://login.user.kugou.com/v7/send_mobile_code',
+        'https://gateway.kugou.com/v7/send_mobile_code',
         data: data,
         queryParameters: query,
         options: Options(
           headers: {
             'User-Agent': KugoSign.userAgent,
             'Content-Type': 'application/json',
+            'x-router': 'login.user.kugou.com',
             'mid': device.mid,
             'dfid': device.dfid,
           },
@@ -265,9 +267,9 @@ class LoginRepository {
     lastError = '';
     final device = await DeviceIdentity.ensure();
     final dateTime = DateTime.now().millisecondsSinceEpoch;
-    final encrypt = KugoCrypto.aesEncrypt(
-      jsonEncode({'mobile': mobile, 'code': code}),
-    ) as Map;
+    final encrypt =
+        KugoCrypto.aesEncrypt(jsonEncode({'mobile': mobile, 'code': code}))
+            as Map;
     final encKey = encrypt['key']! as String;
     final encStr = encrypt['str']! as String;
 
@@ -275,13 +277,15 @@ class LoginRepository {
     const t2Iv = '17a20ae7adae7020';
     const t1Key = '5e4ef500e9597fe004bd09a46d8add98';
     const t1Iv = '04bd09a46d8add98';
-    final t2 = KugoCrypto.aesEncrypt(
-      '${device.guid}|0f607264fc6318a92b9e13c65db7cd3c|${device.mac}|${device.dev}|$dateTime',
-      key: t2Key,
-      iv: t2Iv,
-    ) as String;
-    final t1 = KugoCrypto.aesEncrypt('|$dateTime', key: t1Key, iv: t1Iv)
-        as String;
+    final t2 =
+        KugoCrypto.aesEncrypt(
+              '${device.guid}|0f607264fc6318a92b9e13c65db7cd3c|${device.mac}|${device.dev}|$dateTime',
+              key: t2Key,
+              iv: t2Iv,
+            )
+            as String;
+    final t1 =
+        KugoCrypto.aesEncrypt('|$dateTime', key: t1Key, iv: t1Iv) as String;
 
     final pkRaw = KugoCrypto.rsaEncryptRaw(
       jsonEncode({'clienttime_ms': dateTime, 'key': encKey}),
@@ -341,13 +345,15 @@ class LoginRepository {
     lastError = '';
     final device = await DeviceIdentity.ensure();
     final dateTime = DateTime.now().millisecondsSinceEpoch;
-    final encrypt = KugoCrypto.aesEncrypt(
-      jsonEncode({
-        'pwd': password,
-        'code': '',
-        'clienttime_ms': dateTime,
-      }),
-    ) as Map;
+    final encrypt =
+        KugoCrypto.aesEncrypt(
+              jsonEncode({
+                'pwd': password,
+                'code': '',
+                'clienttime_ms': dateTime,
+              }),
+            )
+            as Map;
     final encKey = encrypt['key']! as String;
     final encStr = encrypt['str']! as String;
     final pkRaw = KugoCrypto.rsaEncryptRaw(
@@ -448,25 +454,25 @@ class LoginRepository {
 
   /// Fetch profile (nickname / avatar / archive / social / vip / grade).
   ///
-  /// EchoMusic `/user/detail` = usercenter `get_my_info` (full archive + social),
-  /// `/user/vip/detail` = `get_union_vip` (busi_vip), `/user/grade/info` =
-  /// `get_grade_info` (listen seconds + grade progress). Relation
-  /// `get_my_userinfo` only carries basic identity — never short-circuit on it.
+  /// Secure usercenter profile + VIP aggregation. Legacy HTTP relation/grade
+  /// enrichment is disabled until a verified TLS endpoint is available.
   Future<MyProfile?> fetchMyInfo({
     required String token,
     required String userId,
+    String t1 = '',
   }) async {
     lastError = '';
-    final fromRelation = await _fetchMyUserInfoRelation(token: token, userId: userId);
-    final fromUsercenter = await _fetchMyInfoUsercenter(token: token, userId: userId);
-    final fromVip = await _fetchVipDetail(token: token, userId: userId);
-    final fromGrade = await _fetchGradeInfo(token: token, userId: userId);
+    // Legacy relation/grade hosts do not pass TLS certificate validation.
+    // Never send the session over HTTP or disable certificate verification.
+    final fromUsercenter = await _fetchMyInfoUsercenter(
+      token: token,
+      userId: userId,
+      t1: t1,
+    );
+    final fromVip = await _fetchVipDetail(token: token, userId: userId, t1: t1);
 
-    final sources = [
-      ?fromRelation,
-      ?fromUsercenter,
-    ];
-    if (sources.isEmpty && fromVip == null && fromGrade == null) {
+    final sources = [?fromUsercenter];
+    if (sources.isEmpty && fromVip == null) {
       return null;
     }
 
@@ -489,9 +495,9 @@ class LoginRepository {
       detail = detail.merge(profile.detail);
     }
     detail = detail.merge(fromVip ?? UserProfileDetail.empty);
-    detail = detail.merge(fromGrade ?? UserProfileDetail.empty);
 
-    final resolved = base ??
+    final resolved =
+        base ??
         MyProfile(
           nickname: '用户',
           userId: userId,
@@ -507,12 +513,20 @@ class LoginRepository {
     );
   }
 
-  Map<String, String> _authHeaders(DeviceIdentity device, String token, String userId) {
-    final t1 = AuthTokenHolder.instance.t1;
+  Map<String, String> _authHeaders(
+    DeviceIdentity device,
+    String token,
+    String userId, {
+    String t1 = '',
+  }) {
+    final auth = AuthTokenHolder.instance;
+    final effectiveT1 = t1.isNotEmpty
+        ? t1
+        : (auth.token == token && auth.userId == userId ? auth.t1 : '');
     final parts = <String>[
       'token=$token',
       'userid=$userId',
-      if (t1.isNotEmpty) 't1=$t1',
+      if (effectiveT1.isNotEmpty) 't1=$effectiveT1',
       'dfid=${device.dfid}',
       'KUGOU_API_MID=${device.mid}',
       'KUGOU_API_GUID=${device.guid}',
@@ -525,69 +539,11 @@ class LoginRepository {
     };
   }
 
-  /// POST http://relation.user.kugou.com/v1/get_my_userinfo
-  Future<MyProfile?> _fetchMyUserInfoRelation({
-    required String token,
-    required String userId,
-  }) async {
-    final device = await DeviceIdentity.ensure();
-    final clienttime = DateTime.now().millisecondsSinceEpoch;
-    // JS object key order: { clienttime, token }
-    final p = KugoCrypto.rsaEncryptRaw(
-      jsonEncode({'clienttime': clienttime, 'token': token}),
-    ).toUpperCase();
-
-    // KuGouMusicApi always injects token/userid into query — missing them
-    // yields error_code=20018 (登录态无效) even with a valid Cookie.
-    final query = <String, dynamic>{
-      ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
-      'token': token,
-      'userid': int.tryParse(userId) ?? 0,
-    };
-    final data = {
-      'p': p,
-      'appid': int.parse(KugoSign.appId),
-      'mid': device.mid,
-      'clientver': int.parse(KugoSign.clientVer),
-      'source': 0,
-      'clienttime': clienttime,
-      'uuid': '-',
-      'userid': int.tryParse(userId) ?? 0,
-      'key': KugoSign.signParamsKey('$clienttime'),
-    };
-    final bodyJson = jsonEncode(data);
-    query['signature'] =
-        KugoSign.signatureAndroidParams(query, data: bodyJson);
-
-    try {
-      final res = await _dio.post<dynamic>(
-        'http://relation.user.kugou.com/v1/get_my_userinfo',
-        data: data,
-        queryParameters: query,
-        options: Options(
-          headers: {
-            'User-Agent': KugoSign.userAgent,
-            'Content-Type': 'application/json',
-            'Host': 'relation.user.kugou.com',
-            ..._authHeaders(device, token, userId),
-          },
-        ),
-      );
-      final body = _decode(res.data);
-      if (_ok(body)) {
-        return _mapProfile(body!, fallbackUserId: userId);
-      }
-      lastError = _err(body, '获取用户资料失败(relation)');
-    } on DioException catch (e) {
-      lastError = e.message ?? '网络错误';
-    }
-    return null;
-  }
-
   /// POST gateway /v3/get_my_info (usercenter)
   Future<MyProfile?> _fetchMyInfoUsercenter({
     required String token,
     required String userId,
+    required String t1,
   }) async {
     final device = await DeviceIdentity.ensure();
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -609,8 +565,7 @@ class LoginRepository {
       'userid': int.tryParse(userId) ?? 0,
     };
     final bodyJson = jsonEncode(data);
-    query['signature'] =
-        KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
 
     try {
       final res = await _dio.post<dynamic>(
@@ -622,7 +577,7 @@ class LoginRepository {
             'User-Agent': KugoSign.userAgent,
             'Content-Type': 'application/json',
             'x-router': 'usercenter.kugou.com',
-            ..._authHeaders(device, token, userId),
+            ..._authHeaders(device, token, userId, t1: t1),
           },
         ),
       );
@@ -644,6 +599,7 @@ class LoginRepository {
   Future<UserProfileDetail?> _fetchVipDetail({
     required String token,
     required String userId,
+    required String t1,
   }) async {
     final device = await DeviceIdentity.ensure();
     final query = <String, dynamic>{
@@ -661,7 +617,7 @@ class LoginRepository {
         options: Options(
           headers: {
             'User-Agent': KugoSign.userAgent,
-            ..._authHeaders(device, token, userId),
+            ..._authHeaders(device, token, userId, t1: t1),
           },
         ),
       );
@@ -671,74 +627,6 @@ class LoginRepository {
       final data = root['data'];
       final vipNode = data is Map ? Map<String, dynamic>.from(data) : root;
       return _mapVipDetail(vipNode, [vipNode, root]);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// POST userinfo.user /v2/get_grade_info (EchoMusic `/user/grade/info` query mode).
-  ///
-  /// Fills listen seconds + grade progress that usercenter does not return.
-  Future<UserProfileDetail?> _fetchGradeInfo({
-    required String token,
-    required String userId,
-  }) async {
-    final device = await DeviceIdentity.ensure();
-    final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    // lite v2 protocol: key = md5(appid + appkey + clientver + clienttime).
-    const gradeClientVer = '10597';
-    const gradeAppKey = 'LnT6xpN3khm36zse0QzvmgTZ3waWdRSA';
-    final key = KugoSign.md5Hex(
-      '${KugoSign.appId}$gradeAppKey$gradeClientVer$clienttime',
-    );
-    // Query mode p plaintext is {clienttime, userid} — no token field.
-    final p = KugoCrypto.rsaEncryptRaw(
-      jsonEncode({'clienttime': clienttime, 'userid': int.tryParse(userId) ?? 0}),
-    ).toUpperCase();
-    final data = {
-      'mid': device.mid,
-      'type': 1,
-      'uuid': device.guid,
-      'userid': int.tryParse(userId) ?? 0,
-      'p': p,
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(gradeClientVer),
-      'clienttime': clienttime,
-      'key': key,
-    };
-
-    try {
-      final res = await _dio.post<dynamic>(
-        'http://userinfo.user.kugou.com/v2/get_grade_info',
-        data: jsonEncode(data),
-        queryParameters: {'dfid': device.dfid},
-        options: Options(
-          headers: {
-            'Content-Type': 'text/plain; charset=ISO-8859-1',
-            'User-Agent':
-                'Android15-1070-$gradeClientVer-201-0-get_user_grade_info-wifi',
-            'KG-THash': KugoCrypto.randomAlnum(7, lower: true),
-            'KG-Rec': '1',
-            'KG-RC': '1',
-            ..._authHeaders(device, token, userId),
-          },
-        ),
-      );
-      final body = _decode(res.data);
-      if (!_ok(body)) return null;
-      final root = body!;
-      final dataNode = root['data'];
-      if (dataNode is! Map) return null;
-      final m = Map<String, dynamic>.from(dataNode);
-      int? asInt(Object? v) =>
-          v is num ? v.toInt() : int.tryParse('${v ?? ''}');
-      return UserProfileDetail(
-        listenSeconds: asInt(m['d_sec']),
-        grade: asInt(m['p_grade']),
-        currentPoint: asInt(m['p_current_point']),
-        nextGrade: asInt(m['p_next_grade']),
-        nextGradePoint: asInt(m['p_next_grade_point']),
-      );
     } catch (_) {
       return null;
     }
@@ -786,10 +674,7 @@ class LoginRepository {
       extendsLeaf.addAll(asMap(map['extends']));
     }
 
-    int? numFrom(
-      List<String> keys, {
-      List<Map<String, dynamic>>? scopes,
-    }) {
+    int? numFrom(List<String> keys, {List<Map<String, dynamic>>? scopes}) {
       final maps = scopes ?? [...candidates, detailLeaf, extendsLeaf];
       for (final map in maps) {
         for (final k in keys) {
@@ -865,7 +750,12 @@ class LoginRepository {
       follows: numFrom(['follows', 'follow', 'follow_count']),
       fans: numFrom(['fans', 'fans_count', 'fan_count']),
       visitors: numFrom(['hvisitors', 'visitors', 'visitor', 'visit_count']),
-      registerTime: numFrom(['rtime', 'reg_time', 'register_time', 'createTime']),
+      registerTime: numFrom([
+        'rtime',
+        'reg_time',
+        'register_time',
+        'createTime',
+      ]),
       listenSeconds: numFrom(['d_sec', 'dsec', 'listen_seconds']),
       listenMinutes: numFrom(['duration', 'listen_duration']),
       grade: numFrom(['p_grade', 'grade']),
@@ -877,7 +767,8 @@ class LoginRepository {
     return MyProfile(
       nickname: nickname.isEmpty ? '用户' : nickname,
       avatarUrl: avatarUrl,
-      isVip: vipType != 0 || vip == '1' || detail.tvipActive || detail.svipActive,
+      isVip:
+          vipType != 0 || vip == '1' || detail.tvipActive || detail.svipActive,
       userId: userId.isEmpty ? fallbackUserId : userId,
       detail: detail,
     );
@@ -939,6 +830,5 @@ class LoginRepository {
     );
   }
 }
-
 
 final loginRepository = LoginRepository();

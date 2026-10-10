@@ -175,7 +175,7 @@ abstract final class KugoEndpoints {
   static const cloudUploadAuth = '/bsstrackercdngz/v1/upload/auth';
 
   /// 分片上传初始化 / 上传 / 完成（host 见 `bssulbig` / `external_host`）。
-  static const bssulbig = 'http://bssulbig.kugou.com';
+  static const bssulbig = 'https://bssulbig.kugou.com';
   static const cloudMultipartInit = '/v2/multipart/initiate/music';
   static const cloudMultipartUpload = '/v3/multipart/upload';
   static const cloudMultipartComplete = '/v3/multipart/complete';
