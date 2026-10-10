@@ -12,7 +12,7 @@
 | [app/README.md](app/README.md) | 工程运行说明 |
 | [docs/linux-compatibility-assessment.md](docs/linux-compatibility-assessment.md) | Linux 实施前兼容评估 |
 | [docs/linux-implementation.md](docs/linux-implementation.md) | Linux P0/P1 实施、复跑与验收边界 |
-| [docs/linux-x11-lyrics.md](docs/linux-x11-lyrics.md) | P2 X11 悬浮歌词方案、实施与验收记录 |
+| [docs/linux-x11-lyrics.md](docs/linux-x11-lyrics.md) | 已合并的 X11 悬浮歌词方案与验收；Wayland 专项适配暂缓，留待以后 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明（含 MV / 云盘协议） |
 | [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 + Windows 系统集成 / 二期 backlog |
 | [docs/personal-fm-vs-echomusic.md](docs/personal-fm-vs-echomusic.md) | 私人 FM 现状与差距 |

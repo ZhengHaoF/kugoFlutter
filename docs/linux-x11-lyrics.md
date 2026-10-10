@@ -1,6 +1,19 @@
 # kugoFlutter Linux X11 悬浮歌词方案与验收记录
 
+> 当前状态：P0/P1 [PR #2](https://github.com/ZhengHaoF/kugoFlutter/pull/2) 与 X11 歌词 [PR #3](https://github.com/ZhengHaoF/kugoFlutter/pull/3) 已按后续授权合并到 main；合并后的 [Ubuntu 22.04/24.04 CI](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38028673352) 通过。下文的分支、基线和“不直接合并”描述保留实施阶段历史；Wayland 的当前推进决策见下一节。
+
 本轮仅推进 P2 的 X11 悬浮歌词，沿用现有双进程、TCP 快照、LRC/KRC 渲染和样式设置，不重写播放器。代码与本记录一并提交到 `feat/linux-x11-lyrics`；基础为 P0/P1 分支提交 `ba4591033ae59db5e185b3c70f1793220aab4a34`，不直接合并主分支。
+
+## Wayland 专项适配暂缓
+
+按项目持有者的后续决定，**Wayland 先不推进，保留为以后再适配的待办**。本次只记录决策，不启动新的 Wayland 专项开发，也不因此启动发行打包。
+
+- **暂缓范围**：原生 Wayland 的全局悬浮歌词、透明置顶/全局位置控制、交互穿透专项适配，以及为此新增的 layer-shell 接入或 GNOME/KDE 桌面扩展。不承诺当前已支持这些能力，也不安排本轮实施时间。
+- **已有功能保留**：不移除或回退已接入的 Wayland 基础播放、应用内歌词、MPRIS 与存储等功能；原有基础回归继续保留。“以后适配”不是禁用 Wayland 下整个播放器。
+- **当前歌词策略**：X11 使用已经实现的独立歌词窗；原生 Wayland 与未知后端继续关闭全局悬浮入口，使用应用内歌词。XWayland 的 X11 后端检测不等于原生 Wayland 悬浮能力已完成。
+- **未来启动条件**：项目持有者明确要求恢复推进后，先确认目标 GNOME/KDE 等桌面和合成器支持，再评估扩展协议、桌面插件或普通歌词小窗降级路线；届时另立方案、PR 与真实桌面验收矩阵，不把当前 X11 证据当作 Wayland 验收。
+
+普通 xdg-shell 没有通用的全局绝对定位或始终置顶请求；layer-shell 属于另一套扩展接口，各合成器的支持并不一致。因此本待办不是将 X11 窗口代码直接换一个平台开关。[xdg-shell 协议](https://wayland.app/protocols/xdg-shell)、[layer-shell 协议与支持表](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
 
 ## 范围与使用
 
@@ -91,6 +104,6 @@ xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
 - **显示器**：左右/上下布局、拔插恢复、工作区变化、分数缩放与混合 DPI；负坐标测试不等同于多显示器实测。
 - **合成器**：运行中开启/关闭合成器未闭环；透明能力在子窗启动时选择，变更后应关闭并重启应用再试。
 - **长时与跨平台**：两小时播放/切歌/seek、实际音源 LRC/KRC、实体 GPU 与 Windows/Android 真机回归。当前离线快照与虚拟音频证据不能取代这些检查。
-- **后续 P2**：`.deb`/AppImage 等发行打包和原生 Wayland 替代歌词体验仍待另行推进，本 PR 不捎带实施。
+- **后续 P2**：`.deb`/AppImage 等发行打包仍待另行授权推进；Wayland 专项适配按上述决定暂缓，留待以后恢复，不作为当前迭代实施项。
 
 交付结论是“X11 悬浮歌词实现及可复跑的虚拟桌面自动验收完成”，不是“全部 Linux 桌面兼容已认证”。采用独立 PR 供审查；P0/P1 PR 若尚未合并，则本 PR 先以该分支为基底，之后再改为 main。

@@ -24,6 +24,8 @@ flutter run -d 127.0.0.1:5557   # 或你的设备 ID
 Linux P0/P1 构建与原生探针见 [Linux 实施记录](../docs/linux-implementation.md)。
 本轮固定验证 SDK 为 Flutter 3.47.7 / Dart 3.13.5；X11 悬浮歌词实现与证据见
 [X11 歌词记录](../docs/linux-x11-lyrics.md)，原生 Wayland 不开放全局悬浮歌词。
+Wayland 新增专项适配暂缓，留待以后明确恢复；已有基础播放与应用内歌词不回退，
+范围与恢复条件见该记录的“Wayland 专项适配暂缓”一节。
 Wayland 小窗不承诺绝对定位或始终置顶，真实 GNOME/KDE 与实体音频验收尚待完成。
 
 ```bash
