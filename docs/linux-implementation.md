@@ -27,6 +27,7 @@
 - **托盘方法与图标**：Linux 不调用不支持的 tooltip/手工 pop-up 方法，使用 PNG 图标；初始化失败不阻塞主窗。支持矩阵来自 [tray_manager 0.5.3](https://pub.dev/packages/tray_manager/versions/0.5.3)。
 - **宿主检查**：通过 session D-Bus 查询 `IsStatusNotifierHostRegistered`，不是仅凭 watcher 名称判断；定时刷新并在关闭前重新查询。无宿主时旧的“关闭到托盘”偏好回落为询问，隐藏选项禁用，保留取消和退出。
 - **主窗保存**：Wayland 只保存/恢复尺寸与最大化标志，不承诺绝对坐标；退出前显式保存最终尺寸。Wayland 的定位与置顶限制依据 [xdg-shell 协议](https://wayland.app/protocols/xdg-shell)。
+- **数据库路径**：原生探针发现 Linux 没有 XDG Documents 配置时会初始化失败，因此 Linux 数据库改用 application support/XDG_DATA_HOME，Android/Windows 路径不变。此前仓库没有正式 Linux runner；用户自建旧 Linux 版本的 Documents 数据库不自动搬迁，升级前应另行备份核对。
 - **MV 小窗**：X11 保留定位/置顶，Wayland 为普通可缩放小窗，不宣称系统 PiP 或跨应用始终置顶；失败时恢复窗口并返回普通播放页。
 - **文件与唤醒**：文件选择错误转为可读提示，取消返回空列表；Linux 需 zenity/kdialog/qarma，缺失时不崩溃。既有唤醒失败降级保留，未新增沙盒 portal 实现。[file_picker 8.3.7](https://pub.dev/packages/file_picker/versions/8.3.7)
 
@@ -48,7 +49,7 @@
 | 项目 | 当前证据 | 边界 |
 | --- | --- | --- |
 | 静态分析 | `flutter analyze --no-pub` 无问题 | tool 目录不在常规 analyze 范围，探针另行真实编译 |
-| 全量测试 | 最终数量见提交/PR 记录；新增 Linux 契约与游标回归 | 单元/Widget 证据，不替代实体桌面 |
+| 全量测试 | 1019 项通过；后续存储路径/托盘并发收尾另跑定向测试，远端 CI 再跑全量 | 单元/Widget 证据，不替代实体桌面 |
 | 生产 Release | `flutter build linux --release --no-pub` 成功 | 本机构建，不承诺跨发行版 ABI |
 | 主应用 UI | X11 主界面显示、中文/导航正常 | 无真实账号登录 |
 | 音频 | 严格检查 Referer/UA 的本地 HTTP WAV，libmpv 解码，实际游标推进，PCM 非零 | 合成音频、虚拟输出，不是听觉验收 |

@@ -2,10 +2,13 @@ name: Linux P0-P1
 on:
   pull_request:
   push:
-    branches: [main, feat/linux-p0-p1]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: linux-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   linux:
     strategy:

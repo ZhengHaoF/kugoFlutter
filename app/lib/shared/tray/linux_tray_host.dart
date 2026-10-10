@@ -11,8 +11,7 @@ class LinuxTrayHostMonitor {
   final DBusClient _client;
   Timer? _timer;
   bool _closed = false;
-  bool _checking = false;
-  bool _available = false;
+  Future<bool>? _pending;
   void Function(bool)? _onChanged;
 
   Future<void> start(void Function(bool) onChanged) async {
@@ -24,10 +23,13 @@ class LinuxTrayHostMonitor {
     );
   }
 
-  Future<bool> refresh() async {
-    if (_closed) return false;
-    if (_checking) return _available;
-    _checking = true;
+  Future<bool> refresh() {
+    if (_closed) return Future.value(false);
+    // A close event must await a running check, not reuse a stale "host exists".
+    return _pending ??= _refresh().whenComplete(() => _pending = null);
+  }
+
+  Future<bool> _refresh() async {
     var available = false;
     try {
       final watcher = DBusRemoteObject(
@@ -45,11 +47,8 @@ class LinuxTrayHostMonitor {
       available = value.asBoolean();
     } catch (_) {
       // No watcher, no host, disconnected bus or denied policy: no safe tray.
-    } finally {
-      _checking = false;
     }
     if (!_closed) {
-      _available = available;
       _onChanged?.call(available);
     }
     return !_closed && available;
