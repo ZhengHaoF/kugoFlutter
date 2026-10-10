@@ -10,6 +10,8 @@
 | [哔哩哔哩接入方案.md](哔哩哔哩接入方案.md) | B 站接入架构 + 功能差异；B3/B4 代码补齐，登录态与真机验收待完成，见 [验证记录](docs/bili-integration-validation.md) |
 | [桌面歌词接入方案.md](桌面歌词接入方案.md) | 桌面歌词方案（双进程 TCP IPC，已落地）+ 安卓悬浮歌词 + 透明背景实测无解记录 |
 | [app/README.md](app/README.md) | 工程运行说明 |
+| [docs/linux-compatibility-assessment.md](docs/linux-compatibility-assessment.md) | Linux 实施前兼容评估 |
+| [docs/linux-implementation.md](docs/linux-implementation.md) | Linux P0/P1 实施、复跑与验收边界；P2 暂不做 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明（含 MV / 云盘协议） |
 | [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 + Windows 系统集成 / 二期 backlog |
 | [docs/personal-fm-vs-echomusic.md](docs/personal-fm-vs-echomusic.md) | 私人 FM 现状与差距 |

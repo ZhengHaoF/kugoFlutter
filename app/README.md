@@ -21,6 +21,16 @@ flutter run -d 127.0.0.1:5557   # 或你的设备 ID
 
 ## Release 打包
 
+Linux P0/P1 构建与原生探针见 [Linux 实施记录](../docs/linux-implementation.md)。
+本轮固定验证 SDK 为 Flutter 3.47.7 / Dart 3.13.5；Linux 不支持悬浮歌词，
+Wayland 小窗不承诺绝对定位或始终置顶，真实 GNOME/KDE 与实体音频验收尚待完成。
+
+```bash
+flutter pub get --enforce-lockfile
+flutter build linux --release --no-pub
+./build/linux/x64/release/bundle/kugo
+```
+
 ```powershell
 cd app
 flutter build apk --release

@@ -103,7 +103,7 @@ class SettingsPage extends ConsumerWidget {
                   ),
               ],
             ),
-          if (isDesktopPlatform || isAndroidPlatform)
+          if (supportsDesktopLyrics || isAndroidPlatform)
             _Section(
               title: '桌面歌词',
               children: [

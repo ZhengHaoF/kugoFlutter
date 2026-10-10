@@ -68,13 +68,25 @@ bool isCloudUploadExtension(String name) {
 /// 取消返回空列表；超限/非法扩展名写入 [errors]。
 Future<List<CloudUploadPick>> pickCloudUploadFiles({
   List<String>? errors,
+  Future<FilePickerResult?> Function()? picker,
 }) async {
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: kCloudUploadExtensions,
-    allowMultiple: true,
-    withData: true,
-  );
+  FilePickerResult? result;
+  try {
+    result =
+        await (picker?.call() ??
+            FilePicker.platform.pickFiles(
+              type: FileType.custom,
+              allowedExtensions: kCloudUploadExtensions,
+              allowMultiple: true,
+              withData: true,
+            ));
+  } catch (_) {
+    errors?.add(
+      '无法打开文件选择器。Linux 请安装 zenity、kdialog 或 qarma，'
+      '并确认当前桌面会话可访问文件对话框。',
+    );
+    return const [];
+  }
   if (result == null) return const [];
 
   final out = <CloudUploadPick>[];

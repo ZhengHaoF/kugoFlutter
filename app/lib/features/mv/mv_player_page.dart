@@ -249,6 +249,12 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
         if (_fullscreen) await _toggleFullscreen();
         final prev = await MvDesktopMini.enter(_hostState.videoAspect);
         if (!mounted) return;
+        if (prev == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('当前桌面无法进入小窗，继续全页播放')));
+          return;
+        }
         setState(() {
           _savedWindow = prev;
           _desktopMini = true;

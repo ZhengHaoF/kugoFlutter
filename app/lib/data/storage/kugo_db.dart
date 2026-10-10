@@ -155,7 +155,11 @@ class KugoDb extends _$KugoDb {
 
   static QueryExecutor _open() {
     return LazyDatabase(() async {
-      final dir = await getApplicationDocumentsDirectory();
+      // Linux may not have an XDG Documents directory at all. App data belongs
+      // under XDG_DATA_HOME; preserve the established path on other platforms.
+      final dir = Platform.isLinux
+          ? await getApplicationSupportDirectory()
+          : await getApplicationDocumentsDirectory();
       final file = File(p.join(dir.path, 'kugo', 'kugo.sqlite'));
       await file.parent.create(recursive: true);
       return NativeDatabase.createInBackground(file);

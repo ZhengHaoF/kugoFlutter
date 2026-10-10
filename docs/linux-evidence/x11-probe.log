@@ -1,0 +1,20 @@
+[linux-probe] backend=x11
+[linux-probe] PASS native SharedPreferences window settings persist
+[linux-probe] PASS native SQLite queue survives database reopen
+[linux-probe] PASS native SQLite history persists
+[linux-probe] PASS MPRIS registered on real session bus
+[linux-probe] cursor controller=544 libmpv=544
+[linux-probe] live cursor=1084 engine=1084
+[linux-probe] PASS application playback cursor advances
+[linux-probe] PASS libmpv HTTP headers, decoding and progressing clock
+[linux-probe] PASS MPRIS Pause
+[linux-probe] PASS MPRIS Play
+[linux-probe] PASS MPRIS SetPosition microseconds
+[linux-probe] PASS MPRIS Next
+[linux-probe] PASS MPRIS Previous
+[linux-probe] PASS MPRIS volume updates actual player
+[linux-probe] PASS MPRIS Stop
+[linux-probe] PASS desktop mini-window entry
+[linux-probe] PASS desktop mini-window restores normal size
+[linux-probe] PASS native video texture decoded frame
+[linux-probe] ALL_CHECKS_PASSED
