@@ -61,7 +61,7 @@ class DesktopLyricBridge {
   static Future<DesktopLyricBridge> boot(ProviderContainer container) async {
     final bridge = DesktopLyricBridge(container);
     instance = bridge;
-    if (!isDesktopPlatform) return bridge;
+    if (!supportsDesktopLyrics) return bridge;
     await bridge._start();
     return bridge;
   }
@@ -162,7 +162,7 @@ class DesktopLyricBridge {
 
   /// 打开（已存在则显示）。幂等；并发调用会合并到同一次 spawn。
   Future<void> open() async {
-    if (!isDesktopPlatform) return;
+    if (!supportsDesktopLyrics) return;
     if (_opening) return;
     _opening = true;
     try {

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:tray_manager/tray_manager.dart';
 
+import '../../core/desktop_capabilities.dart';
+import '../../core/platform.dart';
 import '../../features/player/player_controller.dart';
 
 /// 托盘命令 — 与 EchoMusic `TrayCommand` 对齐。
@@ -97,12 +99,17 @@ class DesktopTray with TrayListener implements TrayPort {
   TrayPlaybackSnapshot _snapshot = const TrayPlaybackSnapshot();
   bool _desktopLyricOn = false;
   bool _ready = false;
+  bool _iconCreated = false;
+  bool get isReady => _ready;
 
   @override
   Future<void> init() async {
     if (_ready) return;
     await trayManager.setIcon(resolveTrayIconPath());
-    await trayManager.setToolTip('kugo');
+    _iconCreated = true;
+    if (DesktopCapabilities.current.trayTooltip) {
+      await trayManager.setToolTip('kugo');
+    }
     trayManager.addListener(this);
     await _rebuildMenu();
     _ready = true;
@@ -125,8 +132,9 @@ class DesktopTray with TrayListener implements TrayPort {
 
   @override
   Future<void> destroy() async {
-    if (!_ready) return;
+    if (!_ready && !_iconCreated) return;
     _ready = false;
+    _iconCreated = false;
     trayManager.removeListener(this);
     try {
       await trayManager.destroy();
@@ -140,6 +148,9 @@ class DesktopTray with TrayListener implements TrayPort {
 
   @override
   void onTrayIconRightMouseDown() {
+    // AppIndicator displays its menu itself; this method has no Linux native
+    // implementation in tray_manager 0.5.x.
+    if (isLinuxPlatform) return;
     unawaited(trayManager.popUpContextMenu());
   }
 
@@ -149,7 +160,9 @@ class DesktopTray with TrayListener implements TrayPort {
     if (key == null) return;
     if (key.startsWith('mode_')) {
       final name = key.substring('mode_'.length);
-      final mode = PlayerLoopMode.values.where((m) => m.name == name).firstOrNull;
+      final mode = PlayerLoopMode.values
+          .where((m) => m.name == name)
+          .firstOrNull;
       if (mode != null) unawaited(Future(() => onSetMode(mode)));
       return;
     }
@@ -211,16 +224,22 @@ class DesktopTray with TrayListener implements TrayPort {
             ),
           ),
           MenuItem.separator(),
-          MenuItem(key: 'volume_label', label: '音量 $volumePct%', disabled: true),
+          MenuItem(
+            key: 'volume_label',
+            label: '音量 $volumePct%',
+            disabled: true,
+          ),
           MenuItem(key: 'volume_up', label: '增大音量'),
           MenuItem(key: 'volume_down', label: '减小音量'),
-          MenuItem.separator(),
-          MenuItem(
-            key: 'desktop_lyric',
-            label: '桌面歌词',
-            type: 'checkbox',
-            checked: _desktopLyricOn,
-          ),
+          if (supportsDesktopLyrics) ...[
+            MenuItem.separator(),
+            MenuItem(
+              key: 'desktop_lyric',
+              label: '桌面歌词',
+              type: 'checkbox',
+              checked: _desktopLyricOn,
+            ),
+          ],
           MenuItem.separator(),
           MenuItem(key: 'quit', label: '退出'),
         ],
@@ -231,15 +250,16 @@ class DesktopTray with TrayListener implements TrayPort {
 
 /// 运行时解析托盘图标文件路径（tray_manager 需要真实文件路径，不能走 asset 字节）。
 String resolveTrayIconPath() {
+  final filename = isWindowsPlatform ? 'tray_icon.ico' : 'tray_icon.png';
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     final fromExe = p.join(
       p.dirname(Platform.resolvedExecutable),
       'data',
       'flutter_assets',
       'assets',
-      'tray_icon.ico',
+      filename,
     );
     if (File(fromExe).existsSync()) return fromExe;
   }
-  return p.join('assets', 'tray_icon.ico');
+  return p.join('assets', filename);
 }

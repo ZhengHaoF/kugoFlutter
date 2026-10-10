@@ -99,6 +99,23 @@ class CoverCache {
   /// flashes a gradient placeholder after the mini-player already showed art.
   Uint8List? peek(String url) => _mem[url.trim()];
 
+  /// Export only a local cover file to desktop media clients. Remote artwork
+  /// may require Referer headers, and signed URLs must not go onto D-Bus.
+  Future<Uri?> fileUri(String url) async {
+    final key = url.trim();
+    if (key.isEmpty) return null;
+    final bytes = await get(key);
+    if (bytes == null) return null;
+    try {
+      final dir = await _cacheDir();
+      final file = File('${dir.path}${Platform.pathSeparator}${_key(key)}');
+      await file.writeAsBytes(bytes, flush: true);
+      return file.uri;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns cover bytes for [url], or null when the URL is non-network /
   /// download failed (caller falls back to the seed gradient).
   Future<Uint8List?> get(String url) {

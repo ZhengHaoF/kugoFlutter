@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/app_navigator.dart';
+import '../../core/desktop_capabilities.dart';
 import '../../core/platform.dart';
 import '../../features/desktop_lyric/desktop_lyric_bridge.dart';
 import '../../features/likes/likes_controller.dart';
@@ -15,6 +16,8 @@ import '../taskbar/taskbar_bridge.dart';
 import 'close_behavior_dialog.dart';
 import 'desktop_tray.dart';
 import 'window_bounds_store.dart';
+import 'linux_tray_host.dart';
+import '../../features/player/linux_media_bridge.dart';
 
 /// Windows / 桌面壳：托盘 + 关闭到托盘 + 任务栏 Thumbar/进度条。
 ///
@@ -27,6 +30,8 @@ class DesktopShell with WindowListener {
 
   final ProviderContainer _container;
   DesktopTray? _tray;
+  LinuxTrayHostMonitor? _trayHost;
+  bool _handlingClose = false;
   bool _quitting = false;
 
   /// Guards the「每次询问」prompt against a second close (taskbar / Alt+F4)
@@ -37,7 +42,8 @@ class DesktopShell with WindowListener {
   int _lastProgressPermille = -1;
   String _lastProgressMode = 'none';
 
-  PlayerController get _player => _container.read(playerControllerProvider.notifier);
+  PlayerController get _player =>
+      _container.read(playerControllerProvider.notifier);
 
   PlayerState get _playerState => _container.read(playerControllerProvider);
 
@@ -112,12 +118,33 @@ class DesktopShell with WindowListener {
       onQuit: quit,
     );
     _tray = tray;
-    await tray.init();
+    try {
+      // A bus is required for AppIndicator, but an actual host may appear later.
+      if (!isLinuxPlatform || hasLinuxSessionBus) {
+        await tray.init();
+      }
+      if (isLinuxPlatform && tray.isReady) {
+        final monitor = LinuxTrayHostMonitor();
+        _trayHost = monitor;
+        await monitor.start((available) {
+          _container.read(desktopTrayAvailableProvider.notifier).state =
+              available && tray.isReady;
+        });
+      } else {
+        _container.read(desktopTrayAvailableProvider.notifier).state =
+            tray.isReady;
+      }
+    } catch (e) {
+      debugPrint('[desktop] tray unavailable: ${e.runtimeType}');
+      _container.read(desktopTrayAvailableProvider.notifier).state = false;
+      await tray.destroy();
+    }
     await tray.setDesktopLyricEnabled(lyricBridge.isOpen);
     _syncTray();
     _wireTaskbar();
 
     _container.listen<PlayerState>(playerControllerProvider, (prev, next) {
+      LinuxMediaBridge.instance?.object.publish();
       _syncTray();
       _syncTaskbarFromState();
       if (prev?.current != next.current) _syncTitle(next);
@@ -144,7 +171,8 @@ class DesktopShell with WindowListener {
     // 等一帧，确保 waitUntilReadyToShow 的 HWND 消息先走完。
     await Future<void>.delayed(Duration.zero);
     if (!isWindowsPlatform) return;
-    final dark = _container.read(settingsControllerProvider).materialThemeMode !=
+    final dark =
+        _container.read(settingsControllerProvider).materialThemeMode !=
         ThemeMode.light;
     try {
       await Window.initialize();
@@ -178,9 +206,12 @@ class DesktopShell with WindowListener {
   Future<void> _restoreWindowBounds() async {
     try {
       final b = await DesktopWindowBoundsStore.load();
-      if (b.hasPosition) {
-        await windowManager
-            .setBounds(Rect.fromLTWH(b.x!, b.y!, b.width, b.height));
+      if (b.hasPosition && DesktopCapabilities.current.absolutePosition) {
+        await windowManager.setBounds(
+          Rect.fromLTWH(b.x!, b.y!, b.width, b.height),
+        );
+      } else {
+        await windowManager.setSize(Size(b.width, b.height));
       }
       if (b.maximized) await windowManager.maximize();
     } catch (_) {}
@@ -197,8 +228,8 @@ class DesktopShell with WindowListener {
   }
 
   /// 最小化与最大化状态只存标记，bounds 用「上一次非最大化」的值。
-  Future<void> _saveWindowBounds() async {
-    if (_quitting) return;
+  Future<void> _saveWindowBounds({bool finalSave = false}) async {
+    if (_quitting && !finalSave) return;
     if (!isDesktopPlatform) return;
     try {
       if (await windowManager.isMinimized()) return;
@@ -213,14 +244,17 @@ class DesktopShell with WindowListener {
       if (b.width < 320 || b.height < 320) return;
       await DesktopWindowBoundsStore.save(
         DesktopWindowBounds(
-          x: b.left,
-          y: b.top,
+          x: DesktopCapabilities.current.absolutePosition ? b.left : null,
+          y: DesktopCapabilities.current.absolutePosition ? b.top : null,
           width: b.width,
           height: b.height,
           maximized: false,
         ),
       );
     } catch (_) {}
+    if (!DesktopCapabilities.current.absolutePosition) {
+      await DesktopWindowBoundsStore.clearPosition();
+    }
   }
 
   void _wireTaskbar() {
@@ -269,7 +303,8 @@ class DesktopShell with WindowListener {
     final track = s.current;
     final hasTrack = track != null;
     final isFavorite =
-        track != null && _container.read(likesProvider).any((t) => t.id == track.id);
+        track != null &&
+        _container.read(likesProvider).any((t) => t.id == track.id);
     unawaited(
       TaskbarBridge.updateButtons(
         hasTrack: hasTrack,
@@ -284,7 +319,10 @@ class DesktopShell with WindowListener {
 
   void _scheduleProgressSync() {
     if (_progressTimer?.isActive ?? false) return;
-    _progressTimer = Timer(_progressThrottle, () => _pushProgress(force: false));
+    _progressTimer = Timer(
+      _progressThrottle,
+      () => _pushProgress(force: false),
+    );
   }
 
   void _pushProgress({required bool force}) {
@@ -300,7 +338,10 @@ class DesktopShell with WindowListener {
             durationMs: s.durationMs,
           );
     final durationMs = s.durationMs;
-    final positionMs = _player.position.value.clamp(0, durationMs <= 0 ? 0 : durationMs);
+    final positionMs = _player.position.value.clamp(
+      0,
+      durationMs <= 0 ? 0 : durationMs,
+    );
     var permille = 0;
     if (durationMs > 0) {
       permille = (positionMs * 1000) ~/ durationMs;
@@ -308,7 +349,8 @@ class DesktopShell with WindowListener {
     final modeName = mode.wireName;
     final modeChanged = modeName != _lastProgressMode;
     final ratioChanged =
-        _lastProgressPermille < 0 || (permille - _lastProgressPermille).abs() >= 1;
+        _lastProgressPermille < 0 ||
+        (permille - _lastProgressPermille).abs() >= 1;
     if (!force && !modeChanged && !ratioChanged) return;
     // Already cleared and still none — skip the channel round-trip.
     if (!force && modeName == 'none' && _lastProgressMode == 'none') return;
@@ -343,7 +385,7 @@ class DesktopShell with WindowListener {
     _progressTimer = null;
     _boundsSaveTimer?.cancel();
     _boundsSaveTimer = null;
-    await _saveWindowBounds();
+    await _saveWindowBounds(finalSave: true);
     final listener = _positionListener;
     if (listener != null) {
       _player.position.removeListener(listener);
@@ -357,6 +399,8 @@ class DesktopShell with WindowListener {
     final tray = _tray;
     _tray = null;
     await tray?.destroy();
+    await _trayHost?.close();
+    await LinuxMediaBridge.instance?.close();
     windowManager.removeListener(this);
     await windowManager.setPreventClose(false);
     if (isWindowsPlatform) {
@@ -375,15 +419,26 @@ class DesktopShell with WindowListener {
 
   @override
   void onWindowClose() {
-    if (_quitting || _closePromptOpen) return;
-    unawaited(_saveWindowBounds());
-    switch (_closeBehavior) {
-      case CloseBehavior.tray:
-        unawaited(windowManager.hide());
-      case CloseBehavior.quit:
-        unawaited(quit());
-      case CloseBehavior.ask:
-        unawaited(_promptClose());
+    if (_quitting || _closePromptOpen || _handlingClose) return;
+    unawaited(_handleClose());
+  }
+
+  Future<void> _handleClose() async {
+    _handlingClose = true;
+    try {
+      if (isLinuxPlatform) await _trayHost?.refresh();
+      final available = _container.read(desktopTrayAvailableProvider);
+      unawaited(_saveWindowBounds());
+      switch (safeCloseBehavior(_closeBehavior, available)) {
+        case CloseBehavior.tray:
+          unawaited(windowManager.hide());
+        case CloseBehavior.quit:
+          unawaited(quit());
+        case CloseBehavior.ask:
+          await _promptClose();
+      }
+    } finally {
+      _handlingClose = false;
     }
   }
 
@@ -392,14 +447,18 @@ class DesktopShell with WindowListener {
   Future<void> _promptClose() async {
     final context = kugoNavigatorKey.currentContext;
     if (context == null) {
-      // First frame has not been mounted yet (close during startup). The tray
-      // already exists, so hide instead of risking a half-built navigator.
-      await windowManager.hide();
+      // Keep the window recoverable if startup has not mounted a navigator.
+      if (_container.read(desktopTrayAvailableProvider)) {
+        await windowManager.hide();
+      }
       return;
     }
     _closePromptOpen = true;
     try {
-      final choice = await showCloseBehaviorDialog(context);
+      final choice = await showCloseBehaviorDialog(
+        context,
+        trayAvailable: _container.read(desktopTrayAvailableProvider),
+      );
       if (choice == null) return; // 取消 / 点遮罩 → 保持窗口打开
       if (choice.remember) {
         await _container
@@ -407,7 +466,10 @@ class DesktopShell with WindowListener {
             .setCloseBehavior(choice.behavior);
       }
       if (choice.behavior == CloseBehavior.tray) {
-        await windowManager.hide();
+        if (isLinuxPlatform) await _trayHost?.refresh();
+        if (_container.read(desktopTrayAvailableProvider)) {
+          await windowManager.hide();
+        }
       } else {
         await quit();
       }

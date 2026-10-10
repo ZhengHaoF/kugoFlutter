@@ -12,12 +12,20 @@ class CloseBehaviorChoice {
   final bool remember;
 }
 
+CloseBehavior safeCloseBehavior(CloseBehavior requested, bool trayAvailable) =>
+    requested == CloseBehavior.tray && !trayAvailable
+    ? CloseBehavior.ask
+    : requested;
+
 /// Desktop close prompt: 退出应用 / 最小化到托盘, with an optional「记住我的选择」.
 ///
 /// Returns `null` when the user cancels (or dismisses by clicking the barrier) —
 /// the caller must then leave the window open. Shown from `DesktopShell`, which
 /// has no `BuildContext`; it supplies the root navigator's context.
-Future<CloseBehaviorChoice?> showCloseBehaviorDialog(BuildContext context) {
+Future<CloseBehaviorChoice?> showCloseBehaviorDialog(
+  BuildContext context, {
+  bool trayAvailable = true,
+}) {
   var remember = false;
   return showDialog<CloseBehaviorChoice>(
     context: context,
@@ -30,7 +38,12 @@ Future<CloseBehaviorChoice?> showCloseBehaviorDialog(BuildContext context) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('退出应用，还是最小化到系统托盘继续播放？', style: kugo.body),
+              Text(
+                trayAvailable
+                    ? '退出应用，还是最小化到系统托盘继续播放？'
+                    : '当前桌面没有可用的系统托盘。退出应用，还是保持窗口打开？',
+                style: kugo.body,
+              ),
               const SizedBox(height: 4),
               CheckboxListTile(
                 value: remember,
@@ -48,12 +61,13 @@ Future<CloseBehaviorChoice?> showCloseBehaviorDialog(BuildContext context) {
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('取消'),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(
-                CloseBehaviorChoice(CloseBehavior.tray, remember: remember),
+            if (trayAvailable)
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(
+                  CloseBehaviorChoice(CloseBehavior.tray, remember: remember),
+                ),
+                child: const Text('最小化到托盘'),
               ),
-              child: const Text('最小化到托盘'),
-            ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(
                 CloseBehaviorChoice(CloseBehavior.quit, remember: remember),

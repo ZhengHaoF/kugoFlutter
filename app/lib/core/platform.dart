@@ -11,6 +11,12 @@ bool get isDesktopPlatform =>
 /// Windows-only desktop shell extras (taskbar Thumbar / progress).
 bool get isWindowsPlatform => !kIsWeb && Platform.isWindows;
 
+bool get isLinuxPlatform => !kIsWeb && Platform.isLinux;
+
+/// The native lyric host is currently implemented only by the Windows runner.
+/// Linux overlays are intentionally outside P0/P1.
+bool get supportsDesktopLyrics => isWindowsPlatform;
+
 /// Android runtime detection — mobile-only integrations (PiP 等).
 bool get isAndroidPlatform => !kIsWeb && Platform.isAndroid;
 
@@ -18,8 +24,8 @@ bool get isAndroidPlatform => !kIsWeb && Platform.isAndroid;
 /// (notification / lock screen / Bluetooth AVRCP / Windows SMTC).
 ///
 /// Mobile & macOS use `audio_service` natively; Windows uses the
-/// `audio_service_win` federated implementation. Linux has neither here —
-/// leave it off rather than throw `MissingPluginException`.
+/// `audio_service_win` federated implementation. This gate is for audio_service
+/// initialization only; Linux uses our session D-Bus bridge separately.
 ///
 /// [PlayerController]'s bridge is nullable by design: platforms without a
 /// session simply never call `attachBridge`.

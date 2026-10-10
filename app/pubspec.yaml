@@ -21,6 +21,7 @@ dependencies:
   just_audio: ^0.9.46
   audio_service: ^0.18.17
   audio_service_win: ^0.0.3
+  dbus: ^0.7.15
   audio_session: ^0.1.25
   crypto: ^3.0.6
   encrypt: ^5.0.3
@@ -30,6 +31,7 @@ dependencies:
   media_kit_video: ^1.2.5
   media_kit_libs_android_video: ^1.3.6
   media_kit_libs_windows_video: ^1.0.10
+  media_kit_libs_linux: 1.2.1
   silky_scroll: ^2.6.4
   tray_manager: ^0.5.0
   window_manager: ^0.5.0
@@ -54,6 +56,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/tray_icon.ico
+    - assets/tray_icon.png
   fonts:
     - family: MiSans
       fonts:

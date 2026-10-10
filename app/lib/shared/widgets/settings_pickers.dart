@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/desktop_capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
@@ -56,9 +57,8 @@ Future<void> showDefaultSourcePicker(
   final current = settings.defaultSource;
   // 只列已注册且启用的源（停用的源选了也不会生效）。
   final enabled = settings.enabledSources;
-  final platforms = musicSourceRegistry?.platforms
-          .where(enabled.contains)
-          .toList() ??
+  final platforms =
+      musicSourceRegistry?.platforms.where(enabled.contains).toList() ??
       const [MusicPlatform.kugou];
   final selected = await showKugoBottomSheet<MusicPlatform>(
     context: context,
@@ -125,10 +125,14 @@ Future<void> showSleepPicker(BuildContext context, WidgetRef ref) async {
 }
 
 /// Pick what the desktop window close button does (每次询问 / 最小化到托盘 / 退出应用).
-Future<void> showCloseBehaviorPicker(BuildContext context, WidgetRef ref) async {
+Future<void> showCloseBehaviorPicker(
+  BuildContext context,
+  WidgetRef ref,
+) async {
   final kugo = KugoTheme.of(context);
   final controller = ref.read(settingsControllerProvider.notifier);
   final current = ref.read(settingsControllerProvider).closeBehavior;
+  final trayAvailable = ref.read(desktopTrayAvailableProvider);
   final selected = await showKugoBottomSheet<CloseBehavior>(
     context: context,
     builder: (sheetContext) => Column(
@@ -136,14 +140,15 @@ Future<void> showCloseBehaviorPicker(BuildContext context, WidgetRef ref) async 
       children: [
         const SizedBox(height: 8),
         for (final behavior in CloseBehavior.values)
-          ListTile(
-            title: Text(behavior.label, style: kugo.body),
-            subtitle: Text(behavior.closeHint, style: kugo.caption),
-            trailing: behavior == current
-                ? Icon(Icons.check_rounded, color: kugo.primary)
-                : null,
-            onTap: () => Navigator.pop(sheetContext, behavior),
-          ),
+          if (behavior != CloseBehavior.tray || trayAvailable)
+            ListTile(
+              title: Text(behavior.label, style: kugo.body),
+              subtitle: Text(behavior.closeHint, style: kugo.caption),
+              trailing: behavior == current
+                  ? Icon(Icons.check_rounded, color: kugo.primary)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext, behavior),
+            ),
         const SizedBox(height: 8),
       ],
     ),
@@ -207,13 +212,8 @@ class _AboutRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 64,
-            child: Text(label, style: kugo.caption),
-          ),
-          Expanded(
-            child: Text(value, style: kugo.body),
-          ),
+          SizedBox(width: 64, child: Text(label, style: kugo.caption)),
+          Expanded(child: Text(value, style: kugo.body)),
         ],
       ),
     );

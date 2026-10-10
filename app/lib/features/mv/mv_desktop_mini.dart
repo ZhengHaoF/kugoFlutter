@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/platform.dart' show isDesktopPlatform;
+import '../../core/desktop_capabilities.dart';
 
 /// 进入迷你态前的窗口形态，退出时原样还原。
 typedef MvDesktopMiniState = ({Rect bounds, bool maximized});
@@ -29,26 +30,33 @@ class MvDesktopMini {
   /// 进入迷你态。返回进入前的窗口形态（退出时还原）；非桌面端返回 null。
   static Future<MvDesktopMiniState?> enter(double aspect) async {
     if (!isDesktopPlatform) return null;
+    MvDesktopMiniState? previous;
     try {
       final prevBounds = await windowManager.getBounds();
       final wasMaximized = await windowManager.isMaximized();
+      previous = (bounds: prevBounds, maximized: wasMaximized);
       final a = (aspect.isFinite && aspect > 0) ? aspect : 16 / 9;
       // 最大化状态下 setSize 不生效，先还原。
       if (wasMaximized) {
         await windowManager.unmaximize();
       }
       await windowManager.setMinimumSize(miniMinimumSize);
-      await windowManager.setAlwaysOnTop(true);
+      if (DesktopCapabilities.current.alwaysOnTop) {
+        await windowManager.setAlwaysOnTop(true);
+      }
       // 锁宽高比：拖边缩放时窗口始终保持视频形状。
       await windowManager.setAspectRatio(a);
       final w = width;
       final h = (w / a).clamp(miniMinimumSize.height, 900.0);
       await windowManager.setSize(Size(w, h));
       // 贴屏幕右下角，像系统画中画一样好找。
-      await windowManager.setAlignment(Alignment.bottomRight);
+      if (DesktopCapabilities.current.absolutePosition) {
+        await windowManager.setAlignment(Alignment.bottomRight);
+      }
       return (bounds: prevBounds, maximized: wasMaximized);
     } catch (_) {
       // 窗口未初始化（测试）等场景：静默降级，页面照常全页播放。
+      await exit(previous);
       return null;
     }
   }
@@ -57,14 +65,20 @@ class MvDesktopMini {
   static Future<void> exit(MvDesktopMiniState? prev) async {
     if (!isDesktopPlatform) return;
     try {
-      await windowManager.setAlwaysOnTop(false);
+      if (DesktopCapabilities.current.alwaysOnTop) {
+        await windowManager.setAlwaysOnTop(false);
+      }
       await windowManager.setAspectRatio(0);
       await windowManager.setMinimumSize(shellMinimumSize);
       if (prev == null) return;
       if (prev.maximized) {
         await windowManager.maximize();
       } else if (prev.bounds.width > 0 && prev.bounds.height > 0) {
-        await windowManager.setBounds(prev.bounds);
+        if (DesktopCapabilities.current.absolutePosition) {
+          await windowManager.setBounds(prev.bounds);
+        } else {
+          await windowManager.setSize(prev.bounds.size);
+        }
       }
     } catch (_) {}
   }

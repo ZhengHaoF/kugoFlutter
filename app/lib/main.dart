@@ -13,6 +13,7 @@ import 'core/api/netease/netease_client.dart';
 import 'core/api/network_log.dart';
 import 'core/diagnostics/crash_log.dart';
 import 'core/platform.dart';
+import 'core/desktop_capabilities.dart';
 import 'core/theme/kugo_theme.dart';
 import 'data/sources/sources.dart';
 import 'data/sources/bili/bili_source.dart';
@@ -26,6 +27,7 @@ import 'features/desktop_lyric/desktop_lyric_ipc.dart';
 import 'features/desktop_lyric/lyric_window/lyric_window_app.dart';
 import 'features/player/audio_service_handler.dart';
 import 'features/player/player_controller.dart';
+import 'features/player/linux_media_bridge.dart';
 import 'features/settings/settings_controller.dart';
 import 'shared/tray/desktop_shell.dart';
 
@@ -34,19 +36,42 @@ Future<void> main(List<String> args) async {
   // ── 崩溃捕获：装在最早，保证后续初始化里的报错也能落盘 ──
   await CrashLog.install();
   // zone 级未捕获错误同样收编（框架 / 原生两级在 CrashLog.install 里）。
-  return runZonedGuarded(() => _bootApp(args), CrashLog.onPlatformError);
+  return runZonedGuarded(() async {
+    try {
+      await _bootApp(args);
+    } catch (e, st) {
+      CrashLog.onPlatformError(e, st);
+      runApp(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'kugo 启动失败（${e.runtimeType}）。\n'
+                  'Linux 请检查 libmpv、GTK 与运行依赖；详细记录见应用目录 crash.log。',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }, CrashLog.onPlatformError);
 }
 
 /// 原 main 内容，仅拆出来以便包进 [runZonedGuarded]。
 Future<void> _bootApp(List<String> args) async {
-
   // ── 桌面歌词独立进程分流：只承载歌词 UI，不做音频/托盘/数据源初始化 ──
   // 双进程（不再用 desktop_multi_window）：主窗 spawn 本 exe 并带上
   // `desktop_lyric --ipc-port=N`，两边走 TCP。见 桌面歌词接入方案.md §12。
-  if (isDesktopPlatform) {
+  await DesktopCapabilities.initialize();
+  if (supportsDesktopLyrics) {
     final lyricArgs = LyricIpc.isLyricProcessArgs(args);
-    debugPrint('[desktop_lyric] main args=$args lyric=$lyricArgs '
-        'envPort=${Platform.environment[LyricIpc.envPort]}');
+    debugPrint(
+      '[desktop_lyric] main args=$args lyric=$lyricArgs '
+      'envPort=${Platform.environment[LyricIpc.envPort]}',
+    );
     if (lyricArgs) {
       runApp(DesktopLyricApp(ipcPort: LyricIpc.portFromArgs(args)));
       return;
@@ -66,7 +91,9 @@ Future<void> _bootApp(List<String> args) async {
   // Load saved settings first so the very first frame already uses the theme
   // the user picked (no dark→light flash on launch).
   await container.read(settingsControllerProvider.notifier).ensureRestored();
-  final themeMode = container.read(settingsControllerProvider).materialThemeMode;
+  final themeMode = container
+      .read(settingsControllerProvider)
+      .materialThemeMode;
   final initialBrightness = switch (themeMode) {
     ThemeMode.dark => Brightness.dark,
     ThemeMode.light => Brightness.light,
@@ -129,6 +156,12 @@ Future<void> _bootApp(List<String> args) async {
     );
   }
   await player.restoreOrSeed();
+  if (hasLinuxSessionBus) {
+    final bridge = await LinuxMediaBridge.start(
+      LinuxMediaActions.player(player),
+    );
+    if (bridge != null) player.attachBridge(bridge);
+  }
 
   // 冷启动认领 FM 会话：播放器队列已恢复，若与 FM 指纹相符就把来源标回 fm，
   // 播放页才会继续显示 FM 控件（循环/随机位换成「不喜欢」、上一首带边界禁用）。
@@ -142,9 +175,6 @@ Future<void> _bootApp(List<String> args) async {
   await AndroidLyricBridge.boot(container);
 
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const KugoApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const KugoApp()),
   );
 }

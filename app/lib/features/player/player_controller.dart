@@ -253,8 +253,11 @@ class PlayerController extends Notifier<PlayerState> {
         // 样本（甚至 0），无条件写入会让歌词游标瞬间倒退回前面的行、下一帧才被
         // 纠正——表现为「播放/暂停切换后歌词跳到另一行」。seek 走 seekTo()，那里
         // 会重置 _tickBaseMs，所以倒着拖进度不受影响。
-        if (position.value != ms) position.value = ms;
       }
+      // The media-session extrapolation can run ahead while libmpv buffers.
+      // Do not let that independent clock starve the actual UI cursor forever.
+      // Still reject stale/backwards engine samples; seek resets this cursor.
+      if (ms > position.value) position.value = ms;
       // The engine sample is deliberately NOT forwarded to the media
       // session here. The MediaSession holds a snapshot, not a live value, and
       // positions must never be published out of order (AVRCP only refreshes
