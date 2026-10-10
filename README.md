@@ -2,6 +2,12 @@
 
 酷狗概念版 **第三方 Flutter 客户端**（个人学习 / 研究向）。
 
+## 下载测试版
+
+打开 [GitHub Releases 测试版下载页面](https://github.com/ZhengHaoF/kugoFlutter/releases)，在标记为 **Pre-release** 的版本里直接下载 Android APK 或 Windows x64 ZIP。Windows 包需完整解压后运行 `kugo.exe`，请保留所有 DLL 和 `data/` 资源。
+
+当前自动交付的是开发测试包：Android 使用测试签名，Windows 未做代码签名，不等同于下文历史里程碑中的正式签名交付。主分支构建成功后才发布，Actions 原始制品也继续保留；安装方法、校验值与验收边界见 [交付说明](docs/android-windows-delivery.md)。
+
 | 文档 | 说明 |
 | --- | --- |
 | [设计方案.md](设计方案.md) | 产品定位、架构、功能范围（含实现对照） |
@@ -10,6 +16,7 @@
 | [哔哩哔哩接入方案.md](哔哩哔哩接入方案.md) | B 站接入架构 + 功能差异；B3/B4 代码补齐，登录态与真机验收待完成，见 [验证记录](docs/bili-integration-validation.md) |
 | [桌面歌词接入方案.md](桌面歌词接入方案.md) | 桌面歌词方案（双进程 TCP IPC，已落地）+ 安卓悬浮歌词 + 透明背景实测无解记录 |
 | [app/README.md](app/README.md) | 工程运行说明 |
+| [docs/android-windows-delivery.md](docs/android-windows-delivery.md) | Android/Windows 测试版下载、Releases 发布与签名/验收边界 |
 | [docs/linux-compatibility-assessment.md](docs/linux-compatibility-assessment.md) | Linux 实施前兼容评估 |
 | [docs/linux-implementation.md](docs/linux-implementation.md) | Linux P0/P1 实施、复跑与验收边界 |
 | [docs/linux-x11-lyrics.md](docs/linux-x11-lyrics.md) | 已合并的 X11 悬浮歌词方案与验收；Wayland 专项适配暂缓，留待以后 |
