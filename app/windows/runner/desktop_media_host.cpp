@@ -355,7 +355,7 @@ void DesktopMediaHost::Tick() {
     return;
   HWND foreground = ::GetForegroundWindow();
   bool fullscreen = false;
-  if (foreground && foreground != bar_ && foreground != owner_ &&
+  if (foreground && foreground != bar_ &&
       ::MonitorFromWindow(foreground, MONITOR_DEFAULTTONEAREST) ==
           ::MonitorFromWindow(bar_, MONITOR_DEFAULTTONEAREST)) {
     wchar_t name[80]{};

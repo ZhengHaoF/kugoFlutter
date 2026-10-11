@@ -142,6 +142,23 @@ int main() {
   Pump();
   ::SendMessageW(bar, WM_TIMER, 1, 0);
   Check(::IsWindowVisible(bar) != FALSE, "bar returns after fullscreen closes");
+  RECT original_owner{};
+  ::GetWindowRect(owner, &original_owner);
+  ::SetWindowPos(owner, nullptr, monitor.rcMonitor.left, monitor.rcMonitor.top,
+                 monitor.rcMonitor.right - monitor.rcMonitor.left,
+                 monitor.rcMonitor.bottom - monitor.rcMonitor.top,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+  ::SetForegroundWindow(owner);
+  Pump();
+  ::SendMessageW(bar, WM_TIMER, 1, 0);
+  Check(!::IsWindowVisible(bar), "bar also hides for the player's own fullscreen window");
+  ::SetWindowPos(owner, nullptr, original_owner.left, original_owner.top,
+                 original_owner.right - original_owner.left,
+                 original_owner.bottom - original_owner.top,
+                 SWP_NOZORDER | SWP_NOACTIVATE);
+  Pump();
+  ::SendMessageW(bar, WM_TIMER, 1, 0);
+  Check(::IsWindowVisible(bar) != FALSE, "bar returns when player exits fullscreen");
   // Exercise real DWM setters/window paint repeatedly; do not infer shell hover
   // appearance or multi-monitor behavior from these programmatic messages.
   ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, MAKELPARAM(32, 32));
