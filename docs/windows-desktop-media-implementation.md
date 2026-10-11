@@ -23,7 +23,7 @@ Windows 设置页的“窗口”分组新增“任务栏封面预览”和“独
 - **像素边界**：解码前检查编码尺寸和 20MiB 输入限制；按最长边 256 缩放，显式释放 ImmutableBuffer、ImageDescriptor、Codec 和 Image。通道只传 rawStraightRgba，不传 URL、凭据或本地文件路径给窗口过程。
 - **原生宿主**：`DesktopMediaHost` 缓存有界像素与文本，网络与图片解码不在 WndProc 中执行。原生也验证歌曲身份、修订号、最多 512×512 的像素长度。换歌即清除旧图，合成不透明 BGRA 后绘制文字。
 - **DWM 生命周期**：同时管理缩略图与 live preview；请求尺寸限制为 2048×2048。每次创建的 HBITMAP 在 DWM 调用后立刻 DeleteObject，字体/DC/画刷均成对释放；不随每次进度更新使 DWM 失效。启用 DWM 失败会回退并关闭对应设置。
-- **任务栏生命周期**：初始化和 Explorer 重建后等待 `TaskbarButtonCreated` 再添加 Thumbar，避免把 Show 当成 Shell 已就绪；恢复窗口仅更新按钮。
+- **任务栏生命周期**：初始化和 Explorer 重建后等待 `TaskbarButtonCreated` 再添加 Thumbar，避免把 Show 当成 Shell 已就绪；恢复窗口/重复就绪消息仅更新按钮。若就绪消息早于首帧 Create 到达，Create 会应用已获许可的缓存状态。
 - **命令边界**：进度及曲目按钮携带 identityKey，主进程按当前曲目再次检查。seek 必须有已知时长、有限且范围内的值，previous 尊重 canStepBack；音量必须是 0..1 有限数；未知命令拒绝。
 - **拖动竞态**：拖动音量时保留本地预览，不被实时位置/音量快照覆盖；音量是全局设置，换歌不取消音量拖动。窗口拖动也不因换歌释放鼠标捕获；只有 seek 是曲目相关的取消对象。
 - **热重启**：Dart 初始化先在同一 FIFO MethodChannel 发出 beginMediaSession，重置仍存活的原生 HWND 封面修订号与像素缓存，再发送新快照/封面；不重建横条 HWND、不重建播放器。原生探针验证旧会话高修订号之后可接收新会话的首张图。
@@ -34,7 +34,7 @@ Windows 设置页的“窗口”分组新增“任务栏封面预览”和“独
 
 实现自带 `app/test/desktop_media_test.dart`，覆盖异步串图、URL 换图、无图/坏图、退出竞态、歌曲身份、seek/volume 边界、坐标、开关持久化与通道负载。原生独立探针在 Windows CI 编译并创建真实 HWND，检查 DWM 属性、窗口样式、真实窗口消息、拖进度、全屏隐藏、关闭与重复绘制资源数量；探针不创建音频播放器。
 
-本地静态分析、7 项发布打包检查及最新 26 项专项 Dart 测试均已通过，其中一项真实解码 G 图标资源并验证 256×256 RGBA 通道负载；MinGW 严格交叉编译（C++17、Wall/Wextra/Wconversion/Werror）已通过。完整回归基线 1,168 项已通过，新增会话顺序用例后的最终完整计数以关联 CI 为准。此前 Windows MSVC Release 应用与原生探针编译已通过，最新原生、Release/Debug 与 Android 验收结果见 [PR #8 关联构建](https://github.com/ZhengHaoF/kugoFlutter/pull/8)；不能把交叉编译或程序化 DWM 消息当成实际鼠标悬停验收。
+本地静态分析、完整 1,169 项回归、7 项发布打包检查及最新 26 项专项 Dart 测试均已通过，其中一项真实解码 G 图标资源并验证 256×256 RGBA 通道负载；MinGW 严格交叉编译（C++17、Wall/Wextra/Wconversion/Werror）已通过。此前 Windows MSVC Release 应用与原生探针编译已通过，最新原生、Release/Debug 与 Android 验收结果见 [PR #8 关联构建](https://github.com/ZhengHaoF/kugoFlutter/pull/8)；不能把交叉编译或程序化 DWM 消息当成实际鼠标悬停验收。
 
 首轮探针发现的是验证方法错误：`DWMWA_HAS_ICONIC_BITMAP` 和 `DWMWA_FORCE_ICONIC_REPRESENTATION` 文档指定用于 DwmSetWindowAttribute，不应以 DwmGetWindowAttribute 读取作为“设置成功”判据。探针已改为验证宿主记录的真实设置 HRESULT，并直接检查位图提交 HRESULT。（[Microsoft 属性说明](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute)）
 

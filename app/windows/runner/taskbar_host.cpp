@@ -212,6 +212,10 @@ bool TaskbarHost::Create(HWND hwnd) {
   hwnd_ = hwnd;
   CreateIcons();
   EnsureList();
+  if (button_ready_) {
+    ApplyButtons();
+    ApplyProgress();
+  }
   return taskbar_list_ != nullptr;
 }
 
@@ -237,6 +241,11 @@ void TaskbarHost::Refresh() {
 }
 
 void TaskbarHost::RefreshAfterTaskbarCreated() {
+  if (button_ready_) {
+    // A duplicate ready notification/show must not Add a second toolbar.
+    Refresh();
+    return;
+  }
   button_ready_ = true;
   buttons_added_ = false;
   last_applied_mode_ = ProgressMode::kNone;
