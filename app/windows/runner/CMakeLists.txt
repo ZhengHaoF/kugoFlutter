@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
 
+# Visual Studio's resource compiler can retain Runner.rc.res when only a file
+# named inside the ICON directive changes. Track the ICO at configure time and
+# include a content-derived header in Runner.rc, so incremental Debug builds
+# see a normal include dependency as well.
+set(KUGO_APP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.ico")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${KUGO_APP_ICON_FILE}")
+file(SHA256 "${KUGO_APP_ICON_FILE}" KUGO_APP_ICON_SHA256)
+configure_file("app_icon_version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/app_icon_version.h" @ONLY)
+
 # Define the application target. To change its name, change BINARY_NAME in the
 # top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
 # work.
@@ -41,6 +50,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib" "ole32.lib" "uuid.lib"
   "shell32.lib" "propsys.lib" "shlwapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

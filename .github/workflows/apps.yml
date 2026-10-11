@@ -94,11 +94,18 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Build Windows x64 release bundle
         run: flutter build windows --release --no-pub
+      - name: Verify embedded and running Windows release icons
+        run: |
+          $report = Join-Path $env:RUNNER_TEMP "release-icons.txt"
+          ./tool/test_windows_app_icons.ps1 `
+            -Executable "build\windows\x64\runner\Release\kugo.exe" `
+            -Report $report
       - name: Package complete portable application
         run: |
           $out = "build\deliverables\windows"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse
+          Copy-Item (Join-Path $env:RUNNER_TEMP "release-icons.txt") "$out\NATIVE-ICONS.txt"
           if (-not (Test-Path "$out\kugo.exe")) { throw "Missing application executable" }
           @(
             "kugo Windows x64 portable TEST build"
@@ -132,6 +139,22 @@ jobs:
             throw "Native probe evidence incomplete"
           }
           Copy-Item $report "build\deliverables\windows\NATIVE-CREDENTIALS.txt"
+          $out = "build\deliverables\windows"
+          Get-ChildItem $out -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $relative"
+          } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
+      - name: Verify Windows DEBUG runtime icons
+        run: |
+          # Matches flutter run -d windows; do not distribute Debug binaries.
+          # The production Release bundle has already been copied above.
+          flutter build windows --debug --no-pub
+          if ($LASTEXITCODE -ne 0) { throw "Debug icon acceptance build failed" }
+          $report = Join-Path $env:RUNNER_TEMP "debug-icons.txt"
+          ./tool/test_windows_app_icons.ps1 `
+            -Executable "build\windows\x64\runner\Debug\kugo.exe" `
+            -Report $report
+          Copy-Item $report "build\deliverables\windows\DEBUG-ICONS.txt"
           $out = "build\deliverables\windows"
           Get-ChildItem $out -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
             $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)

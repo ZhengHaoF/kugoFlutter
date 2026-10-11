@@ -7,7 +7,8 @@
 // Start Menu shortcut. Without both, Win11 renders「未知应用」.
 void ApplyAppUserModelId();
 
-// Create the Start Menu shortcut carrying our AUMID + display name if missing.
+// Create or refresh our own Start Menu shortcut carrying AUMID + display name
+// and the icon from the CURRENT Debug/Profile/Release bundle.
 void EnsureStartMenuShortcut();
 
 #endif  // RUNNER_APP_IDENTITY_H_

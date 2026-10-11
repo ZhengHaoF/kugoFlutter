@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kugo/core/theme/kugo_theme.dart';
 import 'package:kugo/features/player/player_controller.dart';
 import 'package:kugo/shared/shell/desktop_sidebar.dart';
+import 'package:kugo/shared/branding/app_logo.dart';
 
 import 'fakes/fake_audio_player.dart';
 
@@ -14,18 +15,16 @@ void main() {
     final engine = FakeAudioPlayer();
     return ProviderScope(
       overrides: [
-        playerControllerProvider
-            .overrideWith(() => PlayerController(engine: engine)),
+        playerControllerProvider.overrideWith(
+          () => PlayerController(engine: engine),
+        ),
       ],
       child: MaterialApp(
         theme: buildKugoTheme(Brightness.light),
         home: Scaffold(
           body: Row(
             children: [
-              DesktopSidebar(
-                location: location,
-                onNavigate: (_) {},
-              ),
+              DesktopSidebar(location: location, onNavigate: (_) {}),
               const Expanded(
                 child: SizedBox.expand(child: ColoredBox(color: Colors.black)),
               ),
@@ -50,6 +49,12 @@ void main() {
     expect(tester.getSize(sidebar).width, 220);
     expect(find.text('发现'), findsOneWidget);
     expect(find.text('系统设置'), findsOneWidget);
+    expect(find.byType(AppLogo), findsOneWidget);
+    final logo = tester.widget<Image>(
+      find.descendant(of: find.byType(AppLogo), matching: find.byType(Image)),
+    );
+    expect((logo.image as AssetImage).assetName, appLogoAsset);
+    expect(find.byIcon(Icons.music_note_rounded), findsNothing);
   });
 
   testWidgets('折叠态：侧栏 64，无文案、无布局异常', (tester) async {
@@ -72,6 +77,8 @@ void main() {
     expect(find.text('发现'), findsNothing);
     expect(find.text('概念版 · Windows'), findsNothing);
     expect(find.byTooltip('发现'), findsOneWidget);
+    expect(find.byType(AppLogo), findsOneWidget);
+    expect(find.byIcon(Icons.music_note_rounded), findsNothing);
 
     // 再展开回来。
     await tester.tap(find.byTooltip('展开侧栏'));
@@ -81,4 +88,3 @@ void main() {
     expect(find.text('发现'), findsOneWidget);
   });
 }
-

@@ -2,6 +2,7 @@
 //
 #pragma code_page(65001)
 #include "resource.h"
+#include "app_icon_version.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -96,6 +97,7 @@ BEGIN
             VALUE "LegalCopyright", "Copyright (C) 2026 com.kugo. All rights reserved." "\0"
             VALUE "OriginalFilename", "kugo.exe" "\0"
             VALUE "ProductName", "kugo" "\0"
+            VALUE "AppIconVersion", KUGO_APP_ICON_SHA256 "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

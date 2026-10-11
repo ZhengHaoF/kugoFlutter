@@ -111,6 +111,7 @@ void main() {
       for (final path in [
         'windows/runner/resources/app_icon.ico',
         'assets/tray_icon.ico',
+        'assets/app_icon.ico',
       ]) {
         final bytes = File(path).readAsBytesSync();
         final data = ByteData.sublistView(bytes);
@@ -140,6 +141,7 @@ void main() {
   test('Master and tray PNG are nonempty transparent square assets', () async {
     for (final entry in {
       'branding/icon-g-master.png': 1024,
+      'assets/app_icon.png': 256,
       'assets/tray_icon.png': 64,
     }.entries) {
       final image = await decode(File(entry.key).readAsBytesSync());
