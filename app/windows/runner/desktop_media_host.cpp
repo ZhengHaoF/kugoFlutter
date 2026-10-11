@@ -46,6 +46,20 @@ DesktopMediaHost::~DesktopMediaHost() { Destroy(); }
 void DesktopMediaHost::Create(HWND owner, Event event) {
   owner_ = owner;
   event_ = std::move(event);
+  CacheOwnerSize();
+}
+
+void DesktopMediaHost::CacheOwnerSize() {
+  if (!owner_ || ::IsIconic(owner_)) return;
+  RECT r{};
+  if (::GetClientRect(owner_, &r) && r.right > 0 && r.bottom > 0) {
+    client_width_ = r.right;
+    client_height_ = r.bottom;
+  }
+}
+
+SIZE DesktopMediaHost::LivePreviewSize() const {
+  return SIZE{std::min(2048, client_width_), std::min(2048, client_height_)};
 }
 
 void DesktopMediaHost::Destroy() {
@@ -277,10 +291,10 @@ bool DesktopMediaHost::HandlePreview(UINT message, LPARAM lparam) {
     width = std::min(2048, static_cast<int>(HIWORD(lparam)));
     height = std::min(2048, static_cast<int>(LOWORD(lparam)));
   } else {
-    RECT r{};
-    ::GetClientRect(owner_, &r);
-    width = std::min(2048L, std::max(1L, r.right));
-    height = std::min(2048L, std::max(1L, r.bottom));
+    CacheOwnerSize();
+    const SIZE size = LivePreviewSize();
+    width = size.cx;
+    height = size.cy;
   }
   HBITMAP bitmap = Render(width, height, false);
   if (bitmap) {

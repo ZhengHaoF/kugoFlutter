@@ -17,6 +17,8 @@ public:
   void Create(HWND owner, Event event);
   void Destroy();
   void BeginArtworkSession();
+  void CacheOwnerSize();
+  SIZE LivePreviewSize() const;
   void Configure(bool preview, bool bar, int x, int y);
   void State(const std::string &key, const std::wstring &title,
              const std::wstring &artist, bool playing, bool favorite,
@@ -41,6 +43,8 @@ private:
   int LogicalY(LPARAM lp) const;
 
   HWND owner_ = nullptr;
+  int client_width_ = 320;
+  int client_height_ = 200;
   HWND bar_ = nullptr;
   Event event_;
   bool preview_ = false;

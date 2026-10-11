@@ -15,6 +15,7 @@ void Check(bool ok, const char *message) {
     ++failures;
 }
 LRESULT CALLBACK Proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+  if (host && msg == WM_SIZE) host->CacheOwnerSize();
   if (host && host->HandlePreview(msg, lp))
     return 0;
   return ::DefWindowProcW(hwnd, msg, wp, lp);
@@ -159,6 +160,18 @@ int main() {
   Pump();
   ::SendMessageW(bar, WM_TIMER, 1, 0);
   Check(::IsWindowVisible(bar) != FALSE, "bar returns when player exits fullscreen");
+  const SIZE normal_size = media.LivePreviewSize();
+  ::ShowWindow(owner, SW_MINIMIZE);
+  Pump();
+  media.CacheOwnerSize();
+  const SIZE minimized_size = media.LivePreviewSize();
+  Check(::IsIconic(owner) && minimized_size.cx == normal_size.cx &&
+            minimized_size.cy == normal_size.cy && minimized_size.cy > 1,
+        "minimized player retains a nonzero normal preview canvas");
+  Check(::IsWindowVisible(bar) != FALSE, "bar remains available with minimized player");
+  ::ShowWindow(owner, SW_RESTORE);
+  ::SetForegroundWindow(owner);
+  Pump();
   // Exercise real DWM setters/window paint repeatedly; do not infer shell hover
   // appearance or multi-monitor behavior from these programmatic messages.
   ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, MAKELPARAM(32, 32));
