@@ -106,9 +106,15 @@ int main() {
   ::SendMessageW(bar, WM_LBUTTONUP, 0, Point(bar, 327, 84));
   Check(commands.size() == before, "unknown duration disables seek");
   ::SendMessageW(bar, WM_LBUTTONDOWN, MK_LBUTTON, Point(bar, 608, 84));
+  media.State("c", L"C", L"", false, false, false, 0, 0, .9);
   ::SendMessageW(bar, WM_LBUTTONUP, 0, Point(bar, 608, 84));
   Check(commands.back() == "volume" && last_value >= .49 && last_value <= .51,
-        "volume gesture sends bounded value");
+        "volume gesture survives state refresh and track change");
+  ::SendMessageW(bar, WM_LBUTTONDOWN, MK_LBUTTON, Point(bar, 200, 30));
+  media.State("d", L"D", L"", false, false, false, 0, 0, .9);
+  Check(::GetCapture() == bar, "track change does not interrupt window dragging");
+  ::SendMessageW(bar, WM_LBUTTONUP, 0, Point(bar, 200, 30));
+  Check(commands.back() == "barBounds", "drag release still saves position after track change");
   ::ShowWindow(owner, SW_HIDE);
   ::SendMessageW(bar, WM_TIMER, 1, 0);
   Check(::IsWindowVisible(bar) != FALSE, "bar survives main-window tray hide");

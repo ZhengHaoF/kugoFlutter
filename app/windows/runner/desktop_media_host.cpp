@@ -119,8 +119,7 @@ void DesktopMediaHost::State(const std::string &key, const std::wstring &title,
   if (key_ != key) {
     pixels_.clear();
     seeking_ = false;
-    volume_drag_ = false;
-    if (bar_ && ::GetCapture() == bar_)
+    if (!dragging_ && !volume_drag_ && bar_ && ::GetCapture() == bar_)
       ::ReleaseCapture();
   }
   const bool preview_changed =
@@ -133,7 +132,9 @@ void DesktopMediaHost::State(const std::string &key, const std::wstring &title,
   can_previous_ = can_previous;
   duration_ = std::max<int64_t>(0, duration);
   position_ = std::clamp<int64_t>(position, 0, duration_);
-  volume_ = std::isfinite(volume) ? std::clamp(volume, 0.0, 1.0) : 1;
+  if (!volume_drag_) {
+    volume_ = std::isfinite(volume) ? std::clamp(volume, 0.0, 1.0) : 1;
+  }
   if (bar_)
     ::InvalidateRect(bar_, nullptr, FALSE);
   if (preview_changed && preview_)
