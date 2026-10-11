@@ -253,5 +253,18 @@ void main() {
       expect((calls.single.arguments as Map)['revision'], 2);
       expect((calls.single.arguments as Map)['rgba'], [1, 2, 3, 255]);
     });
+    test('actual G asset decodes into bounded straight RGBA for native host',
+        () async {
+      final controller = DesktopMediaController();
+      await controller.artwork.update('kugou:1', '');
+      expect(calls.length, 1);
+      expect(calls.single.method, 'mediaArtwork');
+      final payload = calls.single.arguments as Map;
+      expect(payload['trackKey'], 'kugou:1');
+      expect(payload['width'], 256);
+      expect(payload['height'], 256);
+      expect((payload['rgba'] as Uint8List).length, 256 * 256 * 4);
+      controller.dispose();
+    });
   });
 }

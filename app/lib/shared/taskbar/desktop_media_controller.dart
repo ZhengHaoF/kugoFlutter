@@ -134,7 +134,8 @@ class DesktopMediaController {
       descriptor = await ui.ImageDescriptor.encoded(buffer);
       final width = descriptor.width;
       final height = descriptor.height;
-      if (width < 1 || height < 1 || width > 32768 || height > 32768) {
+      if (width < 1 || height < 1 || width > 8192 || height > 8192 ||
+          width * height > 16 * 1024 * 1024) {
         throw const FormatException('Invalid artwork size');
       }
       final scale = 256 / (width > height ? width : height);

@@ -8,9 +8,8 @@
 #include <string>
 
 // ITaskbarList3 wrapper: thumbnail toolbar buttons + taskbar progress.
-// Lifecycle: Create() once the top-level HWND exists (after first Show),
-// then SyncButtons / SyncProgress from Flutter; RefreshAfterTaskbarCreated()
-// when Explorer rebuilds the taskbar.
+// Lifecycle: Create() once the top-level HWND exists. Add buttons only after
+// TaskbarButtonCreated; TaskbarCreated resets readiness after Explorer restart.
 class TaskbarHost {
  public:
   // Button ids reported to Flutter via thumbarEvent ('previous' / 'playPause' /
@@ -35,7 +34,7 @@ class TaskbarHost {
   // Window show / restore: re-apply button + progress state via Update only.
   void Refresh();
 
-  // TaskbarCreated (Explorer restart): thumbar slots are gone — Add again.
+  // TaskbarButtonCreated: the shell is ready, add cached buttons/progress.
   void RefreshAfterTaskbarCreated();
   void AwaitTaskbarButton();
 
