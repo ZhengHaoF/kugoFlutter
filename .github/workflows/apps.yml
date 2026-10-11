@@ -94,6 +94,15 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Build Windows x64 release bundle
         run: flutter build windows --release --no-pub
+      - name: Build and exercise native desktop media window
+        run: |
+          cmake -S tool/native_media_probe -B build/native-media-probe -A x64
+          if ($LASTEXITCODE -ne 0) { throw "Native media probe configuration failed" }
+          cmake --build build/native-media-probe --config Release
+          if ($LASTEXITCODE -ne 0) { throw "Native media probe build failed" }
+          & ./build/native-media-probe/Release/native_media_probe.exe |
+            Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "native-media.txt")
+          if ($LASTEXITCODE -ne 0) { throw "Native media probe failed" }
       - name: Verify embedded and running Windows release icons
         run: |
           $report = Join-Path $env:RUNNER_TEMP "release-icons.txt"
@@ -106,6 +115,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse
           Copy-Item (Join-Path $env:RUNNER_TEMP "release-icons.txt") "$out\NATIVE-ICONS.txt"
+          Copy-Item (Join-Path $env:RUNNER_TEMP "native-media.txt") "$out\NATIVE-MEDIA.txt"
           if (-not (Test-Path "$out\kugo.exe")) { throw "Missing application executable" }
           @(
             "kugo Windows x64 portable TEST build"

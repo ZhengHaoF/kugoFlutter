@@ -212,8 +212,6 @@ bool TaskbarHost::Create(HWND hwnd) {
   hwnd_ = hwnd;
   CreateIcons();
   EnsureList();
-  ApplyButtons();
-  ApplyProgress();
   return taskbar_list_ != nullptr;
 }
 
@@ -226,6 +224,7 @@ void TaskbarHost::Destroy() {
   DestroyIcons();
   hwnd_ = nullptr;
   buttons_added_ = false;
+  button_ready_ = false;
   glyph_argb_ = 0;  // 下次 Create 重新按当时的主题解析
 }
 
@@ -238,6 +237,7 @@ void TaskbarHost::Refresh() {
 }
 
 void TaskbarHost::RefreshAfterTaskbarCreated() {
+  button_ready_ = true;
   buttons_added_ = false;
   last_applied_mode_ = ProgressMode::kNone;
   last_progress_permille_ = -1;
@@ -245,6 +245,12 @@ void TaskbarHost::RefreshAfterTaskbarCreated() {
   EnsureList();
   ApplyButtons();
   ApplyProgress();
+}
+
+void TaskbarHost::AwaitTaskbarButton() {
+  button_ready_ = false;
+  buttons_added_ = false;
+  ReleaseList();
 }
 
 void TaskbarHost::OnSystemThemeChanged() {
@@ -329,6 +335,7 @@ void TaskbarHost::ReleaseList() {
 }
 
 void TaskbarHost::ApplyButtons() {
+  if (!button_ready_) return;
   EnsureList();
   auto* list = static_cast<ITaskbarList3*>(taskbar_list_);
   if (!list || !hwnd_) return;
@@ -370,6 +377,7 @@ void TaskbarHost::ApplyButtons() {
 }
 
 void TaskbarHost::ApplyProgress() {
+  if (!button_ready_) return;
   EnsureList();
   auto* list = static_cast<ITaskbarList3*>(taskbar_list_);
   if (!list || !hwnd_) return;

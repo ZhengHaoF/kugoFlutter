@@ -11,6 +11,7 @@ class TaskbarBridge {
 
   /// Thumbar 按钮点击：previous / playPause / next / favorite。
   static void Function(String command)? onThumbarCommand;
+  static void Function(Map<Object?, Object?> event)? onMediaEvent;
 
   static void ensureListening() {
     if (_listening) return;
@@ -19,6 +20,9 @@ class TaskbarBridge {
       if (call.method == 'thumbarEvent') {
         final name = call.arguments;
         if (name is String) onThumbarCommand?.call(name);
+      }
+      if (call.method == 'mediaEvent' && call.arguments is Map) {
+        onMediaEvent?.call(Map<Object?, Object?>.from(call.arguments as Map));
       }
     });
   }
@@ -52,6 +56,35 @@ class TaskbarBridge {
 
   /// 窗口 show/restore 后重放按钮与进度（只 Update，不重新 Add）。
   static Future<void> refresh() => _channel.invokeMethod('refresh');
+
+  static Future<void> configureMedia({
+    required bool preview,
+    required bool bar,
+    int? x,
+    int? y,
+  }) => _channel.invokeMethod('configureMedia', {
+    'preview': preview,
+    'bar': bar,
+    'x': ?x,
+    'y': ?y,
+  });
+
+  static Future<void> mediaState(Map<String, Object?> state) =>
+      _channel.invokeMethod('mediaState', state);
+
+  static Future<void> mediaArtwork({
+    required String trackKey,
+    required int revision,
+    required int width,
+    required int height,
+    required Uint8List rgba,
+  }) => _channel.invokeMethod('mediaArtwork', {
+    'trackKey': trackKey,
+    'revision': revision,
+    'width': width,
+    'height': height,
+    'rgba': rgba,
+  });
 }
 
 /// 任务栏进度模式。与 `TaskbarHost::ProgressMode` 一一对应。
@@ -59,11 +92,11 @@ enum TaskbarProgressMode { none, normal, paused, indeterminate }
 
 extension TaskbarProgressModeWire on TaskbarProgressMode {
   String get wireName => switch (this) {
-        TaskbarProgressMode.none => 'none',
-        TaskbarProgressMode.normal => 'normal',
-        TaskbarProgressMode.paused => 'paused',
-        TaskbarProgressMode.indeterminate => 'indeterminate',
-      };
+    TaskbarProgressMode.none => 'none',
+    TaskbarProgressMode.normal => 'normal',
+    TaskbarProgressMode.paused => 'paused',
+    TaskbarProgressMode.indeterminate => 'indeterminate',
+  };
 }
 
 /// 由播放快照推导进度模式（Echo `resolveMode`）。

@@ -1,5 +1,6 @@
 #include "flutter_window.h"
 
+#include <climits>
 #include <cwchar>
 #include <map>
 #include <optional>
@@ -10,6 +11,50 @@
 #include "utils.h"
 
 namespace {
+
+const flutter::EncodableValue *Field(const flutter::EncodableMap *args,
+                                     const char *key) {
+  if (!args)
+    return nullptr;
+  auto it = args->find(flutter::EncodableValue(key));
+  return it == args->end() ? nullptr : &it->second;
+}
+int64_t IntField(const flutter::EncodableMap *args, const char *key,
+                 int64_t fallback = 0) {
+  auto *v = Field(args, key);
+  if (v) {
+    if (auto *n = std::get_if<int>(v))
+      return *n;
+    if (auto *n = std::get_if<int64_t>(v))
+      return *n;
+  }
+  return fallback;
+}
+bool BoolField(const flutter::EncodableMap *args, const char *key) {
+  auto *v = Field(args, key);
+  auto *b = v ? std::get_if<bool>(v) : nullptr;
+  return b && *b;
+}
+std::string StringField(const flutter::EncodableMap *args, const char *key) {
+  auto *v = Field(args, key);
+  auto *s = v ? std::get_if<std::string>(v) : nullptr;
+  return s ? *s : "";
+}
+double DoubleField(const flutter::EncodableMap *args, const char *key) {
+  auto *v = Field(args, key);
+  auto *d = v ? std::get_if<double>(v) : nullptr;
+  return d ? *d : 0;
+}
+std::wstring Wide(const std::string &s) {
+  if (s.empty())
+    return {};
+  int count = ::MultiByteToWideChar(CP_UTF8, 0, s.data(),
+                                    static_cast<int>(s.size()), nullptr, 0);
+  std::wstring out(count, L'\0');
+  ::MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()),
+                        out.data(), count);
+  return out;
+}
 
 // 每个 Flutter view（主窗 / desktop_multi_window 子窗）各自保存原 WndProc。
 // 不能共用一个全局：子窗替换后会把主窗的 original 顶掉，消息会串窗。
@@ -30,21 +75,24 @@ LRESULT CALLBACK FilterAccessibilityWndProc(HWND hwnd, UINT message,
   return DefWindowProc(hwnd, message, wparam, lparam);
 }
 
-// 给 Flutter view 装上 WM_GETOBJECT 过滤（主窗与 desktop_multi_window 子窗共用）。
+// 给 Flutter view 装上 WM_GETOBJECT 过滤（主窗与 desktop_multi_window
+// 子窗共用）。
 void InstallAccessibilityFilter(HWND flutter_view) {
   if (flutter_view == nullptr ||
       g_flutter_view_procs.count(flutter_view) != 0) {
     return;
   }
-  auto original = reinterpret_cast<WNDPROC>(SetWindowLongPtr(
-      flutter_view, GWLP_WNDPROC,
-      reinterpret_cast<LONG_PTR>(FilterAccessibilityWndProc)));
+  auto original = reinterpret_cast<WNDPROC>(
+      SetWindowLongPtr(flutter_view, GWLP_WNDPROC,
+                       reinterpret_cast<LONG_PTR>(FilterAccessibilityWndProc)));
   g_flutter_view_procs[flutter_view] = original;
 }
 
-TaskbarHost::ProgressMode ParseProgressMode(const std::string& mode) {
-  if (mode == "normal") return TaskbarHost::ProgressMode::kNormal;
-  if (mode == "paused") return TaskbarHost::ProgressMode::kPaused;
+TaskbarHost::ProgressMode ParseProgressMode(const std::string &mode) {
+  if (mode == "normal")
+    return TaskbarHost::ProgressMode::kNormal;
+  if (mode == "paused")
+    return TaskbarHost::ProgressMode::kPaused;
   if (mode == "indeterminate") {
     return TaskbarHost::ProgressMode::kIndeterminate;
   }
@@ -52,21 +100,23 @@ TaskbarHost::ProgressMode ParseProgressMode(const std::string& mode) {
 }
 
 // 歌词进程看门狗：Dart show 因通道/HWND 问题失败时，避免窗口永远不可见。
-constexpr UINT kLyricShowWatchdogTimerId = 0x6C79;  // 'ly'
+constexpr UINT kLyricShowWatchdogTimerId = 0x6C79; // 'ly'
 constexpr UINT kLyricShowWatchdogMs = 4000;
 
 // WM_SETTINGCHANGE 的 lParam 是设置名。可能是 0，也可能被乱发的程序写脏，
 // 所以先验一下指针再比字符串。
-bool IsSettingName(LPARAM lparam, const wchar_t* expected) {
-  if (lparam == 0) return false;
-  const auto* name = reinterpret_cast<const wchar_t*>(lparam);
-  if (::IsBadStringPtrW(name, 64)) return false;
+bool IsSettingName(LPARAM lparam, const wchar_t *expected) {
+  if (lparam == 0)
+    return false;
+  const auto *name = reinterpret_cast<const wchar_t *>(lparam);
+  if (::IsBadStringPtrW(name, 64))
+    return false;
   return std::wcscmp(name, expected) == 0;
 }
 
-}  // namespace
+} // namespace
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
+FlutterWindow::FlutterWindow(const flutter::DartProject &project)
     : project_(project) {}
 
 FlutterWindow::~FlutterWindow() {}
@@ -93,11 +143,12 @@ bool FlutterWindow::OnCreate() {
   const bool lyric_process = IsDesktopLyricProcess();
 
   // desktop_multi_window 兼容：若仍走 dmw 子窗，仅注册 DesktopLyricHost。
-  // 注意：千万不要在此调用 RegisterPlugins(engine)。RegisterPlugins 会把 window_manager、
-  // tray_manager、audio_service(SMTC)、media_kit 等全套插件重复注册到子引擎上。
-  DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
-    auto* flutter_view_controller =
-        reinterpret_cast<flutter::FlutterViewController*>(controller);
+  // 注意：千万不要在此调用 RegisterPlugins(engine)。RegisterPlugins 会把
+  // window_manager、 tray_manager、audio_service(SMTC)、media_kit
+  // 等全套插件重复注册到子引擎上。
+  DesktopMultiWindowSetWindowCreatedCallback([](void *controller) {
+    auto *flutter_view_controller =
+        reinterpret_cast<flutter::FlutterViewController *>(controller);
     RegisterDesktopLyricHost(flutter_view_controller);
     if (flutter_view_controller->view()) {
       InstallAccessibilityFilter(
@@ -118,12 +169,35 @@ bool FlutterWindow::OnCreate() {
   // Explorer broadcasts this after the taskbar is rebuilt — re-add thumbar
   // buttons / progress or they vanish silently.
   taskbar_created_msg_ = ::RegisterWindowMessageW(L"TaskbarCreated");
+  taskbar_button_created_msg_ =
+      ::RegisterWindowMessageW(L"TaskbarButtonCreated");
+  if (taskbar_button_created_msg_ != 0) {
+    ::ChangeWindowMessageFilterEx(GetHandle(), taskbar_button_created_msg_,
+                                  MSGFLT_ALLOW, nullptr);
+  }
   if (taskbar_created_msg_ != 0) {
     ::ChangeWindowMessageFilterEx(GetHandle(), taskbar_created_msg_,
                                   MSGFLT_ALLOW, nullptr);
   }
 
   RegisterTaskbarChannel();
+  if (!lyric_process) {
+    media_.Create(GetHandle(), [this](const std::string &command,
+                                      const std::string &key, double value,
+                                      int x, int y) {
+      if (!taskbar_channel_)
+        return;
+      flutter::EncodableMap event{
+          {flutter::EncodableValue("command"),
+           flutter::EncodableValue(command)},
+          {flutter::EncodableValue("trackKey"), flutter::EncodableValue(key)},
+          {flutter::EncodableValue("value"), flutter::EncodableValue(value)},
+          {flutter::EncodableValue("x"), flutter::EncodableValue(x)},
+          {flutter::EncodableValue("y"), flutter::EncodableValue(y)}};
+      taskbar_channel_->InvokeMethod(
+          "mediaEvent", std::make_unique<flutter::EncodableValue>(event));
+    });
+  }
 
   if (lyric_process) {
     // 歌词进程：窗口先保持隐藏（Dart 侧 init 完样式后再 show）。
@@ -138,11 +212,11 @@ bool FlutterWindow::OnCreate() {
   }
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
-    // ThumbBarAddButtons needs the taskbar button to exist (after first show).
     if (GetHandle()) {
       taskbar_.Create(GetHandle());
     }
+    // TaskbarButtonCreated, not Show(), permits the first ThumbBarAddButtons.
+    this->Show();
   });
 
   // Flutter can complete the first frame before the "show window" callback is
@@ -159,48 +233,81 @@ void FlutterWindow::RegisterTaskbarChannel() {
           flutter_controller_->engine()->messenger(), "kugo/taskbar",
           &flutter::StandardMethodCodec::GetInstance());
 
-  taskbar_.SetEventHandler([this](const std::string& command) {
-    if (!taskbar_channel_) return;
+  taskbar_.SetEventHandler([this](const std::string &command) {
+    if (!taskbar_channel_)
+      return;
     taskbar_channel_->InvokeMethod(
-        "thumbarEvent",
-        std::make_unique<flutter::EncodableValue>(command));
+        "thumbarEvent", std::make_unique<flutter::EncodableValue>(command));
   });
 
   taskbar_channel_->SetMethodCallHandler(
-      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+      [this](const flutter::MethodCall<flutter::EncodableValue> &call,
              std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
                  result) {
-        const auto* args =
-            std::get_if<flutter::EncodableMap>(call.arguments());
+        const auto *args = std::get_if<flutter::EncodableMap>(call.arguments());
+        if (call.method_name() == "configureMedia") {
+          media_.Configure(BoolField(args, "preview"), BoolField(args, "bar"),
+                           static_cast<int>(IntField(args, "x", INT_MIN)),
+                           static_cast<int>(IntField(args, "y", INT_MIN)));
+          result->Success();
+          return;
+        }
+        if (call.method_name() == "mediaState") {
+          media_.State(
+              StringField(args, "trackKey"), Wide(StringField(args, "title")),
+              Wide(StringField(args, "artist")), BoolField(args, "playing"),
+              BoolField(args, "favorite"), BoolField(args, "canPrevious"),
+              IntField(args, "position"), IntField(args, "duration"),
+              DoubleField(args, "volume"));
+          result->Success();
+          return;
+        }
+        if (call.method_name() == "mediaArtwork") {
+          auto *bytes = Field(args, "rgba");
+          auto *rgba =
+              bytes ? std::get_if<std::vector<uint8_t>>(bytes) : nullptr;
+          if (!rgba ||
+              !media_.Artwork(
+                  StringField(args, "trackKey"), IntField(args, "revision"),
+                  static_cast<int>(IntField(args, "width")),
+                  static_cast<int>(IntField(args, "height")), *rgba)) {
+            result->Error("invalid_artwork", "Stale or invalid artwork");
+          } else {
+            result->Success();
+          }
+          return;
+        }
         if (call.method_name() == "updateButtons") {
           bool has_track = false;
           bool is_playing = false;
           bool is_favorite = false;
           bool can_step_back = true;
           if (args) {
-            for (const auto& kv : *args) {
-              const auto* key = std::get_if<std::string>(&kv.first);
-              if (!key) continue;
+            for (const auto &kv : *args) {
+              const auto *key = std::get_if<std::string>(&kv.first);
+              if (!key)
+                continue;
               if (*key == "hasTrack") {
-                if (const auto* has_v = std::get_if<bool>(&kv.second)) {
+                if (const auto *has_v = std::get_if<bool>(&kv.second)) {
                   has_track = *has_v;
                 }
               } else if (*key == "isPlaying") {
-                if (const auto* play_v = std::get_if<bool>(&kv.second)) {
+                if (const auto *play_v = std::get_if<bool>(&kv.second)) {
                   is_playing = *play_v;
                 }
               } else if (*key == "isFavorite") {
-                if (const auto* fav_v = std::get_if<bool>(&kv.second)) {
+                if (const auto *fav_v = std::get_if<bool>(&kv.second)) {
                   is_favorite = *fav_v;
                 }
               } else if (*key == "canStepBack") {
-                if (const auto* back_v = std::get_if<bool>(&kv.second)) {
+                if (const auto *back_v = std::get_if<bool>(&kv.second)) {
                   can_step_back = *back_v;
                 }
               }
             }
           }
-          taskbar_.SyncButtons(has_track, is_playing, is_favorite, can_step_back);
+          taskbar_.SyncButtons(has_track, is_playing, is_favorite,
+                               can_step_back);
           result->Success();
           return;
         }
@@ -209,23 +316,24 @@ void FlutterWindow::RegisterTaskbarChannel() {
           int64_t position_ms = 0;
           int64_t duration_ms = 0;
           if (args) {
-            for (const auto& kv : *args) {
-              const auto* key = std::get_if<std::string>(&kv.first);
-              if (!key) continue;
+            for (const auto &kv : *args) {
+              const auto *key = std::get_if<std::string>(&kv.first);
+              if (!key)
+                continue;
               if (*key == "mode") {
-                if (const auto* mode_v = std::get_if<std::string>(&kv.second)) {
+                if (const auto *mode_v = std::get_if<std::string>(&kv.second)) {
                   mode = *mode_v;
                 }
               } else if (*key == "positionMs") {
-                if (const auto* pos_v = std::get_if<int64_t>(&kv.second)) {
+                if (const auto *pos_v = std::get_if<int64_t>(&kv.second)) {
                   position_ms = *pos_v;
-                } else if (const auto* pos_i = std::get_if<int>(&kv.second)) {
+                } else if (const auto *pos_i = std::get_if<int>(&kv.second)) {
                   position_ms = *pos_i;
                 }
               } else if (*key == "durationMs") {
-                if (const auto* dur_v = std::get_if<int64_t>(&kv.second)) {
+                if (const auto *dur_v = std::get_if<int64_t>(&kv.second)) {
                   duration_ms = *dur_v;
-                } else if (const auto* dur_i = std::get_if<int>(&kv.second)) {
+                } else if (const auto *dur_i = std::get_if<int>(&kv.second)) {
                   duration_ms = *dur_i;
                 }
               }
@@ -260,6 +368,7 @@ void FlutterWindow::OnDestroy() {
     }
   }
   taskbar_.Destroy();
+  media_.Destroy();
   taskbar_channel_.reset();
 
   if (flutter_controller_) {
@@ -288,10 +397,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   if (taskbar_created_msg_ != 0 && message == taskbar_created_msg_) {
-    // Explorer rebuilt the taskbar — previous thumbar slots are gone.
+    taskbar_.AwaitTaskbarButton();
+    return 0;
+  }
+  if (taskbar_button_created_msg_ != 0 &&
+      message == taskbar_button_created_msg_) {
     taskbar_.RefreshAfterTaskbarCreated();
     return 0;
   }
+  if (media_.HandlePreview(message, lparam))
+    return 0;
 
   // 浅色/深色模式或高对比度切换：缩略图工具栏的字形颜色得自己跟。
   if (message == WM_THEMECHANGED || message == WM_SYSCOLORCHANGE ||
@@ -316,11 +431,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   switch (message) {
-    case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
-      break;
+  case WM_FONTCHANGE:
+    flutter_controller_->engine()->ReloadSystemFonts();
+    break;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
 }
-

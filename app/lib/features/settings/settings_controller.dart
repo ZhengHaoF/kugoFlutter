@@ -70,6 +70,8 @@ class AppSettings {
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
+    this.taskbarCoverPreview = false,
+    this.taskbarMediaBar = false,
     this.volume = 1.0,
     this.desktopLyricEnabled = false,
     this.desktopLyricLocked = false,
@@ -121,6 +123,8 @@ class AppSettings {
 
   /// Windows only: taskbar button progress bar (Echo「任务栏播放进度条」).
   final bool taskbarProgress;
+  final bool taskbarCoverPreview;
+  final bool taskbarMediaBar;
 
   /// 播放音量（0.0–1.0）。落盘记忆，重启不回 100%。
   final double volume;
@@ -224,6 +228,8 @@ class AppSettings {
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
+    bool? taskbarCoverPreview,
+    bool? taskbarMediaBar,
     double? volume,
     bool? desktopLyricEnabled,
     bool? desktopLyricLocked,
@@ -248,6 +254,8 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
+      taskbarCoverPreview: taskbarCoverPreview ?? this.taskbarCoverPreview,
+      taskbarMediaBar: taskbarMediaBar ?? this.taskbarMediaBar,
       volume: volume ?? this.volume,
       desktopLyricEnabled: desktopLyricEnabled ?? this.desktopLyricEnabled,
       desktopLyricLocked: desktopLyricLocked ?? this.desktopLyricLocked,
@@ -278,6 +286,8 @@ class SettingsController extends Notifier<AppSettings> {
   /// Legacy boolean key (`closeToTray`); read once for migration, then removed.
   static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
+  static const _kTaskbarCoverPreview = 'settings.taskbarCoverPreview';
+  static const _kTaskbarMediaBar = 'settings.taskbarMediaBar';
   static const _kVolume = 'settings.volume';
   static const _kDesktopLyricEnabled = 'settings.desktopLyricEnabled';
   static const _kDesktopLyricLocked = 'settings.desktopLyricLocked';
@@ -343,6 +353,8 @@ class SettingsController extends Notifier<AppSettings> {
         ),
         closeBehavior: _readCloseBehavior(prefs),
         taskbarProgress: prefs.getBool(_kTaskbarProgress) ?? true,
+        taskbarCoverPreview: prefs.getBool(_kTaskbarCoverPreview) ?? false,
+        taskbarMediaBar: prefs.getBool(_kTaskbarMediaBar) ?? false,
         // 非 bool 值按字符串落盘（见 _save），脏数据回落 1.0。
         volume: (double.tryParse(prefs.getString(_kVolume) ?? '') ?? 1.0)
             .clamp(0.0, 1.0),
@@ -515,6 +527,16 @@ class SettingsController extends Notifier<AppSettings> {
   Future<void> setTaskbarProgress(bool v) async {
     state = state.copyWith(taskbarProgress: v);
     await _save(_kTaskbarProgress, v);
+  }
+
+  Future<void> setTaskbarCoverPreview(bool v) async {
+    state = state.copyWith(taskbarCoverPreview: v);
+    await _save(_kTaskbarCoverPreview, v);
+  }
+
+  Future<void> setTaskbarMediaBar(bool v) async {
+    state = state.copyWith(taskbarMediaBar: v);
+    await _save(_kTaskbarMediaBar, v);
   }
 
   /// 播放音量。记忆落盘，重启后仍是上次的值。

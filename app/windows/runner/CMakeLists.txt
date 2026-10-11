@@ -19,6 +19,7 @@ add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
   "main.cpp"
   "taskbar_host.cpp"
+  "desktop_media_host.cpp"
   "desktop_lyric_host.cpp"
   "app_identity.cpp"
   "utils.cpp"

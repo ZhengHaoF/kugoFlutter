@@ -37,6 +37,7 @@ class TaskbarHost {
 
   // TaskbarCreated (Explorer restart): thumbar slots are gone — Add again.
   void RefreshAfterTaskbarCreated();
+  void AwaitTaskbarButton();
 
   // 浅色/深色模式、高对比度切换：Explorer 画缩略图工具栏时不会改字形颜色，
   // 必须自己重建图标（颜色没变则 no-op）。
@@ -66,6 +67,7 @@ class TaskbarHost {
   std::function<void(const std::string&)> on_event_;
 
   bool buttons_added_ = false;
+  bool button_ready_ = false;
   bool has_track_ = false;
   bool is_playing_ = false;
   bool is_favorite_ = false;
