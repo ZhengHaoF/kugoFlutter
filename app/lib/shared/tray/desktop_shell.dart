@@ -13,6 +13,7 @@ import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../taskbar/taskbar_bridge.dart';
+import '../taskbar/desktop_media_controller.dart';
 import 'close_behavior_dialog.dart';
 import 'desktop_tray.dart';
 import 'window_bounds_store.dart';
@@ -32,6 +33,7 @@ class DesktopShell with WindowListener {
   final ProviderContainer _container;
   DesktopTray? _tray;
   LinuxTrayHostMonitor? _trayHost;
+  DesktopMediaController? _media;
   bool _handlingClose = false;
   bool _quitting = false;
 
@@ -166,6 +168,14 @@ class DesktopShell with WindowListener {
     });
     _container.listen<List>(likesProvider, (_, _) => _syncTaskbarFromState());
     _container.listen<AppSettings>(settingsControllerProvider, (prev, next) {
+      if (isWindowsPlatform &&
+          (prev?.taskbarCoverPreview != next.taskbarCoverPreview ||
+              prev?.taskbarMediaBar != next.taskbarMediaBar)) {
+        unawaited(
+          _media?.configure(next.taskbarCoverPreview, next.taskbarMediaBar),
+        );
+        _syncMediaState();
+      }
       if (prev?.taskbarProgress != next.taskbarProgress) {
         // Toggle off must clear immediately; on re-applies current ratio.
         _lastProgressMode = 'none';
@@ -271,8 +281,21 @@ class DesktopShell with WindowListener {
 
   void _wireTaskbar() {
     if (!isWindowsPlatform) return;
+    _media = DesktopMediaController();
     TaskbarBridge.ensureListening();
+    // Native HWND/channel outlive a Dart hot restart. Enqueue the reset before
+    // any state/artwork on this same FIFO channel.
+    unawaited(TaskbarBridge.beginMediaSession().catchError((Object e) {
+      debugPrint('[desktop media] session reset unavailable: ${e.runtimeType}');
+    }));
     TaskbarBridge.onThumbarCommand = _onThumbarCommand;
+    TaskbarBridge.onMediaEvent = _onMediaEvent;
+    unawaited(
+      _media!.configure(
+        _settings.taskbarCoverPreview,
+        _settings.taskbarMediaBar,
+      ),
+    );
     final position = _player.position;
     void onPosition() => _scheduleProgressSync();
     position.addListener(onPosition);
@@ -297,6 +320,66 @@ class DesktopShell with WindowListener {
     }
   }
 
+  void _onMediaEvent(Map<Object?, Object?> event) {
+    if (_quitting) return;
+    final s = _playerState;
+    if (!validMediaCommand(
+      event,
+      currentKey: s.current?.identityKey ?? '',
+      durationMs: s.durationMs,
+      canPrevious: s.canStepBack,
+    )) {
+      return;
+    }
+    switch (event['command']) {
+      case 'previewUnavailable':
+        debugPrint('[desktop media] DWM preview unavailable; using system preview');
+        unawaited(_settingsCtrl.setTaskbarCoverPreview(false));
+      case 'barClosed':
+        unawaited(_settingsCtrl.setTaskbarMediaBar(false));
+      case 'barBounds':
+        unawaited(_media?.saveBounds(event['x'] as int, event['y'] as int));
+      case 'seek':
+        _player.seekTo((event['value'] as num).round());
+      case 'volume':
+        _player.setVolume((event['value'] as num).toDouble());
+      case final String command:
+        _onThumbarCommand(command);
+    }
+  }
+
+  void _syncMediaState() {
+    if (_quitting ||
+        _media == null ||
+        (!_settings.taskbarCoverPreview && !_settings.taskbarMediaBar)) {
+      return;
+    }
+    final s = _playerState;
+    final track = s.current;
+    unawaited(
+      TaskbarBridge.mediaState({
+        'trackKey': track?.identityKey ?? '',
+        'title': track?.name ?? 'kugo',
+        'artist': track?.artist ?? '选择歌曲开始播放',
+        'playing': s.isPlaying,
+        'favorite':
+            track != null &&
+            _container
+                .read(likesProvider)
+                .any((t) => t.identityKey == track.identityKey),
+        'canPrevious': s.canStepBack,
+        'position': _player.position.value,
+        'duration': s.durationMs,
+        'volume': s.volume,
+      }).catchError((Object e) {
+        debugPrint('[desktop media] state unavailable: ${e.runtimeType}');
+      }),
+    );
+    unawaited(
+      _media!.artwork.update(track?.identityKey ?? '', track?.coverUrl ?? ''),
+    );
+  }
+
   void _syncTray() {
     final s = _playerState;
     _tray?.syncPlayback(
@@ -311,6 +394,7 @@ class DesktopShell with WindowListener {
   }
 
   void _syncTaskbarFromState() {
+    if (!isWindowsPlatform || _quitting) return;
     final s = _playerState;
     final track = s.current;
     final hasTrack = track != null;
@@ -338,6 +422,8 @@ class DesktopShell with WindowListener {
   }
 
   void _pushProgress({required bool force}) {
+    if (_quitting || !isWindowsPlatform) return;
+    _syncMediaState();
     final s = _playerState;
     final hasTrack = s.current != null;
     // Setting off is equivalent to Echo's enabled=false → always clear.
@@ -404,6 +490,13 @@ class DesktopShell with WindowListener {
       _positionListener = null;
     }
     TaskbarBridge.onThumbarCommand = null;
+    TaskbarBridge.onMediaEvent = null;
+    _media?.dispose();
+    if (isWindowsPlatform) {
+      try {
+        await TaskbarBridge.configureMedia(preview: false, bar: false);
+      } catch (_) {}
+    }
     // 先杀歌词进程再关主窗，避免残留无主的歌词悬浮窗。
     try {
       await DesktopLyricBridge.instance?.shutdown();

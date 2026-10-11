@@ -74,8 +74,33 @@ jobs:
           path: app/build/deliverables/android/
           if-no-files-found: error
           retention-days: 30
+  windows-media-native:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: app
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and exercise native desktop media window
+        run: |
+          cmake -S tool/native_media_probe -B build/native-media-probe -A x64
+          if ($LASTEXITCODE -ne 0) { throw "Native media probe configuration failed" }
+          cmake --build build/native-media-probe --config Release
+          if ($LASTEXITCODE -ne 0) { throw "Native media probe build failed" }
+          & ./build/native-media-probe/Release/native_media_probe.exe |
+            Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP "native-media.txt")
+          if ($LASTEXITCODE -ne 0) { throw "Native media probe failed" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kugo-native-media-${{ github.sha }}
+          path: ${{ runner.temp }}/native-media.txt
+          if-no-files-found: error
+          retention-days: 30
   windows:
-    needs: quality
+    needs: [quality, windows-media-native]
     runs-on: windows-2022
     timeout-minutes: 45
     defaults:
@@ -94,6 +119,11 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Build Windows x64 release bundle
         run: flutter build windows --release --no-pub
+      - name: Download native media acceptance report
+        uses: actions/download-artifact@v4
+        with:
+          name: kugo-native-media-${{ github.sha }}
+          path: ${{ runner.temp }}
       - name: Verify embedded and running Windows release icons
         run: |
           $report = Join-Path $env:RUNNER_TEMP "release-icons.txt"
@@ -106,6 +136,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse
           Copy-Item (Join-Path $env:RUNNER_TEMP "release-icons.txt") "$out\NATIVE-ICONS.txt"
+          Copy-Item (Join-Path $env:RUNNER_TEMP "native-media.txt") "$out\NATIVE-MEDIA.txt"
           if (-not (Test-Path "$out\kugo.exe")) { throw "Missing application executable" }
           @(
             "kugo Windows x64 portable TEST build"

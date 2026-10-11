@@ -126,8 +126,8 @@
 | # | 功能 | 现状 | 优先级 |
 | --- | --- | --- | --- |
 | W1 | **全局快捷键** | 仅窗口内 3 键；焦点不在窗口时媒体键外无热键，无录制 UI | **P0 首位** |
-| W2 | 任务栏封面预览 / 窗口标题曲名 | 标题固定 `kugo`（`main.cpp` + `desktop_shell` 两处），未随曲目更新 | P1 |
-| W3 | 任务栏快捷播控横条 | 无（Echo `taskbarMediaBar` / `taskbarDock`） | P1，工作量最大 |
+| W2 | 任务栏封面预览 / 窗口标题曲名 | 标题已随歌曲/歌手更新；2026-10-11 新增可选 DWM 封面信息卡、G 图标回退和独立开关，设备端悬停/Peek 验收待完成 | P1，见 [实施说明](windows-desktop-media-implementation.md) |
+| W3 | 任务栏快捷播控横条 | 2026-10-11 新增独立原生浮条、主播放器播控、进度/音量、位置保存与全屏隐藏；默认关闭，非 Explorer 内嵌 | P1，内嵌另立实验，见 [实施说明](windows-desktop-media-implementation.md) |
 | W4 | 独立迷你播放器窗口 | 仅应用内 `DesktopPlayerBar` / `MiniPlayerBar` | P1 |
 | W5 | 窗口材质（Mica / Acrylic） | 标准 Flutter 窗 + 深色标题栏 | P1 |
 | W6 | 自定义标题栏 / 全屏钮 / 界面缩放 Ctrl± | 系统标题栏 | P1 |

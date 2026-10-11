@@ -101,6 +101,26 @@ class SettingsPage extends ConsumerWidget {
                     value: settings.taskbarProgress,
                     onChanged: controller.setTaskbarProgress,
                   ),
+                if (isWindowsPlatform)
+                  SwitchListTile(
+                    title: Text('任务栏封面预览', style: kugo.body),
+                    subtitle: Text(
+                      '悬停和窗口切换显示封面信息卡；关闭恢复窗口预览',
+                      style: kugo.caption,
+                    ),
+                    value: settings.taskbarCoverPreview,
+                    onChanged: controller.setTaskbarCoverPreview,
+                  ),
+                if (isWindowsPlatform)
+                  SwitchListTile(
+                    title: Text('独立播控横条', style: kugo.body),
+                    subtitle: Text(
+                      '任务栏上方浮条，可拖动、拖进度和调音量；全屏时隐藏',
+                      style: kugo.caption,
+                    ),
+                    value: settings.taskbarMediaBar,
+                    onChanged: controller.setTaskbarMediaBar,
+                  ),
               ],
             ),
           if (supportsDesktopLyrics || isAndroidPlatform)
