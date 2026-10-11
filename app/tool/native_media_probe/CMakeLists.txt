@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.14)
+project(kugo_native_media_probe LANGUAGES CXX)
+add_executable(native_media_probe
+  probe.cpp ../../windows/runner/desktop_media_host.cpp)
+target_compile_features(native_media_probe PRIVATE cxx_std_17)
+target_compile_definitions(native_media_probe PRIVATE NOMINMAX UNICODE _UNICODE)
+if(MSVC)
+  target_compile_options(native_media_probe PRIVATE /W4 /WX /utf-8)
+endif()
+target_link_libraries(native_media_probe PRIVATE dwmapi user32 gdi32)
