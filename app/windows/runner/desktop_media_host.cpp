@@ -275,11 +275,13 @@ bool DesktopMediaHost::HandlePreview(UINT message, LPARAM lparam) {
   HBITMAP bitmap = Render(width, height, false);
   if (bitmap) {
     if (message == WM_DWMSENDICONICTHUMBNAIL)
-      ::DwmSetIconicThumbnail(owner_, bitmap, 0);
+      last_preview_result_ = ::DwmSetIconicThumbnail(owner_, bitmap, 0);
     else
-      ::DwmSetIconicLivePreviewBitmap(owner_, bitmap, nullptr, 0);
+      last_preview_result_ = ::DwmSetIconicLivePreviewBitmap(owner_, bitmap, nullptr, 0);
     // DWM copies it. Never retain the caller-owned HBITMAP.
     ::DeleteObject(bitmap);
+  } else {
+    last_preview_result_ = E_OUTOFMEMORY;
   }
   return true;
 }

@@ -78,10 +78,9 @@ int main() {
         "bar independent of owner visibility");
   Check(::SendMessageW(bar, WM_MOUSEACTIVATE, 0, 0) == MA_NOACTIVATE,
         "mouse clicks cannot activate bar");
-  BOOL iconic = FALSE;
-  HRESULT attr = ::DwmGetWindowAttribute(owner, DWMWA_HAS_ICONIC_BITMAP,
-                                         &iconic, sizeof(iconic));
-  Check(SUCCEEDED(attr) && iconic, "DWM custom preview enabled");
+  // These attributes are documented for DwmSetWindowAttribute, not Get.
+  // The host marks enabled only when both actual setter calls succeeded.
+  Check(media.preview_enabled(), "DWM custom preview setters succeeded");
   std::vector<uint8_t> pixels(16, 255);
   Check(media.Artwork("a", 1, 2, 2, pixels), "valid RGBA artwork accepted");
   Check(!media.Artwork("wrong", 2, 2, 2, pixels), "wrong track rejected");
@@ -135,8 +134,16 @@ int main() {
   Check(::IsWindowVisible(bar) != FALSE, "bar returns after fullscreen closes");
   // Exercise real DWM setters/window paint repeatedly; do not infer shell hover
   // appearance or multi-monitor behavior from these programmatic messages.
-  ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, MAKELPARAM(200, 360));
+  ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, MAKELPARAM(32, 32));
+  std::cout << "DWM thumbnail HRESULT=" << std::hex
+            << static_cast<unsigned long>(media.last_preview_result())
+            << std::dec << std::endl;
+  Check(SUCCEEDED(media.last_preview_result()), "DWM thumbnail bitmap submitted");
   ::SendMessageW(owner, WM_DWMSENDICONICLIVEPREVIEWBITMAP, 0, 0);
+  std::cout << "DWM live preview HRESULT=" << std::hex
+            << static_cast<unsigned long>(media.last_preview_result())
+            << std::dec << std::endl;
+  Check(SUCCEEDED(media.last_preview_result()), "DWM live preview bitmap submitted");
   Pump();
   DWORD gdi_before = ::GetGuiResources(::GetCurrentProcess(), GR_GDIOBJECTS);
   for (int i = 0; i < 300; ++i) {
@@ -149,9 +156,7 @@ int main() {
   Check(gdi_after <= gdi_before + 2,
         "repeated DWM and bar paint do not leak GDI objects");
   media.Configure(false, false, INT_MIN, INT_MIN);
-  ::DwmGetWindowAttribute(owner, DWMWA_HAS_ICONIC_BITMAP, &iconic,
-                          sizeof(iconic));
-  Check(!iconic && !::IsWindowVisible(bar),
+  Check(!media.preview_enabled() && !::IsWindowVisible(bar),
         "switches restore system preview and hide bar");
   media.Configure(false, true, INT_MIN, INT_MIN);
   ::SendMessageW(bar, WM_CLOSE, 0, 0);

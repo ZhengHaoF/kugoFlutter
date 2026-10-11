@@ -25,6 +25,8 @@ public:
                const std::vector<uint8_t> &rgba);
   bool HandlePreview(UINT message, LPARAM lparam);
   HWND bar_window() const { return bar_; }
+  bool preview_enabled() const { return preview_; }
+  HRESULT last_preview_result() const { return last_preview_result_; }
 
 private:
   static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wp,
@@ -41,6 +43,7 @@ private:
   HWND bar_ = nullptr;
   Event event_;
   bool preview_ = false;
+  HRESULT last_preview_result_ = E_PENDING;
   bool enabled_ = false;
   bool playing_ = false;
   bool favorite_ = false;
