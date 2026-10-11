@@ -44,6 +44,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   List<Track> _newSongs = const [];
   bool _loading = true;
   String _error = '';
+  int _loadRevision = 0;
 
   @override
   void initState() {
@@ -51,9 +52,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     _load();
   }
 
-  T? _capability<T>(MusicPlatform? platform) => platform == null
-      ? null
-      : musicSourceRegistry?.capability<T>(platform);
+  T? _capability<T>(MusicPlatform? platform) =>
+      platform == null ? null : musicSourceRegistry?.capability<T>(platform);
 
   /// 已启用、且**该源「发现」功能未关**、并具备本页任一能力的音源。
   ///
@@ -78,27 +78,41 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   /// 首选项是设置里的「默认源」；不可用时退首个可用源。
   MusicPlatform? _resolveSource(List<MusicPlatform> available) {
     if (available.isEmpty) return null;
-    final preferred =
-        ref.read(settingsControllerProvider).effectiveDefaultSource;
+    final preferred = ref
+        .read(settingsControllerProvider)
+        .effectiveDefaultSource;
     return available.contains(preferred) ? preferred : available.first;
   }
 
-  Future<void> _load() async {
-    final source = _resolveSource(_availableSources());
+  void _switchTo(MusicPlatform? platform) {
+    if (platform == null || !_availableSources().contains(platform)) return;
+    if (platform != _source) unawaited(_load(selected: platform));
+    // 与搜索、榜单等页面一致：具体源写入默认源，下个入口沿用。
+    ref
+        .read(settingsControllerProvider.notifier)
+        .syncDefaultSourceFromFilter(platform);
+  }
+
+  Future<void> _load({MusicPlatform? selected}) async {
+    final available = _availableSources();
+    final source = available.contains(selected)
+        ? selected
+        : _resolveSource(available);
+    final revision = ++_loadRevision;
     setState(() {
       _source = source;
       _loading = true;
       _error = '';
+      _rankings = const [];
+      _songs = const [];
+      _hotBoard = null;
+      _recommendPlaylists = const [];
+      _newSongs = const [];
     });
     if (source == null) {
       // 无任何可用源：内容区出停用空态，页面其余部分（问候语/搜索/快捷入口）保留。
       if (mounted) {
         setState(() {
-          _rankings = const [];
-          _songs = const [];
-          _hotBoard = null;
-          _recommendPlaylists = const [];
-          _newSongs = const [];
           _loading = false;
         });
       }
@@ -134,6 +148,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           noteError(e);
           return;
         }
+        if (!mounted || revision != _loadRevision) return;
         // 「今日热歌」= 热歌榜 Top，公开趋势；与 /daily「每日推荐」的
         // `/everyday_song_recommend` 不是同一数据源。
         hotBoard = _pickHotBoard(ranks);
@@ -165,8 +180,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       }(),
     ]);
 
-    // 切源（设置改动）后到达的旧响应直接丢弃。
-    if (!mounted || source != _source) return;
+    // 用请求代次而非源名拒绝迟到响应，覆盖 A → B → A 的快速切换。
+    if (!mounted || revision != _loadRevision) return;
 
     // 发现页舞台的 FM 预览盘阵：后台拉一次，不碰播放器（云盘照播）。
     // 同源已有预览则内部直接返回；切源/切轴后会重取。
@@ -186,8 +201,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         _error = filtered
             ? '当前网络被网关拦截（URL过滤），无法访问该音源。\n请换手机热点 / 关闭路由器「上网行为管理」后重试。'
             : denied
-                ? '接口拒绝访问（Access Deny）。\n稍后重试，或检查是否触发风控。'
-                : '数据加载失败，请检查网络后重试';
+            ? '接口拒绝访问（Access Deny）。\n稍后重试，或检查是否触发风控。'
+            : '数据加载失败，请检查网络后重试';
       }
     });
   }
@@ -215,7 +230,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
     // 设置里改动整源开关 / 功能开关 / **默认源**后：解析出的源变了就重取
     // （含从「无可用源」恢复）。defaultSource 必须听——「切源即改默认源」口径下，
-    // 别处（FM/搜索/榜单/我的…）任一处切具体源都会写它；本页没有切源栏，
+    // 别处（FM/搜索/榜单/我的…）任一处切具体源都会写它；
     // 不重取就会「页头来源小字已翻、四排数据还是旧源」。解析结果没变
     // （同值写入 / 停用联动回落恰好同源）时不重取。
     ref.listen(settingsControllerProvider, (prev, next) {
@@ -228,7 +243,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     });
 
     final available = _availableSources();
-    final isEmpty = !_loading &&
+    final isEmpty =
+        !_loading &&
         _rankings.isEmpty &&
         _songs.isEmpty &&
         _recommendPlaylists.isEmpty &&
@@ -257,11 +273,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   style: kugo.caption.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: 6),
-                // 本页定位是浏览落地页，不放可切换 chips；用一行只读小字
-                // 说明当前内容来自哪个音源。
                 SourceLabel(
                   platform: _source ?? settings.effectiveDefaultSource,
                 ),
+                if (available.length > 1)
+                  SourceFilterBar(
+                    platforms: available,
+                    selected: _source,
+                    showAll: false,
+                    horizontalPadding: 0,
+                    onSelect: _switchTo,
+                  ),
                 const SizedBox(height: KugoSpacing.lg),
                 const _SearchPill(),
                 const SizedBox(height: KugoSpacing.md),
@@ -313,10 +335,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 playlists: _recommendPlaylists,
                 // 多源时给封面角标标明推荐歌单来自哪个源（单源靠页头小字）。
                 platform: available.length > 1 ? _source : null,
-                onTap: (playlist) => context.push(
-                  _playlistRoute(playlist),
-                  extra: playlist,
-                ),
+                onTap: (playlist) =>
+                    context.push(_playlistRoute(playlist), extra: playlist),
               ),
             ),
           ],
@@ -329,8 +349,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 onAction: () {
                   final board = _hotBoard;
                   if (board != null) {
-                    context.push('/rank/${board.id}${_rankSrc(board)}',
-                        extra: board);
+                    context.push(
+                      '/rank/${board.id}${_rankSrc(board)}',
+                      extra: board,
+                    );
                   } else {
                     context.push('/ranks');
                   }
@@ -478,8 +500,7 @@ class _RankStrip extends StatelessWidget {
           // 卡片被 [_maxCardWidth] 封顶时一行铺不满：两侧对称居中。
           // 一行放得下/放不下都**不能**只加左边距——那会在右侧留一条白，
           // 渐隐看起来就像浮在卡片上的遮罩。
-          final rowWidth =
-              fit.visible * cardWidth + _gap * (fit.visible - 1);
+          final rowWidth = fit.visible * cardWidth + _gap * (fit.visible - 1);
           final leftover =
               (available - rowWidth).clamp(0.0, double.infinity) / 2;
           if (leftover > 0.5) {
@@ -506,10 +527,7 @@ class _RankStrip extends StatelessWidget {
                 final rank = ranks[index];
                 return SizedBox(
                   width: cardWidth,
-                  child: _RankingCard(
-                    rank: rank,
-                    onTap: () => onRankTap(rank),
-                  ),
+                  child: _RankingCard(rank: rank, onTap: () => onRankTap(rank)),
                 );
               },
             ),
@@ -589,8 +607,7 @@ class _PlaylistStrip extends StatelessWidget {
           );
           cardWidth = fit.width;
           if (fit.visible > 1) {
-            final rowWidth =
-                fit.visible * cardWidth + _gap * (fit.visible - 1);
+            final rowWidth = fit.visible * cardWidth + _gap * (fit.visible - 1);
             final leftover =
                 (available - rowWidth).clamp(0.0, double.infinity) / 2;
             if (leftover > 0.5) {
@@ -651,10 +668,7 @@ class _SearchPill extends StatelessWidget {
               children: [
                 Icon(Icons.search_rounded, color: kugo.textSecondary),
                 const SizedBox(width: 10),
-                Text(
-                  '搜索歌曲、歌手、专辑',
-                  style: kugo.caption.copyWith(fontSize: 14),
-                ),
+                Text('搜索歌曲、歌手、专辑', style: kugo.caption.copyWith(fontSize: 14)),
               ],
             ),
           ),
