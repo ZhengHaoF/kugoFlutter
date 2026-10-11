@@ -22,6 +22,7 @@ import '../mv/mv_entry.dart';
 import 'fm_controls.dart';
 import '../../shared/widgets/lyric_display_sheet.dart';
 import '../../shared/widgets/quality_sheet.dart';
+import '../../shared/widgets/speed_sheet.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -1226,6 +1227,8 @@ class _PlayerQualityChip extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(width: 4),
+        const SpeedChip(),
         const SizedBox(width: 4),
         const LyricDisplayButton(),
       ],

@@ -17,7 +17,7 @@
 | 用户资产管理 | 收藏/关注/云端我喜欢同步；**缺自建歌单 CRUD** | 自建歌单增删改 + 排序 + 封面编辑 | 缺歌单写入 |
 | 歌词 | **LRC + KRC 逐字**（卡拉 OK 着色）+ 译文 + 音译副行 + 字号/行间距滑块 + **桌面歌词（双进程窗 + 安卓悬浮）** | LRC/YRC 逐字 + 音译 + 换肤 + 写真 + 桌面歌词 + 弹幕 | 缺换肤/写真；桌面歌词待打磨（透明背景无解，见 §三备忘） |
 | 音效 | 无 | 10 段 EQ + LUFS + 空间音效 + DSP 热插拔 | 缺音效引擎 |
-| 播放能力 | 队列/模式/音质/定时 | + 倍速 + 歌曲过渡 + 音量 + 输出设备 + 独占 | 缺倍速 UI（Port/引擎已有） |
+| 播放能力 | 队列/模式/音质/定时 | + 倍速 + 歌曲过渡 + 音量 + 输出设备 + 独占 | 歌曲过渡 / 音量 / 输出设备 / 独占 |
 | 搜索 | **歌曲/歌单/专辑/歌手/MV** 五 Tab | 歌曲/歌手/专辑/歌单/歌词/MV 六维 | 缺歌词（接口 404） |
 | 分享 | 无 | 全内容分享 | 缺 |
 | 扩展性 | 无 | 完整插件系统 + DSP Provider | 一期不做（已规划） |
@@ -35,7 +35,7 @@
 | 2 | 「下载管理」 | `profile_page.dart` | ✅ **已砍**（2026-09）：占位入口从 UI 移除。参考项目**无任何实现**（其「下载」仅指更新包/音效/插件/封面），自研成本远高于收益 |
 | 3 | 「定时停止 / 音质设置 / 关于」不可点 | `profile_page.dart` | ✅ **已修**：`settings_pickers.dart` 共享；带当前值；「关于」弹层 |
 | 4 | 「歌单」统计硬编码 | `profile_page.dart` | ✅ **已修**：我喜欢/最近播放/歌单三数皆真值（`countHistory` + `/user/playlist` 经 `user_collections_controller`）；未就绪显 `—` |
-| 5 | 倍速未接线 | `audio_player_port.dart` | ⬜ `setSpeed` 在 just_audio / media_kit 均已实现，**仍无 UI 入口** |
+| 5 | 倍速未接线 | `audio_player_port.dart` | ✅ **已落地**（2026-10-11）：`SpeedChip` + `speed_sheet.dart`（全屏播放页音质行，六档 0.5–2.0 与 MV 一致）；`PlayerState.speed` / `AppSettings.speed` 落盘记忆（双端），倍速随 `playUrl(speed:)` 在起播前应用（media_kit open 重置 rate）；已知取舍：不保调 |
 | 5.5 | 「点歌手」传名字当 id | 多处 `onArtistTap` | ✅ **已修**：`Track.artistId` + `artistTapFor()` 统一跳 `/artist/:id` |
 
 > 附带修掉一个**全站性**问题：`GlassSurface` 用裸 `Container` 做背景色，导致内部
@@ -135,7 +135,7 @@
 | W8 | 开机自启 + 启动最小化到托盘 | 无（`pubspec` 无 `launch_at_startup`） | P2 |
 | W9 | 电源管理（播放防休眠 / 挂起暂停 / 唤醒恢复） | 无 | P2 |
 | W10 | 音频输出设备 / 独占模式 | media_kit 默认输出 | P2 |
-| W11 | 倍速 UI | 与 P0 #5 同一缺口：Port/引擎已有 `setSpeed` | P2 |
+| W11 | ~~倍速 UI~~ | ✅ 已落地（2026-10-11，见 P0 #5）：`SpeedChip` + `speed_sheet.dart` 六档，随 `playUrl(speed:)` 起播前生效 | — |
 
 **窗口约束（续做别改错）**：自由缩放（原 4:3 已移除）。最小尺寸是**双层**——win32 `WM_GETMINMAXINFO` 外框 **840×600** + `window_manager` `minimumSize` **900×640**（兜住 `isDesktopView` 的 800px 断点，生效取更严者）。启动 1280×960 逻辑像素，按 monitor DPI 夹到工作区；`desktop_shell` 刻意不设 `size`/`center`，避免运行中重置用户调过的尺寸。
 
@@ -173,7 +173,7 @@
 ⬜ ② 窗口材质 / 记住窗口 / 界面缩放
 ⬜ ③ 独立 Mini 窗口
 ⬜ ④ 任务栏封面预览 / 播控横条                ← 最重，可最后
-⬜ ⑤ 开机自启 / 电源 / 输出设备 / 倍速 UI
+⬜ ⑤ 开机自启 / 电源 / 输出设备
 ```
 
 依赖简述：① 无硬依赖，`hotkey_manager` 或 `RegisterHotKey` 原生通道，与窗口内 `Shortcuts` 分轨。②「记住窗口」在 `DesktopShell` 的 `WindowListener` 落盘 bounds 即可（无比例约束）；材质走 DWM 或评估 `bitsdojo_window` / `flutter_acrylic`。③ 依赖 `window_manager` 置顶/跳过任务栏/无边框。④ 封面预览依赖 `core/cache/cover_cache.dart` 与窗口标题同步；横条还要任务栏几何探测。⑤ 自启用 `launch_at_startup`，电源用 `SetThreadExecutionState` 原生通道。
@@ -251,7 +251,8 @@
   —— 酷狗音源抽象已收口；功能页仍有部分直接走 Repository，第二源接入时再收薄。
 
 产品二期 backlog（未排期，另立 M6）：
-  倍速 UI（0.5d）/ 自建歌单 CRUD（5d）/ 分享（1d）
+   ✅ 倍速 UI（2026-10-11 落地，见 P0 #5）
+   自建歌单 CRUD（5d）/ 分享（1d）
   另：歌单封面/排序、MV 评论（非对齐项）、听歌偏好、登录设备管理、网易 MV 搜索/收藏（A2/A3）
   评论余项（真机发评验收 / 楼层内二次回复 / 收藏数）见 P1 #9，均不阻塞主线
   Windows 集成余项（全局快捷键 / Mini 窗 / 材质 / 自启…）见 §三，与上列可并行
