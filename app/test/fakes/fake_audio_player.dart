@@ -11,6 +11,19 @@ class FakeAudioPlayer implements AudioPlayerPort {
   String? lastUrl;
   bool playing = false;
 
+  /// 引擎当前倍速（镜像真实引擎：playUrl 加载时应用，setSpeed 立即应用）。
+  double speed = 1.0;
+
+  /// 最近一次 setSpeed 入参（controller 直改倍速时断言）。
+  double? lastSpeed;
+
+  /// 最近一次 playUrl 收到的倍速（切歌/换流重放时断言）。
+  double? lastPlaySpeed;
+
+  /// 起播瞬间引擎已生效的倍速。真实引擎必须在出声前应用倍速
+  /// （media_kit 在 open() 与 play() 之间 setRate），这是回归锚点。
+  double? speedWhenPlaybackStarted;
+
   @override
   Stream<Duration> get positionStream => _pos.stream;
 
@@ -31,11 +44,17 @@ class FakeAudioPlayer implements AudioPlayerPort {
     String url, {
     Map<String, String>? headers,
     bool play = true,
+    double speed = 1.0,
   }) async {
     lastUrl = url;
+    lastPlaySpeed = speed;
+    // Real engines apply the rate during the load (media_kit: between open()
+    // and its internal play()), so mirror that here.
+    this.speed = speed;
     // Real engines reset the cursor when a new source is set.
     position = Duration.zero;
     playing = play;
+    if (play) speedWhenPlaybackStarted = speed;
     _playing.add(play);
   }
 
@@ -63,7 +82,10 @@ class FakeAudioPlayer implements AudioPlayerPort {
   }
 
   @override
-  Future<void> setSpeed(double speed) async {}
+  Future<void> setSpeed(double speed) async {
+    this.speed = speed;
+    lastSpeed = speed;
+  }
 
   @override
   Future<void> setVolume(double volume) async {}

@@ -77,6 +77,7 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
     String url, {
     Map<String, String>? headers,
     bool play = true,
+    double speed = 1.0,
   }) async {
     _loadingSource = true;
     _expectingAudio = false;
@@ -117,6 +118,13 @@ class MediaKitPlayerImpl implements AudioPlayerPort {
     }
 
     _loadingSource = false;
+    // 倍速随加载一起应用：mpv 的 open() 会把 speed 属性重置回 1.0
+    // （mv_player_host.dart 同款问题），且下方 play() 在方法内部就起了——
+    // 调用方在 playUrl 返回后再 setRate 会听到一瞬 1.0x。
+    // paused 加载（play=false）同样要设：之后直接 play() 不能按 1.0x 放。
+    if (speed != 1.0) {
+      await _player.setRate(speed);
+    }
     if (!play) {
       _expectingAudio = false;
       return;

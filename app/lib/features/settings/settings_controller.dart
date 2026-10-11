@@ -71,6 +71,7 @@ class AppSettings {
     this.closeBehavior = CloseBehavior.ask,
     this.taskbarProgress = true,
     this.volume = 1.0,
+    this.speed = 1.0,
     this.desktopLyricEnabled = false,
     this.desktopLyricLocked = false,
     this.desktopLyricOffsetMs = 0,
@@ -124,6 +125,11 @@ class AppSettings {
 
   /// 播放音量（0.0–1.0）。落盘记忆，重启不回 100%。
   final double volume;
+
+  /// 播放倍速（1.0 = 正常）。运行时态在 `PlayerState.speed`，这里只做落盘；
+  /// clamp 边界见 `kPlaySpeedMin` / `kPlaySpeedMax`（不 import 播放层，
+  /// 避免 settings ← player 的循环依赖，边界值以注释同步维护）。
+  final double speed;
 
   /// 桌面歌词窗口是否打开（启动恢复 + 托盘/设置同步）。
   final bool desktopLyricEnabled;
@@ -225,6 +231,7 @@ class AppSettings {
     CloseBehavior? closeBehavior,
     bool? taskbarProgress,
     double? volume,
+    double? speed,
     bool? desktopLyricEnabled,
     bool? desktopLyricLocked,
     int? desktopLyricOffsetMs,
@@ -249,6 +256,7 @@ class AppSettings {
       closeBehavior: closeBehavior ?? this.closeBehavior,
       taskbarProgress: taskbarProgress ?? this.taskbarProgress,
       volume: volume ?? this.volume,
+      speed: speed ?? this.speed,
       desktopLyricEnabled: desktopLyricEnabled ?? this.desktopLyricEnabled,
       desktopLyricLocked: desktopLyricLocked ?? this.desktopLyricLocked,
       desktopLyricOffsetMs: desktopLyricOffsetMs ?? this.desktopLyricOffsetMs,
@@ -279,6 +287,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kCloseToTrayLegacy = 'settings.closeToTray';
   static const _kTaskbarProgress = 'settings.taskbarProgress';
   static const _kVolume = 'settings.volume';
+  static const _kSpeed = 'settings.speed';
   static const _kDesktopLyricEnabled = 'settings.desktopLyricEnabled';
   static const _kDesktopLyricLocked = 'settings.desktopLyricLocked';
   static const _kDesktopLyricOffsetMs = 'settings.desktopLyricOffsetMs';
@@ -346,6 +355,9 @@ class SettingsController extends Notifier<AppSettings> {
         // 非 bool 值按字符串落盘（见 _save），脏数据回落 1.0。
         volume: (double.tryParse(prefs.getString(_kVolume) ?? '') ?? 1.0)
             .clamp(0.0, 1.0),
+        // 倍速：同 volume 的字符串落盘口径；越界 / 脏数据回落 1.0。
+        speed: (double.tryParse(prefs.getString(_kSpeed) ?? '') ?? 1.0)
+            .clamp(0.5, 2.0),
         desktopLyricEnabled: prefs.getBool(_kDesktopLyricEnabled) ?? false,
         desktopLyricLocked: prefs.getBool(_kDesktopLyricLocked) ?? false,
         desktopLyricOffsetMs:
@@ -523,6 +535,15 @@ class SettingsController extends Notifier<AppSettings> {
     if (state.volume == next) return;
     state = state.copyWith(volume: next);
     await _save(_kVolume, next);
+  }
+
+  /// 播放倍速。记忆落盘，重启后仍是上次的值。
+  /// 由 `PlayerController.setSpeed` 调用（唯一写入口）；UI 不直接写。
+  Future<void> setSpeed(double v) async {
+    final next = v.clamp(0.5, 2.0);
+    if (state.speed == next) return;
+    state = state.copyWith(speed: next);
+    await _save(_kSpeed, next);
   }
 
   /// 桌面歌词开关。真正的窗口开关由 [DesktopLyricBridge] 执行后再回写此值，

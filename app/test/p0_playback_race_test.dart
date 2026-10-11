@@ -46,6 +46,7 @@ class _DelayedEngine extends FakeAudioPlayer {
     String url, {
     Map<String, String>? headers,
     bool play = true,
+    double speed = 1.0,
   }) async {
     calls.add(url);
     concurrent++;
@@ -56,7 +57,7 @@ class _DelayedEngine extends FakeAudioPlayer {
         await release.future;
         if (failA) throw StateError('fixture load failure');
       }
-      await super.playUrl(url, headers: headers, play: play);
+      await super.playUrl(url, headers: headers, play: play, speed: speed);
     } finally {
       concurrent--;
     }

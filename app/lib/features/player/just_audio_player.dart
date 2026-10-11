@@ -54,6 +54,7 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
     String url, {
     Map<String, String>? headers,
     bool play = true,
+    double speed = 1.0,
   }) async {
     _loadingSource = true;
     // Intentional stop must not surface as a load error / auto-next.
@@ -103,6 +104,13 @@ class JustAudioPlayerImpl implements AudioPlayerPort {
     // 「正在换源」挡掉 —— 源不可播时 just_audio 会停在 idle，那正是
     // completionStream 该报的加载失败。
     _loadingSource = false;
+
+    // 倍速随加载一起应用：just_audio 的 setSpeed 在 setUrl 之后、起播之前
+    // 生效，晚一步就会听到一瞬 1.0x。paused 加载（play=false）也要设，
+    // 否则之后直接 _engine.play() 会按 1.0x 放。
+    if (speed != 1.0) {
+      await _player.setSpeed(speed);
+    }
 
     if (!play) {
       _expectingAudio = false;

@@ -33,6 +33,16 @@ extension PlayerLoopModeLabel on PlayerLoopMode {
 
 enum PlayerDisplayState { idle, loading, playing, paused, error }
 
+/// 播放倍速档位表（与 MV 播放器 `_SpeedButton` 一致；1.0 = 正常）。
+const List<double> kSpeedPresets = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+/// 倍速 clamp 边界。UI 只出 [kSpeedPresets]；这里防脏数据 / 旧版本异常值。
+///
+/// 已知取舍（不做音调保持）：just_audio `setSpeed` 与 media_kit `setRate`
+/// 都不保调，pitch 随倍速变——EchoMusic 同样如此，保调需要原生 DSP。
+const double kPlaySpeedMin = 0.5;
+const double kPlaySpeedMax = 2.0;
+
 class PlayerState {
   const PlayerState({
     this.queue = const [],
@@ -41,6 +51,7 @@ class PlayerState {
     this.mode = PlayerLoopMode.listLoop,
     this.positionMs = 0,
     this.volume = 1.0,
+    this.speed = 1.0,
     this.lyrics = const [],
     this.lyricsStatus = LyricsStatus.idle,
     this.errorCode = '',
@@ -56,6 +67,14 @@ class PlayerState {
   final PlayerLoopMode mode;
   final int positionMs;
   final double volume;
+
+  /// 播放倍速（1.0 = 正常）。落盘记忆见 `AppSettings.speed`；引擎侧重放
+  /// 由 `playUrl(speed:)` 在每次加载时完成（media_kit 的 open 会重置 rate）。
+  ///
+  /// 连带效果（自动跟随，无需特殊处理）：positionStream 按倍速前进，
+  /// 进度条 / 剩余时间 / 媒体会话进度 / 歌词（按 position 驱动）一致变快；
+  /// durationMs 是媒体时长不变，进度条走得快是预期行为。
+  final double speed;
   final List<LyricLine> lyrics;
   final LyricsStatus lyricsStatus;
   final String errorCode;
@@ -112,6 +131,7 @@ class PlayerState {
     PlayerLoopMode? mode,
     int? positionMs,
     double? volume,
+    double? speed,
     List<LyricLine>? lyrics,
     LyricsStatus? lyricsStatus,
     String? errorCode,
@@ -127,6 +147,7 @@ class PlayerState {
       mode: mode ?? this.mode,
       positionMs: positionMs ?? this.positionMs,
       volume: volume ?? this.volume,
+      speed: speed ?? this.speed,
       lyrics: lyrics ?? this.lyrics,
       lyricsStatus: lyricsStatus ?? this.lyricsStatus,
       errorCode: errorCode ?? this.errorCode,
@@ -334,7 +355,13 @@ class PlayerController extends Notifier<PlayerState> {
       _engine.dispose();
     });
 
-    return const PlayerState();
+    // 倍速记忆：settings 在 main() 首帧前已 ensureRestored，这里直接读。
+    // 引擎侧真正的生效点在每次 playUrl(speed:)（media_kit 的 open 会重置
+    // rate，冷启动 paused 态用户直接点播放也要先解析 URL 走那条路）；
+    // 这里先灌一次，兜住不经 playUrl 的边角路径。
+    final savedSpeed = ref.read(settingsControllerProvider).speed;
+    if (savedSpeed != 1.0) unawaited(_engine.setSpeed(savedSpeed));
+    return PlayerState(speed: savedSpeed);
   }
 
   /// 清空队列（游客/无数据时）
@@ -685,7 +712,14 @@ class PlayerController extends Notifier<PlayerState> {
         // must finish before a newer song enters the engine.
         final resume = _resumeSeekMs;
         final startPlaying = _wantPlaying && resume == null;
-        await _engine.playUrl(url, headers: headers, play: startPlaying);
+        // 倍速随加载传入：引擎在起播前应用（media_kit open 重置 rate 且
+        // playUrl 内部起播，返回后再设会听到一瞬 1.0x）。
+        await _engine.playUrl(
+          url,
+          headers: headers,
+          play: startPlaying,
+          speed: state.speed,
+        );
         if (!_isCurrentLoad(seq)) return false;
         if (resume != null) {
           await _applyResumeSeek(state.current!, seq);
@@ -1074,6 +1108,22 @@ class PlayerController extends Notifier<PlayerState> {
     final clamped = volume.clamp(0.0, 1.0);
     state = state.copyWith(volume: clamped);
     unawaited(_engine.setVolume(clamped));
+  }
+
+  /// 播放倍速。clamp 到 [kPlaySpeedMin]–[kPlaySpeedMax]（对齐 MV 档位表），
+  /// 写 settings 落盘记忆。
+  ///
+  /// 与音量的区别：音量的「启动恢复 + 回写」做在 DesktopShell（仅桌面），
+  /// Android 上不记忆；倍速的听课/播客场景移动端同样常用，所以恢复放
+  /// [build]、回写走这里，两端一致。
+  ///
+  /// 已加载曲目的即时变速由 `_engine.setSpeed` 完成；之后每次换流/切歌都
+  /// 由 `playUrl(speed:)` 携带当前值重放，不需要调用方再处理。
+  void setSpeed(double speed) {
+    final clamped = speed.clamp(kPlaySpeedMin, kPlaySpeedMax);
+    state = state.copyWith(speed: clamped);
+    unawaited(_engine.setSpeed(clamped));
+    unawaited(ref.read(settingsControllerProvider.notifier).setSpeed(clamped));
   }
 
   void setMode(PlayerLoopMode mode) {

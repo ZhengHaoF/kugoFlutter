@@ -10,10 +10,16 @@ abstract class AudioPlayerPort {
   Stream<PlayerIdleReason> get completionStream;
 
   /// Load a source without audible playback when [play] is false.
+  ///
+  /// [speed] is the playback rate to apply as part of the load. Engines must
+  /// apply it *before* audio starts: media_kit's `open()` resets the mpv rate,
+  /// and its `playUrl` starts playback internally, so a rate set by the caller
+  /// after this returns would be audible for a moment at 1.0x.
   Future<void> playUrl(
     String url, {
     Map<String, String>? headers,
     bool play = true,
+    double speed = 1.0,
   });
   Future<void> play();
   Future<void> pause();
