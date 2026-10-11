@@ -179,6 +179,10 @@ class CoverCache {
   }
 
   /// Drop memory + disk covers (settings → 清理图片缓存).
+  ///
+  /// 磁盘删除 await 完才返回：调用方（`clearImageAndHistoryCache`）拿这个
+  /// Future 的完成当「已清理」给用户回执，`unawaited` 删文件会让回执早于
+  /// 实际删除（测试里的 existsSync 断言就是这么偶发的）。
   Future<void> clear() async {
     _mem.clear();
     _memBytes = 0;
@@ -188,7 +192,9 @@ class CoverCache {
       if (await dir.exists()) {
         await for (final entity in dir.list()) {
           if (entity is File) {
-            unawaited(entity.delete().catchError((Object _) => entity));
+            try {
+              await entity.delete();
+            } catch (_) {}
           }
         }
       }
