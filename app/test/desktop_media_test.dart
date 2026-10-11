@@ -253,6 +253,14 @@ void main() {
       expect((calls.single.arguments as Map)['revision'], 2);
       expect((calls.single.arguments as Map)['rgba'], [1, 2, 3, 255]);
     });
+    test('new Dart session reset precedes artwork on the shared channel', () async {
+      await TaskbarBridge.beginMediaSession();
+      await TaskbarBridge.mediaArtwork(
+        trackKey: 'kugou:1', revision: 1, width: 1, height: 1,
+        rgba: Uint8List.fromList([1, 2, 3, 255]),
+      );
+      expect(calls.map((c) => c.method), ['beginMediaSession', 'mediaArtwork']);
+    });
     test('actual G asset decodes into bounded straight RGBA for native host',
         () async {
       final controller = DesktopMediaController();

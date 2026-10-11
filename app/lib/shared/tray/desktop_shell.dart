@@ -283,6 +283,11 @@ class DesktopShell with WindowListener {
     if (!isWindowsPlatform) return;
     _media = DesktopMediaController();
     TaskbarBridge.ensureListening();
+    // Native HWND/channel outlive a Dart hot restart. Enqueue the reset before
+    // any state/artwork on this same FIFO channel.
+    unawaited(TaskbarBridge.beginMediaSession().catchError((Object e) {
+      debugPrint('[desktop media] session reset unavailable: ${e.runtimeType}');
+    }));
     TaskbarBridge.onThumbarCommand = _onThumbarCommand;
     TaskbarBridge.onMediaEvent = _onMediaEvent;
     unawaited(

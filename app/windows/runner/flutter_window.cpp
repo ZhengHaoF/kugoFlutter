@@ -245,6 +245,11 @@ void FlutterWindow::RegisterTaskbarChannel() {
              std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
                  result) {
         const auto *args = std::get_if<flutter::EncodableMap>(call.arguments());
+        if (call.method_name() == "beginMediaSession") {
+          media_.BeginArtworkSession();
+          result->Success();
+          return;
+        }
         if (call.method_name() == "configureMedia") {
           media_.Configure(BoolField(args, "preview"), BoolField(args, "bar"),
                            static_cast<int>(IntField(args, "x", INT_MIN)),

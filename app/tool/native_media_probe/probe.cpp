@@ -88,6 +88,10 @@ int main() {
   Check(!media.Artwork("a", 2, 513, 2, pixels), "oversized image rejected");
   Check(!media.Artwork("a", 2, 2, 2, std::vector<uint8_t>(3)),
         "truncated pixels rejected");
+  Check(media.Artwork("a", 100, 2, 2, pixels), "prior Dart session high revision accepted");
+  media.BeginArtworkSession();
+  Check(media.Artwork("a", 1, 2, 2, pixels),
+        "hot restart accepts fresh Dart revisions without recreating HWND");
   ::SendMessageW(bar, WM_LBUTTONDOWN, MK_LBUTTON, Point(bar, 430, 30));
   Check(commands.size() == 1 && commands.back() == "playPause",
         "button sends exactly one player command");

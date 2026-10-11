@@ -31,7 +31,7 @@ void Text(HDC dc, const std::wstring &value, RECT r, int size, COLORREF color,
   ::SetBkMode(dc, TRANSPARENT);
   ::SetTextColor(dc, color);
   ::DrawTextW(dc, value.c_str(), static_cast<int>(value.size()), &r,
-              DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS |
+              DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX |
                   (centered ? DT_CENTER : DT_LEFT));
   ::SelectObject(dc, old);
   ::DeleteObject(font);
@@ -63,6 +63,15 @@ void DesktopMediaHost::Destroy() {
   pixels_.clear();
   event_ = nullptr;
   owner_ = nullptr;
+}
+
+void DesktopMediaHost::BeginArtworkSession() {
+  // The HWND survives a Flutter hot restart; Dart's revision counter does not.
+  // Called first on the same FIFO MethodChannel before new state/artwork.
+  artwork_revision_ = -1;
+  pixels_.clear();
+  if (preview_) ::DwmInvalidateIconicBitmaps(owner_);
+  if (bar_) ::InvalidateRect(bar_, nullptr, FALSE);
 }
 
 void DesktopMediaHost::Configure(bool preview, bool bar, int x, int y) {

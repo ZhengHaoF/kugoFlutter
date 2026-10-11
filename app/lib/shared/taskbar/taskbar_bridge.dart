@@ -56,6 +56,8 @@ class TaskbarBridge {
 
   /// 窗口 show/restore 后重放按钮与进度（只 Update，不重新 Add）。
   static Future<void> refresh() => _channel.invokeMethod('refresh');
+  static Future<void> beginMediaSession() =>
+      _channel.invokeMethod('beginMediaSession');
 
   static Future<void> configureMedia({
     required bool preview,

@@ -16,6 +16,7 @@ public:
   ~DesktopMediaHost();
   void Create(HWND owner, Event event);
   void Destroy();
+  void BeginArtworkSession();
   void Configure(bool preview, bool bar, int x, int y);
   void State(const std::string &key, const std::wstring &title,
              const std::wstring &artist, bool playing, bool favorite,
