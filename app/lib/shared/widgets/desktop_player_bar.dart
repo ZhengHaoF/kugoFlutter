@@ -36,6 +36,24 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
   /// `onChanged` straight to the controller rebuilt the whole player bar.
   double? _volumeDraft;
 
+  /// 封面「展开播放器」提示的 hover 态：罩层 + 图标一起淡入淡出。
+  ///
+  /// 静息时封面保持全彩，不再常驻压暗 —— 与 `TrackTile` 行级 hover 显隐
+  /// （`common.dart`）同一套口径。本组件只挂桌面分支（`root_shell.dart`），
+  /// 触屏走 MiniPlayerBar，不存在「无 hover 设备看不到入口」的问题。
+  bool _coverHovered = false;
+
+  // Stable tear-offs so MouseRegion doesn't see new closures every rebuild.
+  void _handleCoverEnter(PointerEnterEvent _) {
+    if (_coverHovered) return;
+    setState(() => _coverHovered = true);
+  }
+
+  void _handleCoverExit(PointerExitEvent _) {
+    if (!_coverHovered || !mounted) return;
+    setState(() => _coverHovered = false);
+  }
+
   static String _formatDuration(int ms) {
     if (ms <= 0) return '00:00';
     final safe = ms < 0 ? 0 : ms;
@@ -99,9 +117,11 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                   )
                 : Row(
                     children: [
-                      // 封面
+                      // 封面（点击进播放器；展开提示仅 hover 浮现）
                       MouseRegion(
                         cursor: SystemMouseCursors.click,
+                        onEnter: _handleCoverEnter,
+                        onExit: _handleCoverExit,
                         child: GestureDetector(
                           onTap: () => context.push('/player'),
                           child: Stack(
@@ -113,17 +133,25 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                                 size: 50,
                                 radius: 8,
                               ),
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                ),
-                                child: const Icon(
-                                  Icons.open_in_full_rounded,
-                                  size: 16,
-                                  color: Colors.white70,
+                              // 罩层 + 图标整体淡入：静息态封面全彩，
+                              // 不再常驻压暗（对齐 TrackTile 行级 hover）。
+                              AnimatedOpacity(
+                                opacity: _coverHovered ? 1 : 0,
+                                duration: const Duration(milliseconds: 140),
+                                child: Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.black.withValues(
+                                      alpha: 0.25,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.open_in_full_rounded,
+                                    size: 16,
+                                    color: Colors.white70,
+                                  ),
                                 ),
                               ),
                             ],

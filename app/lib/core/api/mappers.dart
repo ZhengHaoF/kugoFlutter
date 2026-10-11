@@ -39,6 +39,41 @@ String kugouCover(String? hashOrFile, {String size = '400'}) {
   return normalizeCoverUrl(_s(hashOrFile), size: size);
 }
 
+/// 大图查看用的封面 URL：把各源默认的小图换成尽量大的变体。
+///
+/// 实测口径见 `tool/probe_cover_size.dart`（2026-10-10 跑）：
+///  · 酷狗 `imge.kugou.com/stdmusic/{size}/` 路径段就是尺寸旋钮，
+///    400 → 1080 直接生效（约 300–400KB）；
+///  · 网易云 URL 自带 `?param=300y300`，**替换**成 `w2000y2000` 生效
+///    （服务端按原图上限截断，原图不够大就回落小尺寸）；
+///  · B 站视频封面本身 800×450 ~ 2560×1440，原样返回。
+///
+/// 大图拉不到时调用方回退原 URL（封面查看器已有该兜底）。
+String coverLargeUrl(String raw) {
+  final url = raw.trim();
+  if (url.isEmpty) return url;
+  final lower = url.toLowerCase();
+  if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+    return url;
+  }
+  // 酷狗：stdmusic/<n>/ → 1080。
+  if (lower.contains('imge.kugou.com/stdmusic/')) {
+    return url.replaceFirstMapped(
+      RegExp(r'(stdmusic/)\d+(/)'),
+      (m) => '${m[1]}1080${m[2]}',
+    );
+  }
+  // 网易云：替换已有 param（URL 本就带 ?param=300y300，不能追加）。
+  if (lower.contains('126.net') || lower.contains('163.com')) {
+    if (url.contains(RegExp(r'[?&]param='))) {
+      return url.replaceFirst(RegExp(r'param=[^&]*'), 'param=w2000y2000');
+    }
+    final sep = url.contains('?') ? '&' : '?';
+    return '$url${sep}param=w2000y2000';
+  }
+  return url;
+}
+
 /// MV / 视频封面。与歌曲 `soft/collection` **不是同一条 CDN**。
 ///
 /// 富搜索的 `Pic` 是裸文件名，正确拼法是 `imge.kugou.com/mvhdpic/{size}/{pic}`

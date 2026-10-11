@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show PointerEnterEvent, PointerExitEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/player_icon_buttons.dart';
 import '../../shared/widgets/cover_box.dart';
+import '../../shared/widgets/cover_viewer.dart';
 import '../../shared/widgets/lyrics_view.dart';
 import '../../core/models/playback_source.dart';
 import '../fm/fm_controller.dart';
@@ -145,8 +147,9 @@ class FullPlayerPage extends ConsumerWidget {
 
                         const Spacer(),
 
-                        // 大封面（Hero 落地点：从桌面底栏封面飞入）
-                        CoverHero(
+                        // 大封面（Hero 落地点：从桌面底栏封面飞入；
+                        // 点击查看大图，桌面 hover 浮提示）
+                        _PlayerCoverWithZoom(
                           tag: 'player-cover-${track.id}',
                           seed: track.coverUrl,
                           size: 260,
@@ -748,6 +751,99 @@ class _TopBar extends StatelessWidget {
   }
 }
 
+/// 播放页大封面：点击查看大图。
+///
+/// 桌面端 hover 浮现「查看大图」提示（与底栏展开图标同一套 140ms 淡入语言，
+/// 静息时封面全彩）；移动端没有 hover，直接点。Hero 飞行由内部
+/// [_PlayerCoverSlot] 负责，本组件只在外层包手势与提示层。
+class _PlayerCoverWithZoom extends StatefulWidget {
+  const _PlayerCoverWithZoom({
+    required this.tag,
+    required this.seed,
+    required this.size,
+    required this.radius,
+    this.useHero = true,
+  });
+
+  final String tag;
+  final String seed;
+
+  /// 边长；`0` = 填充父容器（移动端布局）。
+  final double size;
+  final double radius;
+  final bool useHero;
+
+  @override
+  State<_PlayerCoverWithZoom> createState() => _PlayerCoverWithZoomState();
+}
+
+class _PlayerCoverWithZoomState extends State<_PlayerCoverWithZoom> {
+  bool _hovered = false;
+
+  // Stable tear-offs so MouseRegion doesn't see new closures every rebuild.
+  void _handleEnter(PointerEnterEvent _) {
+    if (_hovered) return;
+    setState(() => _hovered = true);
+  }
+
+  void _handleExit(PointerExitEvent _) {
+    if (!_hovered || !mounted) return;
+    setState(() => _hovered = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = AnimatedOpacity(
+      opacity: _hovered ? 1 : 0,
+      duration: const Duration(milliseconds: 140),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(widget.radius),
+          color: Colors.black.withValues(alpha: 0.25),
+        ),
+        child: const Center(
+          child: Icon(Icons.zoom_in_rounded, size: 28, color: Colors.white70),
+        ),
+      ),
+    );
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: _handleEnter,
+      onExit: _handleExit,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => showCoverViewer(
+          context,
+          seed: widget.seed,
+          tag: widget.tag,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _PlayerCoverSlot(
+              tag: widget.tag,
+              seed: widget.seed,
+              size: widget.size,
+              radius: widget.radius,
+              useHero: widget.useHero,
+            ),
+            // 提示层铺满封面； opacity 0 时不影响点击（父级 GestureDetector
+            // 照常收到事件），与底栏展开图标同一处理。
+            if (widget.size > 0)
+              SizedBox(
+                width: widget.size,
+                height: widget.size,
+                child: hint,
+              )
+            else
+              Positioned.fill(child: hint),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PlayerCoverSlot extends StatelessWidget {
   const _PlayerCoverSlot({
     required this.tag,
@@ -874,7 +970,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: _PlayerCoverSlot(
+                      child: _PlayerCoverWithZoom(
                         tag: 'player-cover-${track.id}',
                         seed: track.coverUrl,
                         size: 0,
