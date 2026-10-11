@@ -34,7 +34,9 @@ Windows 设置页的“窗口”分组新增“任务栏封面预览”和“独
 
 本地静态分析、完整 1,168 项回归、7 项发布打包检查及新增 25 项 Dart 测试均已通过，其中一项真实解码 G 图标资源并验证 256×256 RGBA 通道负载；MinGW 严格交叉编译（C++17、Wall/Wextra/Wconversion/Werror）已通过。Windows MSVC Release 应用与原生探针编译也已通过，最终 CI 原生探针结果将在通过后回填；不能把交叉编译或程序化 DWM 消息当成实际鼠标悬停验收。
 
-首轮探针发现的是验证方法错误：`DWMWA_HAS_ICONIC_BITMAP` 和 `DWMWA_FORCE_ICONIC_REPRESENTATION` 文档指定用于 DwmSetWindowAttribute，不应以 DwmGetWindowAttribute 读取作为“设置成功”判据。探针已改为验证宿主记录的真实设置 HRESULT，并直接检查缩略图与 live preview 位图提交 HRESULT；没有跳过失败或放松资源/窗口断言。（[Microsoft 属性说明](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute)）
+首轮探针发现的是验证方法错误：`DWMWA_HAS_ICONIC_BITMAP` 和 `DWMWA_FORCE_ICONIC_REPRESENTATION` 文档指定用于 DwmSetWindowAttribute，不应以 DwmGetWindowAttribute 读取作为“设置成功”判据。探针已改为验证宿主记录的真实设置 HRESULT，并直接检查位图提交 HRESULT。（[Microsoft 属性说明](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute)）
+
+第二轮 CI 中缩略图提交返回 S_OK，但全尺寸 Peek 提交返回 `0x80070032 / ERROR_NOT_SUPPORTED`。这只能证明该 CI 调用不支持，不能据此断言具体系统原因或宣称 Peek 验收成功。宿主新增真实失败时取消两项强制预览属性、恢复系统预览、关闭对应设置的降级处理，不影响独立横条。探针只对这个精确错误标记 `SKIP native Peek acceptance`，同时严格检查降级；其他 HRESULT 仍使 CI 失败。缩略图压力与 GDI 资源检查在 Peek 调用之前完成，避免降级后空跑压力测试。原生探针在原有 apps.yml 中独立为早期 Windows job，没有增加第二个工作流。
 
 ## 验收边界与后续
 

@@ -283,6 +283,17 @@ bool DesktopMediaHost::HandlePreview(UINT message, LPARAM lparam) {
   } else {
     last_preview_result_ = E_OUTOFMEMORY;
   }
+  if (FAILED(last_preview_result_)) {
+    // Never leave DWM waiting on a forced preview we cannot supply.
+    BOOL off = FALSE;
+    ::DwmSetWindowAttribute(owner_, DWMWA_FORCE_ICONIC_REPRESENTATION,
+                           &off, sizeof(off));
+    ::DwmSetWindowAttribute(owner_, DWMWA_HAS_ICONIC_BITMAP, &off, sizeof(off));
+    preview_ = false;
+    ::DwmInvalidateIconicBitmaps(owner_);
+    Command("previewUnavailable");
+    return false;
+  }
   return true;
 }
 

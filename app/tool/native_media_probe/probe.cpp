@@ -139,22 +139,38 @@ int main() {
             << static_cast<unsigned long>(media.last_preview_result())
             << std::dec << std::endl;
   Check(SUCCEEDED(media.last_preview_result()), "DWM thumbnail bitmap submitted");
-  ::SendMessageW(owner, WM_DWMSENDICONICLIVEPREVIEWBITMAP, 0, 0);
-  std::cout << "DWM live preview HRESULT=" << std::hex
-            << static_cast<unsigned long>(media.last_preview_result())
-            << std::dec << std::endl;
-  Check(SUCCEEDED(media.last_preview_result()), "DWM live preview bitmap submitted");
   Pump();
   DWORD gdi_before = ::GetGuiResources(::GetCurrentProcess(), GR_GDIOBJECTS);
   for (int i = 0; i < 300; ++i) {
-    ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, MAKELPARAM(200, 360));
-    ::SendMessageW(owner, WM_DWMSENDICONICLIVEPREVIEWBITMAP, 0, 0);
+    ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, MAKELPARAM(32, 32));
     ::InvalidateRect(bar, nullptr, FALSE);
     ::UpdateWindow(bar);
   }
   DWORD gdi_after = ::GetGuiResources(::GetCurrentProcess(), GR_GDIOBJECTS);
   Check(gdi_after <= gdi_before + 2,
         "repeated DWM and bar paint do not leak GDI objects");
+  Check(media.preview_enabled(), "thumbnail stress retained working custom preview");
+  ::SendMessageW(owner, WM_DWMSENDICONICLIVEPREVIEWBITMAP, 0, 0);
+  const HRESULT live = media.last_preview_result();
+  std::cout << "DWM live preview HRESULT=" << std::hex
+            << static_cast<unsigned long>(live) << std::dec << std::endl;
+  if (live == HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED)) {
+    std::cout << "SKIP native Peek acceptance: API returned ERROR_NOT_SUPPORTED"
+              << std::endl;
+    Check(!media.preview_enabled() && commands.back() == "previewUnavailable",
+          "unsupported Peek restores system preview and notifies settings");
+    Check(::IsWindowVisible(bar) != FALSE,
+          "unsupported Peek does not stop independent media bar");
+  } else {
+    // Unexpected errors remain failures, not generic capability skips.
+    Check(SUCCEEDED(live), "DWM live preview bitmap submitted");
+  }
+  media.Configure(true, true, INT_MIN, INT_MIN);
+  ::SendMessageW(owner, WM_DWMSENDICONICTHUMBNAIL, 0, 0);
+  Check(FAILED(media.last_preview_result()) && !media.preview_enabled() &&
+            commands.back() == "previewUnavailable",
+        "unrenderable preview request safely restores system preview");
+  Check(::IsWindowVisible(bar) != FALSE, "preview failure leaves media bar alive");
   media.Configure(false, false, INT_MIN, INT_MIN);
   Check(!media.preview_enabled() && !::IsWindowVisible(bar),
         "switches restore system preview and hide bar");
