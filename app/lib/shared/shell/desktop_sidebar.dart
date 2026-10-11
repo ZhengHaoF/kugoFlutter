@@ -13,6 +13,7 @@ import '../../features/settings/settings_controller.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/kugo_theme.dart';
 import '../../features/player/player_controller.dart';
+import '../branding/app_logo.dart';
 
 /// 桌面侧栏。展开 220 / 图标模式 64，选中指示条用绝对定位不挤占内容。
 class DesktopSidebar extends ConsumerStatefulWidget {
@@ -90,19 +91,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: kugo.accentGradient,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.music_note_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
+                      const AppLogo(),
                       const SizedBox(height: 6),
                       _CollapseButton(
                         collapsed: true,
@@ -116,26 +105,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                   padding: const EdgeInsets.fromLTRB(20, 24, 8, 16),
                   child: Row(
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: kugo.accentGradient,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kugo.primary.withValues(alpha: 0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.music_note_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
+                      const AppLogo(),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(

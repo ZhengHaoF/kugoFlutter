@@ -18,6 +18,7 @@ import 'desktop_tray.dart';
 import 'window_bounds_store.dart';
 import 'linux_tray_host.dart';
 import '../../features/player/linux_media_bridge.dart';
+import '../branding/window_icon.dart';
 
 /// Windows / 桌面壳：托盘 + 关闭到托盘 + 任务栏 Thumbar/进度条。
 ///
@@ -80,6 +81,17 @@ class DesktopShell with WindowListener {
         windowButtonVisibility: false,
       ),
     );
+    if (isWindowsPlatform) {
+      try {
+        // window_manager expects an ASSET-relative path and resolves it next
+        // to the current Debug/Profile/Release executable. Passing an absolute
+        // path here would prefix it twice. This explicitly sends WM_SETICON
+        // for the running window instead of trusting an old class/shell icon.
+        await applyWindowsWindowIcon();
+      } catch (e) {
+        debugPrint('[desktop] window icon unavailable: ${e.runtimeType}');
+      }
+    }
     // 始终拦截原生关闭：关到托盘或真正退出都由我们决定，
     // 避免 win32 SetQuitOnClose 在 hide 前把进程带走。
     await windowManager.setPreventClose(true);

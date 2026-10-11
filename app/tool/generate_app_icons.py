@@ -68,6 +68,8 @@ def outputs():
         render(mark, 432, 50 / 108, monochrome=True)
     )
     files["windows/runner/resources/app_icon.ico"] = ico_bytes(mark)
+    files["assets/app_icon.ico"] = ico_bytes(mark)
+    files["assets/app_icon.png"] = png_bytes(render(mark, 256, 0.86))
     files["assets/tray_icon.ico"] = ico_bytes(mark)
     files["assets/tray_icon.png"] = png_bytes(render(mark, 64, 0.86))
     return files

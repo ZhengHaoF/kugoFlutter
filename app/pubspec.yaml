@@ -61,6 +61,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/app_icon.png
+    - assets/app_icon.ico
     - assets/tray_icon.ico
     - assets/tray_icon.png
   fonts:
