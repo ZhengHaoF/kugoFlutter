@@ -33,7 +33,11 @@ for abi in armeabi-v7a arm64-v8a x86_64; do
       print tolower($0)
     }' | sort -u)"
   [[ "$fingerprint" =~ ^[a-f0-9]{64}$ ]] || {
-    echo "Missing or multiple distinct signer fingerprints: $abi" >&2; exit 1;
+    echo "Missing or multiple distinct signer fingerprints: $abi" >&2
+    # Only public certificate digests, never subjects, passwords or key material.
+    printf '%s\n' "$report" | grep -Ei 'certificate.*SHA.?256.*digest' >&2 || true
+    printf 'Parsed signer fingerprint bytes=%s\n' "${#fingerprint}" >&2
+    exit 1
   }
   printf 'abi=%s signer-sha256=%s\n' "$abi" "${fingerprint,,}" >> "$out/SIGNING.txt"
   cp "$apk" "$out/kugo-$KUGO_VERSION-android-$abi.apk"
