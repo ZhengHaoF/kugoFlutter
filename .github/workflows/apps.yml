@@ -2,11 +2,25 @@ name: Android and Windows apps
 # Manual entry only; every job also rejects non-main refs and other repositories.
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (major.minor.patch)'
+        required: true
+        default: '0.1.0'
+        type: string
+      publish:
+        description: 'Publish an official GitHub Release after verification'
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency:
   group: apps-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
+env:
+  KUGO_VERSION: ${{ inputs.version }}
+  KUGO_BUILD_NUMBER: ${{ github.run_number }}
 jobs:
   quality:
     if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
@@ -17,6 +31,11 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+      - name: Validate release version
+        run: |
+          [[ "$KUGO_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+            echo "Version must be major.minor.patch"; exit 1;
+          }
       - uses: actions/checkout@v4
         with:
           repository: flutter/flutter
@@ -29,7 +48,9 @@ jobs:
       - name: Release packaging tools
         run: sudo apt-get update -qq && sudo apt-get install -y ripgrep zip unzip
       - name: Test release packaging and rejection guards
-        run: bash tool/test_package_test_release.sh
+        run: |
+          bash tool/test_package_test_release.sh
+          bash tool/test_package_release.sh
   android:
     needs: quality
     if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
@@ -39,7 +60,10 @@ jobs:
       run:
         working-directory: app
     env:
-      ORG_GRADLE_PROJECT_kugoAllowTestSigning: 'true'
+      ORG_GRADLE_PROJECT_kugoAllowTestSigning: 'false'
+      KUGO_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+      KUGO_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS }}
+      KUGO_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -52,26 +76,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Prepare production Android signing (required)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 || secrets.KEYSTORE_B64 }}
+        run: bash tool/prepare_android_signing.sh
       - run: flutter pub get --enforce-lockfile
-      - name: Build Android TEST-ONLY release APK
-        run: flutter build apk --release --no-pub
-      - name: Verify APK signature
-        run: |
-          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          "$tools/apksigner" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk
-      - name: Package build identity and checksums
-        run: |
-          mkdir -p build/deliverables/android
-          cp build/app/outputs/flutter-apk/app-release.apk build/deliverables/android/kugo-android-test-only.apk
-          printf 'kugo Android TEST-ONLY\ncommit=%s\nrun=%s\nsigning=debug test key, NOT a production release\nInstall: adb install -r kugo-android-test-only.apk\nReal-account and physical-device acceptance remains pending.\n' \
-            "$GITHUB_SHA" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            > build/deliverables/android/BUILD-INFO.txt
-          cd build/deliverables/android
-          sha256sum kugo-android-test-only.apk > SHA256SUMS.txt
+      - name: Build signed Release APKs for ARM32, ARM64 and x86_64
+        run: flutter build apk --release --no-pub --split-per-abi --target-platform android-arm,android-arm64,android-x64 --build-name "$KUGO_VERSION" --build-number "$KUGO_BUILD_NUMBER"
+      - name: Verify production signatures and package each ABI
+        run: bash tool/package_android_release.sh
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/kugo-release-keystore.jks"
       - uses: actions/upload-artifact@v4
         with:
-          name: kugo-android-test-only-${{ github.sha }}
+          name: kugo-android-release-${{ github.sha }}
           path: app/build/deliverables/android/
+          overwrite: true
           if-no-files-found: error
           retention-days: 30
   windows-media-native:
@@ -98,6 +119,7 @@ jobs:
         with:
           name: kugo-native-media-${{ github.sha }}
           path: ${{ runner.temp }}/native-media.txt
+          overwrite: true
           if-no-files-found: error
           retention-days: 30
   windows:
@@ -120,7 +142,7 @@ jobs:
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get --enforce-lockfile
       - name: Build Windows x64 release bundle
-        run: flutter build windows --release --no-pub
+        run: flutter build windows --release --no-pub --build-name "$env:KUGO_VERSION" --build-number "$env:KUGO_BUILD_NUMBER"
       - name: Download native media acceptance report
         uses: actions/download-artifact@v4
         with:
@@ -134,14 +156,16 @@ jobs:
             -Report $report
       - name: Package complete portable application
         run: |
-          $out = "build\deliverables\windows"
+          $out = "build\deliverables\windows\portable"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
-          Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse
+          Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse -Force
           Copy-Item (Join-Path $env:RUNNER_TEMP "release-icons.txt") "$out\NATIVE-ICONS.txt"
           Copy-Item (Join-Path $env:RUNNER_TEMP "native-media.txt") "$out\NATIVE-MEDIA.txt"
           if (-not (Test-Path "$out\kugo.exe")) { throw "Missing application executable" }
           @(
-            "kugo Windows x64 portable TEST build"
+            "kugo Windows x64 Release"
+            "version=$env:KUGO_VERSION"
+            "build=$env:KUGO_BUILD_NUMBER"
             "commit=$env:GITHUB_SHA"
             "run=$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             "Authenticode signing: unsigned"
@@ -149,10 +173,6 @@ jobs:
             "If the VC++ runtime is missing, install the Microsoft Visual C++ 2015-2022 x64 Redistributable."
             "Physical-device and real-account acceptance remains pending."
           ) | Set-Content "$out\BUILD-INFO.txt" -Encoding utf8
-          Get-ChildItem $out -Recurse -File | ForEach-Object {
-            $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)
-            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $relative"
-          } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
       - name: Native Windows secure storage probe
         run: |
           # The production bundle above is already copied into deliverables.
@@ -171,12 +191,7 @@ jobs:
           if ($text -match "FAIL" -or ($text | Select-String "PASS" -AllMatches).Matches.Count -ne 5) {
             throw "Native probe evidence incomplete"
           }
-          Copy-Item $report "build\deliverables\windows\NATIVE-CREDENTIALS.txt"
-          $out = "build\deliverables\windows"
-          Get-ChildItem $out -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
-            $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)
-            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $relative"
-          } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
+          Copy-Item $report "build\deliverables\windows\portable\NATIVE-CREDENTIALS.txt"
       - name: Verify Windows DEBUG runtime icons
         run: |
           # Matches flutter run -d windows; do not distribute Debug binaries.
@@ -187,21 +202,56 @@ jobs:
           ./tool/test_windows_app_icons.ps1 `
             -Executable "build\windows\x64\runner\Debug\kugo.exe" `
             -Report $report
-          Copy-Item $report "build\deliverables\windows\DEBUG-ICONS.txt"
+          Copy-Item $report "build\deliverables\windows\portable\DEBUG-ICONS.txt"
+      - name: Build Windows installer from saved production bundle
+        run: |
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
+          )
+          $compiler = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $compiler) {
+            choco install innosetup --version=6.7.1 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed" }
+            $compiler = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $compiler) { throw "Inno Setup compiler missing" }
+          $source = (Resolve-Path "build\deliverables\windows\portable").Path
+          $output = Join-Path (Get-Location) "build\deliverables\windows\installer"
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          & $compiler "/DAppVersion=$env:KUGO_VERSION" "/DSourceDir=$source" "/DOutputDir=$output" "tool\windows_installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Windows installer compilation failed" }
+      - name: Verify installation, installed app startup and uninstall
+        run: |
+          ./tool/test_windows_installer.ps1 `
+            -Installer "build\deliverables\windows\installer\kugo-$env:KUGO_VERSION-windows-x64-setup.exe" `
+            -SourceDirectory "build\deliverables\windows\portable" `
+            -Report "build\deliverables\windows\INSTALLER-TEST.txt"
+      - name: Finalize Windows source identity and checksums
+        run: |
           $out = "build\deliverables\windows"
-          Get-ChildItem $out -Recurse -File | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
+          Copy-Item "$out\portable\BUILD-INFO.txt" "$out\BUILD-INFO.txt"
+          $zip = "$out\kugo-${env:KUGO_VERSION}-windows-x64-portable.zip"
+          7z a -tzip $zip "$out\portable\*"
+          if ($LASTEXITCODE -ne 0) { throw "Portable ZIP creation failed" }
+          7z t $zip
+          if ($LASTEXITCODE -ne 0) { throw "Portable ZIP verification failed" }
+          Get-ChildItem $out -Recurse -File -Force | Where-Object { $_.Name -ne "SHA256SUMS.txt" } | ForEach-Object {
             $relative = [IO.Path]::GetRelativePath((Resolve-Path $out), $_.FullName)
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $relative"
           } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
-          name: kugo-windows-x64-portable-${{ github.sha }}
+          name: kugo-windows-x64-release-${{ github.sha }}
           path: app/build/deliverables/windows/
+          overwrite: true
           if-no-files-found: error
           retention-days: 30
   release:
     needs: [android, windows]
-    # Only an explicitly requested main build may publish a test prerelease.
+    # Packaging always runs; public publication requires the extra publish checkbox.
     if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -213,44 +263,62 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y ripgrep zip unzip
       - uses: actions/download-artifact@v4
         with:
-          name: kugo-android-test-only-${{ github.sha }}
+          name: kugo-android-release-${{ github.sha }}
           path: release-inputs/android
       - uses: actions/download-artifact@v4
         with:
-          name: kugo-windows-x64-portable-${{ github.sha }}
+          name: kugo-windows-x64-release-${{ github.sha }}
           path: release-inputs/windows
       - name: Verify and package release assets
-        run: bash app/tool/package_test_release.sh release-inputs release-assets
-      - name: Publish a complete test prerelease
+        run: bash app/tool/package_release.sh release-inputs release-assets
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kugo-release-v${{ inputs.version }}-${{ github.sha }}
+          path: release-assets/
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish an official GitHub Release (explicit opt-in)
+        if: inputs.publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          short="${GITHUB_SHA:0:7}"
-          tag="test-${{ github.run_number }}-${{ github.run_attempt }}-$short"
+          tag="v$KUGO_VERSION"
           assets=(
-            "release-assets/kugo-android-$short-test-only.apk"
-            "release-assets/kugo-windows-x64-$short-portable-test-only.zip"
+            "release-assets/kugo-$KUGO_VERSION-android-armeabi-v7a.apk"
+            "release-assets/kugo-$KUGO_VERSION-android-arm64-v8a.apk"
+            "release-assets/kugo-$KUGO_VERSION-android-x86_64.apk"
+            "release-assets/kugo-$KUGO_VERSION-windows-x64-setup.exe"
+            "release-assets/kugo-$KUGO_VERSION-windows-x64-portable.zip"
+            "release-assets/ANDROID-SIGNING.txt"
             "release-assets/SHA256SUMS.txt"
             "release-assets/BUILD-INFO.txt"
           )
-          # Upload to a draft first, so a partial upload is never public.
+          # Never overwrite a published version or reuse another commit's draft.
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft > release-state.json 2>/dev/null; then
             if ! jq -e '.isDraft == true' release-state.json > /dev/null; then
-              echo "This test release is already published; do not overwrite it."
-              gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url >> "$GITHUB_STEP_SUMMARY"
-              exit 0
+              echo "Version already published. Use a new version; never overwrite."
+              exit 1
             fi
+            test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')" = "$GITHUB_SHA" || {
+              echo "Existing draft tag does not match this source commit"; exit 1;
+            }
             gh release upload "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
           else
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > existing-tag.json 2>/dev/null; then
+              test "$(jq -r '.object.sha' existing-tag.json)" = "$GITHUB_SHA" || {
+                echo "Existing version tag belongs to another source commit"; exit 1;
+              }
+            fi
             gh release create "$tag" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --title "kugo 测试版 · $short" \
+              --title "kugo $KUGO_VERSION" \
               --notes-file release-assets/RELEASE-NOTES.md \
-              --draft --prerelease --latest=false
+              --draft --prerelease=false --latest=false
           fi
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" \
-            --draft=false --prerelease --latest=false
+            --draft=false --prerelease=false --latest=true
           url="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
-          printf '### GitHub Releases 测试版\n\n[打开测试版下载页面](%s)\n' "$url" >> "$GITHUB_STEP_SUMMARY"
-          echo "Published test release: $url"
+          printf '### GitHub Release\n\n[Download release](%s)\n' "$url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Published release: $url"

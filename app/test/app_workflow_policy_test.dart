@@ -15,7 +15,14 @@ void main() {
       multiLine: true,
     ).firstMatch(workflow);
     expect(events, isNotNull);
-    expect(events!.group(1)!.trim(), 'workflow_dispatch:');
+    final triggerNames = RegExp(
+      r'^  ([a-z_]+):',
+      multiLine: true,
+    ).allMatches(events!.group(1)!).map((match) => match.group(1));
+    expect(triggerNames, ['workflow_dispatch']);
+    expect(events.group(1), contains('      version:\n'));
+    expect(events.group(1), contains('      publish:\n'));
+    expect(events.group(1), contains('        default: false\n'));
   });
 
   test('Every job is guarded by repository, main branch and manual event', () {
@@ -60,4 +67,69 @@ void main() {
         .toList();
     expect(files, ['apps.yml']);
   });
+
+  test('Android Release builds all supported ABIs without debug signing', () {
+    expect(
+      workflow,
+      contains("ORG_GRADLE_PROJECT_kugoAllowTestSigning: 'false'"),
+    );
+    expect(workflow, contains('--split-per-abi'));
+    expect(
+      workflow,
+      contains('--target-platform android-arm,android-arm64,android-x64'),
+    );
+    for (final secret in [
+      'ANDROID_KEYSTORE_BASE64',
+      'ANDROID_KEYSTORE_PASSWORD',
+      'ANDROID_KEY_ALIAS',
+      'ANDROID_KEY_PASSWORD',
+    ]) {
+      expect(workflow, contains('secrets.$secret'));
+    }
+    for (final compatibleSecret in [
+      'KEYSTORE_B64',
+      'KEYSTORE_PASSWORD',
+      'KEY_ALIAS',
+      'KEY_PASSWORD',
+    ]) {
+      expect(workflow, contains('secrets.$compatibleSecret'));
+    }
+    expect(workflow, contains('bash tool/package_android_release.sh'));
+    expect(workflow, isNot(contains('kugo-android-test-only-')));
+    final gradle = File('android/app/build.gradle.kts').readAsStringSync();
+    expect(gradle, contains('!hasReleaseSigning && !allowTestSigning'));
+    expect(gradle, contains('releaseSigning.values.all'));
+  });
+
+  test(
+    'Windows installer consumes saved Release bundle, never probe or Debug',
+    () {
+      expect(workflow, contains('tool\\windows_installer.iss'));
+      expect(workflow, contains('build\\deliverables\\windows\\portable'));
+      expect(workflow, contains('./tool/test_windows_installer.ps1'));
+      final installer = File('tool/windows_installer.iss').readAsStringSync();
+      expect(installer, contains('PrivilegesRequired=lowest'));
+      expect(installer, contains('ArchitecturesAllowed=x64compatible'));
+      expect(installer, contains('recursesubdirs createallsubdirs'));
+      expect(installer, isNot(contains('runner\\Debug')));
+      expect(installer, isNot(contains('native_credential_probe')));
+    },
+  );
+
+  test(
+    'Official publication is a separate explicit opt-in with no overwrite',
+    () {
+      expect(workflow, contains('        if: inputs.publish\n'));
+      expect(
+        workflow,
+        contains('--draft=false --prerelease=false --latest=true'),
+      );
+      expect(
+        workflow,
+        contains('Version already published. Use a new version'),
+      );
+      expect(workflow, contains('bash app/tool/package_release.sh'));
+      expect(workflow, isNot(contains('tag="test-')));
+    },
+  );
 }

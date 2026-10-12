@@ -1,4 +1,6 @@
-# Android 与 Windows 测试应用交付
+# Android 与 Windows 测试应用交付（历史说明）
+
+本文保留旧测试包与此前工作流的历史记录，不是当前正式打包规则。当前仅主分支手动生成 Release 包，Android 使用必需的正式签名并拆分三个 ABI，Windows 提供安装程序和绿色 ZIP，发布默认关闭；请以 [Release 应用交付说明](release-packaging.md) 为准。
 
 ## 制品库与获取
 

@@ -15,12 +15,23 @@ val keystoreProperties = Properties().apply {
 // silently falls back to the debug key.
 val allowTestSigning = providers.gradleProperty("kugoAllowTestSigning")
     .map { it == "true" }.getOrElse(false)
+// CI uses environment variables instead of writing passwords into key.properties.
+val releaseSigning = mapOf(
+    "storeFile" to "KUGO_KEYSTORE_FILE",
+    "storePassword" to "KUGO_STORE_PASSWORD",
+    "keyAlias" to "KUGO_KEY_ALIAS",
+    "keyPassword" to "KUGO_KEY_PASSWORD",
+).mapValues { (property, environment) ->
+    keystoreProperties.getProperty(property)
+        ?: providers.environmentVariable(environment).orNull
+}
+val hasReleaseSigning = releaseSigning.values.all { !it.isNullOrBlank() }
 val isReleaseTask = gradle.startParameter.taskNames.any {
     it.contains("Release", ignoreCase = true)
 }
-if (isReleaseTask && keystoreProperties.isEmpty() && !allowTestSigning) {
+if (isReleaseTask && !hasReleaseSigning && !allowTestSigning) {
     throw GradleException(
-        "Release signing is missing. Configure key.properties, or explicitly " +
+        "Release signing is missing or incomplete. Configure key.properties or KUGO_* signing environment variables, or explicitly " +
         "use -PkugoAllowTestSigning=true for a TEST-ONLY artifact."
     )
 }
@@ -36,12 +47,12 @@ android {
     }
 
     signingConfigs {
-        if (keystoreProperties.isNotEmpty()) {
+        if (hasReleaseSigning) {
             create("release") {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = releaseSigning.getValue("keyAlias")
+                keyPassword = releaseSigning.getValue("keyPassword")
+                storeFile = file(releaseSigning.getValue("storeFile")!!)
+                storePassword = releaseSigning.getValue("storePassword")
             }
         }
     }
@@ -56,7 +67,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystoreProperties.isNotEmpty()) {
+            signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else if (allowTestSigning) {
                 signingConfigs.getByName("debug")
