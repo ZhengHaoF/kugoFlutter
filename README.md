@@ -6,7 +6,7 @@
 
 打开 [GitHub Releases 测试版下载页面](https://github.com/ZhengHaoF/kugoFlutter/releases)，在标记为 **Pre-release** 的版本里直接下载 Android APK 或 Windows x64 ZIP。Windows 包需完整解压后运行 `kugo.exe`，请保留所有 DLL 和 `data/` 资源。
 
-当前自动交付的是开发测试包：Android 使用测试签名，Windows 未做代码签名，不等同于下文历史里程碑中的正式签名交付。主分支构建成功后才发布，Actions 原始制品也继续保留；安装方法、校验值与验收边界见 [交付说明](docs/android-windows-delivery.md)。
+当前交付的是开发测试包：Android 使用测试签名，Windows 未做代码签名，不等同于下文历史里程碑中的正式签名交付。仅在 Actions 中手动启动 `main` 主分支构建，不在推送、PR 或合并时自动执行；主分支手动构建成功后才发布，Actions 原始制品也继续保留。安装方法、校验值与验收边界见 [交付说明](docs/android-windows-delivery.md)。
 
 | 文档 | 说明 |
 | --- | --- |

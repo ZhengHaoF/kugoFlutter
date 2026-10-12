@@ -1,8 +1,6 @@
 name: Android and Windows apps
+# Manual entry only; every job also rejects non-main refs and other repositories.
 on:
-  pull_request:
-  push:
-    branches: [main, 'fix/rework-p1-*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,6 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   quality:
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -33,6 +32,7 @@ jobs:
         run: bash tool/test_package_test_release.sh
   android:
     needs: quality
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -75,6 +75,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   windows-media-native:
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     timeout-minutes: 10
     defaults:
@@ -101,6 +102,7 @@ jobs:
           retention-days: 30
   windows:
     needs: [quality, windows-media-native]
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     timeout-minutes: 45
     defaults:
@@ -199,8 +201,8 @@ jobs:
           retention-days: 30
   release:
     needs: [android, windows]
-    # Never publish PRs, forks or feature-branch builds.
-    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    # Only an explicitly requested main build may publish a test prerelease.
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
