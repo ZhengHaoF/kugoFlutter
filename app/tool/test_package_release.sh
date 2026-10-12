@@ -107,7 +107,7 @@ for scenario in debug mixed reject missing; do
 done
 cp "$root/valid/android/kugo-0.1.0-android-x86_64.apk" \
   "$root/android-wrapper/build/app/outputs/flutter-apk/app-x86_64-release.apk"
-for scenario in ranges crlf stderr; do
+for scenario in ranges crlf stderr schemes runner; do
   (cd "$root/android-wrapper"; MOCK_SIGNER_CASE="$scenario" bash "$(dirname "$script")/package_android_release.sh")
   echo "PASS APK verifier accepts $scenario signer output"
 done
@@ -116,6 +116,11 @@ if (cd "$root/android-wrapper"; MOCK_SIGNER_CASE=rotated bash "$(dirname "$scrip
   echo "FAIL multiple distinct SDK-range certificates accepted" >&2; exit 1
 fi
 echo "PASS APK verifier rejects distinct SDK-range certificates"
+if (cd "$root/android-wrapper"; MOCK_SIGNER_CASE=schemes-mixed bash "$(dirname "$script")/package_android_release.sh") \
+  > "$root/schemes-mixed.log" 2>&1; then
+  echo "FAIL multiple distinct scheme certificates accepted" >&2; exit 1
+fi
+echo "PASS APK verifier rejects distinct scheme certificates"
 mkdir -p "$root/minimal-bin"
 for command in bash find sort tail mkdir grep awk sed wc cp sha256sum; do
   ln -s "$(command -v "$command")" "$root/minimal-bin/$command"

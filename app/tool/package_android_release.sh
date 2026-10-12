@@ -24,10 +24,10 @@ for abi in armeabi-v7a arm64-v8a x86_64; do
     echo "Rejecting Android Debug signed APK: $abi" >&2
     exit 1
   fi
-  # SDK-range labels are used by v3.1, not just the older "Signer #1".
-  # Accept repeated ranges only when they all name the same certificate.
+  # Accept legacy, SDK-range and scheme-prefixed labels (e.g. "V2 Signer:").
+  # Repeated schemes/ranges must all name the same certificate.
   fingerprint="$(printf '%s\n' "$report" | awk '
-    /^Signer .* certificate SHA-256 digest:/ {
+    /^(Signer |V[1-4](\.[0-9]+)? Signer[: ])/ && / certificate SHA-256 digest:/ {
       sub(/^.* certificate SHA-256 digest:[[:space:]]*/, "");
       sub(/[[:space:]]*$/, "");
       print tolower($0)

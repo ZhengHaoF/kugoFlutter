@@ -10,6 +10,19 @@ if [[ "${MOCK_SIGNER_CASE:-}" == mixed && "${*: -1}" == *x86_64* ]]; then
   fingerprint=2222222222222222222222222222222222222222222222222222222222222222
 fi
 case "${MOCK_SIGNER_CASE:-}" in
+  schemes)
+    printf 'Verifies\nV2 Signer: certificate DN: %s\n' "$owner"
+    printf 'V2 Signer: certificate SHA-256 digest: %s\n' "$fingerprint"
+    printf 'V3 Signer: certificate SHA-256 digest: %s\n' "$fingerprint"
+    ;;
+  schemes-mixed)
+    printf 'V2 Signer: certificate SHA-256 digest: %s\n' "$fingerprint"
+    printf 'V3 Signer: certificate SHA-256 digest: %064d\n' 2
+    ;;
+  runner)
+    # Observed runner label with a synthetic mixed hexadecimal digest.
+    printf 'V2 Signer: certificate SHA-256 digest: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789\n'
+    ;;
   ranges)
     printf 'Verifies\nSigner (minSdkVersion=33, maxSdkVersion=2147483647) certificate DN: %s\n' "$owner"
     printf 'Signer (minSdkVersion=33, maxSdkVersion=2147483647) certificate SHA-256 digest: %s\n' "$fingerprint"
