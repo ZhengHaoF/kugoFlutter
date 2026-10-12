@@ -16,13 +16,25 @@ mkdir -p "$out"
 for abi in armeabi-v7a arm64-v8a x86_64; do
   apk="build/app/outputs/flutter-apk/app-$abi-release.apk"
   [[ -s "$apk" ]] || { echo "Missing ABI APK: $abi" >&2; exit 1; }
-  report="$("$tools/apksigner" verify --verbose --print-certs "$apk")"
-  if printf '%s\n' "$report" | rg -qi 'CN\s*=\s*Android Debug'; then
+  if ! report="$("$tools/apksigner" verify --verbose --print-certs "$apk" 2>&1)"; then
+    echo "apksigner verification failed: $abi" >&2
+    exit 1
+  fi
+  if printf '%s\n' "$report" | grep -Eiq 'CN[[:space:]]*=[[:space:]]*Android Debug'; then
     echo "Rejecting Android Debug signed APK: $abi" >&2
     exit 1
   fi
-  fingerprint="$(printf '%s\n' "$report" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
-  [[ "$fingerprint" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "Missing signer fingerprint: $abi" >&2; exit 1; }
+  # SDK-range labels are used by v3.1, not just the older "Signer #1".
+  # Accept repeated ranges only when they all name the same certificate.
+  fingerprint="$(printf '%s\n' "$report" | awk '
+    /^Signer .* certificate SHA-256 digest:/ {
+      sub(/^.* certificate SHA-256 digest:[[:space:]]*/, "");
+      sub(/[[:space:]]*$/, "");
+      print tolower($0)
+    }' | sort -u)"
+  [[ "$fingerprint" =~ ^[a-f0-9]{64}$ ]] || {
+    echo "Missing or multiple distinct signer fingerprints: $abi" >&2; exit 1;
+  }
   printf 'abi=%s signer-sha256=%s\n' "$abi" "${fingerprint,,}" >> "$out/SIGNING.txt"
   cp "$apk" "$out/kugo-$KUGO_VERSION-android-$abi.apk"
 done

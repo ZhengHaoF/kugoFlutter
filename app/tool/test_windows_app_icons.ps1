@@ -3,6 +3,7 @@ param(
   [Parameter(Mandatory = $true)][string]$Report
 )
 $ErrorActionPreference = "Stop"
+. "$PSScriptRoot/installer_probe_helpers.ps1"
 $exe = (Resolve-Path $Executable).Path
 $bundleIcon = Join-Path (Split-Path $exe) "data\flutter_assets\assets\app_icon.ico"
 if (-not (Test-Path $bundleIcon)) { throw "Missing bundled runtime app icon" }
@@ -134,6 +135,7 @@ if ([KugoIconProbe]::EmbeddedDigest($exe, 32) -ne $expectedBig) {
 $checks = [System.Collections.Generic.List[string]]::new()
 $checks.Add("PASS embedded EXE icon matches G")
 $process = $null
+$primaryFailure = $null
 try {
   $process = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -PassThru
   $ready = $false
@@ -171,9 +173,17 @@ try {
   $checks.Add("PASS Start Menu target and icon resolve to current bundle")
   $checks | Set-Content -Path $Report -Encoding utf8
   $checks | ForEach-Object { Write-Host $_ }
+} catch {
+  $primaryFailure = $_
+  throw
 } finally {
-  if ($process) {
-    $process.Refresh()
-    if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+  try {
+    Stop-KugoProbeProcess -Process $process
+  } catch {
+    if ($null -ne $primaryFailure) {
+      Write-Warning "Application teardown also failed; preserving the original icon acceptance error: $_"
+    } else {
+      throw
+    }
   }
 }

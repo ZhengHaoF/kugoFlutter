@@ -113,6 +113,26 @@ void main() {
       expect(installer, contains('recursesubdirs createallsubdirs'));
       expect(installer, isNot(contains('runner\\Debug')));
       expect(installer, isNot(contains('native_credential_probe')));
+      final identity = File(
+        'windows/runner/app_identity.cpp',
+      ).readAsStringSync();
+      final aumid = RegExp(
+        r'kAppUserModelId\[\] = L"([^"]+)"',
+      ).firstMatch(identity)!.group(1);
+      expect(
+        RegExp(
+          r'AppUserModelID: "([^"]+)"',
+        ).allMatches(installer).map((match) => match.group(1)),
+        [aumid, aumid],
+      );
+      expect(installer, contains(r'IconFilename: "{app}\data\flutter_assets'));
+      final probe = File('tool/test_windows_installer.ps1').readAsStringSync();
+      expect(probe, contains('Remove-KugoProbeDirectory'));
+      expect(probe, contains('Write-Error -ErrorRecord'));
+      final iconProbe = File(
+        'tool/test_windows_app_icons.ps1',
+      ).readAsStringSync();
+      expect(iconProbe, contains('Stop-KugoProbeProcess'));
     },
   );
 

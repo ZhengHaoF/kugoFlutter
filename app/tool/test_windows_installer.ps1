@@ -4,6 +4,7 @@ param(
   [Parameter(Mandatory = $true)][string]$Report
 )
 $ErrorActionPreference = "Stop"
+. "$PSScriptRoot/installer_probe_helpers.ps1"
 $installerPath = (Resolve-Path $Installer).Path
 $source = (Resolve-Path $SourceDirectory).Path
 $destination = Join-Path $env:RUNNER_TEMP ("kugo-installer-probe-" + [guid]::NewGuid())
@@ -34,6 +35,12 @@ try {
   RunSetup $uninstallers[0].FullName @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
   if (Test-Path "$destination/kugo.exe") { throw "Application remains after uninstall" }
   "PASS uninstall" | Add-Content $Report -Encoding utf8
+} catch {
+  # Print the primary failure before cleanup, which must never replace it.
+  Write-Error -ErrorRecord $_ -ErrorAction Continue
+  throw
 } finally {
-  if (Test-Path $destination) { Remove-Item $destination -Recurse -Force }
+  if (-not (Remove-KugoProbeDirectory -Path $destination)) {
+    Write-Warning "Temporary probe directory is still locked after bounded cleanup; the runner will discard it: $destination"
+  }
 }

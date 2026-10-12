@@ -105,6 +105,8 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+      - name: Test bounded installer probe teardown
+        run: ./tool/test_installer_probe_helpers.ps1
       - name: Build and exercise native desktop media window
         run: |
           cmake -S tool/native_media_probe -B build/native-media-probe -A x64

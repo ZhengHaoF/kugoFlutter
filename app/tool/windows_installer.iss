@@ -44,8 +44,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\kugo"; Filename: "{app}\kugo.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\kugo"; Filename: "{app}\kugo.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{autoprograms}\kugo"; Filename: "{app}\kugo.exe"; WorkingDir: "{app}"; IconFilename: "{app}\data\flutter_assets\assets\app_icon.ico"; AppUserModelID: "com.kugo.player"
+Name: "{autodesktop}\kugo"; Filename: "{app}\kugo.exe"; WorkingDir: "{app}"; IconFilename: "{app}\data\flutter_assets\assets\app_icon.ico"; AppUserModelID: "com.kugo.player"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\kugo.exe"; Description: "Launch kugo"; Flags: nowait postinstall skipifsilent
