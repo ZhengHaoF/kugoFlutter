@@ -46,6 +46,17 @@ test -s "$root/output/kugo-0.1.0-windows-x64-setup.exe"
 unzip -p "$root/output/kugo-0.1.0-windows-x64-portable.zip" kugo.exe | cmp - "$root/valid/windows/portable/kugo.exe"
 (cd "$root/output"; sha256sum --strict -c SHA256SUMS.txt >/dev/null)
 echo "PASS all three APKs, installer and full portable ZIP"
+# PowerShell writes CRLF text and Windows-style paths. Hash original bytes,
+# but normalize line endings/path separators only while parsing the manifest.
+fixture "$root/windows-crlf"
+for file in BUILD-INFO.txt INSTALLER-TEST.txt portable/BUILD-INFO.txt portable/NATIVE-CREDENTIALS.txt; do
+  sed -i 's/$/\r/' "$root/windows-crlf/windows/$file"
+done
+checksum "$root/windows-crlf"
+sed -i 's@  \./@  @; s@/@\\@g; s/$/\r/' "$root/windows-crlf/windows/SHA256SUMS.txt"
+bash "$script" "$root/windows-crlf" "$root/crlf-output" > "$root/crlf.log"
+(cd "$root/crlf-output"; sha256sum --strict -c SHA256SUMS.txt >/dev/null)
+echo "PASS real Windows CRLF metadata and backslash checksum paths"
 for case in missing-abi tampered-apk tampered-installer wrong-version wrong-build wrong-commit wrong-run debug-signing mixed-signers missing-installer missing-runtime missing-probe failed-install uncovered-file wrong-portable-identity invalid-installer invalid-apk invalid-version invalid-build; do
   input="$root/$case"
   fixture "$input"

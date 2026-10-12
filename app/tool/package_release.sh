@@ -42,13 +42,13 @@ for platform in android windows; do
   done
   (
     cd "$input/$platform"
-    sed 's@\\@/@g' SHA256SUMS.txt | sha256sum --strict -c -
+    sed 's/\r$//; s@\\@/@g' SHA256SUMS.txt | sha256sum --strict -c -
     # Required files must be covered, not just whatever a manifest happens to list.
     for file in "${required[@]}"; do
       [[ "$file" == "$platform/"* ]] || continue
       relative="${file#"$platform/"}"
       checksum="$(sha256sum "$relative")"
-      sed 's@\\@/@g; s@  \./@  @' SHA256SUMS.txt | rg -Fx "$checksum" >/dev/null || {
+      sed 's/\r$//; s@\\@/@g; s@  \./@  @' SHA256SUMS.txt | rg -Fx "$checksum" >/dev/null || {
         echo "Required file is not covered by checksums: $file" >&2; exit 1;
       }
     done
@@ -67,8 +67,8 @@ done
 }
 [[ "$(rg -c '^PASS ' "$input/windows/portable/NATIVE-CREDENTIALS.txt" || true)" == 5 ]] &&
   ! rg -q '^FAIL' "$input/windows/portable/NATIVE-CREDENTIALS.txt" || { echo "Incomplete native credential evidence" >&2; exit 1; }
-rg -Fx 'PASS install files and installed app startup' "$input/windows/INSTALLER-TEST.txt" >/dev/null &&
-  rg -Fx 'PASS uninstall' "$input/windows/INSTALLER-TEST.txt" >/dev/null || { echo "Installer acceptance incomplete" >&2; exit 1; }
+tr -d '\r' < "$input/windows/INSTALLER-TEST.txt" | rg -Fx 'PASS install files and installed app startup' >/dev/null &&
+  tr -d '\r' < "$input/windows/INSTALLER-TEST.txt" | rg -Fx 'PASS uninstall' >/dev/null || { echo "Installer acceptance incomplete" >&2; exit 1; }
 [[ "$(head -c 2 "$input/windows/installer/$installer")" == MZ ]] || { echo "Installer is not a Windows executable" >&2; exit 1; }
 for apk in "${android_files[@]}"; do
   unzip -tq "$input/android/$apk" >/dev/null
