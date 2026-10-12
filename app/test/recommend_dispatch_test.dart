@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kugo/core/models/catalog_models.dart';
 import 'package:kugo/core/models/track.dart';
 import 'package:kugo/core/source/capabilities.dart';
+import 'package:kugo/core/source/features.dart';
 import 'package:kugo/core/source/music_platform.dart';
 import 'package:kugo/core/source/registry.dart';
 import 'package:kugo/features/explore/explore_page.dart';
@@ -50,6 +53,9 @@ class _FeedFake extends FakeMusicSource
   int newSongCalls = 0;
   int recommendCalls = 0;
   int editorialCalls = 0;
+  final List<Completer<List<PlaylistBrief>>> catalogRequests = [];
+  bool deferCatalog = false;
+  bool failCatalog = false;
 
   /// 记录收到的分类值（验证 UI 原样回传 tag id / 首页传空串）。
   final List<String> requestedCats = [];
@@ -82,6 +88,12 @@ class _FeedFake extends FakeMusicSource
   }) async {
     catalogCalls += 1;
     requestedCats.add(cat);
+    if (failCatalog) throw StateError('offline');
+    if (deferCatalog) {
+      final request = Completer<List<PlaylistBrief>>();
+      catalogRequests.add(request);
+      return request.future;
+    }
     return catalogPlaylists;
   }
 
@@ -112,14 +124,14 @@ PlaylistBrief _pl(String id, String name, MusicPlatform platform) =>
     PlaylistBrief(id: id, name: name, coverUrl: '', platform: platform);
 
 Track _track(String id, String name, MusicPlatform platform) => Track(
-      id: id,
-      name: name,
-      artist: '歌手',
-      album: '专辑',
-      coverUrl: '',
-      durationMs: 200000,
-      platform: platform,
-    );
+  id: id,
+  name: name,
+  artist: '歌手',
+  album: '专辑',
+  coverUrl: '',
+  durationMs: 200000,
+  platform: platform,
+);
 
 PlaylistTagGroup _group(String name, [List<String> more = const []]) =>
     PlaylistTagGroup(
@@ -134,10 +146,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   /// 风格标签 chip（点文字命中的是 label，会触发 hit-test 警告，故点 chip 本体）。
-  Finder styleChip(String label) => find.ancestor(
-        of: find.text(label),
-        matching: find.byType(ChoiceChip),
-      );
+  Finder styleChip(String label) =>
+      find.ancestor(of: find.text(label), matching: find.byType(ChoiceChip));
 
   Future<ProviderContainer> containerWith(Map<String, Object> prefs) async {
     SharedPreferences.setMockInitialValues(prefs);
@@ -145,8 +155,9 @@ void main() {
       overrides: [
         // 页面会渲染 TrackTile，进而 watch 播放器；不换假引擎会去加载
         // media_kit 原生库（测试环境不可用）。
-        playerControllerProvider
-            .overrideWith(() => PlayerController(engine: FakeAudioPlayer())),
+        playerControllerProvider.overrideWith(
+          () => PlayerController(engine: FakeAudioPlayer()),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -184,7 +195,10 @@ void main() {
         GoRoute(
           path: '/rank/:id',
           builder: (_, state) => Scaffold(
-            body: Text('rank:${state.pathParameters['id']}'),
+            body: Text(
+              'rank:${state.pathParameters['id']}'
+              ':src=${state.uri.queryParameters['src'] ?? ''}',
+            ),
           ),
         ),
         GoRoute(
@@ -232,7 +246,9 @@ void main() {
       platform: MusicPlatform.netease,
       rankItems: [_pl('163-hot', '网易热歌榜', MusicPlatform.netease)],
       rankTrackItems: [_track('163-s1', '网易热歌1', MusicPlatform.netease)],
-      tagGroups: [_group('华语', ['欧美'])],
+      tagGroups: [
+        _group('华语', ['欧美']),
+      ],
       catalogPlaylists: [_pl('163-c1', '网易风格歌单', MusicPlatform.netease)],
       newSongItems: [_track('163-n1', '网易新歌1', MusicPlatform.netease)],
       recommendItems: [_pl('163-r1', '网易推荐歌单', MusicPlatform.netease)],
@@ -242,13 +258,12 @@ void main() {
     return (kugou: kugou, netease: netease);
   }
 
-  Widget explorePage() =>
-      const Scaffold(body: ExplorePage());
+  Widget explorePage() => const Scaffold(body: ExplorePage());
 
   Widget recommendHub() => const RecommendHubPage();
 
   group('发现页（首页）按源取数', () {
-    testWidgets('默认源网易：四块内容都用网易数据，不带切源栏', (tester) async {
+    testWidgets('默认源网易：四块内容都用网易数据，提供单源切换栏', (tester) async {
       final sources = twoSources();
       final container = await containerWith({
         'settings.enabledSources': ['kugou', 'netease'],
@@ -281,8 +296,156 @@ void main() {
       expect(sources.kugou.catalogCalls, 0);
       expect(sources.kugou.newSongCalls, 0);
 
-      // 首页是浏览落地页，不做单源切换栏。
+      final bar = tester.widget<SourceFilterBar>(find.byType(SourceFilterBar));
+      expect(bar.selected, MusicPlatform.netease);
+      expect(bar.showAll, isFalse);
+      expect(bar.platforms, [MusicPlatform.kugou, MusicPlatform.netease]);
+    });
+
+    testWidgets('点击切源刷新四块内容并记住默认源，不重复请求', (tester) async {
+      final sources = twoSources();
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+      });
+      await pumpPage(tester, container, explorePage());
+      final playerBefore = container.read(playerControllerProvider);
+      final bar = find.byType(SourceFilterBar);
+      await tester.tap(find.descendant(of: bar, matching: find.text('网易云')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('来源：网易云'), findsOneWidget);
+      expect(find.text('网易热歌榜'), findsOneWidget);
+      expect(find.text('网易风格歌单'), findsOneWidget);
+      expect(find.text('网易热歌1'), findsOneWidget);
+      expect(find.text('网易新歌1'), findsOneWidget);
+      expect(find.text('酷狗热歌榜'), findsNothing);
+      expect(sources.netease.rankBoardCalls, 1);
+      expect(sources.netease.catalogCalls, 1);
+      expect(sources.netease.newSongCalls, 1);
+      expect(
+        container.read(settingsControllerProvider).defaultSource,
+        MusicPlatform.netease,
+      );
+      expect(container.read(playerControllerProvider), same(playerBefore));
+      expect(
+        (await SharedPreferences.getInstance()).getString(
+          'settings.defaultSource',
+        ),
+        'netease',
+      );
+
+      await tester.tap(find.descendant(of: bar, matching: find.text('网易云')));
+      await tester.pump();
+      expect(sources.netease.catalogCalls, 1);
+    });
+
+    testWidgets('快速 A→B→A：旧 A 和旧 B 响应不能覆盖最新 A', (tester) async {
+      final sources = twoSources();
+      sources.kugou.deferCatalog = true;
+      sources.netease.deferCatalog = true;
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+      });
+      await pumpPage(tester, container, explorePage());
+      final bar = find.byType(SourceFilterBar);
+      await tester.tap(find.descendant(of: bar, matching: find.text('网易云')));
+      await tester.pump();
+      await tester.tap(find.descendant(of: bar, matching: find.text('酷狗')));
+      await tester.pump();
+      expect(sources.kugou.catalogRequests, hasLength(2));
+      expect(sources.netease.catalogRequests, hasLength(1));
+      sources.kugou.catalogRequests[1].complete([
+        _pl('latest', '最新酷狗歌单', MusicPlatform.kugou),
+      ]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('最新酷狗歌单'), findsOneWidget);
+      sources.kugou.catalogRequests[0].complete([
+        _pl('stale-a', '过时酷狗歌单', MusicPlatform.kugou),
+      ]);
+      sources.netease.catalogRequests[0].complete([
+        _pl('stale-b', '过时网易歌单', MusicPlatform.netease),
+      ]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('最新酷狗歌单'), findsOneWidget);
+      expect(find.text('过时酷狗歌单'), findsNothing);
+      expect(find.text('过时网易歌单'), findsNothing);
+      expect(find.text('来源：酷狗'), findsOneWidget);
+    });
+
+    testWidgets('桌面切源后榜单详情带网易源参数', (tester) async {
+      twoSources();
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+      });
+      await pumpPage(
+        tester,
+        container,
+        explorePage(),
+        size: const Size(1280, 2400),
+      );
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SourceFilterBar),
+          matching: find.text('网易云'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text('网易热歌榜'));
+      await tester.pumpAndSettle();
+      expect(find.text('rank:163-hot:src=netease'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('切到空数据失败源可切回，不混入旧源内容', (tester) async {
+      final kugou = _FeedFake(
+        platform: MusicPlatform.kugou,
+        catalogPlaylists: [_pl('kg', '可用酷狗歌单', MusicPlatform.kugou)],
+      );
+      final netease = _FeedFake(platform: MusicPlatform.netease)
+        ..failCatalog = true;
+      musicSourceRegistry = MusicSourceRegistry([kugou, netease]);
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+      });
+      await pumpPage(tester, container, explorePage());
+      final bar = find.byType(SourceFilterBar);
+      await tester.tap(find.descendant(of: bar, matching: find.text('网易云')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('可用酷狗歌单'), findsNothing);
+      expect(find.text('数据加载失败，请检查网络后重试'), findsOneWidget);
+      expect(bar, findsOneWidget);
+      await tester.tap(find.descendant(of: bar, matching: find.text('酷狗')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('可用酷狗歌单'), findsOneWidget);
+      expect(find.text('数据加载失败，请检查网络后重试'), findsNothing);
+    });
+
+    testWidgets('当前源发现功能停用：自动回落且隐藏单源切换栏', (tester) async {
+      final sources = twoSources();
+      final container = await containerWith({
+        'settings.enabledSources': ['kugou', 'netease'],
+        'settings.defaultSource': 'netease',
+      });
+      await pumpPage(tester, container, explorePage());
+      await container
+          .read(settingsControllerProvider.notifier)
+          .setFeatureEnabled(
+            MusicPlatform.netease,
+            SourceFeature.discovery,
+            false,
+          );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('酷狗热歌榜'), findsOneWidget);
+      expect(find.text('网易热歌榜'), findsNothing);
       expect(find.byType(SourceFilterBar), findsNothing);
+      expect(sources.kugou.rankBoardCalls, 1);
     });
 
     testWidgets('默认源酷狗：内容回落到酷狗，网易零请求', (tester) async {
@@ -322,8 +485,9 @@ void main() {
 
     testWidgets('可用源为 0：内容区出停用空态，不再整页报错', (tester) async {
       // 只注册一个没有任何本页能力的源 → 可用源为 0。
-      musicSourceRegistry =
-          MusicSourceRegistry([FakeMusicSource(platform: MusicPlatform.netease)]);
+      musicSourceRegistry = MusicSourceRegistry([
+        FakeMusicSource(platform: MusicPlatform.netease),
+      ]);
       final container = await containerWith({
         'settings.enabledSources': ['netease'],
         'settings.defaultSource': 'netease',
@@ -349,6 +513,7 @@ void main() {
       expect(find.text('酷狗热歌榜'), findsNothing);
       expect(sources.kugou.rankBoardCalls, 0);
       expect(sources.netease.rankBoardCalls, 1);
+      expect(find.byType(SourceFilterBar), findsNothing);
     });
 
     testWidgets('别处切源改写默认源：首页按新源重取（标签与数据一致）', (tester) async {
@@ -368,7 +533,8 @@ void main() {
         container
             .read(settingsControllerProvider.notifier)
             .syncDefaultSourceFromFilter(MusicPlatform.netease);
-      });      await tester.pump();
+      });
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
       // 此前只有页头来源小字翻到新源、四排数据不刷；现在一起翻。
@@ -407,14 +573,12 @@ void main() {
     });
 
     testWidgets('两源的「发现」功能都关掉：整页停用且文案归因到功能', (tester) async {
-      musicSourceRegistry =
-          MusicSourceRegistry([FakeMusicSource(platform: MusicPlatform.netease)]);
+      musicSourceRegistry = MusicSourceRegistry([
+        FakeMusicSource(platform: MusicPlatform.netease),
+      ]);
       final container = await containerWith({
         'settings.enabledSources': ['kugou', 'netease'],
-        'settings.disabledFeatures': [
-          'kugou:discovery',
-          'netease:discovery',
-        ],
+        'settings.disabledFeatures': ['kugou:discovery', 'netease:discovery'],
       });
 
       await pumpPage(tester, container, explorePage());
@@ -513,8 +677,9 @@ void main() {
     });
 
     testWidgets('可用源为 0：整页停用空态', (tester) async {
-      musicSourceRegistry =
-          MusicSourceRegistry([FakeMusicSource(platform: MusicPlatform.netease)]);
+      musicSourceRegistry = MusicSourceRegistry([
+        FakeMusicSource(platform: MusicPlatform.netease),
+      ]);
       final container = await containerWith({
         'settings.enabledSources': ['netease'],
         'settings.defaultSource': 'netease',
