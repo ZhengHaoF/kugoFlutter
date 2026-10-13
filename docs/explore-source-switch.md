@@ -4,7 +4,7 @@
 
 建议实施。截图对应 `ExplorePage` 首页，不是五标签的 `DiscoveryPage` 探索页面。首页原来已经通过能力接口支持酷狗和网易云，按设置中的默认源取数，但没有直接切换入口，用户容易认为只有酷狗。新增首页切源栏即可复用已有网易能力，不需要新增接口、依赖或播放引擎。
 
-实现依据是合并后的 [PR #8](https://github.com/ZhengHaoF/overtone/pull/8) 主分支版本 `e433acc`，包括现有 `SourceFilterBar`、默认源同步逻辑及网易云的榜单、分类歌单、新歌能力。
+实现依据是合并后的 [PR #8](https://github.com/ZhengHaoF/kugoFlutter/pull/8) 主分支版本 `e433acc`，包括现有 `SourceFilterBar`、默认源同步逻辑及网易云的榜单、分类歌单、新歌能力。
 
 ## 交互与实现
 

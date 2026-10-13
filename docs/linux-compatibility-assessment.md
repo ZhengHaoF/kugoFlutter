@@ -8,8 +8,8 @@
 
 ## 评估范围与证据边界
 
-- **代码基线**：`713ff00f18288001c56ace9f1f989bbb961d07cc`，即 B 站接入 [PR #1 的合并提交](https://github.com/ZhengHaoF/overtone/commit/713ff00f18288001c56ace9f1f989bbb961d07cc)。
-- **最新主分支核对**：收尾时远端已推进至 `1e8acaf6a5504e62433adcfc26346e67cb5e2ae2`；新增提交仅清理文档/视觉稿，没有修改应用源码、依赖或 Linux runner，因此本报告兼容结论仍适用。此前 998 项测试对应的是上面的代码基线，不宣称在新提交上重跑。[最新文档清理提交](https://github.com/ZhengHaoF/overtone/commit/1e8acaf6a5504e62433adcfc26346e67cb5e2ae2)
+- **代码基线**：`713ff00f18288001c56ace9f1f989bbb961d07cc`，即 B 站接入 [PR #1 的合并提交](https://github.com/ZhengHaoF/kugoFlutter/commit/713ff00f18288001c56ace9f1f989bbb961d07cc)。
+- **最新主分支核对**：收尾时远端已推进至 `1e8acaf6a5504e62433adcfc26346e67cb5e2ae2`；新增提交仅清理文档/视觉稿，没有修改应用源码、依赖或 Linux runner，因此本报告兼容结论仍适用。此前 998 项测试对应的是上面的代码基线，不宣称在新提交上重跑。[最新文档清理提交](https://github.com/ZhengHaoF/kugoFlutter/commit/1e8acaf6a5504e62433adcfc26346e67cb5e2ae2)
 - **当前环境**：Ubuntu 26.04.1 LTS / Linux x86_64，Flutter 3.47.7 / Dart 3.13.5；没有完成 Linux GUI 应用启动、真实音频输出或桌面环境矩阵验收。
 - **只读检查**：读取源码、实际解析的插件源码及 CMake、平台目录和官方文档，运行原项目构建探测。没有执行 `flutter create` 或修改依赖。
 - **构建探测**：`flutter build linux --release --no-pub` 退出码 1，报 `No Linux desktop project configured`；仓库目录检查也未发现跟踪的 `app/linux/`。
@@ -30,7 +30,7 @@
 - **可选桌面集成**：托盘与系统媒体会话采用能力检测和降级，不得成为主应用启动的硬依赖。
 - **暂不承诺**：所有发行版通用安装包、ARM64、原生 Wayland 全局悬浮歌词、Windows 式任务栏按钮/进度条、统一毛玻璃效果。
 
-架构上不用重写音源协议层。当前平台检测已经把 Linux 纳入桌面，但 Linux 系统媒体会话和音频焦点明确关闭，属于“有桌面分支、未完成平台集成”的状态。[当前平台能力门控](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/core/platform.dart)
+架构上不用重写音源协议层。当前平台检测已经把 Linux 纳入桌面，但 Linux 系统媒体会话和音频焦点明确关闭，属于“有桌面分支、未完成平台集成”的状态。[当前平台能力门控](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/core/platform.dart)
 
 ### 阻塞项排序
 
@@ -43,7 +43,7 @@
 | P1 | 桌面完整性 | 系统媒体会话没有 Linux 实现，窗口能力受后端影响 | 增加 MPRIS 适配和 X11/Wayland 分级验收 |
 | P2 | 悬浮歌词与发行 | 原生实现、权限、打包和 ABI 兼容尚未处理 | 单独完成 X11 歌词，再评估 Wayland；打包在基本功能稳定后进行 |
 
-媒体依赖缺口可从[当前 pubspec](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/pubspec.yaml)确认；托盘方法支持与当前调用分别见 [tray_manager 0.5.3 文档](https://pub.dev/packages/tray_manager/versions/0.5.3)和[项目托盘实现](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_tray.dart)，歌词原生接口见[DesktopLyricHost](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/features/desktop_lyric/desktop_lyric_host.dart)。
+媒体依赖缺口可从[当前 pubspec](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/pubspec.yaml)确认；托盘方法支持与当前调用分别见 [tray_manager 0.5.3 文档](https://pub.dev/packages/tray_manager/versions/0.5.3)和[项目托盘实现](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_tray.dart)，歌词原生接口见[DesktopLyricHost](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/features/desktop_lyric/desktop_lyric_host.dart)。
 
 ## 插件与依赖兼容评估
 
@@ -58,7 +58,7 @@
 | tray_manager 0.5.3 | 支持 Linux 图标和菜单；不支持 `setToolTip`、`popUpContextMenu`、`getBounds`；依赖 AppIndicator。[版本文档](https://pub.dev/packages/tray_manager/versions/0.5.3) | 第一轮保持现有版本适配，不顺便迁移新的托盘 API |
 | flutter_acrylic 1.1.4 | Linux 有透明效果，但模糊依赖合成器，GTK3 没有统一 backdrop blur API。[版本文档](https://pub.dev/packages/flutter_acrylic/versions/1.1.4) | 主窗继续使用普通不透明底，不把毛玻璃列为首版条件 |
 | desktop_multi_window 0.3.1 | 支持 Linux；每窗独立引擎，需要处理插件注册。[版本文档](https://pub.dev/packages/desktop_multi_window/versions/0.3.1) | 当前生产歌词是独立进程，不因这个包存在就认定歌词可用；首轮不切回多引擎路线 |
-| audio_service / audio_service_win 0.0.3 | Windows 包提供 SMTC，不自动提供 Linux 会话；本项目 Linux gate 关闭。[Windows 包文档](https://pub.dev/packages/audio_service_win/versions/0.0.3)、[项目门控](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/core/platform.dart) | 另行增加 MPRIS，不直接在 Linux 打开现有 gate |
+| audio_service / audio_service_win 0.0.3 | Windows 包提供 SMTC，不自动提供 Linux 会话；本项目 Linux gate 关闭。[Windows 包文档](https://pub.dev/packages/audio_service_win/versions/0.0.3)、[项目门控](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/core/platform.dart) | 另行增加 MPRIS，不直接在 Linux 打开现有 gate |
 | file_picker 8.3.7 | Linux 支持文件、目录与保存选择，不支持清临时文件 API。[版本文档](https://pub.dev/packages/file_picker/versions/8.3.7) | 本机源码实际通过 qarma/kdialog/zenity 拉起对话框，打包需检查至少一个可用实现 |
 | path_provider_linux 2.2.2 | 官方 Linux 实现会随 path_provider 自动接入。[版本文档](https://pub.dev/packages/path_provider_linux/versions/2.2.2) | 验收应用支持目录、缓存目录和无写权限场景 |
 | shared_preferences_linux 2.4.1 | 有 Linux 实现。[版本文档](https://pub.dev/packages/shared_preferences_linux/versions/2.4.1) | 验收设置/账号恢复与退出清理；当前账号存储不升级为“已加密”承诺 |
@@ -75,9 +75,9 @@
 
 ### 启动可靠性：优先于外观和系统集成
 
-当前 `main` 在 `runApp` 前初始化 MediaKit，并 await 桌面壳；桌面壳再 await 托盘初始化，因此原生依赖或托盘失败会影响主 UI 启动。[启动顺序](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/main.dart)、[桌面壳初始化](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_shell.dart)
+当前 `main` 在 `runApp` 前初始化 MediaKit，并 await 桌面壳；桌面壳再 await 托盘初始化，因此原生依赖或托盘失败会影响主 UI 启动。[启动顺序](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/main.dart)、[桌面壳初始化](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_shell.dart)
 
-建议区分两类故障：音频引擎缺失应显示明确的依赖/播放错误，不能仅留下空窗；托盘、毛玻璃、媒体会话等增强功能失败，应记录错误并继续进入主界面。当前毛玻璃与任务栏已经有 Windows 门控，可保留；不要为了 Linux 支持强行执行这些 Windows 功能。[已有桌面壳门控](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_shell.dart)
+建议区分两类故障：音频引擎缺失应显示明确的依赖/播放错误，不能仅留下空窗；托盘、毛玻璃、媒体会话等增强功能失败，应记录错误并继续进入主界面。当前毛玻璃与任务栏已经有 Windows 门控，可保留；不要为了 Linux 支持强行执行这些 Windows 功能。[已有桌面壳门控](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_shell.dart)
 
 建议新增桌面能力对象，至少区分 `trayAvailable`、`trayTooltip`、`systemMediaSession`、`desktopLyric`、`absoluteWindowPosition`、`alwaysOnTop`、`clickThrough`、`windowBlur`。这是建议设计，不是现有接口；检测应结合插件能力、实际 GDK 后端和桌面会话，不仅依据 `Platform.isLinux` 或 `XDG_SESSION_TYPE`。
 
@@ -93,12 +93,12 @@ MV 在第二阶段核验纹理输出、全屏、硬件/软件渲染回退和小�
 
 ### 托盘与关闭策略：当前最明确的运行阻塞
 
-当前 `DesktopTray.init` 无条件 await `setToolTip('overtone')`，没有局部异常处理；插件 0.5.3 的 Linux 原生分发没有该方法，文档也明确不支持它。**推断：补齐 runner 与其他依赖后，这条调用会抛出缺失实现异常并中断正常启动链路**，本次尚未运行 Linux GUI 来复现整条链路。[项目托盘代码](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_tray.dart)、[插件方法支持表](https://pub.dev/packages/tray_manager/versions/0.5.3)
+当前 `DesktopTray.init` 无条件 await `setToolTip('overtone')`，没有局部异常处理；插件 0.5.3 的 Linux 原生分发没有该方法，文档也明确不支持它。**推断：补齐 runner 与其他依赖后，这条调用会抛出缺失实现异常并中断正常启动链路**，本次尚未运行 Linux GUI 来复现整条链路。[项目托盘代码](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_tray.dart)、[插件方法支持表](https://pub.dev/packages/tray_manager/versions/0.5.3)
 
 建议改为：
 
 - **方法分流**：Linux 不调用 `setToolTip` 和 `popUpContextMenu`，交由 AppIndicator 的原生菜单交互。
-- **图标资源**：Linux 使用 PNG 或发行包内图标名，Windows 保留 ICO；当前解析器三平台都使用 ICO，不应把 Linux ICO 一概断言为无法加载，但需要换成明确适用的资源。[项目图标解析](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_tray.dart)、[插件示例图标选择](https://pub.dev/packages/tray_manager/versions/0.5.3)
+- **图标资源**：Linux 使用 PNG 或发行包内图标名，Windows 保留 ICO；当前解析器三平台都使用 ICO，不应把 Linux ICO 一概断言为无法加载，但需要换成明确适用的资源。[项目图标解析](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/shared/tray/desktop_tray.dart)、[插件示例图标选择](https://pub.dev/packages/tray_manager/versions/0.5.3)
 - **启动降级**：托盘初始化异常不阻止 UI，明确保存“托盘不可用”状态。
 - **关闭安全**：无可用托盘宿主时，不允许将窗口隐藏到无法恢复的位置；旧设置为 `tray` 也应回退为询问/退出。
 - **恢复入口**：菜单始终包含“显示窗口”和“退出”，不能依赖 Windows 式图标点击事件。
@@ -107,7 +107,7 @@ GNOME 可能需要 AppIndicator 扩展才能显示图标，编译时存在插件
 
 ### 桌面歌词：应用内歌词可保留，悬浮歌词需要独立移植
 
-当前桥接和设置入口按桌面平台开放，但 `DesktopLyricHost` 的通道方法依赖 HWND、WM_NCHITTEST、全局光标与 Windows 窗口语义。TCP IPC 和 Flutter 歌词渲染可以复用，Linux 原生窗口操作则不能直接复用。[当前歌词原生接口](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/features/desktop_lyric/desktop_lyric_host.dart)
+当前桥接和设置入口按桌面平台开放，但 `DesktopLyricHost` 的通道方法依赖 HWND、WM_NCHITTEST、全局光标与 Windows 窗口语义。TCP IPC 和 Flutter 歌词渲染可以复用，Linux 原生窗口操作则不能直接复用。[当前歌词原生接口](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/features/desktop_lyric/desktop_lyric_host.dart)
 
 建议首版关闭 Linux 悬浮歌词开关、托盘菜单项和启动自动恢复，避免旧持久化设置启动一个通道缺失的子进程。后续保持“独立进程 + TCP snapshot”路线，为歌词进程增加 Linux GTK 原生适配并确认命令行参数传递，不切回 `desktop_multi_window` 来同时引入多引擎风险。
 
@@ -119,7 +119,7 @@ X11 版单独验证透明背景、置顶、任务栏隐藏、鼠标输入区域�
 
 ### 系统媒体控制：MPRIS 增量接入
 
-目前 Linux 不会初始化系统媒体桥，因此可能有应用内播控，但没有项目提供的系统媒体卡和媒体键桥接。[现有 Linux gate](https://github.com/ZhengHaoF/overtone/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/core/platform.dart)
+目前 Linux 不会初始化系统媒体桥，因此可能有应用内播控，但没有项目提供的系统媒体卡和媒体键桥接。[现有 Linux gate](https://github.com/ZhengHaoF/kugoFlutter/blob/713ff00f18288001c56ace9f1f989bbb961d07cc/app/lib/core/platform.dart)
 
 建议 P1 先验证 `audio_service_mpris` 稳定版候选 0.2.1，复用 `OvertoneAudioHandler` 与 `OvertoneMediaBridge`；只有注册并验证 Linux 实现之后，才打开相应 gate。该版本支持播放/暂停、上下首、元数据、位置及 SetPosition，但不支持相对 Seek、Volume、Raise/Quit、Shuffle、TrackList/Playlists，不应宣称完整 MPRIS 能力。[audio_service_mpris 0.2.1 支持表](https://pub.dev/packages/audio_service_mpris/versions/0.2.1)
 

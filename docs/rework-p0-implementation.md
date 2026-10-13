@@ -92,4 +92,4 @@ xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
 
 ## 代码依据
 
-原始漏洞和风险依据保留在 [评估文档](rework-assessment-2026-10-10.md)，链接固定到基线提交，便于对照而不误认修复后代码。[基线账号实现](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/auth/auth_controller.dart) [基线播放器](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/player/player_controller.dart)
+原始漏洞和风险依据保留在 [评估文档](rework-assessment-2026-10-10.md)，链接固定到基线提交，便于对照而不误认修复后代码。[基线账号实现](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/auth/auth_controller.dart) [基线播放器](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/player/player_controller.dart)

@@ -4,9 +4,9 @@
 
 ## 制品库与获取
 
-同时提供两个入口：[GitHub Releases 测试版](https://github.com/ZhengHaoF/overtone/releases)供直接下载 APK 与 Windows ZIP，GitHub Actions Artifacts 保留原始构建附件。Releases 全部标记为 prerelease，不冒充正式发布、不设置为正式 latest，不配置未知外部制品平台，也不交付 Linux 应用包。
+同时提供两个入口：[GitHub Releases 测试版](https://github.com/ZhengHaoF/kugoFlutter/releases)供直接下载 APK 与 Windows ZIP，GitHub Actions Artifacts 保留原始构建附件。Releases 全部标记为 prerelease，不冒充正式发布、不设置为正式 latest，不配置未知外部制品平台，也不交付 Linux 应用包。
 
-运行入口为 [Android and Windows apps](https://github.com/ZhengHaoF/overtone/actions/workflows/apps.yml)。仅支持主分支 `main` 的手动运行，不在 PR、push 或合并时自动执行。打开 Actions 中该工作流，点击 Run workflow，选择 `main` 后启动；先通过锁文件还原、静态分析及全量测试，再构建两个平台，上传保留 30 天的制品。每个制品含提交 SHA、运行地址、安装说明和 SHA-256 校验记录。
+运行入口为 [Android and Windows apps](https://github.com/ZhengHaoF/kugoFlutter/actions/workflows/apps.yml)。仅支持主分支 `main` 的手动运行，不在 PR、push 或合并时自动执行。打开 Actions 中该工作流，点击 Run workflow，选择 `main` 后启动；先通过锁文件还原、静态分析及全量测试，再构建两个平台，上传保留 30 天的制品。每个制品含提交 SHA、运行地址、安装说明和 SHA-256 校验记录。
 
 只有在原仓库的 `main` 上手动运行且两个平台成功后才会发布测试版；PR、fork 和功能分支绝不发布。所有 job 都检查仓库、分支和手动事件，即使误选其他分支，执行到本版本规则时也会全部跳过，不分配构建 runner。发布 job 单独申请 `contents: write`，其他 job 仍只有读取权限；复核两端文件完整性、提交/运行来源及 SHA-256，先上传到 draft，再公开为 prerelease，避免出现可见但附件不完整的版本。
 

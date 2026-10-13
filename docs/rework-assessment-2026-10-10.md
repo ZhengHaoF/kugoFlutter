@@ -30,22 +30,22 @@
 
 ### 关键代码依据
 
-- **R01**：资料聚合使用 HTTP relation/grade 并附带会话字段，请求体中的 RSA 字段不保护 URL/Authorization 中的 token。[基线 LoginRepository](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/repositories/login_repository.dart)
-- **播放器组**：备用地址循环缺少逐次代次保护，音质补拉无身份校验，同曲重载强制播放并清位置。[基线 PlayerController](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/player/player_controller.dart)
-- **R06/R11**：资料刷新缺少会话生命周期保护，401 仅清 token holder。[基线 AuthController](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/auth/auth_controller.dart) [基线 KugouClient](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/api/kugou/kugou_client.dart)
-- **R10**：仅 Authorization/Cookie 请求头脱敏，body 截断不是脱敏。[基线日志实现](https://raw.githubusercontent.com/ZhengHaoF/overtone/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/api/network_log.dart)
-- **R07/R08**：历史删除只用 trackId，持久字段不包含部分 Track 身份/路由字段。[基线数据库](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/storage/overtone_db.dart)
-- **R09**：全局请求拦截器无条件注入持久 Cookie。[基线网易客户端](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/api/netease/netease_client.dart)
+- **R01**：资料聚合使用 HTTP relation/grade 并附带会话字段，请求体中的 RSA 字段不保护 URL/Authorization 中的 token。[基线 LoginRepository](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/repositories/login_repository.dart)
+- **播放器组**：备用地址循环缺少逐次代次保护，音质补拉无身份校验，同曲重载强制播放并清位置。[基线 PlayerController](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/player/player_controller.dart)
+- **R06/R11**：资料刷新缺少会话生命周期保护，401 仅清 token holder。[基线 AuthController](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/auth/auth_controller.dart) [基线 KugouClient](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/api/kugou/kugou_client.dart)
+- **R10**：仅 Authorization/Cookie 请求头脱敏，body 截断不是脱敏。[基线日志实现](https://raw.githubusercontent.com/ZhengHaoF/kugoFlutter/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/api/network_log.dart)
+- **R07/R08**：历史删除只用 trackId，持久字段不包含部分 Track 身份/路由字段。[基线数据库](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/storage/overtone_db.dart)
+- **R09**：全局请求拦截器无条件注入持久 Cookie。[基线网易客户端](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/api/netease/netease_client.dart)
 
 ## 静态风险及待补验收
 
-- **R13，P1**：多音源凭据写 SharedPreferences，未有应用层安全存储；这是本地文件/备份暴露面，不代表已发生真实泄露。[B 站存储](https://raw.githubusercontent.com/ZhengHaoF/overtone/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/storage/bili_auth_store.dart) [网易存储](https://raw.githubusercontent.com/ZhengHaoF/overtone/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/storage/netease_auth_store.dart)
-- **R14，P1**：binding 在 guarded Zone 外初始化，runApp 在 Zone 内；默认 debug 报告 mismatch，不据此宣称 Release 必然崩溃，首帧前的多服务 await 也需超时/降级治理。[基线 main](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/main.dart) [Flutter Zone 约束](https://docs.flutter.dev/release/breaking-changes/zone-errors)
-- **R15，P1**：Linux CI 不替代 Android/Windows 构建和真机证据；Android release 缺签名配置时回退 debug 签名，应与正式分发任务分离。[Linux CI](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/.github/workflows/linux.yml) [签名配置](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/android/app/build.gradle.kts)
-- **R16，P1**：封面测试使用十轮零延迟事件循环等待异步写盘，存在不稳定线索，应提供明确完成契约。[基线测试](https://raw.githubusercontent.com/ZhengHaoF/overtone/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/test/cover_cache_test.dart)
-- **R17，P2**：封面磁盘无自动容量/过期治理；清理与在途写入并行回填仅作代码风险，未独立做压力复现。[基线缓存](https://raw.githubusercontent.com/ZhengHaoF/overtone/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/cache/cover_cache.dart)
+- **R13，P1**：多音源凭据写 SharedPreferences，未有应用层安全存储；这是本地文件/备份暴露面，不代表已发生真实泄露。[B 站存储](https://raw.githubusercontent.com/ZhengHaoF/kugoFlutter/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/storage/bili_auth_store.dart) [网易存储](https://raw.githubusercontent.com/ZhengHaoF/kugoFlutter/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/data/storage/netease_auth_store.dart)
+- **R14，P1**：binding 在 guarded Zone 外初始化，runApp 在 Zone 内；默认 debug 报告 mismatch，不据此宣称 Release 必然崩溃，首帧前的多服务 await 也需超时/降级治理。[基线 main](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/main.dart) [Flutter Zone 约束](https://docs.flutter.dev/release/breaking-changes/zone-errors)
+- **R15，P1**：Linux CI 不替代 Android/Windows 构建和真机证据；Android release 缺签名配置时回退 debug 签名，应与正式分发任务分离。[Linux CI](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/.github/workflows/linux.yml) [签名配置](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/android/app/build.gradle.kts)
+- **R16，P1**：封面测试使用十轮零延迟事件循环等待异步写盘，存在不稳定线索，应提供明确完成契约。[基线测试](https://raw.githubusercontent.com/ZhengHaoF/kugoFlutter/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/test/cover_cache_test.dart)
+- **R17，P2**：封面磁盘无自动容量/过期治理；清理与在途写入并行回填仅作代码风险，未独立做压力复现。[基线缓存](https://raw.githubusercontent.com/ZhengHaoF/kugoFlutter/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/core/cache/cover_cache.dart)
 
-真实账号扫码、凭据失效/分页权限、GNOME Xorg/KDE X11、多显示器混合 DPI、两小时播放和 Android/Windows 物理设备仍需分别验收，不能以虚拟桌面探针替代。[已有 Linux 验收边界](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/docs/linux-x11-lyrics.md)
+真实账号扫码、凭据失效/分页权限、GNOME Xorg/KDE X11、多显示器混合 DPI、两小时播放和 Android/Windows 物理设备仍需分别验收，不能以虚拟桌面探针替代。[已有 Linux 验收边界](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/docs/linux-x11-lyrics.md)
 
 ## 已授权实施范围
 
@@ -55,4 +55,4 @@ P0 按报告后的确认实施四项：R01、R02、R06、R10，并提交 PR，�
 
 后续批次已经实现 R13 的平台安全存储与验证后迁移，以及 R14 的同 Zone 启动、首帧启动壳、凭据恢复超时、可选服务首帧后降级初始化；详见 [安全存储与启动实施记录](rework-p1-security-startup-implementation.md)。这些是实现状态，不把离线模拟当成原生 OS/真机验证。R15 的 Android/Windows 构建与制品库流程在独立交付批次处理，实际设备、真实账号和正式签名仍待验收；整个 P1 仍不能宣称全部完成。
 
-Wayland 专项适配继续暂缓，保留现有基础播放、应用内歌词、MPRIS、存储与其基础回归；不把原生 Wayland 全局悬浮歌词列为当前 bug，不新增协议/桌面扩展或发行打包。[已提交延期决策](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/docs/linux-x11-lyrics.md)
+Wayland 专项适配继续暂缓，保留现有基础播放、应用内歌词、MPRIS、存储与其基础回归；不把原生 Wayland 全局悬浮歌词列为当前 bug，不新增协议/桌面扩展或发行打包。[已提交延期决策](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/docs/linux-x11-lyrics.md)

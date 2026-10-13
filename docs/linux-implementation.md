@@ -23,9 +23,9 @@
 - **构建修正**：只对 `tray_manager_plugin` 放宽 AppIndicator 的 deprecated 声明警告为非致命，其余编译告警策略不全局关闭；按插件输出接入 mimalloc 静态库。没有修改缓存中的第三方插件源码。
 - **CI**：新增 `.github/workflows/linux.yml`，Ubuntu 22.04/24.04 x64，固定 Flutter 3.47.7，执行依赖解析、分析、全量测试、生产构建、X11/嵌套 Wayland 探针并保存日志及 bundle。新增配置不等于远端 CI 已运行通过，最终运行状态以 PR checks 为准。
 
-远端验收已闭环：代码提交 `e494b338c871deb19d2c5b78a98999945bf7d667` 在 Ubuntu 22.04 和 24.04 均通过锁文件校验、静态分析、1019 项测试、生产 Release 构建及 X11/原生 Wayland 探针，日志均输出 `ALL_CHECKS_PASSED`，并捕获非零音频 PCM。[通过的 GitHub Actions 运行](https://github.com/ZhengHaoF/overtone/actions/runs/38018536440)
+远端验收已闭环：代码提交 `e494b338c871deb19d2c5b78a98999945bf7d667` 在 Ubuntu 22.04 和 24.04 均通过锁文件校验、静态分析、1019 项测试、生产 Release 构建及 X11/原生 Wayland 探针，日志均输出 `ALL_CHECKS_PASSED`，并捕获非零音频 PCM。[通过的 GitHub Actions 运行](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38018536440)
 
-两台 CI 的音频峰值均为 8000；Ubuntu 22.04 的 X11/Wayland 非零样本为 113700/101738，Ubuntu 24.04 为 102320/113238。后续提交仅补充此验收文档，不改变已验证的应用代码；真实桌面边界不因 CI 通过而取消。[对应 CI 日志与产物](https://github.com/ZhengHaoF/overtone/actions/runs/38018536440)
+两台 CI 的音频峰值均为 8000；Ubuntu 22.04 的 X11/Wayland 非零样本为 113700/101738，Ubuntu 24.04 为 102320/113238。后续提交仅补充此验收文档，不改变已验证的应用代码；真实桌面边界不因 CI 通过而取消。[对应 CI 日志与产物](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38018536440)
 
 ### 平台能力与降级
 

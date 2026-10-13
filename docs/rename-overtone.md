@@ -24,7 +24,7 @@ build_runner 在源码修复前运行导致生成代码列默认值漂移；测�
 `overtoneFlutter`；以及一批小写/连字符形式的漏网项（XML 注释、第二个 spike 日志、
 PulseAudio sink 名、`network_log_dialog` 自己的探针占位值）。
 
-### 剩余手动步骤（会话内无法完成）
+### 剩余手动步骤（会话内无法完成 / 已按用户要求回退）
 
 1. **本地目录重命名**——`D:\work\kugoFulutter` 当前被 IDE / harness 进程占用，
    关闭 IDE 后在资源管理器或 PowerShell 执行：
@@ -32,8 +32,16 @@ PulseAudio sink 名、`network_log_dialog` 自己的探针占位值）。
    Rename-Item D:\work\kugoFulutter overtone
    cd D:\work\overtone\app; flutter pub get   # 重建 .dart_tool 与绝对路径缓存
    ```
-2. **GitHub 仓库改名已完成**（`ZhengHaoF/kugoFlutter` → `ZhengHaoF/overtone`，本地 remote 已同步），
-   分支 `chore/rename-overtone` 尚未 push，需要时 `git push -u origin chore/rename-overtone`。
+2. **GitHub 仓库改名：已回退，交给用户自己做**。执行期曾用 `gh repo rename` 把
+   `ZhengHaoF/kugoFlutter` 改成了 `overtone`（是重命名、非新建，Issues / Releases /
+   star / git 历史均未变），用户要求自行改名，**已改回 `ZhengHaoF/kugoFlutter`**
+   （`createdAt` 仍为 2026-09-17，原仓库完好），本地 remote 亦已恢复。
+   因此代码里 5 处 workflow 守卫、`app_workflow_policy_test.dart:8` 的 guard、
+   README releases 链接以及各文档中的历史 URL **全部保持 `ZhengHaoF/kugoFlutter`**。
+   **用户后续自己改名时，需同步修改这 7 处**：
+   `.github/workflows/apps.yml` 的 5 处 `github.repository ==` 守卫、
+   `app/test/app_workflow_policy_test.dart:8` 的 guard 常量、`README.md:7` 的 releases 链接。
+3. 分支 `chore/rename-overtone` 尚未 push，需要时 `git push -u origin chore/rename-overtone`。
 
 ---
 
@@ -43,7 +51,7 @@ PulseAudio sink 名、`network_log_dialog` 自己的探针占位值）。
 | --- | --- | --- |
 | 对外名称（中文） | **泛音** | Android label / iOS 显示名 / 窗口标题 / 通知渠道 / MPRIS Identity |
 | 对外名称（英文） | **Overtone** | Runner.rc ProductName、安装包描述、Release 标题 |
-| 仓库目录 / GitHub | `overtone`（`ZhengHaoF/overtone`） | 顺带修掉 `overtone` 的拼写错误 |
+| 仓库目录 / GitHub | 目录 `overtone`；GitHub 仓库名暂保持 `ZhengHaoF/kugoFlutter`（用户自行改名，见文首「剩余手动步骤」） | 顺带修掉 `kugoFulutter` 的拼写错误 |
 | pubspec `name` | `overtone` | `app/lib` 用相对 import 不受影响；但 `app/test`(127 个文件) 与 `app/tool`(16 个脚本) 共 **602 行 `package:kugo/` 绝对导入**必须同 commit 替换，见 §3.1 |
 | 应用级 Dart 符号 | `Overtone*` | `OvertoneTheme` → `OvertoneTheme` 等，见 §5 映射表 |
 | 酷狗平台级符号 | `Kugou*` | `KugouSign` → `KugouSign` 等，与既有 `KugouSource` / `KugouSession` 对齐 |
@@ -622,17 +630,20 @@ Android 悬浮歌词、Linux 桌面能力探测逐一真机/真桌面验证。
 ## 7. Step 6：仓库与远端
 
 0. **本地绝对路径清理**（目录改名的连带影响，动手前先做）：
-   - `docs/gap-vs-echomusic.md:5` 写死了 `对象：D:\work\overtone\app`，改为 `D:\work\overtone\app`；
+   - `docs/gap-vs-echomusic.md:5` 写死了 `对象：D:\work\kugoFulutter\app`，改为 `D:\work\overtone\app`；
      `README.md:1` 标题同步。
    - `app/ios/Flutter/` 下的 `flutter_export_environment.sh`、`Generated.xcconfig`、
-     `ephemeral/flutter_native_integration.env` 也含 `D:\work\overtone\app`，
+     `ephemeral/flutter_native_integration.env` 也含 `D:\work\kugoFulutter\app`，
      但这三个文件**未被 git 跟踪**（Flutter 生成物），`flutter pub get` 会自动重建，无需手改。
-1. 本地目录 `overtone` → `overtone`（工作副本关闭 IDE 后 `git mv` 或直接重命名目录）。
-2. GitHub：Settings → Repository name → `ZhengHaoF/overtone` 改 `ZhengHaoF/overtone`。
-   旧地址 GitHub 自动 301，历史链接不失效。
-3. apps.yml 5 处 `github.repository == 'ZhengHaoF/overtone'` → `'ZhengHaoF/overtone'`（与第 2 步同一次改动）。
-4. `README.md:7` releases 链接 `https://github.com/ZhengHaoF/overtone/releases` → `overtone`。
-5. `docs/release-packaging.md`、`docs/android-windows-delivery.md` 等文档中的仓库/产物引用同步。
+1. 本地目录 `kugoFulutter` → `overtone`（工作副本关闭 IDE 后直接重命名目录）。
+2. **GitHub 仓库改名由用户自行执行**（Settings → Repository name → `overtone`）。
+   旧地址 GitHub 自动 301，历史链接不失效。执行期曾代改并已按用户要求改回，
+   故当前 5 处守卫、测试 guard、README 链接均保持 `kugoFlutter`。
+3. **改名时必须同步这 7 处**：apps.yml 的 5 处 `github.repository == 'ZhengHaoF/kugoFlutter'`
+   守卫、`app/test/app_workflow_policy_test.dart:8` 的 guard 常量、
+   `README.md:7` 的 releases 链接。不同步改的后果：workflow_dispatch 手动打包不触发，
+   且 `app_workflow_policy_test.dart` 的守卫断言失败。
+4. `docs/release-packaging.md`、`docs/android-windows-delivery.md` 等文档中的仓库/产物引用同步。
 
 ---
 

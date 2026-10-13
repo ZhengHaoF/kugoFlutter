@@ -23,7 +23,7 @@ env:
   OVERTONE_BUILD_NUMBER: ${{ github.run_number }}
 jobs:
   quality:
-    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -53,7 +53,7 @@ jobs:
           bash tool/test_package_release.sh
   android:
     needs: quality
-    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -96,7 +96,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   windows-media-native:
-    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     timeout-minutes: 10
     defaults:
@@ -126,7 +126,7 @@ jobs:
           retention-days: 30
   windows:
     needs: [quality, windows-media-native]
-    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     timeout-minutes: 45
     defaults:
@@ -254,7 +254,7 @@ jobs:
   release:
     needs: [android, windows]
     # Packaging always runs; public publication requires the extra publish checkbox.
-    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

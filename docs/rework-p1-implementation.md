@@ -1,6 +1,6 @@
 # overtone P1 首批 Rework 实施与验收记录
 
-本轮沿用上次提出的音质切换、持久化及相邻会话一致性范围，基于 P0 提交 `f456d271d7d28863ddafb2777bf87d6d8398a402`，分支为 `fix/rework-p1-quality-persistence`。P0 的 [PR #4](https://github.com/ZhengHaoF/overtone/pull/4) 在本轮开始时仍未合并，因此 P1 PR 以 P0 分支为基线供独立审查，不直接合并主分支。
+本轮沿用上次提出的音质切换、持久化及相邻会话一致性范围，基于 P0 提交 `f456d271d7d28863ddafb2777bf87d6d8398a402`，分支为 `fix/rework-p1-quality-persistence`。P0 的 [PR #4](https://github.com/ZhengHaoF/kugoFlutter/pull/4) 在本轮开始时仍未合并，因此 P1 PR 以 P0 分支为基线供独立审查，不直接合并主分支。
 
 ## 实施范围与状态
 
