@@ -1,12 +1,39 @@
 # kugo → 泛音（Overtone）改名实施文档
 
-> 文档版本：v1.0 · 实施计划（待执行，按 Step 顺序逐项改）
+> 文档版本：v1.1 · **已执行完毕**（2026-10-13，分支 `chore/rename-overtone`，5 个 commit）
 > 决策来源：2026-10-13 项目名评估结论（对外名称定为「泛音 / Overtone」）
 > 用户确认：**老用户本地数据不做兼容**，DB 可直接切换路径。
 >
 > **背景**：项目已从单酷狗源演进为酷狗 + 网易云 + 哔哩哔哩三音源（`MusicPlatform { kugou, netease, bili }`），
 > 旧名 `kugo` 既名不副实，也与 README「合规声明」及 [设计方案](../设计方案.md) §1.4
 > 「对外发布请勿使用『酷狗』注册商标作为应用名」的自我要求冲突。本次改名同时是补合规债。
+
+## 执行结果（2026-10-13）
+
+| Commit | 内容 | 验证 |
+| --- | --- | --- |
+| `890d69a` | 改名计划文档 + README 索引 | — |
+| `39f52f4` | Step 1 用户可见名称 + Step 2 pubspec/602 行绝对导入 + Step 3 构建标识 | `flutter analyze` 零问题；全量测试与基线同为 6 个既有失败 |
+| `f0ed79c` | Step 5 方法通道 + 歌词 IPC 环境变量（Dart/原生同 commit） | 桌面歌词、任务栏、悬浮歌词、Linux 能力探测相关 52 个测试全绿 |
+| `6118063` | Step 4 Dart 符号四轮替换 + 10 个文件重命名 + drift 重新生成 | `flutter analyze` 零问题；全量测试与基线一致 |
+| `0c006ba` | Step 6 仓库守卫、文档、僵尸快捷方式清理、GTK 数据键 | 全量测试 6 个失败 = 基线 6 个（4 个策略测试既有失败 + D-Bus 环境 + 路径分隔符） |
+
+**执行期发现并修复的问题**（均已回写本文档对应小节）：
+pass 4 正则误伤 `kugou*` 平台标识符（129 文件）；pass 3 误伤双引号 AUMID 与 `com.kugo.kugo`；
+build_runner 在源码修复前运行导致生成代码列默认值漂移；测试仓库名被 pass 4 改成
+`overtoneFlutter`；以及一批小写/连字符形式的漏网项（XML 注释、第二个 spike 日志、
+PulseAudio sink 名、`network_log_dialog` 自己的探针占位值）。
+
+### 剩余手动步骤（会话内无法完成）
+
+1. **本地目录重命名**——`D:\work\kugoFulutter` 当前被 IDE / harness 进程占用，
+   关闭 IDE 后在资源管理器或 PowerShell 执行：
+   ```powershell
+   Rename-Item D:\work\kugoFulutter overtone
+   cd D:\work\overtone\app; flutter pub get   # 重建 .dart_tool 与绝对路径缓存
+   ```
+2. **GitHub 仓库改名已完成**（`ZhengHaoF/kugoFlutter` → `ZhengHaoF/overtone`，本地 remote 已同步），
+   分支 `chore/rename-overtone` 尚未 push，需要时 `git push -u origin chore/rename-overtone`。
 
 ---
 
