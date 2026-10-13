@@ -14,7 +14,7 @@ import 'package:overtone/core/cache/cover_cache.dart';
 import 'package:overtone/shared/widgets/cover_box.dart';
 import 'package:overtone/shared/widgets/cover_viewer.dart';
 
-import 'fakes/fake_kugo_client.dart';
+import 'fakes/fake_kugou_client.dart';
 import 'fakes/fake_path_provider.dart';
 
 const _kugouCover =

@@ -7,12 +7,12 @@ import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import '../../shared/widgets/resource_comment_section.dart';
 import '../../core/theme/hero_tags.dart';
 import '../../core/theme/responsive.dart';
@@ -295,7 +295,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
-            final kugo = KugoTheme.of(dialogContext);
+            final theme = OvertoneTheme.of(dialogContext);
             final groupKeys = groups.keys.toList();
             final activeGroup = _rankPickerGroup.isNotEmpty &&
                     groups.containsKey(_rankPickerGroup)
@@ -306,7 +306,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480, maxHeight: 520),
                 child: Padding(
-                  padding: const EdgeInsets.all(KugoSpacing.lg),
+                  padding: const EdgeInsets.all(OvertoneSpacing.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -314,7 +314,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text('切换榜单', style: kugo.section),
+                            child: Text('切换榜单', style: theme.section),
                           ),
                           IconButton(
                             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -332,7 +332,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Center(
-                            child: Text('暂无榜单', style: kugo.caption),
+                            child: Text('暂无榜单', style: theme.caption),
                           ),
                         )
                       else ...[
@@ -340,7 +340,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                           const SizedBox(height: 8),
                           SizedBox(
                             height: 36,
-                            child: KugoHScroll(
+                            child: OvertoneHScroll(
                               fadeEdges: false,
                               builder: (context, controller, _) =>
                                   ListView.separated(
@@ -393,11 +393,11 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                                           if (rank.playCountLabel.isNotEmpty)
                                             rank.playCountLabel,
                                         ].join(' · '),
-                                        style: kugo.caption,
+                                        style: theme.caption,
                                       ),
                                 trailing: selected
                                     ? Icon(Icons.check_rounded,
-                                        color: kugo.primary, size: 18)
+                                        color: theme.primary, size: 18)
                                     : null,
                                 onTap: () => _switchRank(dialogContext, rank),
                               );
@@ -457,7 +457,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                 background: Hero(
                   tag: isRankView
                       ? rankCoverHeroTag(_effectiveId)
-                      : KugoHeroTags.playlistCover(_effectiveId),
+                      : OvertoneHeroTags.playlistCover(_effectiveId),
                   flightShuttleBuilder: rankHeroFlightShuttle,
                   child: RankDetailHeaderSurface(
                     brief: brief,
@@ -475,10 +475,10 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.lg,
-                  KugoSpacing.lg,
-                  KugoSpacing.sm,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.sm,
                 ),
                 child: Row(
                   children: [
@@ -510,21 +510,21 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    KugoSpacing.lg,
+                    OvertoneSpacing.lg,
                     0,
-                    KugoSpacing.lg,
-                    KugoSpacing.sm,
+                    OvertoneSpacing.lg,
+                    OvertoneSpacing.sm,
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: TextField(
                           controller: _searchController,
-                          style: KugoTheme.of(context).body,
+                          style: OvertoneTheme.of(context).body,
                           decoration: InputDecoration(
                             isDense: true,
                             hintText: '搜索歌名、歌手、专辑…',
-                            hintStyle: KugoTheme.of(context).caption,
+                            hintStyle: OvertoneTheme.of(context).caption,
                             prefixIcon: const Icon(Icons.search_rounded, size: 20),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
@@ -537,15 +537,15 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                                   )
                                 : null,
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(KugoRadius.tile),
+                              borderRadius: BorderRadius.circular(OvertoneRadius.tile),
                               borderSide: BorderSide(
-                                color: KugoTheme.of(context).divider,
+                                color: OvertoneTheme.of(context).divider,
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(KugoRadius.tile),
+                              borderRadius: BorderRadius.circular(OvertoneRadius.tile),
                               borderSide: BorderSide(
-                                color: KugoTheme.of(context).divider,
+                                color: OvertoneTheme.of(context).divider,
                               ),
                             ),
                           ),
@@ -567,7 +567,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                                   Expanded(child: Text(type.label)),
                                   if (_sortType == type)
                                     Icon(Icons.check_rounded,
-                                        color: KugoTheme.of(context).primary,
+                                        color: OvertoneTheme.of(context).primary,
                                         size: 18),
                                 ],
                               ),
@@ -580,7 +580,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                           _searchQuery.isEmpty
                               ? '${displayed.length} 首'
                               : '${displayed.length} / ${tracks.length} 首',
-                          style: KugoTheme.of(context).caption,
+                          style: OvertoneTheme.of(context).caption,
                         ),
                       ],
                     ],
@@ -654,9 +654,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    KugoSpacing.lg,
-                    KugoSpacing.xl,
-                    KugoSpacing.lg,
+                    OvertoneSpacing.lg,
+                    OvertoneSpacing.xl,
+                    OvertoneSpacing.lg,
                     0,
                   ),
                   child: ResourceCommentSection(

@@ -230,7 +230,7 @@ String? neteaseVipBadgeLabel(NeteaseVipInfo vip, {DateTime? now}) {
 }
 
 /// 会员到期提示。直接复用酷狗的 [formatVipExpireText]——网易 `expireTime`
-/// 是 13 位 epoch 毫秒，`parseKugoDateTime` 已能吃。
+/// 是 13 位 epoch 毫秒，`parseKugouDateTime` 已能吃。
 String? neteaseVipExpireText(
   NeteaseVipInfo vip, {
   DateTime? now,

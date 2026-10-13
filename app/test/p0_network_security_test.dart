@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:overtone/core/api/kugou/credential_transport.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
 import 'package:overtone/core/api/network_log.dart';
 import 'package:overtone/data/repositories/login_repository.dart';
 import 'package:overtone/data/storage/device_identity.dart';
 import 'package:overtone/features/auth/auth_token_holder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'fakes/fake_kugo_client.dart';
+import 'fakes/fake_kugou_client.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -236,7 +236,7 @@ void main() {
         ScriptedAdapter.json({'status': 1}),
       ]);
       final dio = Dio()..httpClientAdapter = adapter;
-      await KugoClient(dio: dio).getJson('http://mobilecdn.kugou.com/public');
+      await KugouClient(dio: dio).getJson('http://mobilecdn.kugou.com/public');
       expect(adapter.requests.single.headers['Authorization'], isNull);
       dio.close();
     });
@@ -247,7 +247,7 @@ void main() {
         AuthTokenHolder.instance.setSession(token: 'AUDIT_FAKE', userId: '123');
         final adapter = ScriptedAdapter([ScriptedAdapter.json({})]);
         final dio = Dio()..httpClientAdapter = adapter;
-        await KugoClient(dio: dio).getJson('https://www.baidu.com/fixture');
+        await KugouClient(dio: dio).getJson('https://www.baidu.com/fixture');
         expect(adapter.requests.single.headers['Authorization'], isNull);
         dio.close();
       },
@@ -262,7 +262,7 @@ void main() {
         ]);
         final dio = Dio()..httpClientAdapter = adapter;
         final records = <NetworkLog>[];
-        await KugoClient(dio: dio, onLog: records.add).getJson(
+        await KugouClient(dio: dio, onLog: records.add).getJson(
           'https://gateway.kugou.com/fixture',
           query: {'token': 'AUDIT_FAKE_QUERY'},
         );

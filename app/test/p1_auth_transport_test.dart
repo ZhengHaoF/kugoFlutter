@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
 import 'package:overtone/core/api/netease/netease_client.dart';
 import 'package:overtone/data/repositories/login_repository.dart';
 import 'package:overtone/data/storage/device_identity.dart';
@@ -102,7 +102,7 @@ void main() {
         );
         final adapter = _Adapter((_) async => _response(401, '{"code":401}'));
         dio.httpClientAdapter = adapter;
-        final client = KugoClient(dio: dio);
+        final client = KugouClient(dio: dio);
         try {
           await client.getJson('https://gateway.kugou.com/fixture');
         } catch (_) {}
@@ -133,7 +133,7 @@ void main() {
         return reply.future;
       });
       final dio = Dio()..httpClientAdapter = adapter;
-      final pending = KugoClient(dio: dio)
+      final pending = KugouClient(dio: dio)
           .getJson('https://gateway.kugou.com/fixture')
           .catchError((Object _) => null);
       await entered.future;
@@ -154,7 +154,7 @@ void main() {
     final dio = Dio()
       ..httpClientAdapter = _Adapter((_) async => _response(401, '{}'));
     try {
-      await KugoClient(dio: dio).getJson('https://example.invalid/fixture');
+      await KugouClient(dio: dio).getJson('https://example.invalid/fixture');
     } catch (_) {}
     expect(AuthTokenHolder.instance.token, 'TOKEN_100');
     expect(c.read(authControllerProvider).isLogged, isTrue);

@@ -1,4 +1,4 @@
-import 'package:overtone/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
 import 'package:overtone/core/models/comment.dart';
 import 'package:overtone/data/repositories/comment_repository.dart';
 import 'package:overtone/data/repositories/search_repository.dart';
@@ -69,8 +69,8 @@ Future<void> main() async {
     'dfid': device.dfid,
     'mid': device.mid,
     'uuid': '-',
-    'appid': int.parse(KugoSign.appId),
-    'clientver': int.parse(KugoSign.clientVer),
+    'appid': int.parse(KugouSign.appId),
+    'clientver': int.parse(KugouSign.clientVer),
     'clienttime': clienttime,
     'mixsongid': 920474385,
     'need_show_image': 1,
@@ -81,6 +81,6 @@ Future<void> main() async {
     'extdata': '0',
     'code': 'fc4be23b4e972707f36b8a828a93ba8a',
   };
-  params['signature'] = KugoSign.signatureAndroidParams(params);
+  params['signature'] = KugouSign.signatureAndroidParams(params);
   print('manual signature=${params['signature']} clienttime=$clienttime');
 }

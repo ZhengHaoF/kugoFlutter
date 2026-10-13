@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overtone/core/theme/kugo_theme.dart';
+import 'package:overtone/core/theme/overtone_theme.dart';
 import 'package:overtone/features/settings/settings_controller.dart';
 import 'package:overtone/shared/tray/close_behavior_dialog.dart';
 
@@ -11,7 +11,7 @@ class _Harness {
 Future<void> _openDialog(WidgetTester tester, _Harness harness) async {
   await tester.pumpWidget(
     MaterialApp(
-      theme: buildKugoTheme(Brightness.dark),
+      theme: buildOvertoneTheme(Brightness.dark),
       home: Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(

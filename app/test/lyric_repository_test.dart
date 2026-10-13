@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:overtone/core/models/track.dart';
 import 'package:overtone/data/repositories/lyric_repository.dart';
 
-import 'fakes/fake_kugo_client.dart';
+import 'fakes/fake_kugou_client.dart';
 
 Track _track({String hash = 'ABCDEF1234567890'}) => Track(
       id: 't1',
@@ -32,7 +32,7 @@ void main() {
   group('候选解析', () {
     test('宽松正则从非 JSON 文本抓 id + accesskey，最多 3 条', () async {
       final fmts = <String>[];
-      final client = FakeKugoClient(onText: (url) {
+      final client = FakeKugouClient(onText: (url) {
         if (url.contains('/download')) {
           fmts.add(Uri.decodeComponent(url).contains('fmt=krc') ? 'krc' : 'lrc');
           return null; // 下载全失败
@@ -46,7 +46,7 @@ void main() {
     });
 
     test('宽松正则抓不到 accesskey 时退回只取 id', () async {
-      final client = FakeKugoClient(onText: (url) {
+      final client = FakeKugouClient(onText: (url) {
         if (url.contains('/download')) return null;
         return 'id:"12345678" id:"87654321"';
       });
@@ -57,19 +57,19 @@ void main() {
     });
 
     test('搜索本身抛错 → 一次下载都不发起', () async {
-      final client = FakeKugoClient(onText: null);
+      final client = FakeKugouClient(onText: null);
       expect(await LyricRepository(client: client).fetchLyrics(_track()), isEmpty);
       expect(client.textCalls.length, 1);
     });
 
     test('候选为空 → 只有搜索那一次请求', () async {
-      final client = FakeKugoClient(onText: (_) => 'no candidates here');
+      final client = FakeKugouClient(onText: (_) => 'no candidates here');
       expect(await LyricRepository(client: client).fetchLyrics(_track()), isEmpty);
       expect(client.textCalls.length, 1);
     });
 
     test('下载 URL 带上 id / accesskey / charset', () async {
-      final client = FakeKugoClient(onText: (url) {
+      final client = FakeKugouClient(onText: (url) {
         if (url.contains('/download')) return null;
         return 'id:"111",accesskey:"AABB"';
       });
@@ -86,7 +86,7 @@ void main() {
   group('搜索关键词与 hash', () {
     test('关键词是「歌手 歌名」，hash 转小写，timelength 带时长', () async {
       String? searched;
-      final client = FakeKugoClient(onText: (url) {
+      final client = FakeKugouClient(onText: (url) {
         searched ??= url;
         return 'nothing';
       });
@@ -106,7 +106,7 @@ void main() {
   group('LRC 正文提取', () {
     // _extractLrcText 私有，这里通过「候选 + LRC 内容」走完整下载路径触发它。
     Future<List<LyricLine>> lrcFrom(String body) async {
-      final client = FakeKugoClient(onText: (url) {
+      final client = FakeKugouClient(onText: (url) {
         if (url.contains('/download')) return body;
         return 'id:"111",accesskey:"AABB"';
       });

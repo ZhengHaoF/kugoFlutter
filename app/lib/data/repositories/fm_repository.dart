@@ -5,9 +5,9 @@ import '../../core/api/kugou/credential_transport.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart'
-    show looksLikeUrlFilter, decodeKugoBody;
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart'
+    show looksLikeUrlFilter, decodeKugouBody;
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/fm_mode.dart';
@@ -260,15 +260,15 @@ class FmRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
     };
 
     // JSON body。字段顺序不影响签名（签名内部会排序），但 bodyJson 字符串本身
     // 直接进签名的 data 位，因此保持一次成型即可。
     final body = <String, dynamic>{
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'clienttime': clienttime,
       'mid': device.mid,
       'action': action,
@@ -279,12 +279,12 @@ class FmRepository {
       'platform': 'ios',
       'area_code': 1,
       'remain_songcnt': remainSongcnt,
-      'clientver': int.parse(KugoSign.clientVer),
+      'clientver': int.parse(KugouSign.clientVer),
       'is_overplay': isOverplay,
       'mode': mode.modeParam,
       'fakem': 'ca981cfc583a4c37f28d2d49000013c16a0a',
       // signParamsKey(clienttime)
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
     };
     // 反馈 / 上下文字段（有值才带上）。
     if (hash.isNotEmpty) {
@@ -307,7 +307,7 @@ class FmRepository {
 
     final bodyJson = jsonEncode(body);
     final signedQuery = Map<String, dynamic>.from(query)
-      ..['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      ..['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
     final cookieParts = <String>[
       if (useToken) 'token=${auth.token}',
@@ -321,17 +321,17 @@ class FmRepository {
 
     try {
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}${KugoEndpoints.personalRecommend}',
+        '${KugouEndpoints.gateway}${KugouEndpoints.personalRecommend}',
         queryParameters: signedQuery,
         data: bodyJson,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
             'dfid': device.dfid,
             'clienttime': '$clienttime',
             'mid': device.mid,
-            'x-router': KugoEndpoints.personalFmRouter,
+            'x-router': KugouEndpoints.personalFmRouter,
             'Cookie': cookieParts.join(';'),
           },
         ),
@@ -348,7 +348,7 @@ class FmRepository {
         );
       }
 
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         final msg = useToken ? '私人FM响应无法解析' : '私人FM需要登录后查看';
         lastError = msg;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overtone/core/theme/kugo_theme.dart';
+import 'package:overtone/core/theme/overtone_theme.dart';
 import 'package:overtone/shared/widgets/common.dart';
 
 void main() {
-  testWidgets('showKugoBottomSheet renders bottom sheet on small/mobile screen',
+  testWidgets('showOvertoneBottomSheet renders bottom sheet on small/mobile screen',
       (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -12,12 +12,12 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildKugoTheme(Brightness.dark),
+        theme: buildOvertoneTheme(Brightness.dark),
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () {
-                showKugoBottomSheet<void>(
+                showOvertoneBottomSheet<void>(
                   context: context,
                   builder: (ctx) => const Text('Mobile Content'),
                 );
@@ -32,12 +32,12 @@ void main() {
     await tester.tap(find.text('Open Sheet'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(KugoSheetChrome), findsOneWidget);
+    expect(find.byType(OvertoneSheetChrome), findsOneWidget);
     expect(find.text('Mobile Content'), findsOneWidget);
   });
 
   testWidgets(
-      'showKugoBottomSheet renders KugoDesktopSideSheetChrome on desktop screen',
+      'showOvertoneBottomSheet renders OvertoneDesktopSideSheetChrome on desktop screen',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -45,12 +45,12 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildKugoTheme(Brightness.dark),
+        theme: buildOvertoneTheme(Brightness.dark),
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () {
-                showKugoBottomSheet<void>(
+                showOvertoneBottomSheet<void>(
                   context: context,
                   builder: (ctx) => const Text('Desktop Content'),
                 );
@@ -66,8 +66,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // On Windows test environment (desktop platform + width >= 800),
-    // it should render KugoDesktopSideSheetChrome aligned to right
-    expect(find.byType(KugoDesktopSideSheetChrome), findsOneWidget);
+    // it should render OvertoneDesktopSideSheetChrome aligned to right
+    expect(find.byType(OvertoneDesktopSideSheetChrome), findsOneWidget);
     expect(find.text('Desktop Content'), findsOneWidget);
 
     // Test close button
@@ -75,6 +75,6 @@ void main() {
     await tester.tap(find.byIcon(Icons.close_rounded));
     await tester.pumpAndSettle();
 
-    expect(find.byType(KugoDesktopSideSheetChrome), findsNothing);
+    expect(find.byType(OvertoneDesktopSideSheetChrome), findsNothing);
   });
 }

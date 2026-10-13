@@ -14,7 +14,7 @@ import 'package:overtone/core/desktop_capabilities.dart';
 import 'package:overtone/core/models/track.dart';
 import 'package:overtone/core/models/audio_quality.dart';
 import 'package:overtone/core/source/music_source.dart';
-import 'package:overtone/data/storage/kugo_db.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
 import 'package:overtone/data/storage/playback_position_store.dart';
 import 'package:overtone/shared/tray/window_bounds_store.dart';
 import 'package:overtone/features/mv/mv_desktop_mini.dart';
@@ -165,11 +165,11 @@ class _ProbeState extends State<Probe> {
         (await DesktopWindowBoundsStore.load()).width == 1111,
         'native SharedPreferences window settings persist',
       );
-      final database = KugoDb();
+      final database = OvertoneDb();
       await database.writeQueue(queue, 1, 'listLoop');
       await database.appendHistory(queue.first);
       await database.close();
-      final reopened = KugoDb();
+      final reopened = OvertoneDb();
       try {
         final restored = await reopened.readQueue();
         check(

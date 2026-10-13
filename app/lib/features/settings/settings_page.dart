@@ -7,13 +7,13 @@ import '../../core/platform.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/netease_login_controller.dart';
 import '../../features/auth/bili_login_controller.dart';
 import '../../features/debug/crash_log_dialog.dart';
 import '../../features/debug/network_log_dialog.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/settings_pickers.dart';
 import '../../shared/widgets/desktop_lyric_style_sheet.dart';
@@ -29,7 +29,7 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
     final auth = ref.watch(authControllerProvider);
@@ -43,9 +43,9 @@ class SettingsPage extends ConsumerWidget {
         // 原来是裸 ListView，桌面滚轮会显得「一格一格跳」。
         child: SmoothListView(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.lg,
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.lg,
             40,
           ),
         children: [
@@ -83,40 +83,40 @@ class SettingsPage extends ConsumerWidget {
               title: '窗口',
               children: [
                 ListTile(
-                  title: Text('关闭主窗口时', style: kugo.body),
+                  title: Text('关闭主窗口时', style: theme.body),
                   subtitle: Text(
                     settings.closeBehavior.closeHint,
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => showCloseBehaviorPicker(context, ref),
                 ),
                 if (isWindowsPlatform)
                   SwitchListTile(
-                    title: Text('任务栏播放进度', style: kugo.body),
+                    title: Text('任务栏播放进度', style: theme.body),
                     subtitle: Text(
                       '在任务栏按钮上显示播放进度（播放绿 / 暂停黄）',
-                      style: kugo.caption,
+                      style: theme.caption,
                     ),
                     value: settings.taskbarProgress,
                     onChanged: controller.setTaskbarProgress,
                   ),
                 if (isWindowsPlatform)
                   SwitchListTile(
-                    title: Text('任务栏封面预览', style: kugo.body),
+                    title: Text('任务栏封面预览', style: theme.body),
                     subtitle: Text(
                       '悬停和窗口切换显示封面信息卡；关闭恢复窗口预览',
-                      style: kugo.caption,
+                      style: theme.caption,
                     ),
                     value: settings.taskbarCoverPreview,
                     onChanged: controller.setTaskbarCoverPreview,
                   ),
                 if (isWindowsPlatform)
                   SwitchListTile(
-                    title: Text('独立播控横条', style: kugo.body),
+                    title: Text('独立播控横条', style: theme.body),
                     subtitle: Text(
                       '任务栏上方浮条，可拖动、拖进度和调音量；全屏时隐藏',
-                      style: kugo.caption,
+                      style: theme.caption,
                     ),
                     value: settings.taskbarMediaBar,
                     onChanged: controller.setTaskbarMediaBar,
@@ -130,7 +130,7 @@ class SettingsPage extends ConsumerWidget {
                 SwitchListTile(
                   title: Text(
                     isAndroidPlatform ? '显示悬浮歌词' : '显示桌面歌词',
-                    style: kugo.body,
+                    style: theme.body,
                   ),
                   subtitle: Text(
                     isAndroidPlatform
@@ -141,7 +141,7 @@ class SettingsPage extends ConsumerWidget {
                                 ? '独立悬浮窗显示当前歌词，可置顶、锁定穿透'
                                 : '独立悬浮窗显示当前歌词。实验功能：开启后主窗口会失去响应，'
                                     '且不会开机自启，谨慎开启（排查见 桌面歌词接入方案.md §12）'),
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                   value: settings.desktopLyricEnabled,
                   onChanged: (v) async {
@@ -180,12 +180,12 @@ class SettingsPage extends ConsumerWidget {
                   },
                 ),
                 SwitchListTile(
-                  title: Text('锁定歌词窗', style: kugo.body),
+                  title: Text('锁定歌词窗', style: theme.body),
                   subtitle: Text(
                     isAndroidPlatform
                         ? '锁定后点击穿透到下层应用，避免挡住操作'
                         : '点击穿透到下层应用，避免挡住操作',
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                   value: settings.desktopLyricLocked,
                   onChanged: settings.desktopLyricEnabled
@@ -193,22 +193,22 @@ class SettingsPage extends ConsumerWidget {
                       : null,
                 ),
                 ListTile(
-                  title: Text('歌词样式', style: kugo.body),
+                  title: Text('歌词样式', style: theme.body),
                   subtitle: Text(
                     settings.desktopLyricStyle.matchingPreset?.name ?? '自定义',
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => showDesktopLyricStyleSheet(context, ref),
                 ),
                 ListTile(
-                  title: Text('歌词偏移', style: kugo.body),
+                  title: Text('歌词偏移', style: theme.body),
                   subtitle: Text(
                     settings.desktopLyricOffsetMs == 0
                         ? '与系统时间对齐'
                         : '${settings.desktopLyricOffsetMs > 0 ? '+' : ''}'
                             '${(settings.desktopLyricOffsetMs / 1000).toStringAsFixed(1)}s',
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -232,12 +232,12 @@ class SettingsPage extends ConsumerWidget {
                   onTap: () => controller.setDesktopLyricOffsetMs(0),
                 ),
                 ListTile(
-                  title: Text('重置歌词位置', style: kugo.body),
+                  title: Text('重置歌词位置', style: theme.body),
                   subtitle: Text(
                     isAndroidPlatform
                         ? '回到屏幕顶部居中'
                         : '回到屏幕顶部居中（离顶端 12px）',
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                   trailing: const Icon(Icons.my_location_rounded),
                   onTap: () async {
@@ -264,21 +264,21 @@ class SettingsPage extends ConsumerWidget {
             title: '播放',
             children: [
               ListTile(
-                title: Text('默认音质', style: kugo.body),
+                title: Text('默认音质', style: theme.body),
                 subtitle: Text(
                   '${settings.qualityLabel} · 新歌默认按此解析，播放中可切换',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showQualityPicker(context, ref),
               ),
               ListTile(
-                title: Text('定时停止', style: kugo.body),
+                title: Text('定时停止', style: theme.body),
                 subtitle: Text(
                   settings.sleepMinutes == 0
                       ? '关闭'
                       : '${settings.sleepMinutes} 分钟',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showSleepPicker(context, ref),
@@ -290,16 +290,16 @@ class SettingsPage extends ConsumerWidget {
             children: [
               // 翻译 / 罗马音：播放页 VIP/HQ 旁「歌词显示」入口（lyric_display_sheet）。
               SwitchListTile(
-                title: Text('锁屏/蓝牙显示歌词', style: kugo.body),
+                title: Text('锁屏/蓝牙显示歌词', style: theme.body),
                 subtitle: Text(
                   '系统媒体副标题显示「歌手 · 当前歌词」',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
                 value: settings.mediaLyricSubtitle,
                 onChanged: controller.setMediaLyricSubtitle,
               ),
               SwitchListTile(
-                title: Text('仅 Wi-Fi 加载封面', style: kugo.body),
+                title: Text('仅 Wi-Fi 加载封面', style: theme.body),
                 value: settings.wifiCoverOnly,
                 onChanged: controller.setWifiCoverOnly,
               ),
@@ -311,12 +311,12 @@ class SettingsPage extends ConsumerWidget {
               ListTile(
                 leading: Icon(
                   Icons.hub_outlined,
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                 ),
-                title: Text('默认音源', style: kugo.body),
+                title: Text('默认音源', style: theme.body),
                 subtitle: Text(
                   '${settings.defaultSourceLabel} · 搜索与「我喜欢」的初始音源',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showDefaultSourcePicker(context, ref),
@@ -328,7 +328,7 @@ class SettingsPage extends ConsumerWidget {
                 ..._sourceSwitchTiles(
                   settings: settings,
                   controller: controller,
-                  kugo: kugo,
+                  theme: theme,
                   platform: p.$1,
                   canToggle: p.$2,
                   locked: p.$3,
@@ -389,12 +389,12 @@ class SettingsPage extends ConsumerWidget {
               ListTile(
                 leading: Icon(
                   Icons.bug_report_outlined,
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                 ),
-                title: Text('网络请求日志', style: kugo.body),
+                title: Text('网络请求日志', style: theme.body),
                 subtitle: Text(
                   '请求/响应/错误 · 测试网络 · 实时探测 · 复制',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showNetworkLogDialog(context),
@@ -408,12 +408,12 @@ class SettingsPage extends ConsumerWidget {
               ListTile(
                 leading: Icon(
                   Icons.cleaning_services_outlined,
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                 ),
-                title: Text('清理图片缓存与播放、搜索历史', style: kugo.body),
+                title: Text('清理图片缓存与播放、搜索历史', style: theme.body),
                 subtitle: Text(
                   '不影响登录与我喜欢；队列本地副本会一并清空',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
                 onTap: () async {
                   final msg = await controller.clearImageAndHistoryCache();
@@ -430,10 +430,10 @@ class SettingsPage extends ConsumerWidget {
             title: '关于',
             children: [
               ListTile(
-                title: Text('泛音', style: kugo.body),
+                title: Text('泛音', style: theme.body),
                 subtitle: Text(
                   '0.1.0 · 学习/研究向第三方客户端\n不提供音频中转或账号托管',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
               ),
             ],
@@ -478,7 +478,7 @@ class SettingsPage extends ConsumerWidget {
 List<Widget> _sourceSwitchTiles({
   required AppSettings settings,
   required SettingsController controller,
-  required KugoTheme kugo,
+  required OvertoneTheme theme,
   required MusicPlatform platform,
   required bool canToggle,
   required bool locked,
@@ -487,13 +487,13 @@ List<Widget> _sourceSwitchTiles({
   final registry = musicSourceRegistry;
   return [
     SwitchListTile(
-      secondary: Icon(Icons.power_settings_new, color: kugo.textSecondary),
-      title: Text('启用${platform.label}音源', style: kugo.body),
+      secondary: Icon(Icons.power_settings_new, color: theme.textSecondary),
+      title: Text('启用${platform.label}音源', style: theme.body),
       subtitle: Text(
         locked
             ? '登录${platform.label}后可启用'
             : (canToggle ? '关闭后搜索与功能页不再使用该源' : '最后一个音源，至少保留一个'),
-        style: kugo.caption,
+        style: theme.caption,
       ),
       value: enabled,
       onChanged: (canToggle && !locked)
@@ -514,7 +514,7 @@ List<Widget> _sourceSwitchTiles({
           key: ValueKey('feature_switch_${platform.wireName}_${f.id}'),
           dense: true,
           contentPadding: const EdgeInsets.only(left: 44, right: 16),
-          title: Text(f.label, style: kugo.body),
+          title: Text(f.label, style: theme.body),
           subtitle: Text(
             locked
                 ? '登录${platform.label}后可启用'
@@ -524,7 +524,7 @@ List<Widget> _sourceSwitchTiles({
                         ? '关闭后隐藏「音乐云盘」入口与该源云盘'
                         : '关闭后该源不再出现在「${f.label}」入口')
                     : '${platform.label}音源已关闭，此项暂时不生效'),
-            style: kugo.caption,
+            style: theme.caption,
           ),
           value: settings.isFeatureOn(platform, f),
           onChanged: enabled
@@ -565,15 +565,15 @@ class _AccountTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final logged = nickname.isNotEmpty;
     final logout = onLogout;
     return ListTile(
-      leading: Icon(icon, color: kugo.textSecondary),
-      title: Text(platform, style: kugo.body),
+      leading: Icon(icon, color: theme.textSecondary),
+      title: Text(platform, style: theme.body),
       subtitle: Text(
         logged ? '已登录：$nickname' : guestHint,
-        style: kugo.caption,
+        style: theme.caption,
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -622,22 +622,22 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(4, KugoSpacing.lg, 0, KugoSpacing.sm),
+          padding: const EdgeInsets.fromLTRB(4, OvertoneSpacing.lg, 0, OvertoneSpacing.sm),
           child: Text(
             title,
-            style: kugo.section.copyWith(fontSize: 15),
+            style: theme.section.copyWith(fontSize: 15),
           ),
         ),
         // Material so the ListTiles inside keep their ink splashes.
         Material(
-          color: kugo.surface,
+          color: theme.surface,
           clipBehavior: Clip.antiAlias,
-          borderRadius: BorderRadius.circular(KugoRadius.card),
+          borderRadius: BorderRadius.circular(OvertoneRadius.card),
           child: Column(children: children),
         ),
       ],
@@ -665,16 +665,16 @@ class _ThemeModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return ListTile(
       leading: Icon(
         icon,
-        color: selected ? kugo.primary : kugo.textSecondary,
+        color: selected ? theme.primary : theme.textSecondary,
       ),
-      title: Text(title, style: kugo.body),
-      subtitle: Text(subtitle, style: kugo.caption),
+      title: Text(title, style: theme.body),
+      subtitle: Text(subtitle, style: theme.caption),
       trailing: selected
-          ? Icon(Icons.check_rounded, color: kugo.primary)
+          ? Icon(Icons.check_rounded, color: theme.primary)
           : null,
       onTap: onTap,
     );
@@ -706,13 +706,13 @@ class _CrashLogEntryState extends State<_CrashLogEntry> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return ListTile(
-      leading: Icon(Icons.error_outline, color: kugo.textSecondary),
-      title: Text('崩溃日志', style: kugo.body),
+      leading: Icon(Icons.error_outline, color: theme.textSecondary),
+      title: Text('崩溃日志', style: theme.body),
       subtitle: Text(
         '框架 / 原生 / 未捕获错误 · $_summary',
-        style: kugo.caption,
+        style: theme.caption,
       ),
       trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => showCrashLogDialog(context),

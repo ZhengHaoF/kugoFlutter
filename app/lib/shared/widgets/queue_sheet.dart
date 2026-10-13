@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
@@ -13,11 +13,11 @@ const int _kShrinkWrapQueueLimit = 30;
 
 /// Shows the current playback queue in a bottom sheet or modal.
 void showQueueSheet(BuildContext context, WidgetRef ref) {
-  final kugo = KugoTheme.of(context);
+  final theme = OvertoneTheme.of(context);
   final player = ref.read(playerControllerProvider);
   final controller = ref.read(playerControllerProvider.notifier);
 
-  showKugoBottomSheet<void>(
+  showOvertoneBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) {
@@ -36,20 +36,20 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: kugo.textTertiary,
+                color: theme.textTertiary,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
             Text(
               '播放队列 · ${player.queue.length} 首',
-              style: kugo.section.copyWith(fontSize: 16),
+              style: theme.section.copyWith(fontSize: 16),
             ),
             const SizedBox(height: 8),
             if (player.queue.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Text('队列为空', style: kugo.caption),
+                child: Text('队列为空', style: theme.caption),
               )
             else
               Flexible(
@@ -68,8 +68,8 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
                         track.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.body.copyWith(
-                          color: isCurrent ? kugo.primary : kugo.textPrimary,
+                        style: theme.body.copyWith(
+                          color: isCurrent ? theme.primary : theme.textPrimary,
                           fontWeight:
                               isCurrent ? FontWeight.w600 : FontWeight.normal,
                         ),
@@ -81,7 +81,7 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
                               track.artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.caption,
+                              style: theme.caption,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -92,7 +92,7 @@ void showQueueSheet(BuildContext context, WidgetRef ref) {
                       trailing: isCurrent
                           ? Icon(
                               Icons.equalizer_rounded,
-                              color: kugo.primary,
+                              color: theme.primary,
                               size: 18,
                             )
                           : null,

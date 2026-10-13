@@ -9,14 +9,14 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class DailyRecommendPage extends ConsumerStatefulWidget {
@@ -120,7 +120,7 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final auth = ref.watch(authControllerProvider);
     final dateLabel = dailyRecommendDateLabel();
@@ -204,25 +204,25 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              KugoSpacing.md,
-              KugoSpacing.lg,
-              KugoSpacing.sm,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.md,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.sm,
             ),
             child: Row(
               children: [
                 Hero(
-                  tag: KugoHeroTags.dailyRecommendBadge,
+                  tag: OvertoneHeroTags.dailyRecommendBadge,
                   flightShuttleBuilder:
-                      KugoHeroTags.dailyRecommendBadgeFlightShuttle,
+                      OvertoneHeroTags.dailyRecommendBadgeFlightShuttle,
                   child: Material(
                     type: MaterialType.transparency,
                     child: Container(
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        gradient: kugo.accentGradient,
-                        borderRadius: BorderRadius.circular(KugoRadius.card),
+                        gradient: theme.accentGradient,
+                        borderRadius: BorderRadius.circular(OvertoneRadius.card),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -251,16 +251,16 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: KugoSpacing.md),
+                const SizedBox(width: OvertoneSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(dateLabel, style: kugo.section),
+                      Text(dateLabel, style: theme.section),
                       const SizedBox(height: 4),
                       Text(
                         _subtitle,
-                        style: kugo.caption,
+                        style: theme.caption,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -271,8 +271,8 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
                             : (_personalized
                                 ? '${_tracks.length} 首 · 个性化推荐'
                                 : '${_tracks.length} 首'),
-                        style: kugo.caption.copyWith(
-                          color: kugo.textTertiary,
+                        style: theme.caption.copyWith(
+                          color: theme.textTertiary,
                         ),
                       ),
                     ],
@@ -296,9 +296,9 @@ class _DailyRecommendPageState extends ConsumerState<DailyRecommendPage> {
           if (_needLogin && _tracks.isEmpty && !_loading)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
-                KugoSpacing.sm,
-                KugoSpacing.lg,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
+                OvertoneSpacing.lg,
                 0,
               ),
               child: Align(

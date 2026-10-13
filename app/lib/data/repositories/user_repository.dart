@@ -4,9 +4,9 @@ import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/credential_transport.dart';
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_crypto.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_crypto.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
@@ -14,7 +14,7 @@ import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
 
 /// Maps Kugou gateway error_code to a user-facing message.
-String describeKugoErrorCode(int? code, {String fallback = '请求失败'}) {
+String describeKugouErrorCode(int? code, {String fallback = '请求失败'}) {
   switch (code) {
     case 20006:
       return '签名校验失败（20006）';
@@ -107,7 +107,7 @@ class UserRepository {
       final device = await DeviceIdentity.ensure();
       final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final query = <String, dynamic>{
-        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
         'plat': 1,
         'userid': int.tryParse(userId) ?? userId,
         'token': token,
@@ -121,7 +121,7 @@ class UserRepository {
         'pagesize': pageSize,
       };
       final bodyJson = jsonEncode(dataMap);
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
       final cookieParts = <String>[
         'token=$token',
@@ -135,7 +135,7 @@ class UserRepository {
       ];
 
       final headers = <String, dynamic>{
-        'User-Agent': KugoSign.userAgent,
+        'User-Agent': KugouSign.userAgent,
         'Content-Type': 'application/json',
         'dfid': device.dfid,
         'mid': device.mid,
@@ -145,7 +145,7 @@ class UserRepository {
       };
 
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}/v7/get_all_list',
+        '${KugouEndpoints.gateway}/v7/get_all_list',
         queryParameters: query,
         data: bodyJson,
         options: Options(headers: headers),
@@ -156,7 +156,7 @@ class UserRepository {
         return const UserPlaylistsResult(error: '网络网关拦截（URL过滤），无法访问酷狗');
       }
 
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         return const UserPlaylistsResult(error: '解析用户歌单响应失败');
       }
@@ -171,7 +171,7 @@ class UserRepository {
         return UserPlaylistsResult(
           error: msg.isNotEmpty
               ? msg
-              : describeKugoErrorCode(code, fallback: '获取用户歌单失败'),
+              : describeKugouErrorCode(code, fallback: '获取用户歌单失败'),
         );
       }
 
@@ -268,12 +268,12 @@ class UserRepository {
     try {
       final device = await DeviceIdentity.ensure();
       final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final p = KugoCrypto.rsaEncryptRaw(
+      final p = KugouCrypto.rsaEncryptRaw(
         jsonEncode({'clienttime': clienttime, 'token': token}),
       ).toUpperCase();
 
       final query = <String, dynamic>{
-        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
         'plat': 1,
       };
       final dataMap = <String, dynamic>{
@@ -286,7 +286,7 @@ class UserRepository {
         'p': p,
       };
       final bodyJson = jsonEncode(dataMap);
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
       final cookieParts = <String>[
         'token=$token',
@@ -300,7 +300,7 @@ class UserRepository {
       ];
 
       final headers = <String, dynamic>{
-        'User-Agent': KugoSign.userAgent,
+        'User-Agent': KugouSign.userAgent,
         'Content-Type': 'application/json',
         'dfid': device.dfid,
         'mid': device.mid,
@@ -310,7 +310,7 @@ class UserRepository {
       };
 
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}/v4/follow_list',
+        '${KugouEndpoints.gateway}/v4/follow_list',
         queryParameters: query,
         data: bodyJson,
         options: Options(headers: headers),
@@ -321,7 +321,7 @@ class UserRepository {
         return const UserFollowResult(error: '网络网关拦截（URL过滤），无法访问酷狗');
       }
 
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         return const UserFollowResult(error: '解析关注列表响应失败');
       }
@@ -336,7 +336,7 @@ class UserRepository {
         return UserFollowResult(
           error: msg.isNotEmpty
               ? msg
-              : describeKugoErrorCode(code, fallback: '获取关注列表失败'),
+              : describeKugouErrorCode(code, fallback: '获取关注列表失败'),
         );
       }
 
@@ -396,7 +396,7 @@ class UserRepository {
       final device = await DeviceIdentity.ensure();
       final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final query = <String, dynamic>{
-        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
         'plat': 1,
         'userid': int.tryParse(userId) ?? userId,
         'token': token,
@@ -414,7 +414,7 @@ class UserRepository {
       };
       final bodyJson = jsonEncode(dataMap);
       query['signature'] =
-          KugoSign.signatureAndroidParams(query, data: bodyJson);
+          KugouSign.signatureAndroidParams(query, data: bodyJson);
 
       final cookieParts = <String>[
         'token=$token',
@@ -428,7 +428,7 @@ class UserRepository {
       ];
 
       final headers = <String, dynamic>{
-        'User-Agent': KugoSign.userAgent,
+        'User-Agent': KugouSign.userAgent,
         'Content-Type': 'application/json',
         'dfid': device.dfid,
         'mid': device.mid,
@@ -438,7 +438,7 @@ class UserRepository {
       };
 
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}/v4/get_list_all_file_v3',
+        '${KugouEndpoints.gateway}/v4/get_list_all_file_v3',
         queryParameters: query,
         data: bodyJson,
         options: Options(headers: headers),
@@ -449,7 +449,7 @@ class UserRepository {
         return const UserPlaylistTracksResult(error: '网络网关拦截（URL过滤），无法访问酷狗');
       }
 
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         return const UserPlaylistTracksResult(error: '解析用户歌单歌曲响应失败');
       }
@@ -465,7 +465,7 @@ class UserRepository {
         return UserPlaylistTracksResult(
           error: msg.isNotEmpty
               ? msg
-              : describeKugoErrorCode(code, fallback: '获取用户歌单歌曲失败'),
+              : describeKugouErrorCode(code, fallback: '获取用户歌单歌曲失败'),
         );
       }
 
@@ -527,7 +527,7 @@ class UserRepository {
       final device = await DeviceIdentity.ensure();
       final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final query = <String, dynamic>{
-        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
         'plat': 1,
         'userid': int.tryParse(userId) ?? userId,
         'token': token,
@@ -555,7 +555,7 @@ class UserRepository {
         ],
       };
       final bodyJson = jsonEncode(dataMap);
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
       query['last_time'] = clienttime;
       query['last_area'] = 'gztx';
 
@@ -563,7 +563,7 @@ class UserRepository {
       headers['x-router'] = 'cloudlist.service.kugou.com';
 
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}/v6/add_song',
+        '${KugouEndpoints.gateway}/v6/add_song',
         queryParameters: query,
         data: bodyJson,
         options: Options(headers: headers),
@@ -601,7 +601,7 @@ class UserRepository {
       final device = await DeviceIdentity.ensure();
       final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final query = <String, dynamic>{
-        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
         'plat': 1,
         'userid': int.tryParse(userId) ?? userId,
         'token': token,
@@ -617,13 +617,13 @@ class UserRepository {
         'list_ver': 0,
       };
       final bodyJson = jsonEncode(dataMap);
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
       final headers = _authHeaders(device: device, token: token, userId: userId, clienttime: clienttime);
       headers['x-router'] = 'cloudlist.service.kugou.com';
 
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}/v4/delete_songs',
+        '${KugouEndpoints.gateway}/v4/delete_songs',
         queryParameters: query,
         data: bodyJson,
         options: Options(headers: headers),
@@ -659,7 +659,7 @@ class UserRepository {
       'KUGOU_API_DEV=${device.dev}',
     ];
     return <String, dynamic>{
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       'Content-Type': 'application/json',
       'dfid': device.dfid,
       'mid': device.mid,
@@ -673,7 +673,7 @@ class UserRepository {
     if (looksLikeUrlFilter(raw)) {
       return (ok: false, error: '网络网关拦截（URL过滤），无法访问酷狗');
     }
-    final decoded = decodeKugoBody(res.data);
+    final decoded = decodeKugouBody(res.data);
     if (decoded is! Map) {
       return (ok: false, error: fallback);
     }

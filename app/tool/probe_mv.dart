@@ -13,8 +13,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
-import 'package:overtone/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
 
 Future<void> main() async {
   final dio = Dio(
@@ -26,13 +26,13 @@ Future<void> main() async {
     ),
   );
 
-  final guid = KugoSign.randomAlnum(32);
-  final mid = KugoSign.calculateMid(guid);
+  final guid = KugouSign.randomAlnum(32);
+  final mid = KugouSign.calculateMid(guid);
   final dfid = '-';
   final uuid = '-';
 
   Map<String, String> baseHeaders({String? router, String? kgTid}) => {
-        'User-Agent': KugoSign.userAgent,
+        'User-Agent': KugouSign.userAgent,
         'Content-Type': 'application/json',
         'dfid': dfid,
         'clienttime': '${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
@@ -54,8 +54,8 @@ Future<void> main() async {
         'dfid': dfid,
         'mid': mid,
         'uuid': uuid,
-        'appid': int.parse(KugoSign.appId),
-        'clientver': int.parse(KugoSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
+        'clientver': int.parse(KugouSign.clientVer),
         'clienttime': clienttime ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
       };
 
@@ -64,7 +64,7 @@ Future<void> main() async {
     final filtered = raw.contains('URL过滤') || raw.contains('Access Deny');
     print('[$name] http=${res.statusCode} filtered=$filtered len=${raw.length}');
     // Print a readable slice; also expand JSON when possible.
-    final decoded = decodeKugoBody(raw);
+    final decoded = decodeKugouBody(raw);
     if (decoded is Map || decoded is List) {
       const encoder = JsonEncoder.withIndent('  ');
       final pretty = encoder.convert(decoded);
@@ -133,7 +133,7 @@ Future<void> main() async {
       },
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Referer': 'http://www.kugou.com/',
         },
       ),
@@ -148,7 +148,7 @@ Future<void> main() async {
     );
   }
 
-  final searchJson = decodeKugoBody(searchRes.data) as Map? ?? const {};
+  final searchJson = decodeKugouBody(searchRes.data) as Map? ?? const {};
   final infoList = (searchJson['data'] is Map
           ? (searchJson['data'] as Map)['info']
           : null) ??
@@ -184,7 +184,7 @@ Future<void> main() async {
         'pagesize': 3,
         'platform': 'AndroidFilter',
       });
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
     try {
       final res = await dio.get<dynamic>(
         'https://gateway.kugou.com/v1/search/mv',
@@ -192,7 +192,7 @@ Future<void> main() async {
         options: Options(headers: baseHeaders(router: 'complexsearch.kugou.com')),
       );
       dump('search-mv-gateway', res);
-      final json = decodeKugoBody(res.data) as Map? ?? const {};
+      final json = decodeKugouBody(res.data) as Map? ?? const {};
       final lists = (json['data'] is Map ? (json['data'] as Map)['lists'] : null) ??
           const [];
       if (lists is List && lists.isNotEmpty) {
@@ -230,12 +230,12 @@ Future<void> main() async {
       },
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Referer': 'http://www.kugou.com/',
         },
       ),
     );
-    final json = decodeKugoBody(res.data) as Map? ?? const {};
+    final json = decodeKugouBody(res.data) as Map? ?? const {};
     final info = (json['data'] is Map ? (json['data'] as Map)['info'] : null) ??
         const [];
     if (info is List && info.isNotEmpty) {
@@ -277,7 +277,7 @@ Future<void> main() async {
       final bodyJson = jsonEncode(body);
       final query = defaultQuery(clienttime: clienttime);
       query['signature'] =
-          KugoSign.signatureAndroidParams(query, data: bodyJson);
+          KugouSign.signatureAndroidParams(query, data: bodyJson);
       await post(
         'kmr-audio-mv id=$id',
         url: 'https://gateway.kugou.com/kmr/v1/audio/mv',
@@ -300,14 +300,14 @@ Future<void> main() async {
     print('======== 4. video/detail ========');
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final body = <String, dynamic>{
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       'mid': mid,
-      'uuid': KugoSign.md5Hex('$dfid$mid'),
+      'uuid': KugouSign.md5Hex('$dfid$mid'),
       'dfid': dfid,
       'token': '',
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
       'show_resolution': 1,
       'data': [
         {'video_id': mvId},
@@ -318,7 +318,7 @@ Future<void> main() async {
     // Variant A: empty query + signature over body (clearDefaultParams style).
     {
       final query = <String, dynamic>{};
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
       await post(
         'video-detail-A',
         url: 'https://gateway.kugou.com/v1/video',
@@ -330,7 +330,7 @@ Future<void> main() async {
     // Variant B: default query + signature over body (no clearDefaultParams).
     {
       final query = defaultQuery(clienttime: clienttime);
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
       await post(
         'video-detail-B',
         url: 'https://gateway.kugou.com/v1/video',
@@ -351,10 +351,10 @@ Future<void> main() async {
     print('======== 5. video/privilege ========');
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final body = <String, dynamic>{
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'area_code': 1,
       'behavior': 'play',
-      'clientver': int.parse(KugoSign.clientVer),
+      'clientver': int.parse(KugouSign.clientVer),
       'dfid': dfid,
       'mid': mid,
       'resource': [
@@ -366,7 +366,7 @@ Future<void> main() async {
     };
     final bodyJson = jsonEncode(body);
     final query = defaultQuery(clienttime: clienttime);
-    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
     await post(
       'video-privilege',
       url: 'https://gateway.kugou.com/v1/get_video_privilege',
@@ -396,8 +396,8 @@ Future<void> main() async {
         'pid': 1,
         'type': 1,
       });
-    query['key'] = KugoSign.signKey(mvHash, mid);
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['key'] = KugouSign.signKey(mvHash, mid);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
     await get(
       'video-url',
       url: 'https://gateway.kugou.com/v2/interface/index',
@@ -440,7 +440,7 @@ Future<void> main() async {
         'pagesize': 3,
         'page': 1,
       });
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
     await get(
       'artist-videos',
       url: 'https://openapicdn.kugou.com/kmr/v1/author/videos',

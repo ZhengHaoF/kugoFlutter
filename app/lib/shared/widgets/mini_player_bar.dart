@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/cover_palette.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
 import 'cover_box.dart';
@@ -14,7 +14,7 @@ class MiniPlayerBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // 细粒度订阅：播放栏只在「曲目 / 时长 / 加载态 / 播放态」变化时重建，
     // 不再被音量、循环模式、队列增删等离散变更连带重建。
     final track = ref.watch(
@@ -31,10 +31,10 @@ class MiniPlayerBar extends ConsumerWidget {
       playerControllerProvider.select((s) => s.isPlaying),
     );
 
-    final isLight = kugo.palette.isLight;
+    final isLight = theme.palette.isLight;
 
     return Material(
-      color: kugo.surface,
+      color: theme.surface,
       elevation: isLight ? 1.5 : 8,
       shadowColor: isLight
           ? Colors.black.withValues(alpha: 0.08)
@@ -47,8 +47,8 @@ class MiniPlayerBar extends ConsumerWidget {
             Container(
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: kugo.divider),
-                  bottom: BorderSide(color: kugo.divider),
+                  top: BorderSide(color: theme.divider),
+                  bottom: BorderSide(color: theme.divider),
                 ),
               ),
               child: Padding(
@@ -84,7 +84,7 @@ class MiniPlayerBar extends ConsumerWidget {
                               track.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.body.copyWith(fontSize: 14),
+                              style: theme.body.copyWith(fontSize: 14),
                             ),
                             Row(
                               children: [
@@ -93,7 +93,7 @@ class MiniPlayerBar extends ConsumerWidget {
                                     track.artist,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: kugo.caption,
+                                    style: theme.caption,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -116,7 +116,7 @@ class MiniPlayerBar extends ConsumerWidget {
                               .previous(),
                       icon: Icon(
                         Icons.skip_previous_rounded,
-                        color: kugo.textSecondary,
+                        color: theme.textSecondary,
                       ),
                     ),
                     IconButton(
@@ -133,13 +133,13 @@ class MiniPlayerBar extends ConsumerWidget {
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: kugo.primary,
+                                  color: theme.primary,
                                 ),
                               )
                             : PlayPauseIcon(
                                 playing: isPlaying,
                                 size: 34,
-                                color: kugo.primary,
+                                color: theme.primary,
                               ),
                       ),
                     ),
@@ -150,7 +150,7 @@ class MiniPlayerBar extends ConsumerWidget {
                               ref.read(playerControllerProvider.notifier).next(),
                       icon: Icon(
                         Icons.skip_next_rounded,
-                        color: kugo.textSecondary,
+                        color: theme.textSecondary,
                       ),
                     ),
                   ],
@@ -176,11 +176,11 @@ class MiniPlayerBar extends ConsumerWidget {
                             colors: [
                               CoverPalette.accentFromSeed(
                                 track.coverUrl,
-                                kugo.palette,
+                                theme.palette,
                               ),
                               CoverPalette.accentFromSeed(
                                 track.coverUrl,
-                                kugo.palette,
+                                theme.palette,
                               ).withValues(alpha: 0.4),
                             ],
                           ),

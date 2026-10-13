@@ -11,8 +11,8 @@ import '../../core/platform.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/theme/cover_palette.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
@@ -98,7 +98,7 @@ class _FmPageState extends ConsumerState<FmPage>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
     // 整源开关变化要触发重建：可用源、切源栏与空态都由它派生。
@@ -135,12 +135,12 @@ class _FmPageState extends ConsumerState<FmPage>
 
     final accent = CoverPalette.accentFromSeed(
       (fmActive ? fmCurrent?.coverUrl : previewCover) ?? 'fm',
-      kugo.palette,
+      theme.palette,
     );
     final message = fm.gatewayError.isNotEmpty ? fm.gatewayError : fm.error;
 
     final radioCard = FmRadioCard(
-      kugo: kugo,
+      theme: theme,
       accent: accent,
       mode: fm.pendingMode,
       pool: fm.pendingPool,
@@ -169,7 +169,7 @@ class _FmPageState extends ConsumerState<FmPage>
     final poolSwitch = !modeAxis
         ? const SizedBox.shrink()
         : FmCapsuleSwitch<FmSongPool>(
-            kugo: kugo,
+            theme: theme,
             values: FmSongPool.values,
             labelOf: (p) => p.label,
             selected: fm.pendingPool,
@@ -187,7 +187,7 @@ class _FmPageState extends ConsumerState<FmPage>
       double sideGap = FmStageMetrics.sideGap,
     }) {
       return FmVinylCarousel(
-        kugo: kugo,
+        theme: theme,
         accent: accent,
         spin: _spin,
         tracks: fmQueue,
@@ -240,14 +240,14 @@ class _FmPageState extends ConsumerState<FmPage>
     final pendingBar = !fm.hasPendingChange
         ? const SizedBox.shrink()
         : Padding(
-            padding: const EdgeInsets.only(top: KugoSpacing.sm),
+            padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     '已切到 ${fm.pendingMode.label} · ${fm.pendingPool.label}，下一首生效',
-                    style: kugo.caption.copyWith(
-                      color: kugo.primary,
+                    style: theme.caption.copyWith(
+                      color: theme.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -264,28 +264,28 @@ class _FmPageState extends ConsumerState<FmPage>
     final errorBanner = message.isEmpty
         ? const SizedBox.shrink()
         : Container(
-            margin: const EdgeInsets.only(bottom: KugoSpacing.md),
+            margin: const EdgeInsets.only(bottom: OvertoneSpacing.md),
             padding: const EdgeInsets.symmetric(
-              horizontal: KugoSpacing.md,
-              vertical: KugoSpacing.sm + 2,
+              horizontal: OvertoneSpacing.md,
+              vertical: OvertoneSpacing.sm + 2,
             ),
             decoration: BoxDecoration(
-              color: kugo.surface,
-              borderRadius: BorderRadius.circular(KugoRadius.tile),
-              border: Border.all(color: kugo.divider),
+              color: theme.surface,
+              borderRadius: BorderRadius.circular(OvertoneRadius.tile),
+              border: Border.all(color: theme.divider),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.error_outline_rounded,
                   size: 16,
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                 ),
-                const SizedBox(width: KugoSpacing.sm),
+                const SizedBox(width: OvertoneSpacing.sm),
                 Expanded(
                   child: Text(
                     message,
-                    style: kugo.caption.copyWith(color: kugo.textSecondary),
+                    style: theme.caption.copyWith(color: theme.textSecondary),
                   ),
                 ),
               ],
@@ -293,28 +293,28 @@ class _FmPageState extends ConsumerState<FmPage>
           );
 
     final nowPanel = _FmPanel(
-      kugo: kugo,
+      theme: theme,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Text('当前播放', style: kugo.section.copyWith(fontSize: 15)),
+              Text('当前播放', style: theme.section.copyWith(fontSize: 15)),
               const Spacer(),
               // 未起播时这里留一个明确入口；起播后操作都收在电台卡 footer 里。
               if (!fmActive) startCta,
             ],
           ),
-          const SizedBox(height: KugoSpacing.lg),
+          const SizedBox(height: OvertoneSpacing.lg),
           if (fmCurrent != null)
             _NowPlayingBody(
-              kugo: kugo,
+              theme: theme,
               track: fmCurrent,
               desktop: desktop,
               // 来源标注只在「这是 FM 队列」时有意义。
               // 非 FM 队列走上面的空闲分支，不会进到这里。
               sourceBadge: FmSourceBadge(
-                      kugo: kugo,
+                      theme: theme,
                       platform: activeSource,
                       fromServer: fm.fromServer,
                       gatewayError: fm.gatewayError,
@@ -326,7 +326,7 @@ class _FmPageState extends ConsumerState<FmPage>
             )
           else
             _FmIdleBody(
-              kugo: kugo,
+              theme: theme,
               mode: fm.pendingMode,
               pool: fm.pendingPool,
               stationLabel: modeAxis ? null : '${activeSource.label}私人 FM',
@@ -336,7 +336,7 @@ class _FmPageState extends ConsumerState<FmPage>
     );
 
     final upcomingPanel = _UpcomingPanel(
-      kugo: kugo,
+      theme: theme,
       player: player,
       maxItems: _maxUpcoming,
       // 切源是先停后切：取数窗口里队列已清空，appending 置上让面板说
@@ -350,15 +350,15 @@ class _FmPageState extends ConsumerState<FmPage>
     final showUpcoming = fmActive;
 
     return Scaffold(
-      backgroundColor: kugo.bg,
+      backgroundColor: theme.bg,
       body: SafeArea(
         child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.sm,
-                KugoSpacing.sm,
-                KugoSpacing.lg,
+                OvertoneSpacing.sm,
+                OvertoneSpacing.sm,
+                OvertoneSpacing.lg,
                 4,
               ),
               child: SizedBox(
@@ -375,7 +375,7 @@ class _FmPageState extends ConsumerState<FmPage>
                       )
                     else
                       const SizedBox(width: 12),
-                    const SizedBox(width: KugoSpacing.xs),
+                    const SizedBox(width: OvertoneSpacing.xs),
                     // 标题 + LIVE 作为一整组放进 Expanded，吃掉行里的剩余宽度。
                     // 旧写法是 Flexible(标题) + Spacer：两者各占 flex:1 分自由
                     // 空间，但 loose 的 Flexible 只用了很小一部分，剩下的在行尾
@@ -388,24 +388,24 @@ class _FmPageState extends ConsumerState<FmPage>
                               '私人 FM',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.section.copyWith(fontSize: 19),
+                              style: theme.section.copyWith(fontSize: 19),
                             ),
                           ),
                           if (fmActive) ...[
-                            const SizedBox(width: KugoSpacing.sm),
+                            const SizedBox(width: OvertoneSpacing.sm),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: kugo.primary.withValues(alpha: 0.16),
+                                color: theme.primary.withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 'LIVE',
                                 style: TextStyle(
-                                  color: kugo.primary,
+                                  color: theme.primary,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -440,10 +440,10 @@ class _FmPageState extends ConsumerState<FmPage>
                 // 浏览型页面：内容铺满侧栏之外的全部宽度（与发现页 /「我的」「历史」一致），
                 // 不再做居中限宽——最大化窗口时两侧不会再留大片空白。
                 padding: EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.sm,
-                  KugoSpacing.lg,
-                  isDesktopPlatform ? KugoSpacing.lg : 100,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.sm,
+                  OvertoneSpacing.lg,
+                  isDesktopPlatform ? OvertoneSpacing.lg : 100,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -451,10 +451,10 @@ class _FmPageState extends ConsumerState<FmPage>
                     errorBanner,
                     stage,
                     pendingBar,
-                    const SizedBox(height: KugoSpacing.xxl),
+                    const SizedBox(height: OvertoneSpacing.xxl),
                     nowPanel,
                     if (showUpcoming) ...[
-                      const SizedBox(height: KugoSpacing.xl),
+                      const SizedBox(height: OvertoneSpacing.xl),
                       upcomingPanel,
                     ],
                   ],
@@ -470,9 +470,9 @@ class _FmPageState extends ConsumerState<FmPage>
 
 /// 面板容器：surface 底 + 细边 + 轻阴影（EchoMusic `fm-panel`）。
 class _FmPanel extends StatelessWidget {
-  const _FmPanel({required this.kugo, required this.child});
+  const _FmPanel({required this.theme, required this.child});
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final Widget child;
 
   @override
@@ -480,12 +480,12 @@ class _FmPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: kugo.surface,
+        color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: kugo.divider),
+        border: Border.all(color: theme.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: kugo.isLight ? 0.05 : 0.25),
+            color: Colors.black.withValues(alpha: theme.isLight ? 0.05 : 0.25),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
@@ -499,13 +499,13 @@ class _FmPanel extends StatelessWidget {
 /// 「当前播放」主体：左封面 + 右信息列（歌名 / 歌手 / 专辑 / 推荐理由 / chips / 来源）。
 class _NowPlayingBody extends StatelessWidget {
   const _NowPlayingBody({
-    required this.kugo,
+    required this.theme,
     required this.track,
     required this.desktop,
     required this.sourceBadge,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final Track track;
   final bool desktop;
   final Widget sourceBadge;
@@ -536,7 +536,7 @@ class _NowPlayingBody extends StatelessWidget {
           textAlign: desktop ? TextAlign.left : TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: kugo.title.copyWith(
+          style: theme.title.copyWith(
             fontSize: 26,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
@@ -547,10 +547,10 @@ class _NowPlayingBody extends StatelessWidget {
         Text(
           track.artist,
           textAlign: desktop ? TextAlign.left : TextAlign.center,
-          style: kugo.body.copyWith(
+          style: theme.body.copyWith(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: kugo.textSecondary,
+            color: theme.textSecondary,
           ),
         ),
         if (track.album.isNotEmpty) ...[
@@ -558,35 +558,35 @@ class _NowPlayingBody extends StatelessWidget {
           Text(
             track.album,
             textAlign: desktop ? TextAlign.left : TextAlign.center,
-            style: kugo.caption.copyWith(color: kugo.textTertiary),
+            style: theme.caption.copyWith(color: theme.textTertiary),
           ),
         ],
         if (track.recDesc.isNotEmpty) ...[
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           Text(
             track.recDesc,
             textAlign: desktop ? TextAlign.left : TextAlign.center,
-            style: kugo.caption.copyWith(
-              color: kugo.primary,
+            style: theme.caption.copyWith(
+              color: theme.primary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
-        const SizedBox(height: KugoSpacing.md),
+        const SizedBox(height: OvertoneSpacing.md),
         FmInfoChips(
-          kugo: kugo,
+          theme: theme,
           track: track,
           center: !desktop,
         ),
-        const SizedBox(height: KugoSpacing.md),
+        const SizedBox(height: OvertoneSpacing.md),
         sourceBadge,
       ],
     );
 
     if (!desktop) {
       return Column(
-        children: [Center(child: cover), const SizedBox(height: KugoSpacing.lg), info],
+        children: [Center(child: cover), const SizedBox(height: OvertoneSpacing.lg), info],
       );
     }
     return Row(
@@ -603,13 +603,13 @@ class _NowPlayingBody extends StatelessWidget {
 /// 未起播时的占位：一张主题封面 + 一句话，告诉用户点哪里开始。
 class _FmIdleBody extends StatelessWidget {
   const _FmIdleBody({
-    required this.kugo,
+    required this.theme,
     required this.mode,
     required this.pool,
     this.stationLabel,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final FmMode mode;
   final FmSongPool pool;
 
@@ -630,7 +630,7 @@ class _FmIdleBody extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        const SizedBox(width: KugoSpacing.lg),
+        const SizedBox(width: OvertoneSpacing.lg),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,7 +638,7 @@ class _FmIdleBody extends StatelessWidget {
             children: [
               Text(
                 '尚未开始电台',
-                style: kugo.body.copyWith(
+                style: theme.body.copyWith(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -649,7 +649,7 @@ class _FmIdleBody extends StatelessWidget {
                     ? '${mode.stationTitle} · ${mode.subtitle} · ${pool.label}，'
                         '点击「开始电台」即可收流'
                     : '$stationLabel，点击「开始电台」即可收听',
-                style: kugo.caption.copyWith(color: kugo.textSecondary),
+                style: theme.caption.copyWith(color: theme.textSecondary),
               ),
             ],
           ),
@@ -662,14 +662,14 @@ class _FmIdleBody extends StatelessWidget {
 /// 「接下来」面板：待播队列预览，行样式而不是密集小列表。
 class _UpcomingPanel extends StatelessWidget {
   const _UpcomingPanel({
-    required this.kugo,
+    required this.theme,
     required this.player,
     required this.maxItems,
     required this.appending,
     required this.onTap,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final PlayerState player;
   final int maxItems;
   final bool appending;
@@ -686,36 +686,36 @@ class _UpcomingPanel extends StatelessWidget {
         : player.queue.length - player.currentIndex - 1;
 
     return _FmPanel(
-      kugo: kugo,
+      theme: theme,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Text('接下来', style: kugo.section.copyWith(fontSize: 15)),
-              const SizedBox(width: KugoSpacing.sm),
+              Text('接下来', style: theme.section.copyWith(fontSize: 15)),
+              const SizedBox(width: OvertoneSpacing.sm),
               Expanded(
                 child: Text(
                   appending ? '正在续接歌池…' : '$left 首待播',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           if (upcoming.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: KugoSpacing.lg),
+              padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.lg),
               child: Text(
                 appending ? '歌池正在续接…' : '歌池见底了，换个模式或歌池试试',
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
+                style: theme.caption.copyWith(color: theme.textTertiary),
               ),
             )
           else
             for (var i = 0; i < upcoming.length; i++) ...[
-              if (i > 0) Divider(color: kugo.divider, height: 1),
+              if (i > 0) Divider(color: theme.divider, height: 1),
               _UpcomingRow(
-                kugo: kugo,
+                theme: theme,
                 index: from + i,
                 track: upcoming[i],
                 onTap: () => onTap(from + i),
@@ -729,13 +729,13 @@ class _UpcomingPanel extends StatelessWidget {
 
 class _UpcomingRow extends StatelessWidget {
   const _UpcomingRow({
-    required this.kugo,
+    required this.theme,
     required this.index,
     required this.track,
     required this.onTap,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final int index;
   final Track track;
   final VoidCallback onTap;
@@ -743,7 +743,7 @@ class _UpcomingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      borderRadius: BorderRadius.circular(OvertoneRadius.tile),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -754,10 +754,10 @@ class _UpcomingRow extends StatelessWidget {
               child: Text(
                 '${index + 1}',
                 textAlign: TextAlign.center,
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
+                style: theme.caption.copyWith(color: theme.textTertiary),
               ),
             ),
-            const SizedBox(width: KugoSpacing.sm),
+            const SizedBox(width: OvertoneSpacing.sm),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: SizedBox(
@@ -766,7 +766,7 @@ class _UpcomingRow extends StatelessWidget {
                 child: CoverBox(seed: track.coverUrl, size: 44, radius: 10),
               ),
             ),
-            const SizedBox(width: KugoSpacing.md),
+            const SizedBox(width: OvertoneSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,21 +776,21 @@ class _UpcomingRow extends StatelessWidget {
                     track.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: kugo.body.copyWith(fontSize: 14),
+                    style: theme.body.copyWith(fontSize: 14),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     track.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: kugo.caption.copyWith(fontSize: 12),
+                    style: theme.caption.copyWith(fontSize: 12),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: KugoSpacing.sm),
+            const SizedBox(width: OvertoneSpacing.sm),
             if (track.durationMs > 0)
-              Text(track.durationLabel, style: kugo.caption),
+              Text(track.durationLabel, style: theme.caption),
           ],
         ),
       ),

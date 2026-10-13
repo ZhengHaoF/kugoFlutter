@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../features/settings/settings_controller.dart';
 
 /// What the user picked in the desktop close prompt, plus whether they asked us
@@ -30,7 +30,7 @@ Future<CloseBehaviorChoice?> showCloseBehaviorDialog(
   return showDialog<CloseBehaviorChoice>(
     context: context,
     builder: (dialogContext) {
-      final kugo = KugoTheme.of(dialogContext);
+      final theme = OvertoneTheme.of(dialogContext);
       return StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('关闭 泛音'),
@@ -42,7 +42,7 @@ Future<CloseBehaviorChoice?> showCloseBehaviorDialog(
                 trayAvailable
                     ? '退出应用，还是最小化到系统托盘继续播放？'
                     : '当前桌面没有可用的系统托盘。退出应用，还是保持窗口打开？',
-                style: kugo.body,
+                style: theme.body,
               ),
               const SizedBox(height: 4),
               CheckboxListTile(
@@ -51,8 +51,8 @@ Future<CloseBehaviorChoice?> showCloseBehaviorDialog(
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (v) => setState(() => remember = v ?? false),
-                title: Text('记住我的选择', style: kugo.body),
-                subtitle: Text('下次关闭不再询问，可在设置中修改', style: kugo.caption),
+                title: Text('记住我的选择', style: theme.body),
+                subtitle: Text('下次关闭不再询问，可在设置中修改', style: theme.caption),
               ),
             ],
           ),

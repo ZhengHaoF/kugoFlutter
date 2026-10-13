@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
 import '../../core/theme/cover_palette.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/likes/likes_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
@@ -22,7 +22,7 @@ import '../mv/mv_entry.dart';
 import 'fm_controls.dart';
 import '../../shared/widgets/lyric_display_sheet.dart';
 import '../../shared/widgets/quality_sheet.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -41,13 +41,13 @@ class FullPlayerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final track = player.current;
     if (track == null) {
       return Scaffold(
-        backgroundColor: kugo.bg,
+        backgroundColor: theme.bg,
         body: SafeArea(
           child: Column(
             children: [
@@ -63,7 +63,7 @@ class FullPlayerPage extends ConsumerWidget {
                   child: Text(
                     '暂无播放内容\n去搜索或歌单里点一首歌',
                     textAlign: TextAlign.center,
-                    style: kugo.caption,
+                    style: theme.caption,
                   ),
                 ),
               ),
@@ -86,14 +86,14 @@ class FullPlayerPage extends ConsumerWidget {
 
     if (isDesktop) {
       return Scaffold(
-        backgroundColor: kugo.bg,
+        backgroundColor: theme.bg,
         body: AnimatedContainer(
           duration: const Duration(milliseconds: 420),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
             gradient: CoverPalette.playerBackground(
               track.coverUrl,
-              kugo.palette,
+              theme.palette,
             ),
           ),
           child: SafeArea(
@@ -122,7 +122,7 @@ class FullPlayerPage extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text('正在播放', style: kugo.section),
+                            Text('正在播放', style: theme.section),
                             const Spacer(),
                             // 播放 MV（这首歌有 MV 时露出）
                             MvEntryButton(track: track, size: 20),
@@ -164,7 +164,7 @@ class FullPlayerPage extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: kugo.title.copyWith(fontSize: 20, height: 1.2),
+                          style: theme.title.copyWith(fontSize: 20, height: 1.2),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -172,7 +172,7 @@ class FullPlayerPage extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: kugo.caption.copyWith(fontSize: 13),
+                          style: theme.caption.copyWith(fontSize: 13),
                         ),
 
                         const SizedBox(height: 10),
@@ -219,13 +219,13 @@ class FullPlayerPage extends ConsumerWidget {
                                       children: [
                                         Text(
                                           FullPlayerPage.format(positionMs),
-                                          style: kugo.caption.copyWith(
+                                          style: theme.caption.copyWith(
                                             fontSize: 11,
                                           ),
                                         ),
                                         Text(
                                           '-${FullPlayerPage.format(duration - positionMs)}',
-                                          style: kugo.caption.copyWith(
+                                          style: theme.caption.copyWith(
                                             fontSize: 11,
                                           ),
                                         ),
@@ -257,7 +257,7 @@ class FullPlayerPage extends ConsumerWidget {
                 // 分割线
                 VerticalDivider(
                   width: 1,
-                  color: kugo.divider.withValues(alpha: 0.5),
+                  color: theme.divider.withValues(alpha: 0.5),
                 ),
 
                 // ---------------- 右栏：完整平滑滚动歌词 ----------------
@@ -271,8 +271,8 @@ class FullPlayerPage extends ConsumerWidget {
                           children: [
                             Text(
                               '歌词',
-                              style: kugo.section.copyWith(
-                                color: kugo.primary,
+                              style: theme.section.copyWith(
+                                color: theme.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -306,12 +306,12 @@ class FullPlayerPage extends ConsumerWidget {
 
     return Scaffold(
       // Solid page bg avoids Material/Zoom settle flash-through.
-      backgroundColor: kugo.bg,
+      backgroundColor: theme.bg,
       body: AnimatedContainer(
         duration: const Duration(milliseconds: 420),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
+          gradient: CoverPalette.playerBackground(track.coverUrl, theme.palette),
         ),
         child: SafeArea(
           child: Column(
@@ -367,10 +367,10 @@ class FullPlayerPage extends ConsumerWidget {
   }
 
   void _showQueueSheet(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.read(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
-    showKugoBottomSheet<void>(
+    showOvertoneBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
         return Column(
@@ -381,14 +381,14 @@ class FullPlayerPage extends ConsumerWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: kugo.textTertiary,
+                color: theme.textTertiary,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
             Text(
               '播放队列 · ${player.queue.length} 首',
-              style: kugo.section.copyWith(fontSize: 16),
+              style: theme.section.copyWith(fontSize: 16),
             ),
             const SizedBox(height: 8),
             Flexible(
@@ -401,15 +401,15 @@ class FullPlayerPage extends ConsumerWidget {
                   return ListTile(
                     title: Text(
                       track.name,
-                      style: kugo.body.copyWith(
-                        color: isCurrent ? kugo.primary : kugo.textPrimary,
+                      style: theme.body.copyWith(
+                        color: isCurrent ? theme.primary : theme.textPrimary,
                       ),
                     ),
-                    subtitle: Text(track.artist, style: kugo.caption),
+                    subtitle: Text(track.artist, style: theme.caption),
                     trailing: isCurrent
                         ? Icon(
                             Icons.equalizer_rounded,
-                            color: kugo.primary,
+                            color: theme.primary,
                             size: 18,
                           )
                         : null,
@@ -435,14 +435,14 @@ class PlayerLyricsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final track = player.current;
 
     if (track == null) {
       return Scaffold(
-        backgroundColor: kugo.bg,
+        backgroundColor: theme.bg,
         body: SafeArea(
           child: Column(
             children: [
@@ -454,7 +454,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                 ),
               ),
               Expanded(
-                child: Center(child: Text('暂无播放内容', style: kugo.caption)),
+                child: Center(child: Text('暂无播放内容', style: theme.caption)),
               ),
             ],
           ),
@@ -471,12 +471,12 @@ class PlayerLyricsPage extends ConsumerWidget {
     final duration = player.durationMs == 0 ? 1 : player.durationMs;
 
     return Scaffold(
-      backgroundColor: kugo.bg,
+      backgroundColor: theme.bg,
       body: AnimatedContainer(
         duration: const Duration(milliseconds: 420),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          gradient: CoverPalette.playerBackground(track.coverUrl, kugo.palette),
+          gradient: CoverPalette.playerBackground(track.coverUrl, theme.palette),
         ),
         child: SafeArea(
           child: GestureDetector(
@@ -489,9 +489,9 @@ class PlayerLyricsPage extends ConsumerWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    KugoSpacing.sm,
-                    KugoSpacing.sm,
-                    KugoSpacing.xl,
+                    OvertoneSpacing.sm,
+                    OvertoneSpacing.sm,
+                    OvertoneSpacing.xl,
                     4,
                   ),
                   child: SizedBox(
@@ -523,7 +523,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                                 track.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: kugo.body.copyWith(
+                                style: theme.body.copyWith(
                                   fontWeight: FontWeight.w600,
                                   height: 1.2,
                                 ),
@@ -532,7 +532,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                                 '${track.artist} · ${track.album}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: kugo.caption.copyWith(height: 1.2),
+                                style: theme.caption.copyWith(height: 1.2),
                               ),
                             ],
                           ),
@@ -545,9 +545,9 @@ class PlayerLyricsPage extends ConsumerWidget {
                 if (player.display == PlayerDisplayState.error)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      KugoSpacing.xl,
+                      OvertoneSpacing.xl,
                       4,
-                      KugoSpacing.xl,
+                      OvertoneSpacing.xl,
                       0,
                     ),
                     child: Text(
@@ -555,7 +555,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                           ? '播放失败，可点下一首重试'
                           : player.errorCode,
                       textAlign: TextAlign.center,
-                      style: kugo.caption.copyWith(
+                      style: theme.caption.copyWith(
                         color: Theme.of(context).colorScheme.error,
                       ),
                     ),
@@ -573,9 +573,9 @@ class PlayerLyricsPage extends ConsumerWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    KugoSpacing.lg,
+                    OvertoneSpacing.lg,
                     4,
-                    KugoSpacing.lg,
+                    OvertoneSpacing.lg,
                     20,
                   ),
                   child: Column(
@@ -622,13 +622,13 @@ class PlayerLyricsPage extends ConsumerWidget {
                                     children: [
                                       Text(
                                         FullPlayerPage.format(positionMs),
-                                        style: kugo.caption.copyWith(
+                                        style: theme.caption.copyWith(
                                           height: 1.2,
                                         ),
                                       ),
                                       Text(
                                         '-${FullPlayerPage.format((duration - positionMs).clamp(0, duration))}',
-                                        style: kugo.caption.copyWith(
+                                        style: theme.caption.copyWith(
                                           height: 1.2,
                                         ),
                                       ),
@@ -678,7 +678,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final title = AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       child: expanded
@@ -691,14 +691,14 @@ class _TopBar extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: kugo.section,
+                  style: theme.section,
                 ),
                 Text(
                   track.artist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
               ],
             )
@@ -706,7 +706,7 @@ class _TopBar extends StatelessWidget {
               key: const ValueKey('playing-title'),
               '正在播放',
               textAlign: TextAlign.center,
-              style: kugo.section,
+              style: theme.section,
             ),
     );
 
@@ -898,7 +898,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final bodyH = constraints.maxHeight.isFinite
@@ -910,7 +910,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
         const sliderH = 48.0;
         const timeH = 22.0;
         const controlsH = 64.0;
-        const padTop = KugoSpacing.sm;
+        const padTop = OvertoneSpacing.sm;
         const padBottom = 20.0;
         final bottomH =
             padTop +
@@ -960,7 +960,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(
-                          KugoRadius.card + 4,
+                          OvertoneRadius.card + 4,
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -974,7 +974,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                         tag: 'player-cover-${track.id}',
                         seed: track.coverUrl,
                         size: 0,
-                        radius: KugoRadius.card + 4,
+                        radius: OvertoneRadius.card + 4,
                         useHero: useHero,
                       ),
                     ),
@@ -986,7 +986,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
             SizedBox(
               height: lyricsH,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
                 child: lyrics(),
               ),
             ),
@@ -995,9 +995,9 @@ class _CollapsedPlayerBody extends StatelessWidget {
               height: bottomH,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
+                  OvertoneSpacing.lg,
                   padTop,
-                  KugoSpacing.lg,
+                  OvertoneSpacing.lg,
                   padBottom,
                 ),
                 child: Column(
@@ -1025,7 +1025,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
                                   : player.errorCode,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.caption.copyWith(
+                              style: theme.caption.copyWith(
                                 color: Theme.of(context).colorScheme.error,
                                 fontSize: 12,
                                 height: 1.25,
@@ -1081,13 +1081,13 @@ class _CollapsedPlayerBody extends StatelessWidget {
                                     children: [
                                       Text(
                                         format(positionMs),
-                                        style: kugo.caption.copyWith(
+                                        style: theme.caption.copyWith(
                                           height: 1.2,
                                         ),
                                       ),
                                       Text(
                                         '-${format(duration - positionMs)}',
-                                        style: kugo.caption.copyWith(
+                                        style: theme.caption.copyWith(
                                           height: 1.2,
                                         ),
                                       ),
@@ -1126,7 +1126,7 @@ class _TrackMetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return SizedBox(
       height: height,
       child: AnimatedSwitcher(
@@ -1148,7 +1148,7 @@ class _TrackMetaRow extends StatelessWidget {
                       track.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.playerTitle.copyWith(
+                      style: theme.playerTitle.copyWith(
                         fontSize: 20,
                         height: 1.2,
                       ),
@@ -1161,7 +1161,7 @@ class _TrackMetaRow extends StatelessWidget {
                             '${track.artist} · ${track.album}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.caption.copyWith(height: 1.2),
+                            style: theme.caption.copyWith(height: 1.2),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -1190,7 +1190,7 @@ class _PlayerQualityChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final preferred = ref.watch(settingsControllerProvider).quality;
     final resolved = player.resolvedQuality;
@@ -1220,7 +1220,7 @@ class _PlayerQualityChip extends ConsumerWidget {
                 Icon(
                   Icons.unfold_more_rounded,
                   size: 12,
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                 ),
               ],
             ),
@@ -1250,7 +1250,7 @@ class _ControlBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // Always bind the live player state so the play/pause icon cannot go stale.
     final live = ref.watch(playerControllerProvider);
     final liked = ref.watch(likesProvider).any((t) => t.id == track.id);
@@ -1292,7 +1292,7 @@ class _ControlBar extends ConsumerWidget {
                     PlayerLoopMode.shuffle => Icons.shuffle_rounded,
                     PlayerLoopMode.single => Icons.repeat_one_rounded,
                   },
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                   size: 22,
                 ),
               ),
@@ -1305,14 +1305,14 @@ class _ControlBar extends ConsumerWidget {
               icon: Icon(
                 Icons.skip_previous_rounded,
                 size: 32,
-                color: live.canStepBack ? kugo.textPrimary : kugo.textTertiary,
+                color: live.canStepBack ? theme.textPrimary : theme.textTertiary,
               ),
             ),
             Container(
               width: playSize,
               height: playSize,
               decoration: BoxDecoration(
-                gradient: kugo.accentGradient,
+                gradient: theme.accentGradient,
                 shape: BoxShape.circle,
               ),
               child: AnimatedSwitcher(
@@ -1345,7 +1345,7 @@ class _ControlBar extends ConsumerWidget {
               icon: Icon(
                 Icons.skip_next_rounded,
                 size: 32,
-                color: kugo.textPrimary,
+                color: theme.textPrimary,
               ),
             ),
             LikeButton(
@@ -1353,7 +1353,7 @@ class _ControlBar extends ConsumerWidget {
               onToggle: () => ref.read(likesProvider.notifier).toggle(track),
               size: 22,
               activeColor: const Color(0xFFE87A90),
-              inactiveColor: kugo.textSecondary,
+              inactiveColor: theme.textSecondary,
             ),
           ],
         ),

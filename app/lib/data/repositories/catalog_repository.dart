@@ -1,5 +1,5 @@
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugou_client.dart';
 import '../../core/api/mappers.dart';
 import '../../core/models/catalog_models.dart';
 import '../../core/models/track.dart';
@@ -8,15 +8,15 @@ import '../../core/models/track.dart';
 export '../../core/models/catalog_models.dart';
 
 class CatalogRepository {
-  CatalogRepository({KugoClient? client}) : _client = client ?? kugoClient;
+  CatalogRepository({KugouClient? client}) : _client = client ?? kugouClient;
 
-  final KugoClient _client;
+  final KugouClient _client;
 
   Future<AlbumDetail?> fetchAlbum(String albumId) async {
     final id = albumId.trim();
     if (id.isEmpty) return null;
     try {
-      final infoUrl = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.albumInfo, {
+      final infoUrl = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.albumInfo, {
         'albumid': id,
         'format': 'json',
       });
@@ -46,8 +46,8 @@ class CatalogRepository {
       // Fallback: album songs endpoint
       if (songs.isEmpty) {
         final songsUrl = buildUrl(
-          KugoEndpoints.mobileCdn,
-          KugoEndpoints.albumSongs,
+          KugouEndpoints.mobileCdn,
+          KugouEndpoints.albumSongs,
           {'albumid': id, 'page': 1, 'pagesize': 100, 'format': 'json'},
         );
         final songsData = await _client.getJson(songsUrl);
@@ -80,7 +80,7 @@ class CatalogRepository {
     final id = singerId.trim();
     if (id.isEmpty) return null;
     try {
-      final infoUrl = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.singerInfo, {
+      final infoUrl = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.singerInfo, {
         'singerid': id,
         'format': 'json',
       });
@@ -132,7 +132,7 @@ class CatalogRepository {
     final id = singerId.trim();
     if (id.isEmpty) return const ArtistSongsPage();
     try {
-      final songsUrl = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.singerSong, {
+      final songsUrl = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.singerSong, {
         'singerid': id,
         'page': page,
         'pagesize': pageSize,

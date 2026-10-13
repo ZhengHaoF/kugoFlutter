@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
 import 'package:overtone/core/models/search_result.dart';
 import 'package:overtone/core/models/track.dart';
 import 'package:overtone/core/source/music_platform.dart';
@@ -168,7 +168,7 @@ class _GatewayBlockedRepo extends _RecordingRepo {
     int page = 1,
     int pageSize = 30,
   }) async {
-    throw KugoApiException('网络网关拦截（URL过滤），无法访问酷狗接口', filtered: true);
+    throw KugouApiException('网络网关拦截（URL过滤），无法访问酷狗接口', filtered: true);
   }
 }
 

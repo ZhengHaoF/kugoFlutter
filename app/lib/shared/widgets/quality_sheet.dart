@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/audio_quality.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import 'common.dart';
 
 /// 播放页音质选择底部弹层 — 对齐 EchoMusic QualityPopover：
@@ -15,7 +15,7 @@ Future<void> showQualitySheet(BuildContext context, WidgetRef ref) async {
   // Lazy probe available qualities while the sheet opens.
   ref.read(playerControllerProvider.notifier).ensureCurrentQualities();
 
-  await showKugoBottomSheet<void>(
+  await showOvertoneBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (_) => const _QualitySheetBody(),
@@ -27,7 +27,7 @@ class _QualitySheetBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
@@ -43,10 +43,10 @@ class _QualitySheetBody extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.md,
-        KugoSpacing.lg,
-        KugoSpacing.lg,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.md,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -56,9 +56,9 @@ class _QualitySheetBody extends ConsumerWidget {
             child: Container(
               width: 36,
               height: 4,
-              margin: const EdgeInsets.only(bottom: KugoSpacing.md),
+              margin: const EdgeInsets.only(bottom: OvertoneSpacing.md),
               decoration: BoxDecoration(
-                color: kugo.divider,
+                color: theme.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -66,7 +66,7 @@ class _QualitySheetBody extends ConsumerWidget {
           Text(
             '音质选择',
             textAlign: TextAlign.center,
-            style: kugo.section.copyWith(fontSize: 16),
+            style: theme.section.copyWith(fontSize: 16),
           ),
           const SizedBox(height: 4),
           Text(
@@ -76,9 +76,9 @@ class _QualitySheetBody extends ConsumerWidget {
                     ? '灰色档位当前歌曲不可用'
                     : '未知档位将自动向下兼容',
             textAlign: TextAlign.center,
-            style: kugo.caption,
+            style: theme.caption,
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           for (final q in AppQuality.values)
             _QualityRow(
               quality: q,
@@ -101,7 +101,7 @@ class _QualitySheetBody extends ConsumerWidget {
                 await controller.applyQuality(q);
               },
             ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
         ],
       ),
     );
@@ -125,13 +125,13 @@ class _QualityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final labelStyle = kugo.body.copyWith(
+    final theme = OvertoneTheme.of(context);
+    final labelStyle = theme.body.copyWith(
       color: disabled
-          ? kugo.textTertiary
+          ? theme.textTertiary
           : active
-              ? kugo.primary
-              : kugo.textPrimary,
+              ? theme.primary
+              : theme.textPrimary,
     );
 
     return Opacity(
@@ -152,17 +152,17 @@ class _QualityRow extends StatelessWidget {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: kugo.primary,
+                  color: theme.primary,
                 ),
               )
             : active
                 ? Icon(
                     Icons.check_rounded,
-                    color: kugo.primary,
+                    color: theme.primary,
                     size: 20,
                   )
                 : disabled
-                    ? Text('不可用', style: kugo.caption)
+                    ? Text('不可用', style: theme.caption)
                     : null,
       ),
     );

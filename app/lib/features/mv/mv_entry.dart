@@ -16,7 +16,7 @@ import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 
 /// 已拉取的「歌曲 → MV 版本列表」。key = `musicIdentity(platform, mixSongId)`。
 final Map<String, List<MvBrief>> _songMvCache = {};
@@ -156,7 +156,7 @@ class _MvEntryButtonState extends State<MvEntryButton> {
   Widget build(BuildContext context) {
     if (!canOpenMv(widget.track)) return const SizedBox.shrink();
 
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return IconButton(
       tooltip: '播放 MV',
       padding: widget.padding,
@@ -176,7 +176,7 @@ class _MvEntryButtonState extends State<MvEntryButton> {
           : Icon(
               Icons.videocam_outlined,
               size: widget.size,
-              color: widget.color ?? kugo.textTertiary,
+              color: widget.color ?? theme.textTertiary,
             ),
     );
   }

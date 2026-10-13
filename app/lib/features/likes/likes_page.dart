@@ -7,8 +7,8 @@ import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/profile/source_account.dart';
 import '../../features/profile/source_library_controller.dart';
@@ -36,8 +36,8 @@ Future<void> showLikesSortPicker(
   LikesSortType current,
   ValueChanged<LikesSortType> onSelected,
 ) async {
-  final kugo = KugoTheme.of(context);
-  final selected = await showKugoBottomSheet<LikesSortType>(
+  final theme = OvertoneTheme.of(context);
+  final selected = await showOvertoneBottomSheet<LikesSortType>(
     context: context,
     builder: (sheetContext) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -45,9 +45,9 @@ Future<void> showLikesSortPicker(
         const SizedBox(height: 8),
         for (final type in LikesSortType.values)
           ListTile(
-            title: Text(type.label, style: kugo.body),
+            title: Text(type.label, style: theme.body),
             trailing: type == current
-                ? Icon(Icons.check_rounded, color: kugo.primary)
+                ? Icon(Icons.check_rounded, color: theme.primary)
                 : null,
             onTap: () => Navigator.pop(sheetContext, type),
           ),
@@ -233,7 +233,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final localLikes = ref.watch(likesProvider);
     final player = ref.watch(playerControllerProvider);
     final library = ref.watch(mergedSourceLibraryProvider(_sourceFilter));
@@ -289,14 +289,14 @@ class _LikesPageState extends ConsumerState<LikesPage>
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                style: kugo.body,
+                style: theme.body,
                 decoration: InputDecoration(
                   hintText: _tabController.index == 0
                       ? '搜索歌名、歌手、专辑...'
                       : (_tabController.index == 1
                           ? '搜索关注的歌手...'
                           : '搜索收藏的专辑或歌手...'),
-                  hintStyle: kugo.caption,
+                  hintStyle: theme.caption,
                   border: InputBorder.none,
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -385,9 +385,9 @@ class _LikesPageState extends ConsumerState<LikesPage>
           preferredSize: const Size.fromHeight(44),
           child: TabBar(
             controller: _tabController,
-            labelColor: kugo.primary,
-            unselectedLabelColor: kugo.textSecondary,
-            indicatorColor: kugo.primary,
+            labelColor: theme.primary,
+            unselectedLabelColor: theme.textSecondary,
+            indicatorColor: theme.primary,
             indicatorSize: TabBarIndicatorSize.label,
             tabs: [
               Tab(text: '歌曲 ($songsCount)'),
@@ -408,7 +408,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
         children: [
           // Tab 1: 歌曲（源筛选条 + 列表）
           _buildSongsTab(
-            kugo: kugo,
+            theme: theme,
             library: library,
             accountLogged: accountLogged,
             accountPlatform: accountPlatform,
@@ -425,7 +425,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
               totalCount: library.followedArtists.length,
               isLoading: library.loading && !library.loaded,
               error: library.error,
-              kugo: kugo,
+              theme: theme,
             ),
             _buildAlbumsTab(
               authLogged: accountLogged,
@@ -433,7 +433,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
               totalCount: library.favoritedAlbums.length,
               isLoading: library.loading && !library.loaded,
               error: library.error,
-              kugo: kugo,
+              theme: theme,
             ),
           ],
         ],
@@ -459,7 +459,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
     required List<Track> displayed,
     required int totalCount,
     required PlayerState player,
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
     required SourceLibraryState library,
     required bool accountLogged,
     required MusicPlatform accountPlatform,
@@ -472,7 +472,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
     // 门控看 [UserLibrarySource] 能力，不写 `platform == bili` 特判。
     if (_sourceFilter != null && !accountLogged && _canSyncLikes) {
       return _loginPrompt(
-        kugo: kugo,
+        theme: theme,
         icon: Icons.cloud_outlined,
         message: '登录${accountPlatform.label}后，即可同步云端「我喜欢」',
         route: loginRouteFor(accountPlatform),
@@ -524,10 +524,10 @@ class _LikesPageState extends ConsumerState<LikesPage>
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.sm,
-            KugoSpacing.lg,
-            KugoSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
           ),
           child: Row(
             children: [
@@ -535,7 +535,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                 child: _searchQuery.isNotEmpty
                     ? Text(
                         '找到 ${displayed.length} 首 / 共 $totalCount 首',
-                        style: kugo.caption,
+                        style: theme.caption,
                       )
                     : TextButton.icon(
                         onPressed: () => showLikesSortPicker(
@@ -546,11 +546,11 @@ class _LikesPageState extends ConsumerState<LikesPage>
                         icon: Icon(
                           Icons.sort_rounded,
                           size: 16,
-                          color: kugo.textSecondary,
+                          color: theme.textSecondary,
                         ),
                         label: Text(
                           '${displayed.length} 首 · ${_sortType.label}',
-                          style: kugo.caption,
+                          style: theme.caption,
                         ),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
@@ -663,29 +663,29 @@ class _LikesPageState extends ConsumerState<LikesPage>
 
   /// 未登录某源时的统一引导（图标 + 文案 + 去登录）。
   Widget _loginPrompt({
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
     required IconData icon,
     required String message,
     required String route,
   }) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(KugoSpacing.xl),
+        padding: const EdgeInsets.all(OvertoneSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
               size: 48,
-              color: kugo.textSecondary.withValues(alpha: 0.6),
+              color: theme.textSecondary.withValues(alpha: 0.6),
             ),
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             Text(
               message,
-              style: kugo.caption.copyWith(fontSize: 14),
+              style: theme.caption.copyWith(fontSize: 14),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             FilledButton(
               onPressed: () => context.push(route),
               child: const Text('立即登录'),
@@ -702,27 +702,27 @@ class _LikesPageState extends ConsumerState<LikesPage>
     required int totalCount,
     required bool isLoading,
     required String error,
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
   }) {
     if (!authLogged) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(KugoSpacing.xl),
+          padding: const EdgeInsets.all(OvertoneSpacing.xl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.people_outline_rounded,
                 size: 48,
-                color: kugo.textSecondary.withValues(alpha: 0.6),
+                color: theme.textSecondary.withValues(alpha: 0.6),
               ),
-              const SizedBox(height: KugoSpacing.md),
+              const SizedBox(height: OvertoneSpacing.md),
               Text(
                 '登录酷狗账号后，即可同步关注的歌手',
-                style: kugo.caption.copyWith(fontSize: 14),
+                style: theme.caption.copyWith(fontSize: 14),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               FilledButton(
                 onPressed: () => context.push('/login'),
                 child: const Text('立即登录'),
@@ -755,10 +755,10 @@ class _LikesPageState extends ConsumerState<LikesPage>
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.sm,
-            KugoSpacing.lg,
-            KugoSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
           ),
           child: Row(
             children: [
@@ -766,7 +766,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                 _searchQuery.isNotEmpty
                     ? '找到 ${singers.length} 位 / 共 $totalCount 位'
                     : '共 $totalCount 位关注歌手',
-                style: kugo.caption,
+                style: theme.caption,
               ),
             ],
           ),
@@ -796,7 +796,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                         : desc;
                     return ListTile(
                       leading: CoverHero(
-                        tag: KugoHeroTags.artistAvatar(singer.id),
+                        tag: OvertoneHeroTags.artistAvatar(singer.id),
                         seed: singer.avatarUrl.isNotEmpty
                             ? singer.avatarUrl
                             : singer.id,
@@ -807,11 +807,11 @@ class _LikesPageState extends ConsumerState<LikesPage>
                                 color: Colors.white70)
                             : null,
                       ),
-                      title: Text(singer.name, style: kugo.body),
-                      subtitle: Text(sub, style: kugo.caption),
+                      title: Text(singer.name, style: theme.body),
+                      subtitle: Text(sub, style: theme.caption),
                       trailing: Icon(
                         Icons.chevron_right_rounded,
-                        color: kugo.textSecondary,
+                        color: theme.textSecondary,
                       ),
                       onTap: () => context.push('/artist/${singer.id}'),
                     );
@@ -828,27 +828,27 @@ class _LikesPageState extends ConsumerState<LikesPage>
     required int totalCount,
     required bool isLoading,
     required String error,
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
   }) {
     if (!authLogged) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(KugoSpacing.xl),
+          padding: const EdgeInsets.all(OvertoneSpacing.xl),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.album_outlined,
                 size: 48,
-                color: kugo.textSecondary.withValues(alpha: 0.6),
+                color: theme.textSecondary.withValues(alpha: 0.6),
               ),
-              const SizedBox(height: KugoSpacing.md),
+              const SizedBox(height: OvertoneSpacing.md),
               Text(
                 '登录酷狗账号后，即可同步收藏的专辑',
-                style: kugo.caption.copyWith(fontSize: 14),
+                style: theme.caption.copyWith(fontSize: 14),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               FilledButton(
                 onPressed: () => context.push('/login'),
                 child: const Text('立即登录'),
@@ -881,10 +881,10 @@ class _LikesPageState extends ConsumerState<LikesPage>
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.sm,
-            KugoSpacing.lg,
-            KugoSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
           ),
           child: Row(
             children: [
@@ -892,7 +892,7 @@ class _LikesPageState extends ConsumerState<LikesPage>
                 _searchQuery.isNotEmpty
                     ? '找到 ${albums.length} 张 / 共 $totalCount 张'
                     : '共 $totalCount 张收藏专辑',
-                style: kugo.caption,
+                style: theme.caption,
               ),
             ],
           ),
@@ -917,22 +917,22 @@ class _LikesPageState extends ConsumerState<LikesPage>
                     final sub = '${album.artist}${album.trackCount > 0 ? " · ${album.trackCount}首" : ""}';
                     return ListTile(
                       leading: CoverHero(
-                        tag: KugoHeroTags.albumCover(album.id),
+                        tag: OvertoneHeroTags.albumCover(album.id),
                         seed: album.coverUrl.isNotEmpty
                             ? album.coverUrl
                             : album.id,
                         size: 48,
-                        radius: KugoRadius.card,
+                        radius: OvertoneRadius.card,
                         child: album.coverUrl.isEmpty
                             ? const Icon(Icons.album_rounded,
                                 color: Colors.white70)
                             : null,
                       ),
-                      title: Text(album.name, style: kugo.body),
-                      subtitle: Text(sub, style: kugo.caption),
+                      title: Text(album.name, style: theme.body),
+                      subtitle: Text(sub, style: theme.caption),
                       trailing: Icon(
                         Icons.chevron_right_rounded,
-                        color: kugo.textSecondary,
+                        color: theme.textSecondary,
                       ),
                       onTap: () => context.push('/album/${album.id}'),
                     );

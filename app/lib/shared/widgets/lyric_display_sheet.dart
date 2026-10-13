@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/platform.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/desktop_lyric/android_overlay/android_overlay_bridge.dart';
 import '../../features/settings/settings_controller.dart';
 import 'common.dart';
@@ -16,7 +16,7 @@ class LyricDisplayButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final settings = ref.watch(settingsControllerProvider);
     final active = settings.lyricTranslation || settings.lyricRomanization;
 
@@ -30,7 +30,7 @@ class LyricDisplayButton extends ConsumerWidget {
           child: Icon(
             Icons.lyrics_outlined,
             size: 16,
-            color: active ? kugo.primary : kugo.textSecondary,
+            color: active ? theme.primary : theme.textSecondary,
           ),
         ),
       ),
@@ -40,7 +40,7 @@ class LyricDisplayButton extends ConsumerWidget {
 
 /// 翻译 / 罗马音开关弹层（与音质 sheet 并列，不混进音质列表）。
 Future<void> showLyricDisplaySheet(BuildContext context, WidgetRef ref) {
-  return showKugoBottomSheet<void>(
+  return showOvertoneBottomSheet<void>(
     context: context,
     builder: (_) => const _LyricDisplaySheetBody(),
   );
@@ -51,17 +51,17 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final settings = ref.watch(settingsControllerProvider);
     final controller = ref.read(settingsControllerProvider.notifier);
 
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          KugoSpacing.lg,
-          KugoSpacing.md,
-          KugoSpacing.lg,
-          KugoSpacing.lg,
+          OvertoneSpacing.lg,
+          OvertoneSpacing.md,
+          OvertoneSpacing.lg,
+          OvertoneSpacing.lg,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -71,9 +71,9 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
               child: Container(
                 width: 36,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: KugoSpacing.md),
+                margin: const EdgeInsets.only(bottom: OvertoneSpacing.md),
                 decoration: BoxDecoration(
-                  color: kugo.divider,
+                  color: theme.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -81,28 +81,28 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
             Text(
               '歌词显示',
               textAlign: TextAlign.center,
-              style: kugo.section.copyWith(fontSize: 16),
+              style: theme.section.copyWith(fontSize: 16),
             ),
             const SizedBox(height: 4),
             Text(
               '当前歌有译文/音译时才会显示副行',
               textAlign: TextAlign.center,
-              style: kugo.caption,
+              style: theme.caption,
             ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
-              title: Text('显示翻译', style: kugo.body),
-              subtitle: Text('歌词下方显示中文译文', style: kugo.caption),
+              title: Text('显示翻译', style: theme.body),
+              subtitle: Text('歌词下方显示中文译文', style: theme.caption),
               value: settings.lyricTranslation,
               onChanged: controller.setLyricTranslation,
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
-              title: Text('显示罗马音', style: kugo.body),
-              subtitle: Text('日文等音译显示在副行', style: kugo.caption),
+              title: Text('显示罗马音', style: theme.body),
+              subtitle: Text('日文等音译显示在副行', style: theme.caption),
               value: settings.lyricRomanization,
               onChanged: controller.setLyricRomanization,
             ),
@@ -110,8 +110,8 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                title: Text('悬浮歌词', style: kugo.body),
-                subtitle: Text('悬浮窗显示桌面歌词，可拖动锁定', style: kugo.caption),
+                title: Text('悬浮歌词', style: theme.body),
+                subtitle: Text('悬浮窗显示桌面歌词，可拖动锁定', style: theme.caption),
                 value: settings.desktopLyricEnabled,
                 onChanged: (v) async {
                   final bridge = ref.read(androidLyricBridgeProvider);
@@ -126,7 +126,7 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
                   }
                 },
               ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             // 字号 / 行间距：拖动中只改内存态做即时预览（播放页同时可见），
             // 松手才落盘，避免一次拖动写几十次 SharedPreferences。
             _LyricScaleSlider(
@@ -159,7 +159,7 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
                 child: const Text('恢复默认'),
               ),
             ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
           ],
         ),
       ),
@@ -187,14 +187,14 @@ class _LyricScaleSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Expanded(child: Text(label, style: kugo.body)),
-            Text('${(value * 100).round()}%', style: kugo.caption),
+            Expanded(child: Text(label, style: theme.body)),
+            Text('${(value * 100).round()}%', style: theme.caption),
           ],
         ),
         SliderTheme(
@@ -203,9 +203,9 @@ class _LyricScaleSlider extends StatelessWidget {
             trackHeight: 3,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-            activeTrackColor: kugo.primary,
-            inactiveTrackColor: kugo.divider,
-            thumbColor: kugo.primary,
+            activeTrackColor: theme.primary,
+            inactiveTrackColor: theme.divider,
+            thumbColor: theme.primary,
           ),
           child: Slider(
             value: value.clamp(min, max),

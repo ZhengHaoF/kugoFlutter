@@ -6,7 +6,7 @@ import 'package:overtone/features/player/player_controller.dart';
 import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_music_source.dart';
 
-class _Bridge implements KugoMediaBridge {
+class _Bridge implements OvertoneMediaBridge {
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }

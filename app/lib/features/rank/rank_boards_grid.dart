@@ -7,13 +7,13 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/kugo_clickable.dart';
+import '../../shared/widgets/overtone_clickable.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 import 'rank_hero.dart';
@@ -188,10 +188,10 @@ class _RankBoardsGridState extends ConsumerState<RankBoardsGrid> {
                           : MediaQuery.sizeOf(context).width;
                       return SmoothGridViewBuilder(
                         padding: EdgeInsets.fromLTRB(
-                          KugoSpacing.lg,
-                          KugoSpacing.md,
-                          KugoSpacing.lg,
-                          desktop ? KugoSpacing.xxl : 120,
+                          OvertoneSpacing.lg,
+                          OvertoneSpacing.md,
+                          OvertoneSpacing.lg,
+                          desktop ? OvertoneSpacing.xxl : 120,
                         ),
                         gridDelegate: coverGridDelegateForWidth(
                           context,
@@ -199,8 +199,8 @@ class _RankBoardsGridState extends ConsumerState<RankBoardsGrid> {
                           preferredExtent: kDesktopCoverExtent,
                           mobileAspectRatio: 0.78,
                           desktopAspectRatio: 0.78,
-                          mainAxisSpacing: KugoSpacing.lg,
-                          crossAxisSpacing: KugoSpacing.lg,
+                          mainAxisSpacing: OvertoneSpacing.lg,
+                          crossAxisSpacing: OvertoneSpacing.lg,
                           maxColumns: 10,
                         ),
                         itemCount: _ranks.length,
@@ -236,17 +236,17 @@ class _RankGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final desktop = isDesktopView(context);
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(OvertoneRadius.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(KugoRadius.card),
+              borderRadius: BorderRadius.circular(OvertoneRadius.card),
               child: Hero(
                 tag: rankCoverHeroTag(rank.id),
                 flightShuttleBuilder: rankHeroFlightShuttle,
@@ -264,7 +264,7 @@ class _RankGridCard extends StatelessWidget {
               rank.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: kugo.body.copyWith(fontSize: 14, height: 1.25),
+              style: theme.body.copyWith(fontSize: 14, height: 1.25),
             ),
           ],
         ],

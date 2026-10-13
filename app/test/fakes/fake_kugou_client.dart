@@ -1,15 +1,15 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
 
-/// 脚本化 [KugoClient]：按 URL 关键字回放响应体，并记录调用。
+/// 脚本化 [KugouClient]：按 URL 关键字回放响应体，并记录调用。
 ///
 /// 与 `_FakeNeteaseClient extends NeteaseClient` 同一套路——仓库的 HTTP 层
 /// 用注入的 client 换掉，测试只覆盖「URL 拼装 + 响应映射 + 兜底顺序」。
 /// 注入 Dio 仍保留生产安全拦截器；本 fake 覆写请求方法，不发 HTTP。
-class FakeKugoClient extends KugoClient {
-  FakeKugoClient({this.onJson, this.onText}) : super(dio: Dio());
+class FakeKugouClient extends KugouClient {
+  FakeKugouClient({this.onJson, this.onText}) : super(dio: Dio());
 
   /// 返回 `null` 表示抛错（模拟网络失败 / 网关拦截）。
   final dynamic Function(String url)? onJson;
@@ -23,10 +23,10 @@ class FakeKugoClient extends KugoClient {
     jsonCalls.add(url);
     final body = onJson?.call(url);
     if (body == null) {
-      throw KugoApiException('scripted failure', code: 500);
+      throw KugouApiException('scripted failure', code: 500);
     }
     // 允许脚本直接给解码后的对象；给 String 时走一遍真实解码路径。
-    return body is String ? decodeKugoBody(body) : body;
+    return body is String ? decodeKugouBody(body) : body;
   }
 
   @override
@@ -34,7 +34,7 @@ class FakeKugoClient extends KugoClient {
     textCalls.add(url);
     final body = onText?.call(url);
     if (body == null) {
-      throw KugoApiException('scripted failure', code: 500);
+      throw KugouApiException('scripted failure', code: 500);
     }
     return body is String ? body : jsonEncode(body);
   }

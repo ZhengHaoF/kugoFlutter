@@ -16,7 +16,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
-public static class KugoIconProbe {
+public static class OvertoneIconProbe {
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
   static extern IntPtr LoadLibraryEx(string file, IntPtr reserved, uint flags);
   [DllImport("kernel32.dll")]
@@ -127,9 +127,9 @@ public static class KugoIconProbe {
 }
 '@
 
-$expectedBig = [KugoIconProbe]::FileDigest($bundleIcon, 32)
-$expectedSmall = [KugoIconProbe]::FileDigest($bundleIcon, 16)
-if ([KugoIconProbe]::EmbeddedDigest($exe, 32) -ne $expectedBig) {
+$expectedBig = [OvertoneIconProbe]::FileDigest($bundleIcon, 32)
+$expectedSmall = [OvertoneIconProbe]::FileDigest($bundleIcon, 16)
+if ([OvertoneIconProbe]::EmbeddedDigest($exe, 32) -ne $expectedBig) {
   throw "EXE embedded icon does not match approved G runtime icon"
 }
 $checks = [System.Collections.Generic.List[string]]::new()
@@ -147,8 +147,8 @@ try {
     if ($process.HasExited) { throw "Application exited before icon acceptance: $($process.ExitCode)" }
     if ($process.MainWindowHandle -eq [IntPtr]::Zero) { continue }
     try {
-      $big = [KugoIconProbe]::WindowDigest($process.MainWindowHandle, $false)
-      $small = [KugoIconProbe]::WindowDigest($process.MainWindowHandle, $true)
+      $big = [OvertoneIconProbe]::WindowDigest($process.MainWindowHandle, $false)
+      $small = [OvertoneIconProbe]::WindowDigest($process.MainWindowHandle, $true)
       $lastState = "large=$big; small=$small"
       if ($big -eq $expectedBig -and $small -eq $expectedSmall) {
         $ready = $true

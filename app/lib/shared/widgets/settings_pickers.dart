@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/desktop_capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import 'common.dart';
@@ -19,10 +19,10 @@ import 'common.dart';
 /// Pick the default audio quality. Persists to settings; takes effect on the
 /// next resolve (playing tracks can still switch from the player page).
 Future<void> showQualityPicker(BuildContext context, WidgetRef ref) async {
-  final kugo = KugoTheme.of(context);
+  final theme = OvertoneTheme.of(context);
   final controller = ref.read(settingsControllerProvider.notifier);
   final current = ref.read(settingsControllerProvider).quality;
-  final selected = await showKugoBottomSheet<AppQuality>(
+  final selected = await showOvertoneBottomSheet<AppQuality>(
     context: context,
     builder: (sheetContext) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -30,9 +30,9 @@ Future<void> showQualityPicker(BuildContext context, WidgetRef ref) async {
         const SizedBox(height: 8),
         for (final q in AppQuality.values)
           ListTile(
-            title: Text(q.label, style: kugo.body),
+            title: Text(q.label, style: theme.body),
             trailing: q == current
-                ? Icon(Icons.check_rounded, color: kugo.primary)
+                ? Icon(Icons.check_rounded, color: theme.primary)
                 : null,
             onTap: () => Navigator.pop(sheetContext, q),
           ),
@@ -51,7 +51,7 @@ Future<void> showDefaultSourcePicker(
   BuildContext context,
   WidgetRef ref,
 ) async {
-  final kugo = KugoTheme.of(context);
+  final theme = OvertoneTheme.of(context);
   final controller = ref.read(settingsControllerProvider.notifier);
   final settings = ref.read(settingsControllerProvider);
   final current = settings.defaultSource;
@@ -60,7 +60,7 @@ Future<void> showDefaultSourcePicker(
   final platforms =
       musicSourceRegistry?.platforms.where(enabled.contains).toList() ??
       const [MusicPlatform.kugou];
-  final selected = await showKugoBottomSheet<MusicPlatform>(
+  final selected = await showOvertoneBottomSheet<MusicPlatform>(
     context: context,
     builder: (sheetContext) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -68,9 +68,9 @@ Future<void> showDefaultSourcePicker(
         const SizedBox(height: 8),
         for (final p in platforms)
           ListTile(
-            title: Text(p.label, style: kugo.body),
+            title: Text(p.label, style: theme.body),
             trailing: p == current
-                ? Icon(Icons.check_rounded, color: kugo.primary)
+                ? Icon(Icons.check_rounded, color: theme.primary)
                 : null,
             onTap: () => Navigator.pop(sheetContext, p),
           ),
@@ -85,32 +85,32 @@ Future<void> showDefaultSourcePicker(
 
 /// Pick the sleep timer. Persists the choice *and* arms the live player.
 Future<void> showSleepPicker(BuildContext context, WidgetRef ref) async {
-  final kugo = KugoTheme.of(context);
+  final theme = OvertoneTheme.of(context);
   final controller = ref.read(settingsControllerProvider.notifier);
-  final selected = await showKugoBottomSheet<SleepTimerMode>(
+  final selected = await showOvertoneBottomSheet<SleepTimerMode>(
     context: context,
     builder: (sheetContext) => Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 8),
         ListTile(
-          title: Text('关闭', style: kugo.body),
+          title: Text('关闭', style: theme.body),
           onTap: () => Navigator.pop(sheetContext, SleepTimerMode.off),
         ),
         ListTile(
-          title: Text('15 分钟', style: kugo.body),
+          title: Text('15 分钟', style: theme.body),
           onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m15),
         ),
         ListTile(
-          title: Text('30 分钟', style: kugo.body),
+          title: Text('30 分钟', style: theme.body),
           onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m30),
         ),
         ListTile(
-          title: Text('60 分钟', style: kugo.body),
+          title: Text('60 分钟', style: theme.body),
           onTap: () => Navigator.pop(sheetContext, SleepTimerMode.m60),
         ),
         ListTile(
-          title: Text('自定义 45 分钟', style: kugo.body),
+          title: Text('自定义 45 分钟', style: theme.body),
           onTap: () => Navigator.pop(sheetContext, SleepTimerMode.custom),
         ),
         const SizedBox(height: 8),
@@ -129,11 +129,11 @@ Future<void> showCloseBehaviorPicker(
   BuildContext context,
   WidgetRef ref,
 ) async {
-  final kugo = KugoTheme.of(context);
+  final theme = OvertoneTheme.of(context);
   final controller = ref.read(settingsControllerProvider.notifier);
   final current = ref.read(settingsControllerProvider).closeBehavior;
   final trayAvailable = ref.read(desktopTrayAvailableProvider);
-  final selected = await showKugoBottomSheet<CloseBehavior>(
+  final selected = await showOvertoneBottomSheet<CloseBehavior>(
     context: context,
     builder: (sheetContext) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -142,10 +142,10 @@ Future<void> showCloseBehaviorPicker(
         for (final behavior in CloseBehavior.values)
           if (behavior != CloseBehavior.tray || trayAvailable)
             ListTile(
-              title: Text(behavior.label, style: kugo.body),
-              subtitle: Text(behavior.closeHint, style: kugo.caption),
+              title: Text(behavior.label, style: theme.body),
+              subtitle: Text(behavior.closeHint, style: theme.caption),
               trailing: behavior == current
-                  ? Icon(Icons.check_rounded, color: kugo.primary)
+                  ? Icon(Icons.check_rounded, color: theme.primary)
                   : null,
               onTap: () => Navigator.pop(sheetContext, behavior),
             ),
@@ -160,36 +160,36 @@ Future<void> showCloseBehaviorPicker(
 
 /// About sheet: version, project scope and the compliance disclaimer.
 Future<void> showAboutSheet(BuildContext context) {
-  return showKugoBottomSheet<void>(
+  return showOvertoneBottomSheet<void>(
     context: context,
     builder: (sheetContext) {
-      final kugo = KugoTheme.of(sheetContext);
+      final theme = OvertoneTheme.of(sheetContext);
       return Padding(
         padding: const EdgeInsets.fromLTRB(
-          KugoSpacing.lg,
+          OvertoneSpacing.lg,
           12,
-          KugoSpacing.lg,
+          OvertoneSpacing.lg,
           24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Text('关于', style: kugo.section)),
-            const SizedBox(height: KugoSpacing.md),
+            Center(child: Text('关于', style: theme.section)),
+            const SizedBox(height: OvertoneSpacing.md),
             _AboutRow(label: '版本', value: '0.1.0'),
             _AboutRow(label: '形态', value: 'Android · Windows · Linux'),
             _AboutRow(label: '定位', value: '多音源第三方客户端'),
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             Text(
               '个人学习 / 研究向项目。数据经公开接口直接获取，不提供音频中转或云端账号托管。'
               '音乐版权归原平台及版权方所有。',
-              style: kugo.caption,
+              style: theme.caption,
             ),
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             Text(
               '请遵守当地法律与目标平台服务条款；对外发布请勿使用「酷狗」注册商标作为应用名。',
-              style: kugo.caption,
+              style: theme.caption,
             ),
           ],
         ),
@@ -206,14 +206,14 @@ class _AboutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 64, child: Text(label, style: kugo.caption)),
-          Expanded(child: Text(value, style: kugo.body)),
+          SizedBox(width: 64, child: Text(label, style: theme.caption)),
+          Expanded(child: Text(value, style: theme.body)),
         ],
       ),
     );

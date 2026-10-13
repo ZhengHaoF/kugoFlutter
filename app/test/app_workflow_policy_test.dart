@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final workflow = File('../.github/workflows/apps.yml').readAsStringSync();
   const guard =
-      "github.repository == 'ZhengHaoF/kugoFlutter' && "
+      "github.repository == 'ZhengHaoF/overtoneFlutter' && "
       "github.ref == 'refs/heads/main' && "
       "github.event_name == 'workflow_dispatch'";
 

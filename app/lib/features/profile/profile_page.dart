@@ -10,8 +10,8 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/auth/auth_controller.dart';
@@ -83,7 +83,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final isDesktop = isDesktopView(context);
     ref.watch(settingsControllerProvider.select((s) => s.themeMode));
     final settings = ref.watch(settingsControllerProvider);
@@ -144,7 +144,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           // 顶部间距由 SourceFilterBar 自带，与其它页面对齐。
           if (accountSources.length > 1)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
               child: SourceFilterBar(
                 platforms: accountSources,
                 selected: accountPlatform,
@@ -164,18 +164,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           // 身份卡常驻：切到「设置」页签也不该丢掉账号身份与乐库统计。
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              KugoSpacing.sm,
-              KugoSpacing.lg,
-              KugoSpacing.md,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.sm,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.md,
             ),
             child: GlassSurface(
-              padding: const EdgeInsets.all(KugoSpacing.lg),
+              padding: const EdgeInsets.all(OvertoneSpacing.lg),
               child: Column(
                 children: [
                   // 紧凑用户入口 → 独立「个人中心」页（对齐 Echo 的 Profile 内容页）。
                   InkWell(
-                    borderRadius: BorderRadius.circular(KugoRadius.tile),
+                    borderRadius: BorderRadius.circular(OvertoneRadius.tile),
                     onTap: () => context.push('/profile/detail'),
                     child: Row(
                       children: [
@@ -193,28 +193,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                   size: 28,
                                 ),
                         ),
-                        const SizedBox(width: KugoSpacing.md),
+                        const SizedBox(width: OvertoneSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(displayName, style: kugo.title),
+                              Text(displayName, style: theme.title),
                               const SizedBox(height: 4),
                               Text(
                                 displaySub,
-                                style: kugo.caption.copyWith(fontSize: 12),
+                                style: theme.caption.copyWith(fontSize: 12),
                               ),
                             ],
                           ),
                         ),
                         Icon(
                           Icons.chevron_right_rounded,
-                          color: kugo.textSecondary,
+                          color: theme.textSecondary,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: KugoSpacing.lg),
+                  const SizedBox(height: OvertoneSpacing.lg),
                   Row(
                     children: [
                       const _Divider(),
@@ -285,9 +285,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               children: [
                 SmoothListView(
                   padding: EdgeInsets.fromLTRB(
-                    KugoSpacing.lg,
-                    KugoSpacing.md,
-                    KugoSpacing.lg,
+                    OvertoneSpacing.lg,
+                    OvertoneSpacing.md,
+                    OvertoneSpacing.lg,
                     isDesktop ? 48 : 140,
                   ),
                   children: [
@@ -318,11 +318,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           onTap: () => context.push('/cloud'),
                         ),
                       ),
-                      const SizedBox(height: KugoSpacing.md),
+                      const SizedBox(height: OvertoneSpacing.md),
                     ],
                     GlassSurface(
                       key: _playlistsSectionKey,
-                      padding: const EdgeInsets.all(KugoSpacing.lg),
+                      padding: const EdgeInsets.all(OvertoneSpacing.lg),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -330,7 +330,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                             children: [
                               Text(
                                 '我的歌单',
-                                style: kugo.section.copyWith(fontSize: 16),
+                                style: theme.section.copyWith(fontSize: 16),
                               ),
                               const Spacer(),
                               if (account.isLogged)
@@ -358,10 +358,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                 ),
                             ],
                           ),
-                          const SizedBox(height: KugoSpacing.md),
+                          const SizedBox(height: OvertoneSpacing.md),
                           if (!account.isLogged) ...[
                             _playlistPlaceholder(
-                              kugo: kugo,
+                              theme: theme,
                               message: canReadPlaylists
                                   ? '登录${accountPlatform.label}账号后，即可同步自建与收藏歌单'
                                   : '${accountPlatform.label}暂无云端歌单',
@@ -392,7 +392,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: KugoSpacing.md),
+                            const SizedBox(height: OvertoneSpacing.md),
                             ..._buildPlaylistList(
                               _selectedPlaylistTab == 0
                                   ? library.createdPlaylists
@@ -400,7 +400,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                               isCreatedTab: _selectedPlaylistTab == 0,
                               isLoading: library.loading && !library.loaded,
                               error: library.error,
-                              kugo: kugo,
+                              theme: theme,
                             ),
                           ],
                         ],
@@ -410,9 +410,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                 ),
                 SmoothListView(
                   padding: EdgeInsets.fromLTRB(
-                    KugoSpacing.lg,
-                    KugoSpacing.md,
-                    KugoSpacing.lg,
+                    OvertoneSpacing.lg,
+                    OvertoneSpacing.md,
+                    OvertoneSpacing.lg,
                     isDesktop ? 48 : 140,
                   ),
                   children: [
@@ -468,35 +468,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
   /// （B 站 B3/B4 落地前）只说明该源没有云端歌单——**不摆去登录的
   /// 假入口**（多音源方案 §3.2 口径）。
   Widget _playlistPlaceholder({
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
     required String message,
     required String? loginRoute,
   }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
-        horizontal: KugoSpacing.md,
-        vertical: KugoSpacing.lg,
+        horizontal: OvertoneSpacing.md,
+        vertical: OvertoneSpacing.lg,
       ),
       decoration: BoxDecoration(
-        color: kugo.surfaceElevated.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(KugoRadius.tile),
+        color: theme.surfaceElevated.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(OvertoneRadius.tile),
       ),
       child: Column(
         children: [
           Icon(
             Icons.queue_music_rounded,
             size: 38,
-            color: kugo.textSecondary.withValues(alpha: 0.7),
+            color: theme.textSecondary.withValues(alpha: 0.7),
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           Text(
             message,
-            style: kugo.caption.copyWith(fontSize: 13),
+            style: theme.caption.copyWith(fontSize: 13),
             textAlign: TextAlign.center,
           ),
           if (loginRoute != null) ...[
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             FilledButton(
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
@@ -518,12 +518,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
     required bool isCreatedTab,
     required bool isLoading,
     required String error,
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
   }) {
     if (isLoading) {
       return const [
         Padding(
-          padding: EdgeInsets.symmetric(vertical: KugoSpacing.xl),
+          padding: EdgeInsets.symmetric(vertical: OvertoneSpacing.xl),
           child: Center(child: CircularProgressIndicator()),
         ),
       ];
@@ -534,17 +534,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           : (isCreatedTab ? '暂无自建歌单' : '暂无收藏歌单');
       return [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: KugoSpacing.xl),
+          padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.xl),
           child: Center(
             child: Column(
               children: [
                 Icon(
                   Icons.music_note_rounded,
                   size: 36,
-                  color: kugo.textSecondary.withValues(alpha: 0.5),
+                  color: theme.textSecondary.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 8),
-                Text(emptyHint, style: kugo.caption),
+                Text(emptyHint, style: theme.caption),
               ],
             ),
           ),
@@ -560,35 +560,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           ? ''
           : '?src=${p.platform.wireName}';
       return InkWell(
-        borderRadius: BorderRadius.circular(KugoRadius.tile),
+        borderRadius: BorderRadius.circular(OvertoneRadius.tile),
         onTap: () => context.push('/playlist/${p.id}$src', extra: p),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
           child: Row(
             children: [
               _PlaylistTileCover(playlist: p, size: 48),
-              const SizedBox(width: KugoSpacing.md),
+              const SizedBox(width: OvertoneSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       p.name,
-                      style: kugo.body,
+                      style: theme.body,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       sub,
-                      style: kugo.caption,
+                      style: theme.caption,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: kugo.textSecondary),
+              Icon(Icons.chevron_right_rounded, color: theme.textSecondary),
             ],
           ),
         ),
@@ -607,12 +607,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
   void _showAboutSheet(BuildContext context) => showAboutSheet(context);
 
   void _showThemeSheet(BuildContext context) {
-    showKugoBottomSheet<void>(
+    showOvertoneBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final kugo = KugoTheme.of(context);
+            final theme = OvertoneTheme.of(context);
             final current = ref.watch(settingsControllerProvider).themeMode;
             Widget tile(
               AppThemeMode value,
@@ -624,12 +624,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               return ListTile(
                 leading: Icon(
                   icon,
-                  color: selected ? kugo.primary : kugo.textSecondary,
+                  color: selected ? theme.primary : theme.textSecondary,
                 ),
-                title: Text(title, style: kugo.body),
-                subtitle: Text(sub, style: kugo.caption),
+                title: Text(title, style: theme.body),
+                subtitle: Text(sub, style: theme.caption),
                 trailing: selected
-                    ? Icon(Icons.check_rounded, color: kugo.primary)
+                    ? Icon(Icons.check_rounded, color: theme.primary)
                     : null,
                 onTap: () async {
                   await ref
@@ -647,7 +647,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 12),
-                Text('主题外观', style: kugo.section),
+                Text('主题外观', style: theme.section),
                 const SizedBox(height: 8),
                 tile(
                   AppThemeMode.dark,
@@ -694,12 +694,12 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // Fixed height so a placeholder (`—`) and a real number don't shift the
     // row when the async values land. Sized for label + value + hint.
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      borderRadius: BorderRadius.circular(OvertoneRadius.tile),
       child: SizedBox(
         // 有 hint 时再撑高给「需登录」副标题留位，三个统计格高度保持一致。
         height: hint != null ? 76 : 56,
@@ -707,14 +707,14 @@ class _Stat extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(label, style: kugo.caption),
+            Text(label, style: theme.caption),
             const SizedBox(height: 4),
-            Text(value, style: kugo.section.copyWith(fontSize: 20)),
+            Text(value, style: theme.section.copyWith(fontSize: 20)),
             if (hint != null) ...[
               const SizedBox(height: 3),
               Text(
                 hint!,
-                style: kugo.caption.copyWith(fontSize: 10),
+                style: theme.caption.copyWith(fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -731,7 +731,7 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: KugoTheme.of(context).divider);
+    return Container(width: 1, height: 36, color: OvertoneTheme.of(context).divider);
   }
 }
 
@@ -754,17 +754,17 @@ class _LinkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Prefer Material onSurface so titles stay readable even if static
-    // Kugo tokens are briefly stale during a theme switch.
+    // Overtone tokens are briefly stale during a theme switch.
     final scheme = Theme.of(context).colorScheme;
-    final kugo = KugoTheme.of(context);
-    final body = kugo.body.copyWith(color: scheme.onSurface);
+    final theme = OvertoneTheme.of(context);
+    final body = theme.body.copyWith(color: scheme.onSurface);
     final sub = subtitle;
     return ListTile(
       leading: Icon(icon, color: scheme.onSurfaceVariant),
       title: Text(title, style: body),
       subtitle: sub == null || sub.isEmpty
           ? null
-          : Text(sub, style: kugo.caption),
+          : Text(sub, style: theme.caption),
       trailing: Icon(
         Icons.chevron_right_rounded,
         color: scheme.onSurfaceVariant,
@@ -795,7 +795,7 @@ class _PlaylistTileCover extends ConsumerWidget {
     final id = playlist.id;
     if (id.isEmpty) return cover;
     return Hero(
-      tag: KugoHeroTags.playlistCover(id),
+      tag: OvertoneHeroTags.playlistCover(id),
       flightShuttleBuilder: rankHeroFlightShuttle,
       child: cover,
     );
@@ -833,7 +833,7 @@ class _PlaylistTileCover extends ConsumerWidget {
         CoverBox(
           seed: targetCover,
           size: size,
-          radius: KugoRadius.card,
+          radius: OvertoneRadius.card,
           child: isLiked
               ? const Icon(Icons.favorite_rounded, color: Colors.white70, size: 24)
               : (isDefaultCollect
@@ -888,7 +888,7 @@ class _PlaylistTileCover extends ConsumerWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(KugoRadius.card),
+            borderRadius: BorderRadius.circular(OvertoneRadius.card),
             gradient: const LinearGradient(
               colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
               begin: Alignment.topLeft,
@@ -919,7 +919,7 @@ class _PlaylistTileCover extends ConsumerWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(KugoRadius.card),
+            borderRadius: BorderRadius.circular(OvertoneRadius.card),
             gradient: const LinearGradient(
               colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
               begin: Alignment.topLeft,
@@ -949,7 +949,7 @@ class _PlaylistTileCover extends ConsumerWidget {
       CoverBox(
         seed: p.id,
         size: size,
-        radius: KugoRadius.card,
+        radius: OvertoneRadius.card,
         child: const Icon(
           Icons.queue_music_rounded,
           color: Colors.white70,

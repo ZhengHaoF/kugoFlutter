@@ -6,16 +6,16 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 // 注意：[SearchType] 定义在 search_repository 里（历史遗留，暂不迁）。
 import '../../data/repositories/search_repository.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/kugo_clickable.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_clickable.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import 'search_controller.dart';
 import 'search_history_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -179,7 +179,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final state = ref.watch(searchControllerProvider);
 
     return Scaffold(
@@ -190,14 +190,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
+              OvertoneSpacing.lg,
               0,
-              KugoSpacing.lg,
-              KugoSpacing.md,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.md,
             ),
             child: Hero(
-              tag: KugoHeroTags.searchBar,
-              flightShuttleBuilder: KugoHeroTags.searchBarFlightShuttle,
+              tag: OvertoneHeroTags.searchBar,
+              flightShuttleBuilder: OvertoneHeroTags.searchBarFlightShuttle,
               child: Material(
                 type: MaterialType.transparency,
                 child: TextField(
@@ -206,15 +206,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   autofocus: true,
                   textInputAction: TextInputAction.search,
                   onSubmitted: _submit,
-                  style: kugo.body,
+                  style: theme.body,
                   decoration: InputDecoration(
                     hintText: '搜索歌曲、歌单、专辑、歌手',
-                    hintStyle: kugo.caption,
+                    hintStyle: theme.caption,
                     filled: true,
-                    fillColor: kugo.surface,
+                    fillColor: theme.surface,
                     prefixIcon: Icon(
                       Icons.search_rounded,
-                      color: kugo.textSecondary,
+                      color: theme.textSecondary,
                     ),
                     suffixIcon: IconButton(
                       onPressed: () {
@@ -224,7 +224,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       icon: const Icon(Icons.clear_rounded, size: 18),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(KugoRadius.chip),
+                      borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -306,15 +306,15 @@ class _TabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return SizedBox(
       height: 40,
-      child: KugoHScroll(
+      child: OvertoneHScroll(
         fadeEdges: false,
         builder: (context, controller, _) => ListView(
           controller: controller,
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
           children: [
             for (final type in SearchType.values)
               if (type != SearchType.mv ||
@@ -324,9 +324,9 @@ class _TabBar extends StatelessWidget {
                   selected: type == active,
                   count: _countOf(type),
                   onTap: () => onSelect(type),
-                  kugo: kugo,
+                  theme: theme,
                 ),
-                const SizedBox(width: KugoSpacing.sm),
+                const SizedBox(width: OvertoneSpacing.sm),
               ],
           ],
         ),
@@ -351,34 +351,34 @@ class _TabChip extends StatelessWidget {
     required this.selected,
     required this.count,
     required this.onTap,
-    required this.kugo,
+    required this.theme,
   });
 
   final String label;
   final bool selected;
   final int? count;
   final VoidCallback onTap;
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
 
   @override
   Widget build(BuildContext context) {
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.chip),
+      borderRadius: BorderRadius.circular(OvertoneRadius.chip),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? kugo.primary : kugo.surface,
-          borderRadius: BorderRadius.circular(KugoRadius.chip),
+          color: selected ? theme.primary : theme.surface,
+          borderRadius: BorderRadius.circular(OvertoneRadius.chip),
         ),
         child: Text(
           count == null ? label : '$label $count',
-          style: kugo.caption.copyWith(
+          style: theme.caption.copyWith(
             fontSize: 13,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? kugo.onAccent : kugo.textSecondary,
+            color: selected ? theme.onAccent : theme.textSecondary,
           ),
         ),
       ),
@@ -504,7 +504,7 @@ class _TabResults extends ConsumerWidget {
           imageSeed: p.coverUrl,
           title: p.name,
           subtitle: p.creator,
-          heroTag: p.id.isNotEmpty ? KugoHeroTags.playlistCover(p.id) : null,
+          heroTag: p.id.isNotEmpty ? OvertoneHeroTags.playlistCover(p.id) : null,
           trailingLabel:
               p.trackCount > 0 ? '${p.trackCount}首' : p.playCountLabel,
           platform: showSource ? p.platform : null,
@@ -526,7 +526,7 @@ class _TabResults extends ConsumerWidget {
           imageSeed: a.coverUrl,
           title: a.name,
           subtitle: a.artist,
-          heroTag: a.id.isNotEmpty ? KugoHeroTags.albumCover(a.id) : null,
+          heroTag: a.id.isNotEmpty ? OvertoneHeroTags.albumCover(a.id) : null,
           trailingLabel: a.trackCount > 0 ? '${a.trackCount}首' : '',
           platform: showSource ? a.platform : null,
           onTap: a.id.isEmpty
@@ -545,7 +545,7 @@ class _TabResults extends ConsumerWidget {
           imageSeed: a.avatarUrl,
           title: a.name,
           round: true,
-          heroTag: a.id.isNotEmpty ? KugoHeroTags.artistAvatar(a.id) : null,
+          heroTag: a.id.isNotEmpty ? OvertoneHeroTags.artistAvatar(a.id) : null,
           platform: showSource ? a.platform : null,
           // Avatar is backfilled from `singer/info` (search payload has
           // none). Empty seed still falls back to the person glyph.
@@ -596,7 +596,7 @@ class _Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final Widget child;
     if (tab.loadingMore) {
       child = const SizedBox(
@@ -609,15 +609,15 @@ class _Footer extends StatelessWidget {
       // rather than blowing the whole tab away.
       child = TextButton(
         onPressed: onRetry,
-        child: Text('加载失败，点击重试', style: kugo.caption),
+        child: Text('加载失败，点击重试', style: theme.caption),
       );
     } else if (!tab.hasMore) {
-      child = Text('没有更多了', style: kugo.caption.copyWith(fontSize: 12));
+      child = Text('没有更多了', style: theme.caption.copyWith(fontSize: 12));
     } else {
       child = const SizedBox.shrink();
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: KugoSpacing.lg),
+      padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.lg),
       child: Center(child: child),
     );
   }
@@ -641,28 +641,28 @@ class _DiscoveryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final items = hot.isEmpty
         ? const ['周杰伦', '林俊杰', '陈奕迅', '民谣', '说唱', '粤语']
         : hot;
     return SmoothListView(
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       children: [
         if (history.isNotEmpty) ...[
           Row(
             children: [
-              Text('搜索历史', style: kugo.section.copyWith(fontSize: 16)),
+              Text('搜索历史', style: theme.section.copyWith(fontSize: 16)),
               const Spacer(),
               TextButton(
                 onPressed: onClearHistory,
                 child: Text(
                   '清空',
-                  style: kugo.caption.copyWith(fontSize: 13),
+                  style: theme.caption.copyWith(fontSize: 13),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -670,26 +670,26 @@ class _DiscoveryView extends StatelessWidget {
               for (final kw in history)
                 InputChip(
                   label: Text(kw),
-                  backgroundColor: kugo.surface,
-                  labelStyle: kugo.caption.copyWith(fontSize: 13),
+                  backgroundColor: theme.surface,
+                  labelStyle: theme.caption.copyWith(fontSize: 13),
                   side: BorderSide.none,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(KugoRadius.chip),
+                    borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                   ),
-                  deleteIconColor: kugo.textSecondary,
+                  deleteIconColor: theme.textSecondary,
                   deleteIcon: const Icon(Icons.close_rounded, size: 16),
                   onPressed: () => onTap(kw),
                   onDeleted: () => onRemoveHistory(kw),
                 ),
             ],
           ),
-          const SizedBox(height: KugoSpacing.lg),
+          const SizedBox(height: OvertoneSpacing.lg),
         ],
         Text(
           '热门搜索',
-          style: kugo.section.copyWith(fontSize: 16),
+          style: theme.section.copyWith(fontSize: 16),
         ),
-        const SizedBox(height: KugoSpacing.md),
+        const SizedBox(height: OvertoneSpacing.md),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -697,11 +697,11 @@ class _DiscoveryView extends StatelessWidget {
             for (final kw in items)
               ActionChip(
                 label: Text(kw),
-                backgroundColor: kugo.surface,
-                labelStyle: kugo.caption.copyWith(fontSize: 13),
+                backgroundColor: theme.surface,
+                labelStyle: theme.caption.copyWith(fontSize: 13),
                 side: BorderSide.none,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(KugoRadius.chip),
+                  borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                 ),
                 onPressed: () => onTap(kw),
               ),

@@ -185,7 +185,7 @@ void main() {
     });
   });
 
-  /// 挂一个设置页（KugoApp 不经 main()，registry 需手动注册；登录源用假源
+  /// 挂一个设置页（OvertoneApp 不经 main()，registry 需手动注册；登录源用假源
   /// 以模拟网易云的登录/未登录两态，避免碰网络）。
   Future<ProviderContainer> pumpSettingsApp(
     WidgetTester tester, {
@@ -216,7 +216,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const KugoApp(),
+        child: const OvertoneApp(),
       ),
     );
     await tester.pump(const Duration(milliseconds: 50));

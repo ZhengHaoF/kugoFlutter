@@ -33,7 +33,7 @@ class _MvMiniWindowState extends ConsumerState<MvMiniWindow> {
     final brief = ref.read(mvPlayerHostProvider).brief;
     host.exitMini();
     // builder 的 context 在 Navigator 之上，走根 navigator key push。
-    final navContext = kugoNavigatorKey.currentContext;
+    final navContext = overtoneNavigatorKey.currentContext;
     if (brief == null || navContext == null) return;
     final query = Uri(
       queryParameters: {

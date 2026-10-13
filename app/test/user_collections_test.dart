@@ -347,13 +347,13 @@ void main() {
       // Covers fly into PlaylistDetailPage's header Hero.
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('1'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.playlistCover('1'),
         ),
         findsOneWidget,
       );
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('2'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.playlistCover('2'),
         ),
         findsOneWidget,
       );
@@ -627,13 +627,13 @@ void main() {
       expect(find.text('华语流行天王 · 380 首单曲'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('a1'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.artistAvatar('a1'),
         ),
         findsOneWidget,
       );
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('a2'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.artistAvatar('a2'),
         ),
         findsOneWidget,
       );
@@ -660,13 +660,13 @@ void main() {
       expect(find.text('江南'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.albumCover('alb1'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.albumCover('alb1'),
         ),
         findsOneWidget,
       );
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.albumCover('alb2'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.albumCover('alb2'),
         ),
         findsOneWidget,
       );

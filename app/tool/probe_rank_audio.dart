@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:overtone/core/api/endpoints.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
-import 'package:overtone/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
 import 'package:overtone/core/api/mappers.dart';
 
 Future<void> main() async {
@@ -19,8 +19,8 @@ Future<void> main() async {
     ),
   );
 
-  final guid = KugoSign.randomAlnum(32);
-  final mid = KugoSign.calculateMid(guid);
+  final guid = KugouSign.randomAlnum(32);
+  final mid = KugouSign.calculateMid(guid);
   final dfid = '-';
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
@@ -34,14 +34,14 @@ Future<void> main() async {
       'dfid': dfid,
       'mid': mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
     };
     params['signature'] =
-        KugoSign.signatureAndroidParams(params, data: bodyJson);
+        KugouSign.signatureAndroidParams(params, data: bodyJson);
     final headers = <String, dynamic>{
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       'Content-Type': 'application/json',
       'dfid': dfid,
       'clienttime': '$clienttime',
@@ -53,7 +53,7 @@ Future<void> main() async {
       'kg-tid': '369',
       'Cookie': 'dfid=$dfid;KUGOU_API_MID=$mid;KUGOU_API_GUID=$guid',
     };
-    final url = '${KugoEndpoints.gateway}$path';
+    final url = '${KugouEndpoints.gateway}$path';
     stdout.writeln('=== $name ===');
     stdout.writeln('POST $url');
     stdout.writeln('body=$bodyJson');
@@ -70,7 +70,7 @@ Future<void> main() async {
         stdout.writeln('URL FILTER');
         return;
       }
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         stdout.writeln(raw.substring(0, raw.length.clamp(0, 500)));
         return;
@@ -175,8 +175,8 @@ Future<void> main() async {
     'dfid': dfid,
     'mid': mid,
     'uuid': '-',
-    'appid': int.parse(KugoSign.appId),
-    'clientver': int.parse(KugoSign.clientVer),
+    'appid': int.parse(KugouSign.appId),
+    'clientver': int.parse(KugouSign.clientVer),
     'clienttime': clienttime2,
   };
   final body2 = jsonEncode({
@@ -191,16 +191,16 @@ Future<void> main() async {
     'rank_id': 6666,
   });
   params2['signature'] =
-      KugoSign.signatureAndroidParams(params2, data: body2);
+      KugouSign.signatureAndroidParams(params2, data: body2);
   stdout.writeln('=== rank-audio-6666 ===');
   try {
     final res = await dio.post<dynamic>(
-      '${KugoEndpoints.gateway}/openapi/kmr/v2/rank/audio',
+      '${KugouEndpoints.gateway}/openapi/kmr/v2/rank/audio',
       queryParameters: params2,
       data: body2,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'dfid': dfid,
           'clienttime': '$clienttime2',

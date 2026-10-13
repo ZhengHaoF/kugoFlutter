@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../core/api/kugou/credential_transport.dart';
 
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../core/api/network_log.dart';
 import '../../core/models/barrage.dart';
@@ -410,11 +410,11 @@ class CommentRepository {
         'kugouid': _kugouId(auth),
         'ver': 6,
         'clienttoken': auth.token,
-        'appid': int.parse(KugoSign.appId),
-        'clientver': int.parse(KugoSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
+        'clientver': int.parse(KugouSign.clientVer),
         'mid': device.mid,
         'clienttime': clienttime,
-        'key': KugoSign.signParamsKey('$clienttime${device.mid}$payload'),
+        'key': KugouSign.signParamsKey('$clienttime${device.mid}$payload'),
         'uuid': '-',
         'dfid': device.dfid,
       },
@@ -469,11 +469,11 @@ class CommentRepository {
         'kugouid': _kugouId(auth),
         'ver': 6,
         'clienttoken': auth.token,
-        'appid': int.parse(KugoSign.appId),
-        'clientver': int.parse(KugoSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
+        'clientver': int.parse(KugouSign.clientVer),
         'mid': device.mid,
         'clienttime': clienttime,
-        'key': KugoSign.signParamsKey('$clienttime${device.mid}'),
+        'key': KugouSign.signParamsKey('$clienttime${device.mid}'),
         'uuid': '-',
         'dfid': device.dfid,
         'extdata': '0',
@@ -564,13 +564,13 @@ class CommentRepository {
       'code': code,
       if (hash.isNotEmpty) 'hash': hash else 'childrenid': childrenId,
     };
-    params['signature'] = KugoSign.signatureWebParams(params);
+    params['signature'] = KugouSign.signatureWebParams(params);
     try {
       final res = await _dio.get<dynamic>(
         '$_gateway$_indexPath',
         queryParameters: params,
         options: Options(
-          headers: {'User-Agent': KugoSign.userAgent, 'x-router': _countRouter},
+          headers: {'User-Agent': KugouSign.userAgent, 'x-router': _countRouter},
         ),
       );
       final body = _decodeBody(res.data);
@@ -699,11 +699,11 @@ class CommentRepository {
           'kugouid': _kugouId(auth),
           'ver': 6,
           'clienttoken': auth.token,
-          'appid': int.parse(KugoSign.appId),
-          'clientver': int.parse(KugoSign.clientVer),
+          'appid': int.parse(KugouSign.appId),
+          'clientver': int.parse(KugouSign.clientVer),
           'mid': device.mid,
           'clienttime': clienttime,
-          'key': KugoSign.signParamsKey('$clienttime'),
+          'key': KugouSign.signParamsKey('$clienttime'),
           'uuid': '-',
           'dfid': device.dfid,
         },
@@ -763,11 +763,11 @@ class CommentRepository {
           'kugouid': _kugouId(auth),
           'ver': 6,
           'clienttoken': auth.token,
-          'appid': int.parse(KugoSign.appId),
-          'clientver': int.parse(KugoSign.clientVer),
+          'appid': int.parse(KugouSign.appId),
+          'clientver': int.parse(KugouSign.clientVer),
           'mid': device.mid,
           'clienttime': clienttime,
-          'key': KugoSign.signParamsKey('$clienttime'),
+          'key': KugouSign.signParamsKey('$clienttime'),
           'uuid': '-',
           'dfid': device.dfid,
         },
@@ -829,11 +829,11 @@ class CommentRepository {
         'ver': '1.02',
         'content': text,
         'pid': 0,
-        'clientver': int.parse(KugoSign.clientVer),
+        'clientver': int.parse(KugouSign.clientVer),
         'mid': device.mid,
         'clienttoken': auth.token,
         'kugouid': _kugouId(auth),
-        'appid': int.parse(KugoSign.appId),
+        'appid': int.parse(KugouSign.appId),
       },
       dfid: device.dfid,
       mid: device.mid,
@@ -920,11 +920,11 @@ class CommentRepository {
         'kugouid': _kugouId(auth),
         'ver': 6,
         'clienttoken': auth.token,
-        'appid': int.parse(KugoSign.appId),
-        'clientver': int.parse(KugoSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
+        'clientver': int.parse(KugouSign.clientVer),
         'mid': device.mid,
         'clienttime': clienttime,
-        'key': KugoSign.signParamsKey('$clienttime${device.mid}$payload'),
+        'key': KugouSign.signParamsKey('$clienttime${device.mid}$payload'),
         'uuid': '-',
         'dfid': device.dfid,
       },
@@ -978,11 +978,11 @@ class CommentRepository {
         'kugouid': _kugouId(auth),
         'ver': 6,
         'clienttoken': auth.token,
-        'appid': int.parse(KugoSign.appId),
-        'clientver': int.parse(KugoSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
+        'clientver': int.parse(KugouSign.clientVer),
         'mid': device.mid,
         'clienttime': clienttime,
-        'key': KugoSign.signParamsKey('$clienttime${device.mid}'),
+        'key': KugouSign.signParamsKey('$clienttime${device.mid}'),
         'uuid': '-',
         'dfid': device.dfid,
         if (mixSongId.trim().isNotEmpty)
@@ -1053,7 +1053,7 @@ class CommentRepository {
     try {
       final options = Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json; charset=UTF-8',
           'x-router': _commentRouter,
           'dfid': dfid,
@@ -1230,8 +1230,8 @@ class CommentRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       if (useToken) 'token': auth.token,
       if (userId.isNotEmpty) 'userid': int.tryParse(userId) ?? userId,
@@ -1239,7 +1239,7 @@ class CommentRepository {
       'pagesize': pageSize,
       ...business,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params);
+    params['signature'] = KugouSign.signatureAndroidParams(params);
 
     final cookieParts = <String>[
       if (useToken) 'token=${auth.token}',
@@ -1249,7 +1249,7 @@ class CommentRepository {
       'KUGOU_API_GUID=${device.guid}',
     ];
     final headers = <String, String>{
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       'Content-Type': 'application/json',
       'dfid': device.dfid,
       'clienttime': '$clienttime',

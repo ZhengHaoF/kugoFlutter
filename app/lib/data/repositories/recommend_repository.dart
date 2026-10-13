@@ -4,8 +4,8 @@ import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/credential_transport.dart';
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/daily_recommend.dart';
@@ -220,7 +220,7 @@ class RecommendRepository {
     final hasToken = auth.hasToken;
 
     final body = await _signedGatewayPost(
-      path: KugoEndpoints.everydayStyleRecommendPrefixed,
+      path: KugouEndpoints.everydayStyleRecommendPrefixed,
       router: null,
       // Upstream always includes tagids (empty string = default recommend).
       extraQuery: {'tagids': tagids},
@@ -307,16 +307,16 @@ class RecommendRepository {
       'categoryid': int.tryParse(categoryId) ?? 0,
     };
     final body = <String, dynamic>{
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'mid': device.mid,
-      'clientver': int.parse(KugoSign.clientVer),
+      'clientver': int.parse(KugouSign.clientVer),
       'platform': 'android',
       'clienttime': clienttime,
       'userid': userIdNum,
       'module_id': 1,
       'page': page,
       'pagesize': pageSize,
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
       'special_recommend': specialRecommend,
       'req_multi': 1,
       'retrun_min': 5,
@@ -324,8 +324,8 @@ class RecommendRepository {
     };
 
     final decoded = await _signedGatewayPost(
-      path: KugoEndpoints.specialRecommend,
-      router: KugoEndpoints.specialRecommendRouter,
+      path: KugouEndpoints.specialRecommend,
+      router: KugouEndpoints.specialRecommendRouter,
       body: body,
       label: '推荐歌单',
     );
@@ -362,8 +362,8 @@ class RecommendRepository {
   Future<RecommendPlaylistsSection> fetchEditorialPicks({int limit = 12}) async {
     lastError = '';
     final decoded = await _signedGatewayPost(
-      baseUrl: KugoEndpoints.musicAdService,
-      path: KugoEndpoints.topIp,
+      baseUrl: KugouEndpoints.musicAdService,
+      path: KugouEndpoints.topIp,
       router: null,
       extraQuery: {
         'clientver': 12349,
@@ -445,14 +445,14 @@ class RecommendRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       if (useToken) 'token': auth.token,
       if (userIdNum != 0) 'userid': userIdNum,
       ...extraQuery,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: bodyJson);
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: bodyJson);
 
     final cookieParts = <String>[
       if (useToken) 'token=${auth.token}',
@@ -464,9 +464,9 @@ class RecommendRepository {
       'KUGOU_API_DEV=${device.dev}',
     ];
 
-    final host = baseUrl ?? KugoEndpoints.gateway;
+    final host = baseUrl ?? KugouEndpoints.gateway;
     final headers = <String, dynamic>{
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       'Content-Type': 'application/json',
       'dfid': device.dfid,
       'clienttime': '$clienttime',
@@ -519,7 +519,7 @@ class RecommendRepository {
         lastError = '网络网关拦截（URL过滤），无法访问酷狗';
         return null;
       }
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         lastError = raw.isEmpty ? '$label响应为空' : '$label响应无法解析';
         return null;
@@ -596,15 +596,15 @@ class RecommendRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       if (useToken) 'token': auth.token,
       if (userIdNum != 0) 'userid': userIdNum,
       'platform': 'ios',
     };
     // encryptType: android; module sends no body → empty data in signature.
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: '');
 
     final cookieParts = <String>[
       if (useToken) 'token=${auth.token}',
@@ -618,12 +618,12 @@ class RecommendRepository {
 
     try {
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}${KugoEndpoints.everydayRecommend}',
+        '${KugouEndpoints.gateway}${KugouEndpoints.everydayRecommend}',
         queryParameters: params,
         data: '',
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
             'dfid': device.dfid,
             'clienttime': '$clienttime',
@@ -632,7 +632,7 @@ class RecommendRepository {
             'kg-thash': '5d816a0',
             'kg-rec': '1',
             'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
-            'x-router': KugoEndpoints.everydayRouter,
+            'x-router': KugouEndpoints.everydayRouter,
             'Cookie': cookieParts.join(';'),
           },
         ),
@@ -643,7 +643,7 @@ class RecommendRepository {
         lastError = '网络网关拦截（URL过滤），无法访问酷狗';
         return const [];
       }
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         if (raw.isEmpty) {
           lastError = useToken ? '每日推荐响应为空' : '每日推荐需要登录';

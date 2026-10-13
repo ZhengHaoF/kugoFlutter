@@ -7,7 +7,7 @@ import 'package:overtone/core/source/music_platform.dart';
 import 'package:overtone/core/source/music_source.dart';
 import 'package:overtone/data/sources/bili/bili_source.dart';
 
-import 'fakes/fake_kugo_client.dart' show ScriptedAdapter;
+import 'fakes/fake_kugou_client.dart' show ScriptedAdapter;
 
 /// B 站适配层单测：ScriptedAdapter 回放真实形态的 fixture（探针实测结构），
 /// 不联外网。覆盖 id 两种形态、选轨降级、防盗链头、兜底路径（方案 §10）。

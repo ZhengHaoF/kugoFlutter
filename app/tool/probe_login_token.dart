@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-import '../lib/core/api/kugou/kugo_crypto.dart';
-import '../lib/core/api/kugou/kugo_sign.dart';
+import '../lib/core/api/kugou/kugou_crypto.dart';
+import '../lib/core/api/kugou/kugou_sign.dart';
 
 const token =
     '4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7';
@@ -22,7 +22,7 @@ const liteT1Key = '5e4ef500e9597fe004bd09a46d8add98';
 const liteT1Iv = '04bd09a46d8add98';
 
 Future<void> main() async {
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 12),
@@ -34,23 +34,23 @@ Future<void> main() async {
 
   // --- login_by_token ---
   final dateNow = DateTime.now().millisecondsSinceEpoch;
-  final p3 = KugoCrypto.aesEncrypt(
+  final p3 = KugouCrypto.aesEncrypt(
     jsonEncode({'clienttime': dateNow ~/ 1000, 'token': token}),
     key: liteKey,
     iv: liteIv,
   ) as String;
-  final encryptParams = KugoCrypto.aesEncrypt('{}') as Map;
+  final encryptParams = KugouCrypto.aesEncrypt('{}') as Map;
   final encKey = encryptParams['key']! as String;
   final encStr = encryptParams['str']! as String;
-  final pk = KugoCrypto.rsaEncryptRaw(
+  final pk = KugouCrypto.rsaEncryptRaw(
     jsonEncode({'clienttime_ms': dateNow, 'key': encKey}),
   );
-  final t2 = KugoCrypto.aesEncrypt(
+  final t2 = KugouCrypto.aesEncrypt(
     '$guid|0f607264fc6318a92b9e13c65db7cd3c||overtoneFlutter|$dateNow',
     key: liteT2Key,
     iv: liteT2Iv,
   ) as String;
-  final t1 = KugoCrypto.aesEncrypt('|$dateNow', key: liteT1Key, iv: liteT1Iv)
+  final t1 = KugouCrypto.aesEncrypt('|$dateNow', key: liteT1Key, iv: liteT1Iv)
       as String;
 
   final dataMap = {
@@ -68,9 +68,9 @@ Future<void> main() async {
   };
   final bodyJson = jsonEncode(dataMap);
   final query = <String, dynamic>{
-    ...KugoSign.defaultParams(dfid: dfid, mid: mid),
+    ...KugouSign.defaultParams(dfid: dfid, mid: mid),
   };
-  query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+  query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
   try {
     final res = await dio.post<dynamic>(
@@ -79,7 +79,7 @@ Future<void> main() async {
       data: bodyJson,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'dfid': dfid,
           'mid': mid,
@@ -98,7 +98,7 @@ Future<void> main() async {
       final data = Map<String, dynamic>.from(body['data'] as Map? ?? {});
       final secu = (data['secu_params'] ?? '').toString();
       if (secu.isNotEmpty) {
-        final decoded = KugoCrypto.aesDecryptHex(secu, encKey);
+        final decoded = KugouCrypto.aesDecryptHex(secu, encKey);
         stdout.writeln('  secu_decoded: $decoded');
       }
       stdout.writeln('  new token: ${data['token']}');
@@ -131,14 +131,14 @@ Future<void> main() async {
       'userid': userId,
       'token': token,
     };
-    q['signature'] = KugoSign.signatureAndroidParams(q, data: bodyJson2);
+    q['signature'] = KugouSign.signatureAndroidParams(q, data: bodyJson2);
     final res = await dio.post<dynamic>(
       'https://gateway.kugou.com/v7/get_all_list',
       queryParameters: q,
       data: bodyJson2,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'dfid': dfid,
           'mid': mid,

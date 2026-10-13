@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugou_client.dart';
 import '../../data/repositories/search_repository.dart';
 
 enum ProbeStatus { idle, ok, fail, filtered, probing }
@@ -27,8 +27,8 @@ class LiveProbeTarget {
 
 /// Continuous background probes for the network debug screen.
 class LiveProbeController extends ChangeNotifier {
-  LiveProbeController({KugoClient? client, SearchRepository? search})
-      : _client = client ?? kugoClient,
+  LiveProbeController({KugouClient? client, SearchRepository? search})
+      : _client = client ?? kugouClient,
         _search = search ?? searchRepository {
     targets = [
       LiveProbeTarget(
@@ -52,8 +52,8 @@ class LiveProbeController extends ChangeNotifier {
         label: '歌词',
         run: () async {
           final url = buildUrl(
-            KugoEndpoints.lyrics,
-            KugoEndpoints.lyricSearch,
+            KugouEndpoints.lyrics,
+            KugouEndpoints.lyricSearch,
             {
               'ver': 1,
               'man': 'yes',
@@ -74,8 +74,8 @@ class LiveProbeController extends ChangeNotifier {
         label: '播放域',
         run: () async {
           final url = buildUrl(
-            KugoEndpoints.wwwApi,
-            KugoEndpoints.playData,
+            KugouEndpoints.wwwApi,
+            KugouEndpoints.playData,
             {
               'r': 'play/getdata',
               'hash': 'b3a52a7a958bf0aed0ebfba2e9a818b7',
@@ -96,7 +96,7 @@ class LiveProbeController extends ChangeNotifier {
         id: 'https',
         label: 'HTTPS',
         run: () async {
-          final url = 'https://mobilecdn.kugou.com${KugoEndpoints.searchSong}';
+          final url = 'https://mobilecdn.kugou.com${KugouEndpoints.searchSong}';
           await _client.getJson(url, query: {
             'format': 'json',
             'keyword': '晴天',
@@ -109,7 +109,7 @@ class LiveProbeController extends ChangeNotifier {
     ];
   }
 
-  final KugoClient _client;
+  final KugouClient _client;
   final SearchRepository _search;
 
   late final List<LiveProbeTarget> targets;

@@ -6,7 +6,7 @@ import 'package:overtone/core/models/audio_quality.dart';
 import 'package:overtone/core/models/cloud_models.dart';
 import 'package:overtone/core/models/track.dart';
 import 'package:overtone/core/source/music_platform.dart';
-import 'package:overtone/data/storage/kugo_db.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
 import 'package:overtone/data/storage/playback_position_store.dart';
 import 'package:overtone/data/storage/queue_store.dart';
 import 'package:overtone/data/storage/track_metadata.dart';
@@ -62,10 +62,10 @@ void _expectComplete(Track actual, Track expected) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late KugoDb db;
+  late OvertoneDb db;
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    db = KugoDb.forTesting(NativeDatabase.memory());
+    db = OvertoneDb.forTesting(NativeDatabase.memory());
     QueueStore.setDbForTesting(db);
   });
   tearDown(() async {
@@ -177,7 +177,7 @@ void main() {
       old.execute('INSERT INTO history_tracks VALUES (1000, $values)');
       old.execute("INSERT INTO queue_meta VALUES (0,0,'listLoop')");
       old.execute('PRAGMA user_version = $version');
-      final migrated = KugoDb.forTesting(NativeDatabase.opened(old));
+      final migrated = OvertoneDb.forTesting(NativeDatabase.opened(old));
       try {
         final legacy = (await migrated.readQueue())!.queue.single;
         expect(

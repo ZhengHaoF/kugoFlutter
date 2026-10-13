@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-import '../lib/core/api/kugou/kugo_crypto.dart';
-import '../lib/core/api/kugou/kugo_sign.dart';
+import '../lib/core/api/kugou/kugou_crypto.dart';
+import '../lib/core/api/kugou/kugou_sign.dart';
 
 const token =
     '4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7';
@@ -23,14 +23,14 @@ Future<void> hit(
   Map<String, dynamic>? headerExtra,
   String router = 'cloudlist.service.kugou.com',
 }) async {
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final bodyJson = body is String ? body : jsonEncode(body);
   final query = <String, dynamic>{
-    ...KugoSign.defaultParams(dfid: dfid, mid: mid),
+    ...KugouSign.defaultParams(dfid: dfid, mid: mid),
     ...queryBase,
   };
-  query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+  query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
   final cookie = [
     'token=$token',
     'userid=$userId',
@@ -46,7 +46,7 @@ Future<void> hit(
       data: bodyJson,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': body is String ? 'text/plain' : 'application/json',
           'dfid': dfid,
           'mid': mid,
@@ -75,7 +75,7 @@ Future<void> main() async {
       receiveTimeout: const Duration(seconds: 15),
     ),
   );
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final uid = int.parse(userId);
 
@@ -87,8 +87,8 @@ Future<void> main() async {
     'page': 1,
     'pagesize': 50,
   };
-  final aes = KugoCrypto.playlistAesEncrypt(jsonEncode(dataMap));
-  final p = KugoCrypto.rsaEncryptPkcs1(
+  final aes = KugouCrypto.playlistAesEncrypt(jsonEncode(dataMap));
+  final p = KugouCrypto.rsaEncryptPkcs1(
     jsonEncode({'aes': aes.key, 'uid': uid, 'token': token}),
   );
 

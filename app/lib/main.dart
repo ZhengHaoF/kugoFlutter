@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'app.dart';
-import 'core/api/kugou/kugo_client.dart';
+import 'core/api/kugou/kugou_client.dart';
 import 'core/api/netease/netease_client.dart';
 import 'core/api/network_log.dart';
 import 'core/diagnostics/crash_log.dart';
@@ -16,7 +16,7 @@ import 'core/diagnostics/startup_gate.dart';
 import 'core/diagnostics/startup_services.dart';
 import 'core/platform.dart';
 import 'core/desktop_capabilities.dart';
-import 'core/theme/kugo_theme.dart';
+import 'core/theme/overtone_theme.dart';
 import 'data/sources/sources.dart';
 import 'data/sources/bili/bili_source.dart';
 import 'data/storage/bili_auth_store.dart';
@@ -94,7 +94,7 @@ Future<Widget> _bootApp(List<String> args) async {
       ThemeMode.system =>
         WidgetsBinding.instance.platformDispatcher.platformBrightness,
     };
-    applyKugoSystemUi(initialBrightness);
+    applyOvertoneSystemUi(initialBrightness);
 
     // Pipe Dio interceptor logs into Riverpod network log list.
     void sink(NetworkLog log) {
@@ -102,7 +102,7 @@ Future<Widget> _bootApp(List<String> args) async {
     }
 
     NetworkLogHub.bind(sink);
-    kugoClient.setLogSink(sink);
+    kugouClient.setLogSink(sink);
 
     // Restore login session (and device mid) BEFORE any play-url resolve.
     final credentialWarnings = <String>[];
@@ -165,12 +165,12 @@ Future<Widget> _bootApp(List<String> args) async {
       },
       child: UncontrolledProviderScope(
         container: container,
-        child: const KugoApp(),
+        child: const OvertoneApp(),
       ),
     );
   } catch (_) {
     NetworkLogHub.bind(null);
-    kugoClient.setLogSink(null);
+    kugouClient.setLogSink(null);
     container.dispose();
     rethrow;
   }
@@ -191,15 +191,15 @@ Future<void> _startMediaSession(
     }
 
     player.attachBridge(
-      await AudioService.init<KugoAudioHandler>(
-        builder: () => KugoAudioHandler(player),
+      await AudioService.init<OvertoneAudioHandler>(
+        builder: () => OvertoneAudioHandler(player),
         config: AudioServiceConfig(
           androidNotificationChannelId: 'com.kugo.player',
           androidNotificationChannelName: '泛音 播放',
           androidNotificationOngoing: true,
           androidStopForegroundOnPause: true,
           // 通知的主色跟着当前调色板走（原来是写死的深色 primary）。
-          notificationColor: kugoPaletteFor(initialBrightness).primary,
+          notificationColor: overtonePaletteFor(initialBrightness).primary,
           // Monochrome white icon: needed for the seek bar to render on some
           // Android builds / head units (see audio_service docs).
           androidNotificationIcon: 'drawable/ic_stat_music',

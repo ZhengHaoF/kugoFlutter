@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
 import 'package:overtone/core/api/mappers.dart' show mvCoverUrl;
 import 'package:overtone/core/models/mv_models.dart';
 import 'package:overtone/core/models/track.dart';
@@ -42,7 +42,7 @@ class _ScriptedAdapter implements HttpClientAdapter {
 }
 
 /// 简版 search/mv 用的 client。
-class _FakeClient extends KugoClient {
+class _FakeClient extends KugouClient {
   _FakeClient(this.responses);
 
   final Map<String, Object?> responses;

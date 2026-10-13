@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
-import '../../../core/theme/kugo_theme.dart';
+import '../../../core/theme/overtone_theme.dart';
 import '../desktop_lyric_bridge.dart';
 import '../desktop_lyric_host.dart';
 import '../desktop_lyric_ipc.dart';
@@ -102,8 +102,8 @@ class _DesktopLyricAppState extends State<DesktopLyricApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         textTheme: ThemeData.dark(useMaterial3: true).textTheme.apply(
-          fontFamily: kugoFontFamily,
-          fontFamilyFallback: kugoFontFamilyFallback,
+          fontFamily: overtoneFontFamily,
+          fontFamilyFallback: overtoneFontFamilyFallback,
         ),
       ),
       home: !_booted

@@ -7,8 +7,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/track.dart';
-import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../core/utils/lrc_parser.dart';
 import '../../features/settings/settings_controller.dart';
@@ -235,7 +235,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final settings = ref.watch(settingsControllerProvider);
     final showTr = _showTr(settings);
     final showRo = _showRo(settings);
@@ -245,13 +245,13 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
           widget.status == LyricsStatus.idle;
       return Center(
         child: loading
-            ? Text('歌词加载中…', style: kugo.caption)
-            : Text('暂无歌词', style: kugo.caption),
+            ? Text('歌词加载中…', style: theme.caption)
+            : Text('暂无歌词', style: theme.caption),
       );
     }
 
     if (widget.compact) {
-      return _buildCompact(kugo, showTr, showRo, settings);
+      return _buildCompact(theme, showTr, showRo, settings);
     }
 
     final desktop = isDesktopView(context);
@@ -297,7 +297,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
           padding: EdgeInsets.symmetric(
-            horizontal: desktop ? KugoSpacing.xl : KugoSpacing.lg,
+            horizontal: desktop ? OvertoneSpacing.xl : OvertoneSpacing.lg,
             vertical: vPad,
           ),
           itemExtent: extent,
@@ -317,7 +317,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                 settings: settings,
                 showTr: showTr,
                 showRo: showRo,
-                kugo: kugo,
+                theme: theme,
                 extent: extent,
               );
               _rowCache[index] = _CachedRow(opacity, built);
@@ -334,7 +334,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
               settings: settings,
               showTr: showTr,
               showRo: showRo,
-              kugo: kugo,
+              theme: theme,
               extent: extent,
             );
           },
@@ -403,7 +403,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                       right: desktop ? 24 : 12,
                       bottom: desktop ? 20 : 12,
                       child: _ResumeFollowChip(
-                        kugo: kugo,
+                        theme: theme,
                         onTap: _resumeFollow,
                       ),
                     ),
@@ -424,7 +424,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     required AppSettings settings,
     required bool showTr,
     required bool showRo,
-    required KugoTheme kugo,
+    required OvertoneTheme theme,
     required double extent,
   }) {
     final line = widget.lines[index];
@@ -447,18 +447,18 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                     positionMs: widget.positionMs,
                     isPlaying: widget.isPlaying,
                     style: _lineStyle(
-                      kugo,
+                      theme,
                       true,
                       desktop: desktop,
                       scale: settings.lyricFontScale,
                     ),
-                    accent: kugo.primary,
+                    accent: theme.primary,
                   )
                 else
                   _PrimaryLine(
                     line: line,
                     style: _lineStyle(
-                      kugo,
+                      theme,
                       false,
                       desktop: desktop,
                       scale: settings.lyricFontScale,
@@ -468,7 +468,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                   _SecondaryLine(
                     text: line.translated!,
                     style: _secondaryStyle(
-                      kugo,
+                      theme,
                       isActive,
                       scale: settings.lyricFontScale,
                     ),
@@ -477,7 +477,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                   _SecondaryLine(
                     text: line.romanized!,
                     style: _secondaryStyle(
-                      kugo,
+                      theme,
                       isActive,
                       roman: true,
                       scale: settings.lyricFontScale,
@@ -492,7 +492,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   }
 
   Widget _buildCompact(
-    KugoTheme kugo,
+    OvertoneTheme theme,
     bool showTr,
     bool showRo,
     AppSettings settings,
@@ -519,7 +519,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: _lineStyle(kugo, start + i == activeIndex).copyWith(
+                    style: _lineStyle(theme, start + i == activeIndex).copyWith(
                       fontSize:
                           (start + i == activeIndex ? 14 : 13) * scale,
                       height: 1.25,
@@ -532,7 +532,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.caption.copyWith(fontSize: 11 * scale),
+                        style: theme.caption.copyWith(fontSize: 11 * scale),
                       ),
                     if (showRo && visible[i].romanized != null)
                       Text(
@@ -540,7 +540,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.caption.copyWith(
+                        style: theme.caption.copyWith(
                           fontSize: 10 * scale,
                           fontStyle: FontStyle.italic,
                         ),
@@ -556,7 +556,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
 
   /// 主行样式。[scale] 为歌词字号倍率（设置里「歌词字号」）。
   TextStyle _lineStyle(
-    KugoTheme kugo,
+    OvertoneTheme theme,
     bool active, {
     bool desktop = false,
     double scale = 1,
@@ -565,7 +565,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     return TextStyle(
       fontSize: base * scale,
       fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-      color: active ? kugo.textPrimary : kugo.textSecondary,
+      color: active ? theme.textPrimary : theme.textSecondary,
       height: 1.35,
       letterSpacing: active ? 0.2 : 0,
     );
@@ -573,17 +573,17 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
 
   /// 副行样式。[scale] 为歌词字号倍率。
   TextStyle _secondaryStyle(
-    KugoTheme kugo,
+    OvertoneTheme theme,
     bool active, {
     bool roman = false,
     double scale = 1,
   }) {
-    return kugo.caption.copyWith(
+    return theme.caption.copyWith(
       fontSize: (roman ? 11.0 : 12.0) * scale,
       fontStyle: roman ? FontStyle.italic : FontStyle.normal,
       color: active
-          ? kugo.textSecondary
-          : kugo.textSecondary.withValues(alpha: 0.7),
+          ? theme.textSecondary
+          : theme.textSecondary.withValues(alpha: 0.7),
       height: 1.25,
     );
   }
@@ -604,9 +604,9 @@ class _CachedRow {
 ///
 /// 点一下立刻恢复跟随；不点则等宽限期结束自动回来。
 class _ResumeFollowChip extends StatelessWidget {
-  const _ResumeFollowChip({required this.kugo, required this.onTap});
+  const _ResumeFollowChip({required this.theme, required this.onTap});
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final VoidCallback onTap;
 
   @override
@@ -621,9 +621,9 @@ class _ResumeFollowChip extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: kugo.surface.withValues(alpha: 0.92),
+              color: theme.surface.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: kugo.divider),
+              border: Border.all(color: theme.divider),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.18),
@@ -635,13 +635,13 @@ class _ResumeFollowChip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.my_location_rounded, size: 14, color: kugo.primary),
+                Icon(Icons.my_location_rounded, size: 14, color: theme.primary),
                 const SizedBox(width: 6),
                 Text(
                   '回到当前行',
-                  style: kugo.caption.copyWith(
+                  style: theme.caption.copyWith(
                     fontSize: 12,
-                    color: kugo.textPrimary,
+                    color: theme.textPrimary,
                   ),
                 ),
               ],

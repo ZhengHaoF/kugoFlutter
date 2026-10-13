@@ -418,10 +418,17 @@ UA 片段（`kugo-netease-probe`，见 `core/api/netease/netease_client.dart:96`
 
 | 现标识符 | 次数 | 新标识符 | 定义位置 |
 | --- | --- | --- | --- |
-| `kugoFontFamily` | 15 | `overtoneFontFamily` | `core/theme/kugo_theme.dart:12` |
-| `kugoFontFamilyFallback` | 14 | `overtoneFontFamilyFallback` | `core/theme/kugo_theme.dart:15` |
+| `kugoFontFamily` | 15 | `overtoneFontFamily` | `core/theme/overtone_theme.dart:12` |
+| `kugoFontFamilyFallback` | 14 | `overtoneFontFamilyFallback` | `core/theme/overtone_theme.dart:15` |
 | `kugoNavigatorKey` | 6 | `overtoneNavigatorKey` | `core/app_navigator.dart:9` |
 | `kugoPaletteFor` | 4 | `overtonePaletteFor` | `main.dart:202` 等 |
+
+> **⚠ 实施踩坑（2026-10-13 实测）**：该正则的 `(?=[A-Za-z])` 会把 `kugouSource`、
+> `kugouSession`、`kugouParam`、 `kugouCover`、`kugouvip` 等**平台级标识符**的前缀
+> `kugo` 也匹配上（`kugo` 后面的 `u` 同样是字母），一次性污染 129 个文件 / 843 处，
+> 表现为 `overtoneuSource` 这类怪名。
+> **修正办法**：跑完后立刻 `rg -l "overtoneu"` 并把 `overtoneu` 批量还原为 `kugou`
+> （`overtoneu` 不可能是任何合法标识符，可安全整体替换）；本计划 §5.6 的脚本已内置该校验。
 
 该前瞻 deliberately 不碰 `kugo_device_dfid`（后随 `_`）、`'kugo 播放'`（后随空格）、
 `kugo.sqlite`（后随 `.`）、`KUGO_LYRIC_PROCESS`（全大写）——这些由 Step 1 / 3 / 5 显式处理。
@@ -524,10 +531,16 @@ Rename-InFiles "Kugo(?![a-z])" "Overtone" $dirs
 
 # 第四轮：camelCase 小写标识符。kugoFlutter → overtoneFlutter（dev 字段值，§1.2 正是要这个结果；
 #         ZhengHaoF/kugoFlutter 必须已在前置条件里改成 ZhengHaoF/overtone）
+# ⚠ 该正则会误伤 kugou* 平台标识符（kugo 后面的 u 也是字母），跑完必须执行下一行还原
 Rename-InFiles "(?<![A-Za-z])kugo(?=[A-Za-z])" "overtone" $dirs
+Rename-InFiles "overtoneu" "kugou" $dirs   # 还原误伤：overtoneuSource → kugouSource
 
 # 第三轮：局部变量 → theme。⚠ 放最后！它破坏面最大（\bkugo\b 会吃掉 package:kugo/、
 #        'kugo/taskbar'、'kugo.credentials.' 等字符串），此时字符串应已全部处理完。
+# ⚠ 实施踩坑：\bkugo\b 还会命中「刻意保留」的 'com.kugo.player'（AUMID）、'com.kugo.kugo'
+#    （DesktopEntry）、'kugo.credentials.*'（secure storage 键，§1.1 决定保留）。
+#    必须先把这几个字符串替换成占位符，跑完再换回来，否则 AUMID 会变成 com.theme.player、
+#    全体用户登录态静默丢失。本计划 §5.6 脚本已内置该保护。
 Rename-InFiles "\bkugo\b" "theme" @("app/lib", "app/test")
 ```
 

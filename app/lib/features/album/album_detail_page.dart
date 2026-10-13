@@ -8,14 +8,14 @@ import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/resource_comment_section.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class AlbumDetailPage extends ConsumerStatefulWidget {
@@ -83,7 +83,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final album = _album;
     final songs = album?.songs ?? const <Track>[];
@@ -104,7 +104,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                 fit: StackFit.expand,
                 children: [
                   CoverHero(
-                    tag: KugoHeroTags.albumCover(widget.id),
+                    tag: OvertoneHeroTags.albumCover(widget.id),
                     seed: album?.coverUrl ?? widget.id,
                     size: 0,
                     radius: 0,
@@ -116,19 +116,19 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.black.withValues(alpha: 0.2),
-                          kugo.bg.withValues(alpha: 0.95),
+                          theme.bg.withValues(alpha: 0.95),
                         ],
                       ),
                     ),
                   ),
                   Positioned(
-                    left: KugoSpacing.lg,
-                    right: KugoSpacing.lg,
-                    bottom: KugoSpacing.lg,
+                    left: OvertoneSpacing.lg,
+                    right: OvertoneSpacing.lg,
+                    bottom: OvertoneSpacing.lg,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(album?.name ?? '专辑', style: kugo.title),
+                        Text(album?.name ?? '专辑', style: theme.title),
                         const SizedBox(height: 6),
                         Text(
                           [
@@ -138,7 +138,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                             if (album != null) '${songs.length} 首',
                             '来源：${widget.platform.label}',
                           ].join(' · '),
-                          style: kugo.caption,
+                          style: theme.caption,
                         ),
                       ],
                     ),
@@ -150,10 +150,10 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
-                KugoSpacing.lg,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: Row(
                 children: [
@@ -218,9 +218,9 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.xl,
-                  KugoSpacing.lg,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.xl,
+                  OvertoneSpacing.lg,
                   0,
                 ),
                 child: ResourceCommentSection(

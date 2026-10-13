@@ -84,13 +84,13 @@ void main() {
       );
       final object = LinuxMprisObject(
         h.actions,
-        artwork: (_) async => Uri.file('/tmp/kugo-cover'),
+        artwork: (_) async => Uri.file('/tmp/theme-cover'),
       );
       object.publish();
       await Future<void>.delayed(Duration.zero);
       final metadata = object.playerProperties['Metadata']!
           .asStringVariantDict();
-      expect(metadata['mpris:artUrl']!.asString(), 'file:///tmp/kugo-cover');
+      expect(metadata['mpris:artUrl']!.asString(), 'file:///tmp/theme-cover');
       expect(metadata.toString(), isNot(contains('token=private')));
     },
   );

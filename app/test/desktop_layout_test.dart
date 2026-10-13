@@ -37,7 +37,7 @@ void main() {
           playerControllerProvider
               .overrideWith(() => PlayerController(engine: engine)),
         ],
-        child: const KugoApp(),
+        child: const OvertoneApp(),
       ),
     );
     await tester.pump(const Duration(milliseconds: 50));
@@ -66,7 +66,7 @@ void main() {
           playerControllerProvider
               .overrideWith(() => PlayerController(engine: engine)),
         ],
-        child: const KugoApp(),
+        child: const OvertoneApp(),
       ),
     );
     await tester.pump(const Duration(milliseconds: 50));

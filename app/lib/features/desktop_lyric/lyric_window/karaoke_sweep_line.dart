@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../../core/models/track.dart';
-import '../../../core/theme/kugo_theme.dart';
+import '../../../core/theme/overtone_theme.dart';
 import 'lyric_window_controller.dart';
 
 /// 帧计时游标（纯函数，便于直接覆盖「暂停用快照、播放用锚点+帧增量」）。
@@ -296,8 +296,8 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
         fontWeight: _fontWeight,
         letterSpacing: 0.3,
         // TextPainter 不走 DefaultTextStyle 合并，必须显式指定，否则落到 Roboto。
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
       );
 
   TextStyle get _sungStyle => _baseStyle.copyWith(color: widget.sungColor);
@@ -316,8 +316,8 @@ class _KaraokeSweepLineState extends State<KaraokeSweepLine>
       height: widget.heightFactor,
       fontWeight: _fontWeight,
       letterSpacing: 0.3,
-      fontFamily: kugoFontFamily,
-      fontFamilyFallback: kugoFontFamilyFallback,
+      fontFamily: overtoneFontFamily,
+      fontFamilyFallback: overtoneFontFamilyFallback,
     );
   }
 

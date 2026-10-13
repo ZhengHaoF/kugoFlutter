@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import 'common.dart';
 
 /// 评论输入弹层。
@@ -14,7 +14,7 @@ Future<String?> showCommentComposerSheet(
   String? replyTo,
   int maxLength = 200,
 }) {
-  return showKugoBottomSheet<String>(
+  return showOvertoneBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     builder: (_) => _CommentComposerBody(
@@ -67,7 +67,7 @@ class _CommentComposerBodyState extends State<_CommentComposerBody> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // 键盘顶起来时把内容抬上去（桌面端 viewInsets 为 0，无副作用）。
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final count = _controller.text.runes.length;
@@ -78,10 +78,10 @@ class _CommentComposerBodyState extends State<_CommentComposerBody> {
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.sm,
-            KugoSpacing.lg,
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.lg,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -92,47 +92,47 @@ class _CommentComposerBodyState extends State<_CommentComposerBody> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: kugo.divider,
+                    color: theme.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: KugoSpacing.md),
+              const SizedBox(height: OvertoneSpacing.md),
               Text(
                 widget.replyTo == null ? '发表评论' : '回复 @${widget.replyTo}',
-                style: kugo.section,
+                style: theme.section,
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               TextField(
                 controller: _controller,
                 focusNode: _focus,
                 minLines: 3,
                 maxLines: 6,
                 maxLength: widget.maxLength,
-                style: kugo.body.copyWith(fontSize: 14, height: 1.5),
+                style: theme.body.copyWith(fontSize: 14, height: 1.5),
                 decoration: InputDecoration(
                   hintText: widget.hint,
-                  hintStyle: kugo.caption.copyWith(color: kugo.textTertiary),
+                  hintStyle: theme.caption.copyWith(color: theme.textTertiary),
                   counterText: '', // 自绘计数，避免默认计数器样式与主题不一致
                   filled: true,
-                  fillColor: kugo.bg,
+                  fillColor: theme.bg,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(KugoRadius.card),
-                    borderSide: BorderSide(color: kugo.divider),
+                    borderRadius: BorderRadius.circular(OvertoneRadius.card),
+                    borderSide: BorderSide(color: theme.divider),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(KugoRadius.card),
-                    borderSide: BorderSide(color: kugo.divider),
+                    borderRadius: BorderRadius.circular(OvertoneRadius.card),
+                    borderSide: BorderSide(color: theme.divider),
                   ),
                 ),
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               Row(
                 children: [
                   Text(
                     '$count/${widget.maxLength}',
-                    style: kugo.caption.copyWith(
-                      color: _overLimit ? kugo.primary : kugo.textTertiary,
+                    style: theme.caption.copyWith(
+                      color: _overLimit ? theme.primary : theme.textTertiary,
                     ),
                   ),
                   const Spacer(),
@@ -140,7 +140,7 @@ class _CommentComposerBodyState extends State<_CommentComposerBody> {
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('取消'),
                   ),
-                  const SizedBox(width: KugoSpacing.sm),
+                  const SizedBox(width: OvertoneSpacing.sm),
                   FilledButton(
                     onPressed: canSend
                         ? () => Navigator.of(context).pop(_text)

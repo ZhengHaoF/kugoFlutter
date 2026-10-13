@@ -4,8 +4,8 @@ import 'package:dio/dio.dart';
 import '../../core/api/kugou/credential_transport.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/catalog_models.dart';
@@ -170,7 +170,7 @@ class DiscoveryRepository {
     };
     final decoded = await _signedRequest(
       method: 'POST',
-      path: KugoEndpoints.playlistTags,
+      path: KugouEndpoints.playlistTags,
       body: body,
       label: '歌单分类',
     );
@@ -201,8 +201,8 @@ class DiscoveryRepository {
     };
     final decoded = await _signedRequest(
       method: 'POST',
-      baseUrl: KugoEndpoints.musicAdService,
-      path: KugoEndpoints.newSongPublish,
+      baseUrl: KugouEndpoints.musicAdService,
+      path: KugouEndpoints.newSongPublish,
       body: body,
       label: '新歌速递',
     );
@@ -243,8 +243,8 @@ class DiscoveryRepository {
     };
     final decoded = await _signedRequest(
       method: 'POST',
-      baseUrl: KugoEndpoints.musicAdService,
-      path: KugoEndpoints.mobileNewAlbum,
+      baseUrl: KugouEndpoints.musicAdService,
+      path: KugouEndpoints.mobileNewAlbum,
       body: body,
       label: '新碟上架',
     );
@@ -269,7 +269,7 @@ class DiscoveryRepository {
     lastError = '';
     final decoded = await _signedRequest(
       method: 'GET',
-      path: KugoEndpoints.singerList,
+      path: KugouEndpoints.singerList,
       extraQuery: {
         'musician': musician,
         'sextypes': sextype,
@@ -319,20 +319,20 @@ class DiscoveryRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       if (useToken) 'token': auth.token,
       if (userIdNum != 0) 'userid': userIdNum,
       ...extraQuery,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(
+    params['signature'] = KugouSign.signatureAndroidParams(
       params,
       data: isGet ? '' : bodyJson,
     );
 
     final headers = <String, dynamic>{
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       if (!isGet) 'Content-Type': 'application/json',
       'dfid': device.dfid,
       'clienttime': '$clienttime',
@@ -352,7 +352,7 @@ class DiscoveryRepository {
       ].join(';'),
     };
 
-    final host = baseUrl ?? KugoEndpoints.gateway;
+    final host = baseUrl ?? KugouEndpoints.gateway;
     final url = '$host$path';
     final logId = '${DateTime.now().microsecondsSinceEpoch}-$url';
     _emit(
@@ -401,7 +401,7 @@ class DiscoveryRepository {
         lastError = '网络网关拦截（URL过滤），无法访问酷狗';
         return null;
       }
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) {
         lastError = raw.isEmpty ? '$label响应为空' : '$label响应无法解析';
         return null;

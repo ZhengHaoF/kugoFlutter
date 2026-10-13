@@ -15,7 +15,7 @@ import 'package:overtone/core/source/capabilities.dart';
 import 'package:overtone/core/source/music_platform.dart';
 import 'package:overtone/core/source/music_source.dart';
 import 'package:overtone/core/source/registry.dart';
-import 'package:overtone/data/storage/kugo_db.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
 import 'package:overtone/data/storage/queue_store.dart';
 import 'package:overtone/features/auth/netease_login_controller.dart';
 import 'package:overtone/features/cloud/cloud_page.dart';
@@ -443,9 +443,9 @@ void main() {
 
   group('「我的」页按账号源渲染', () {
     // 「我的」页会读本地播放历史条数，给个内存库免得落到真实文件。
-    late KugoDb db;
+    late OvertoneDb db;
     setUp(() {
-      db = KugoDb.forTesting(NativeDatabase.memory());
+      db = OvertoneDb.forTesting(NativeDatabase.memory());
       QueueStore.setDbForTesting(db);
     });
     tearDown(() {

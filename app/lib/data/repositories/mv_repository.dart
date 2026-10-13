@@ -15,9 +15,9 @@ import 'package:dio/dio.dart';
 import '../../core/api/kugou/credential_transport.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_crypto.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_crypto.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart' show formatCount, mvCoverUrl;
 import '../../core/models/mv_models.dart';
 import '../../core/models/search_result.dart';
@@ -27,13 +27,13 @@ import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
 
 class MvRepository {
-  MvRepository({KugoClient? client, Dio? dio})
-      : _client = client ?? kugoClient,
+  MvRepository({KugouClient? client, Dio? dio})
+      : _client = client ?? kugouClient,
         _dio = dio ?? _createDio() {
     installKugouCredentialGuard(_dio);
   }
 
-  final KugoClient _client;
+  final KugouClient _client;
   final Dio _dio;
 
   static Dio _createDio() {
@@ -74,7 +74,7 @@ class MvRepository {
     required int pageSize,
   }) async {
     final body = await _client.getJson(
-      '${KugoEndpoints.mobileCdn}${KugoEndpoints.searchMv}',
+      '${KugouEndpoints.mobileCdn}${KugouEndpoints.searchMv}',
       query: {
         'format': 'json',
         'keyword': keyword,
@@ -105,12 +105,12 @@ class MvRepository {
         'pagesize': pageSize,
         'platform': 'AndroidFilter',
       });
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
 
     final body = await _signedGet(
-      KugoEndpoints.searchMvRich,
+      KugouEndpoints.searchMvRich,
       query: query,
-      router: KugoEndpoints.complexSearchRouter,
+      router: KugouEndpoints.complexSearchRouter,
     );
     final lists = (body['data'] is Map)
         ? ((body['data'] as Map)['lists'] as List? ?? const [])
@@ -147,12 +147,12 @@ class MvRepository {
         'page': page,
         'pagesize': pageSize,
       });
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
 
     final body = await _signedGet(
-      KugoEndpoints.artistVideos,
+      KugouEndpoints.artistVideos,
       query: query,
-      baseUrl: KugoEndpoints.openApiCdn,
+      baseUrl: KugouEndpoints.openApiCdn,
     );
     final data = body['data'];
     List rows = const [];
@@ -186,13 +186,13 @@ class MvRepository {
     };
     final bodyJson = jsonEncode(body);
     final query = await _defaultQuery();
-    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
     final res = await _signedPost(
-      KugoEndpoints.kmrAudioMv,
+      KugouEndpoints.kmrAudioMv,
       query: query,
       body: body,
-      router: KugoEndpoints.openApiRouter,
+      router: KugouEndpoints.openApiRouter,
       kgTid: '38',
     );
 
@@ -221,14 +221,14 @@ class MvRepository {
     final device = await DeviceIdentity.ensure();
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final body = <String, dynamic>{
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       'mid': device.mid,
-      'uuid': KugoSign.md5Hex('${device.dfid}${device.mid}'),
+      'uuid': KugouSign.md5Hex('${device.dfid}${device.mid}'),
       'dfid': device.dfid,
       'token': AuthTokenHolder.instance.token,
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
       'show_resolution': 1,
       'data': [
         {'video_id': videoId},
@@ -237,13 +237,13 @@ class MvRepository {
     final bodyJson = jsonEncode(body);
     // 探针确认 A/B 两种签名都通；用 A（query 空 + signature 覆 body）。
     final query = <String, dynamic>{};
-    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
     final res = await _signedPost(
-      KugoEndpoints.videoDetail,
+      KugouEndpoints.videoDetail,
       query: query,
       body: body,
-      router: KugoEndpoints.kmrServiceRouter,
+      router: KugouEndpoints.kmrServiceRouter,
     );
     final data = res['data'];
     if (data is! List || data.isEmpty) return null;
@@ -271,13 +271,13 @@ class MvRepository {
         'pid': 1,
         'type': 1,
       });
-    query['key'] = KugoSign.signKey(h, device.mid);
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['key'] = KugouSign.signKey(h, device.mid);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
 
     final res = await _signedGet(
-      KugoEndpoints.videoUrl,
+      KugouEndpoints.videoUrl,
       query: query,
-      router: KugoEndpoints.trackerMvRouter,
+      router: KugouEndpoints.trackerMvRouter,
     );
     final data = res['data'];
     final entry = (data is Map) ? data[h] ?? data[hash.trim()] : null;
@@ -318,7 +318,7 @@ class MvRepository {
     final device = await DeviceIdentity.ensure();
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final uid = int.tryParse(auth.userId) ?? 0;
-    final aes = KugoCrypto.playlistAesEncrypt(
+    final aes = KugouCrypto.playlistAesEncrypt(
       jsonEncode({
         'ctype': 2,
         'data': [
@@ -326,29 +326,29 @@ class MvRepository {
         ],
       }),
     );
-    final p = KugoCrypto
+    final p = KugouCrypto
         .rsaEncryptPkcs1(jsonEncode({'aes': aes.key, 'uid': uid, 'token': auth.token}))
         .toUpperCase();
 
     final query = <String, dynamic>{
       'clienttime': clienttime,
       'mid': device.mid,
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
       'dfid': device.dfid,
-      'clientver': int.parse(KugoSign.clientVer),
-      'appid': int.parse(KugoSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
       'p': p,
     };
 
     try {
       final res = await _dio.post<List<int>>(
-        '${KugoEndpoints.collectService}'
-        '${collected ? KugoEndpoints.mvCollect : KugoEndpoints.mvCollectDel}',
+        '${KugouEndpoints.collectService}'
+        '${collected ? KugouEndpoints.mvCollect : KugouEndpoints.mvCollectDel}',
         queryParameters: query,
         data: Uint8List.fromList(base64.decode(aes.str)),
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'KG-THash': '${DateTime.now().millisecondsSinceEpoch & 0xfffffff}',
             'Content-Type': 'application/json',
             'Cookie': [
@@ -395,13 +395,13 @@ class MvRepository {
       final bodyJson = jsonEncode(body);
       final query = await _defaultQuery()
         ..addAll({'plat': 1});
-      query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+      query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
       final res = await _signedPost(
-        KugoEndpoints.userVideoCollect,
+        KugouEndpoints.userVideoCollect,
         query: query,
         body: body,
-        baseUrl: KugoEndpoints.gateway,
+        baseUrl: KugouEndpoints.gateway,
       );
       final data = res['data'];
       final info = (data is Map)
@@ -427,7 +427,7 @@ class MvRepository {
   Map<String, dynamic> _decodeCollectResponse(List<int>? bytes, String key) {
     if (bytes == null || bytes.isEmpty) return const {};
     final raw = utf8.decode(bytes, allowMalformed: true);
-    final decrypted = KugoCrypto.playlistAesDecrypt(base64.encode(bytes), key);
+    final decrypted = KugouCrypto.playlistAesDecrypt(base64.encode(bytes), key);
     for (final candidate in [decrypted, raw]) {
       if (candidate == null || candidate.isEmpty) continue;
       try {
@@ -729,8 +729,8 @@ class MvRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': DateTime.now().millisecondsSinceEpoch ~/ 1000,
       if (auth.hasToken) 'token': auth.token,
       if (userIdNum != 0) 'userid': userIdNum,
@@ -746,7 +746,7 @@ class MvRepository {
     bool json = false,
   }) {
     return {
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       if (json) 'Content-Type': 'application/json',
       'dfid': dfid,
       'clienttime': '${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
@@ -769,7 +769,7 @@ class MvRepository {
     String path, {
     required Map<String, dynamic> query,
     String? router,
-    String baseUrl = KugoEndpoints.gateway,
+    String baseUrl = KugouEndpoints.gateway,
   }) async {
     final device = await DeviceIdentity.ensure();
     try {
@@ -787,7 +787,7 @@ class MvRepository {
         ),
       );
       return _asMap(res.data);
-    } on KugoApiException catch (e) {
+    } on KugouApiException catch (e) {
       throw _mapFailure(e);
     } on DioException catch (e) {
       throw NetworkFailure(e.message ?? '网络错误');
@@ -800,7 +800,7 @@ class MvRepository {
     required Map<String, dynamic> body,
     String? router,
     String? kgTid,
-    String baseUrl = KugoEndpoints.gateway,
+    String baseUrl = KugouEndpoints.gateway,
   }) async {
     final device = await DeviceIdentity.ensure();
     try {
@@ -821,7 +821,7 @@ class MvRepository {
         ),
       );
       return _asMap(res.data);
-    } on KugoApiException catch (e) {
+    } on KugouApiException catch (e) {
       throw _mapFailure(e);
     } on DioException catch (e) {
       throw NetworkFailure(e.message ?? '网络错误');
@@ -829,14 +829,14 @@ class MvRepository {
   }
 
   Map<String, dynamic> _asMap(dynamic raw) {
-    final decoded = decodeKugoBody(raw);
+    final decoded = decodeKugouBody(raw);
     if (decoded is Map) {
       return Map<String, dynamic>.from(decoded);
     }
     throw const UpstreamChanged('MV 接口响应无法解析');
   }
 
-  SourceFailure _mapFailure(KugoApiException e) {
+  SourceFailure _mapFailure(KugouApiException e) {
     if (e.filtered) return NetworkFailure(e.message, filtered: true);
     final code = e.code;
     if (code == 20028) return LoginRequired('需要登录/安全验证');

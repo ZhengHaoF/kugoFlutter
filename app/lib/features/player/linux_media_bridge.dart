@@ -57,7 +57,7 @@ class LinuxMediaActions {
 }
 
 /// Session-only service. Never launches a private bus or uses the system bus.
-class LinuxMediaBridge implements KugoMediaBridge {
+class LinuxMediaBridge implements OvertoneMediaBridge {
   LinuxMediaBridge(this.object, this._client);
   final LinuxMprisObject object;
   final DBusClient _client;

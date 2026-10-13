@@ -1,15 +1,15 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:overtone/core/models/track.dart';
-import 'package:overtone/data/storage/kugo_db.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
 
 /// Play-history counting backs the「最近播放」badge on the profile page.
 /// A plain `loadHistoryAsync().length` would drag up to 200 tracks through
 /// Dart objects just to render one number, so the count goes to SQL.
 void main() {
-  late KugoDb db;
+  late OvertoneDb db;
 
-  setUp(() => db = KugoDb.forTesting(NativeDatabase.memory()));
+  setUp(() => db = OvertoneDb.forTesting(NativeDatabase.memory()));
   tearDown(() => db.close());
 
   Track t(String id) => Track(

@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:overtone/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
 import 'package:overtone/core/models/comment.dart';
 import 'package:overtone/core/source/music_source.dart';
 import 'package:overtone/data/repositories/comment_repository.dart';
@@ -246,7 +246,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('$ct${device.mid}{"data":{"content":"好听"}}'),
+      KugouSign.signParamsKey('$ct${device.mid}{"data":{"content":"好听"}}'),
     );
   });
 
@@ -281,7 +281,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('$ct${device.mid}'),
+      KugouSign.signParamsKey('$ct${device.mid}'),
     );
   });
 

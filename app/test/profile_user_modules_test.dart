@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:overtone/core/models/track.dart';
 import 'fakes/fake_audio_player.dart';
-import 'package:overtone/data/storage/kugo_db.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
 import 'package:overtone/data/storage/queue_store.dart';
 import 'package:overtone/features/history/history_page.dart';
 import 'package:overtone/features/likes/likes_controller.dart';
@@ -30,11 +30,11 @@ Track _testTrack(String id, String name, String artist) {
 }
 
 void main() {
-  late KugoDb db;
+  late OvertoneDb db;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    db = KugoDb.forTesting(NativeDatabase.memory());
+    db = OvertoneDb.forTesting(NativeDatabase.memory());
     QueueStore.setDbForTesting(db);
   });
 

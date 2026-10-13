@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/api/mappers.dart' show formatCount;
 import '../../core/models/comment.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import 'cover_box.dart';
 
 /// 评论条（歌曲 / 歌单 / 专辑三处评论区共用）。
@@ -41,9 +41,9 @@ class CommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: KugoSpacing.lg),
+      padding: const EdgeInsets.only(bottom: OvertoneSpacing.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -92,8 +92,8 @@ class CommentTile extends StatelessWidget {
                               comment.user,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.caption.copyWith(
-                                color: kugo.textPrimary,
+                              style: theme.caption.copyWith(
+                                color: theme.textPrimary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -107,13 +107,13 @@ class CommentTile extends StatelessWidget {
                       ),
                     ),
                     if (comment.timeLabel.isNotEmpty)
-                      Text(comment.timeLabel, style: kugo.caption),
+                      Text(comment.timeLabel, style: theme.caption),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   comment.content,
-                  style: kugo.body.copyWith(
+                  style: theme.body.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
                     height: 1.45,
@@ -122,12 +122,12 @@ class CommentTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    _likeControl(kugo),
+                    _likeControl(theme),
                     if (comment.location.isNotEmpty) ...[
                       const SizedBox(width: 12),
                       Text(
                         comment.location,
-                        style: kugo.caption.copyWith(color: kugo.textTertiary),
+                        style: theme.caption.copyWith(color: theme.textTertiary),
                       ),
                     ],
                     if (onToggleReplies != null) ...[
@@ -144,7 +144,7 @@ class CommentTile extends StatelessWidget {
                             loadingFloor
                                 ? '加载中…'
                                 : '${formatCount(comment.replyCount)}条回复',
-                            style: kugo.caption.copyWith(color: kugo.primary),
+                            style: theme.caption.copyWith(color: theme.primary),
                           ),
                         ),
                       ),
@@ -161,7 +161,7 @@ class CommentTile extends StatelessWidget {
                           ),
                           child: Text(
                             '回复',
-                            style: kugo.caption.copyWith(color: kugo.primary),
+                            style: theme.caption.copyWith(color: theme.primary),
                           ),
                         ),
                       ),
@@ -171,11 +171,11 @@ class CommentTile extends StatelessWidget {
                 // 说明：点赞数在 [onToggleLike] 为空时是纯展示（酷狗），
                 // 非空才是按钮（网易）。
                 if (expanded) ...[
-                  const SizedBox(height: KugoSpacing.sm),
+                  const SizedBox(height: OvertoneSpacing.sm),
                   if (replies.isEmpty)
                     Text(
                       loadingFloor ? '加载中…' : '暂无回复',
-                      style: kugo.caption.copyWith(color: kugo.textTertiary),
+                      style: theme.caption.copyWith(color: theme.textTertiary),
                     )
                   else
                     for (final r in replies) FloorReplyTile(reply: r),
@@ -189,9 +189,9 @@ class CommentTile extends StatelessWidget {
   }
 
   /// 点赞数：有 [onToggleLike] 才是按钮，否则纯展示。
-  Widget _likeControl(KugoTheme kugo) {
+  Widget _likeControl(OvertoneTheme theme) {
     final liked = comment.liked;
-    final color = liked ? kugo.primary : kugo.textTertiary;
+    final color = liked ? theme.primary : theme.textTertiary;
     final icon = Icon(
       liked ? Icons.thumb_up_rounded : Icons.thumb_up_off_alt_rounded,
       size: 14,
@@ -199,7 +199,7 @@ class CommentTile extends StatelessWidget {
     );
     final count = Text(
       formatCount(comment.likeCount),
-      style: kugo.caption.copyWith(color: color),
+      style: theme.caption.copyWith(color: color),
     );
     if (onToggleLike == null) {
       return Row(children: [icon, const SizedBox(width: 4), count]);
@@ -226,9 +226,9 @@ class FloorReplyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: KugoSpacing.sm),
+      padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -256,20 +256,20 @@ class FloorReplyTile extends StatelessWidget {
                         reply.user,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.caption.copyWith(
-                          color: kugo.textPrimary,
+                        style: theme.caption.copyWith(
+                          color: theme.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                     if (reply.timeLabel.isNotEmpty)
-                      Text(reply.timeLabel, style: kugo.caption),
+                      Text(reply.timeLabel, style: theme.caption),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   reply.content,
-                  style: kugo.body.copyWith(fontSize: 13, height: 1.4),
+                  style: theme.body.copyWith(fontSize: 13, height: 1.4),
                 ),
                 if (reply.likeCount > 0) ...[
                   const SizedBox(height: 4),
@@ -278,12 +278,12 @@ class FloorReplyTile extends StatelessWidget {
                       Icon(
                         Icons.thumb_up_off_alt_rounded,
                         size: 12,
-                        color: kugo.textTertiary,
+                        color: theme.textTertiary,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         formatCount(reply.likeCount),
-                        style: kugo.caption.copyWith(color: kugo.textTertiary),
+                        style: theme.caption.copyWith(color: theme.textTertiary),
                       ),
                     ],
                   ),
@@ -305,7 +305,7 @@ class CommentBadgeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     const identityKinds = {'student', 'actor', 'biz', 'tme-star', 'auth'};
     final isVip = !identityKinds.contains(badge.kind);
     return Container(
@@ -313,17 +313,17 @@ class CommentBadgeChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: isVip
-            ? kugo.primary.withValues(alpha: 0.14)
-            : kugo.surfaceElevated,
+            ? theme.primary.withValues(alpha: 0.14)
+            : theme.surfaceElevated,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: isVip ? kugo.primary : kugo.divider),
+        border: Border.all(color: isVip ? theme.primary : theme.divider),
       ),
       child: Text(
         badge.label,
-        style: kugo.caption.copyWith(
+        style: theme.caption.copyWith(
           fontSize: 10,
           height: 1.3,
-          color: isVip ? kugo.primary : kugo.textSecondary,
+          color: isVip ? theme.primary : theme.textSecondary,
         ),
       ),
     );

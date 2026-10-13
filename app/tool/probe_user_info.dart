@@ -5,8 +5,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-import '../lib/core/api/kugou/kugo_crypto.dart';
-import '../lib/core/api/kugou/kugo_sign.dart';
+import '../lib/core/api/kugou/kugou_crypto.dart';
+import '../lib/core/api/kugou/kugou_sign.dart';
 
 const token =
     '4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7';
@@ -15,7 +15,7 @@ const guid = '2b9c607bf85a801ca492f2d95bb4e67b';
 const dfid = '0QeBfz1rwip04Bv9cF415aed';
 
 Future<void> main() async {
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 12),
@@ -36,19 +36,19 @@ Future<void> main() async {
   // --- user_info (relation.user.kugou.com) ---
   {
     final clienttime = DateTime.now().millisecondsSinceEpoch;
-    final p = KugoCrypto.rsaEncryptRaw(
+    final p = KugouCrypto.rsaEncryptRaw(
       jsonEncode({'clienttime': clienttime, 'token': token}),
     ).toUpperCase();
     final dataMap = {
       'p': p,
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'mid': mid,
-      'clientver': int.parse(KugoSign.clientVer),
+      'clientver': int.parse(KugouSign.clientVer),
       'source': 0,
       'clienttime': clienttime,
       'uuid': '-',
       'userid': int.parse(userId),
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
     };
     try {
       final res = await dio.post<dynamic>(
@@ -56,7 +56,7 @@ Future<void> main() async {
         data: jsonEncode(dataMap),
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
             'Host': 'relation.user.kugou.com',
             'Cookie': cookie,
@@ -96,7 +96,7 @@ Future<void> main() async {
     final entries = params.entries.map((e) => '${e.key}=${e.value}').toList()
       ..sort();
     final paramsString = entries.join();
-    final sigWebSort = KugoSign.md5Hex(
+    final sigWebSort = KugouSign.md5Hex(
       'LnT6xpN3khm36zse0QzvmgTZ3waWdRSA$paramsString$bodyJson' 'LnT6xpN3khm36zse0QzvmgTZ3waWdRSA',
     );
     final q = Map<String, dynamic>.from(params)..['signature'] = sigWebSort;
@@ -106,7 +106,7 @@ Future<void> main() async {
       data: bodyJson,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'dfid': dfid,
           'mid': mid,
@@ -146,14 +146,14 @@ Future<void> main() async {
       'userid': int.parse(userId),
       'token': token,
     };
-    q['signature'] = KugoSign.signatureAndroidParams(q, data: bodyJson);
+    q['signature'] = KugouSign.signatureAndroidParams(q, data: bodyJson);
     final res = await dio.post<dynamic>(
       'https://gateway.kugou.com/v7/get_all_list',
       queryParameters: q,
       data: bodyJson,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'dfid': dfid,
           'mid': mid,

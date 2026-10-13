@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:overtone/data/repositories/catalog_repository.dart';
 
-import 'fakes/fake_kugo_client.dart';
+import 'fakes/fake_kugou_client.dart';
 
 /// 专辑 / 歌手详情映射。
 ///
@@ -11,13 +11,13 @@ import 'fakes/fake_kugo_client.dart';
 void main() {
   group('fetchAlbum', () {
     test('空 id 直接返回 null，不发请求', () async {
-      final client = FakeKugoClient(onJson: (_) => {});
+      final client = FakeKugouClient(onJson: (_) => {});
       expect(await CatalogRepository(client: client).fetchAlbum('  '), isNull);
       expect(client.jsonCalls, isEmpty);
     });
 
     test('data.list 里的歌曲被映射，字段回填', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/album/info')) {
           return {
             'data': {
@@ -62,7 +62,7 @@ void main() {
     });
 
     test('顶层 list 也能识别（部分上游把歌曲放最外层）', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/album/info')) {
           return {
             'list': [
@@ -78,7 +78,7 @@ void main() {
     });
 
     test('info 里没歌 → 回退到 album/song 接口再要一次', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/album/info')) {
           return {
             'data': {'albumname': '空专辑', 'list': <dynamic>[]},
@@ -106,7 +106,7 @@ void main() {
     });
 
     test('两个接口都拿不到歌 → 仍返回专辑头信息（歌曲为空）', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/album/info')) {
           return {
             'data': {'albumname': '只有头', 'list': <dynamic>[]},
@@ -120,12 +120,12 @@ void main() {
     });
 
     test('接口抛错 → 返回 null 而不是往上抛', () async {
-      final client = FakeKugoClient(onJson: null);
+      final client = FakeKugouClient(onJson: null);
       expect(await CatalogRepository(client: client).fetchAlbum('1'), isNull);
     });
 
     test('封面缺失时用专辑 id 兜底，不让 UI 拿到空串', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/album/info')) {
           return {
             'data': {'albumname': '无封面', 'list': <dynamic>[]},
@@ -140,13 +140,13 @@ void main() {
 
   group('fetchArtist', () {
     test('空 id 直接返回 null', () async {
-      final client = FakeKugoClient(onJson: (_) => {});
+      final client = FakeKugouClient(onJson: (_) => {});
       expect(await CatalogRepository(client: client).fetchArtist(''), isNull);
       expect(client.jsonCalls, isEmpty);
     });
 
     test('歌手头信息映射（含粉丝数格式化与计数别名）', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/info')) {
           return {
             'data': {
@@ -178,7 +178,7 @@ void main() {
     });
 
     test('计数字段用下划线别名（song_count 等）也能取到', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/info')) {
           return {
             'data': {
@@ -198,7 +198,7 @@ void main() {
     });
 
     test('粉丝数为 0 时 fansLabel 留空（不显示 "0 粉丝"）', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/info')) {
           return {'data': {'singername': 'x', 'fans_count': 0}};
         }
@@ -209,14 +209,14 @@ void main() {
     });
 
     test('接口抛错 → 返回 null', () async {
-      final client = FakeKugoClient(onJson: null);
+      final client = FakeKugouClient(onJson: null);
       expect(await CatalogRepository(client: client).fetchArtist('1'), isNull);
     });
   });
 
   group('fetchArtistSongs', () {
     test('空 id 返回空页', () async {
-      final client = FakeKugoClient(onJson: (_) => {});
+      final client = FakeKugouClient(onJson: (_) => {});
       final page = await CatalogRepository(client: client).fetchArtistSongs('');
       expect(page.songs, isEmpty);
       expect(page.total, 0);
@@ -225,7 +225,7 @@ void main() {
     });
 
     test('分页参数与 sort 透传到 URL', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/song')) {
           return {
             'data': {
@@ -254,7 +254,7 @@ void main() {
     });
 
     test('total 已知时按 total 判 hasMore', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/song')) {
           return {
             'data': {
@@ -278,7 +278,7 @@ void main() {
     });
 
     test('total 已知且已到末尾 → hasMore false', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/song')) {
           return {
             'data': {
@@ -300,7 +300,7 @@ void main() {
     });
 
     test('total 缺失时退回用本页条数填 total', () async {
-      final client = FakeKugoClient(onJson: (url) {
+      final client = FakeKugouClient(onJson: (url) {
         if (url.contains('/singer/song')) {
           return {
             'data': {
@@ -322,7 +322,7 @@ void main() {
     });
 
     test('接口抛错 → 空页', () async {
-      final client = FakeKugoClient(onJson: null);
+      final client = FakeKugouClient(onJson: null);
       final page = await CatalogRepository(client: client).fetchArtistSongs('1');
       expect(page.songs, isEmpty);
       expect(page.hasMore, isFalse);

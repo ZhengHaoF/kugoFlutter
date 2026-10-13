@@ -1,14 +1,14 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 
 /// 统一的可点表面：手型光标 + hover 底纹 + 点击。
 ///
 /// 替换散落的裸 `GestureDetector`（无光标、无 hover）和风格不一的 `InkWell`。
 /// 圆角卡片、列表行、封面格都走这里，保证桌面端同一套悬停语言。
-class KugoClickable extends StatefulWidget {
-  const KugoClickable({
+class OvertoneClickable extends StatefulWidget {
+  const OvertoneClickable({
     super.key,
     required this.onTap,
     required this.child,
@@ -30,10 +30,10 @@ class KugoClickable extends StatefulWidget {
   final HitTestBehavior behavior;
 
   @override
-  State<KugoClickable> createState() => _KugoClickableState();
+  State<OvertoneClickable> createState() => _OvertoneClickableState();
 }
 
-class _KugoClickableState extends State<KugoClickable> {
+class _OvertoneClickableState extends State<OvertoneClickable> {
   bool _hovered = false;
 
   // Stable tear-offs so MouseRegion doesn't see new closures every rebuild.
@@ -49,9 +49,9 @@ class _KugoClickableState extends State<KugoClickable> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final hoverFill =
-        widget.hoverColor ?? Colors.black.withValues(alpha: kugo.isLight ? 0.08 : 0.18);
+        widget.hoverColor ?? Colors.black.withValues(alpha: theme.isLight ? 0.08 : 0.18);
     // Same RGB as the hover fill (black); only alpha animates.
     final idleFill = Colors.black.withValues(alpha: 0);
 
@@ -83,8 +83,8 @@ class _KugoClickableState extends State<KugoClickable> {
 ///
 /// Wraps Material [IconButton] so call sites cannot forget the tooltip the way
 /// bare icon-only buttons used to.
-class KugoIconButton extends StatelessWidget {
-  const KugoIconButton({
+class OvertoneIconButton extends StatelessWidget {
+  const OvertoneIconButton({
     super.key,
     required this.icon,
     required this.tooltip,
@@ -124,8 +124,8 @@ class KugoIconButton extends StatelessWidget {
 ///
 /// For toolbar chrome that should not use Material ink (custom toolbars,
 /// sidebar trailing actions, player chips).
-class KugoIconAction extends StatelessWidget {
-  const KugoIconAction({
+class OvertoneIconAction extends StatelessWidget {
+  const OvertoneIconAction({
     super.key,
     required this.icon,
     required this.tooltip,
@@ -146,7 +146,7 @@ class KugoIconAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: KugoClickable(
+      child: OvertoneClickable(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(hoverRadius),
         padding: const EdgeInsets.all(6),
