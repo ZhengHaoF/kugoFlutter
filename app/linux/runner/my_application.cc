@@ -82,7 +82,7 @@ static void my_application_activate(GApplication* application) {
       project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
-  gboolean lyric_process = g_strcmp0(g_getenv("KUGO_LYRIC_PROCESS"), "1") == 0;
+  gboolean lyric_process = g_strcmp0(g_getenv("OVERTONE_LYRIC_PROCESS"), "1") == 0;
   if (self->dart_entrypoint_arguments) {
     for (int i = 0; self->dart_entrypoint_arguments[i]; i++) {
       if (g_strcmp0(self->dart_entrypoint_arguments[i], "desktop_lyric") == 0)
@@ -114,7 +114,7 @@ static void my_application_activate(GApplication* application) {
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) capabilities = fl_method_channel_new(
       fl_engine_get_binary_messenger(fl_view_get_engine(view)),
-      "kugo/linux_desktop", FL_METHOD_CODEC(codec));
+      "overtone/linux_desktop", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       capabilities, linux_desktop_method_call, nullptr, nullptr);
 

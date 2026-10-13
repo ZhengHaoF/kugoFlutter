@@ -11,7 +11,7 @@ void main() {
   ) async {
     tester.view.physicalSize = const Size(720, 88);
     tester.view.devicePixelRatio = 1;
-    const channel = MethodChannel('kugo/desktop_lyric_host');
+    const channel = MethodChannel('overtone/desktop_lyric_host');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           if (call.method == 'getPosition') {

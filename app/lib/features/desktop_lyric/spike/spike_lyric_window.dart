@@ -20,7 +20,7 @@ void _spikeLog(String msg) {
 const String kSpikeLyricWindowArg = 'spike_desktop_lyric';
 
 /// Spike：主窗 ↔ 歌词窗的测试通道名（bidirectional 配对）。
-const String kSpikeChannelName = 'kugo/spike_lyric';
+const String kSpikeChannelName = 'overtone/spike_lyric';
 
 /// 桌面歌词 spike 子窗口。
 ///

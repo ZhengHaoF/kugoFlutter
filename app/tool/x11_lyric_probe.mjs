@@ -104,7 +104,7 @@ try {
   const baseline = screenshot('baseline');
   child = spawn(path.resolve(binary),
     ['desktop_lyric', `--ipc-port=${server.address().port}`], {
-      env: {...process.env, KUGO_LYRIC_PROCESS:'1', KUGO_LYRIC_IPC_TOKEN:token},
+      env: {...process.env, OVERTONE_LYRIC_PROCESS:'1', OVERTONE_LYRIC_IPC_TOKEN:token},
       stdio:['ignore', 'pipe', 'pipe']
     });
   child.stdout.pipe(childLog, {end:false});

@@ -276,7 +276,7 @@ void register_desktop_lyric_host(GtkWindow* window, FlView* view) {
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
       fl_engine_get_binary_messenger(fl_view_get_engine(view)),
-      "kugo/desktop_lyric_host", FL_METHOD_CODEC(codec));
+      "overtone/desktop_lyric_host", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       channel, method_call, host, [](gpointer data) { delete static_cast<Host*>(data); });
   host->channel = channel;

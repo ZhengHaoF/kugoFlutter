@@ -19,7 +19,7 @@ class DesktopLyricHost {
   DesktopLyricHost(flutter::BinaryMessenger* messenger, HWND view)
       : view_(view) {
     channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-        messenger, "kugo/desktop_lyric_host",
+        messenger, "overtone/desktop_lyric_host",
         &flutter::StandardMethodCodec::GetInstance());
     channel_->SetMethodCallHandler([this](const auto& call, auto result) {
       Handle(call, std::move(result));

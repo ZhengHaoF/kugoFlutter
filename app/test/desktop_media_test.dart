@@ -176,7 +176,7 @@ void main() {
   });
 
   group('settings and channel', () {
-    const channel = MethodChannel('kugo/taskbar');
+    const channel = MethodChannel('overtone/taskbar');
     final calls = <MethodCall>[];
     setUp(() {
       SharedPreferences.setMockInitialValues({});
