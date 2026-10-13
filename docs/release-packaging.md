@@ -2,7 +2,7 @@
 
 ## 手动打包与发布
 
-入口为 [Android and Windows apps](https://github.com/ZhengHaoF/kugoFlutter/actions/workflows/apps.yml)，仅原仓库 `main` 主分支可以手动启动。推送、PR 和合并不触发；所有 job 继续检查仓库、分支和手动事件。
+入口为 [Android and Windows apps](https://github.com/ZhengHaoF/overtone/actions/workflows/apps.yml)，仅原仓库 `main` 主分支可以手动启动。推送、PR 和合并不触发；所有 job 继续检查仓库、分支和手动事件。
 
 在 Run workflow 中选择 `main`，填写 `version`（例如 `0.1.0`，只接受 `major.minor.patch`），默认不勾选 `publish`。构建编号使用递增的 Actions run number，并传给 Flutter 的 `--build-name` 和 `--build-number`，使包内版本与文件名一致；这两个参数的含义见 [Flutter 官方打包说明](https://docs.flutter.dev/deployment/android)。
 

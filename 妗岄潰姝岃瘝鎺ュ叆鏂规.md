@@ -4,7 +4,7 @@
 
 ## 下载与手动打包
 
-打开 [GitHub Releases 下载页面](https://github.com/ZhengHaoF/kugoFlutter/releases)，按版本说明下载对应设备的 Android APK、Windows 安装程序或完整绿色 ZIP。现有 `test-*` **Pre-release** 是旧测试包；正式包需按下述流程手动生成。绿色 ZIP 需完整解压后运行 `overtone.exe`，请保留所有 DLL 和 `data/` 资源。
+打开 [GitHub Releases 下载页面](https://github.com/ZhengHaoF/overtone/releases)，按版本说明下载对应设备的 Android APK、Windows 安装程序或完整绿色 ZIP。现有 `test-*` **Pre-release** 是旧测试包；正式包需按下述流程手动生成。绿色 ZIP 需完整解压后运行 `overtone.exe`，请保留所有 DLL 和 `data/` 资源。
 
 当前打包入口仅允许在 Actions 中手动启动 `main` 主分支，不在推送、PR 或合并时自动执行。配置要求 Android 使用正式密钥并提供 ARM32、ARM64、x86_64 三种 APK；Windows 提供 Release 安装程序和绿色 ZIP，但尚未配置 Authenticode 代码签名。默认只生成 Actions 附件，手动勾选 `publish` 才发布正式 GitHub Release；签名配置、下载与验收边界见 [交付说明](docs/release-packaging.md)。现有 `test-*` Release 是历史测试包，不冒充上述正式包。
 

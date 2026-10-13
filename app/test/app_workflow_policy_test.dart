@@ -10,7 +10,7 @@ void main() {
       .readAsStringSync()
       .replaceAll('\r\n', '\n');
   const guard =
-      "github.repository == 'ZhengHaoF/kugoFlutter' && "
+      "github.repository == 'ZhengHaoF/overtone' && "
       "github.ref == 'refs/heads/main' && "
       "github.event_name == 'workflow_dispatch'";
 

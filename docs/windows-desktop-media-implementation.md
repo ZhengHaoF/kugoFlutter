@@ -35,7 +35,7 @@ Windows 设置页的“窗口”分组新增“任务栏封面预览”和“独
 
 实现自带 `app/test/desktop_media_test.dart`，覆盖异步串图、URL 换图、无图/坏图、退出竞态、歌曲身份、seek/volume 边界、坐标、开关持久化与通道负载。原生独立探针在 Windows CI 编译并创建真实 HWND，检查 DWM 属性、窗口样式、真实窗口消息、拖进度、全屏隐藏、关闭与重复绘制资源数量；探针不创建音频播放器。
 
-本地静态分析、完整 1,169 项回归、7 项发布打包检查及最新 26 项专项 Dart 测试均已通过，其中一项真实解码 G 图标资源并验证 256×256 RGBA 通道负载；MinGW 严格交叉编译（C++17、Wall/Wextra/Wconversion/Werror）已通过。此前 Windows MSVC Release 应用与原生探针编译已通过，最新原生、Release/Debug 与 Android 验收结果见 [PR #8 关联构建](https://github.com/ZhengHaoF/kugoFlutter/pull/8)；不能把交叉编译或程序化 DWM 消息当成实际鼠标悬停验收。
+本地静态分析、完整 1,169 项回归、7 项发布打包检查及最新 26 项专项 Dart 测试均已通过，其中一项真实解码 G 图标资源并验证 256×256 RGBA 通道负载；MinGW 严格交叉编译（C++17、Wall/Wextra/Wconversion/Werror）已通过。此前 Windows MSVC Release 应用与原生探针编译已通过，最新原生、Release/Debug 与 Android 验收结果见 [PR #8 关联构建](https://github.com/ZhengHaoF/overtone/pull/8)；不能把交叉编译或程序化 DWM 消息当成实际鼠标悬停验收。
 
 首轮探针发现的是验证方法错误：`DWMWA_HAS_ICONIC_BITMAP` 和 `DWMWA_FORCE_ICONIC_REPRESENTATION` 文档指定用于 DwmSetWindowAttribute，不应以 DwmGetWindowAttribute 读取作为“设置成功”判据。探针已改为验证宿主记录的真实设置 HRESULT，并直接检查位图提交 HRESULT。（[Microsoft 属性说明](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute)）
 

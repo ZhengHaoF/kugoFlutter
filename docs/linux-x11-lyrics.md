@@ -1,6 +1,6 @@
 # overtone Linux X11 悬浮歌词方案与验收记录
 
-> 当前状态：P0/P1 [PR #2](https://github.com/ZhengHaoF/kugoFlutter/pull/2) 与 X11 歌词 [PR #3](https://github.com/ZhengHaoF/kugoFlutter/pull/3) 已按后续授权合并到 main；合并后的 [Ubuntu 22.04/24.04 CI](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38028673352) 通过。下文的分支、基线和“不直接合并”描述保留实施阶段历史；Wayland 的当前推进决策见下一节。
+> 当前状态：P0/P1 [PR #2](https://github.com/ZhengHaoF/overtone/pull/2) 与 X11 歌词 [PR #3](https://github.com/ZhengHaoF/overtone/pull/3) 已按后续授权合并到 main；合并后的 [Ubuntu 22.04/24.04 CI](https://github.com/ZhengHaoF/overtone/actions/runs/38028673352) 通过。下文的分支、基线和“不直接合并”描述保留实施阶段历史；Wayland 的当前推进决策见下一节。
 
 本轮仅推进 P2 的 X11 悬浮歌词，沿用现有双进程、TCP 快照、LRC/KRC 渲染和样式设置，不重写播放器。代码与本记录一并提交到 `feat/linux-x11-lyrics`；基础为 P0/P1 分支提交 `ba4591033ae59db5e185b3c70f1793220aab4a34`，不直接合并主分支。
 
