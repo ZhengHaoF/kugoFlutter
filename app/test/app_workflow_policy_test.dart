@@ -3,7 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final workflow = File('../.github/workflows/apps.yml').readAsStringSync();
+  // core.autocrlf checks this file out with CRLF on Windows, which breaks every
+  // multi-line regex and '\n'-anchored contains() below. Normalise first so the
+  // policy assertions mean the same thing on every platform.
+  final workflow = File('../.github/workflows/apps.yml')
+      .readAsStringSync()
+      .replaceAll('\r\n', '\n');
   const guard =
       "github.repository == 'ZhengHaoF/kugoFlutter' && "
       "github.ref == 'refs/heads/main' && "
