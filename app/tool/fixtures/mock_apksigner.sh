@@ -3,7 +3,7 @@
 set -euo pipefail
 if [[ "${MOCK_SIGNER_CASE:-}" == reject ]]; then exit 1; fi
 if [[ "${MOCK_SIGNER_CASE:-}" == stderr ]]; then exec 1>&2; fi
-owner='CN=kugo release fixture'
+owner='CN=overtone release fixture'
 fingerprint=1111111111111111111111111111111111111111111111111111111111111111
 if [[ "${MOCK_SIGNER_CASE:-}" == debug ]]; then owner='CN=Android Debug,O=Android,C=US'; fi
 if [[ "${MOCK_SIGNER_CASE:-}" == mixed && "${*: -1}" == *x86_64* ]]; then

@@ -10,14 +10,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kugo/core/models/mv_models.dart';
-import 'package:kugo/core/models/search_result.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/features/mv/mv_entry.dart';
-import 'package:kugo/shared/widgets/common.dart';
+import 'package:overtone/core/models/mv_models.dart';
+import 'package:overtone/core/models/search_result.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/features/mv/mv_entry.dart';
+import 'package:overtone/shared/widgets/common.dart';
 
 import 'fakes/fake_music_source.dart';
 

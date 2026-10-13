@@ -37,7 +37,7 @@ Future<void> hit(
     'dfid=$dfid',
     'KUGOU_API_MID=$mid',
     'KUGOU_API_GUID=$guid',
-    'KUGOU_API_DEV=kugoFlutter',
+    'KUGOU_API_DEV=overtoneFlutter',
   ].join(';');
   try {
     final res = await dio.post<dynamic>(

@@ -93,7 +93,7 @@ class NeteaseClient {
   }
 
   static const _ua =
-      'Mozilla/5.0 (Linux; Android 10; kugo-netease-probe) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
+      'Mozilla/5.0 (Linux; Android 10; overtone-netease-probe) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
 
   final Dio _dio;
   final Map<String, String> _cookies = {

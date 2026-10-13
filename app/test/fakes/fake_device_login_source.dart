@@ -1,4 +1,4 @@
-import 'package:kugo/core/source/capabilities.dart';
+import 'package:overtone/core/source/capabilities.dart';
 
 /// 测试用假扫码登录源：按脚本吐状态，不碰网络。
 class FakeDeviceLoginSource implements DeviceLoginSource {

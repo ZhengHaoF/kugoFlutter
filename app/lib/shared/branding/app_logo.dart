@@ -15,7 +15,7 @@ class AppLogo extends StatelessWidget {
     width: size,
     height: size,
     fit: BoxFit.contain,
-    semanticLabel: 'kugo',
+    semanticLabel: '泛音',
     filterQuality: FilterQuality.medium,
   );
 }

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/repositories/catalog_repository.dart';
+import 'package:overtone/data/repositories/catalog_repository.dart';
 
 import 'fakes/fake_kugo_client.dart';
 

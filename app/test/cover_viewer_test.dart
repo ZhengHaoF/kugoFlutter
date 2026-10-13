@@ -10,9 +10,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/cache/cover_cache.dart';
-import 'package:kugo/shared/widgets/cover_box.dart';
-import 'package:kugo/shared/widgets/cover_viewer.dart';
+import 'package:overtone/core/cache/cover_cache.dart';
+import 'package:overtone/shared/widgets/cover_box.dart';
+import 'package:overtone/shared/widgets/cover_viewer.dart';
 
 import 'fakes/fake_kugo_client.dart';
 import 'fakes/fake_path_provider.dart';

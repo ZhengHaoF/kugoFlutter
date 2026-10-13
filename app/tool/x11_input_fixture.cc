@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
   Window window = XCreateSimpleWindow(display, DefaultRootWindow(display),
       250, 180, std::min(2000, DisplayWidth(display, DefaultScreen(display))-200),
       300, 0, 0, 0x224466);
-  XStoreName(display, window, "kugo overlay underlay");
+  XStoreName(display, window, "overtone overlay underlay");
   const unsigned long pid = getpid();
   XChangeProperty(display, window, XInternAtom(display, "_NET_WM_PID", False),
                   XA_CARDINAL, 32, PropModeReplace,

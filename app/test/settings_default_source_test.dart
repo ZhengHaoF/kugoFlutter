@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

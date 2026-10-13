@@ -3,14 +3,14 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/kugo_client.dart';
-import 'package:kugo/core/api/mappers.dart' show mvCoverUrl;
-import 'package:kugo/core/models/mv_models.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/repositories/mv_repository.dart';
-import 'package:kugo/data/storage/device_identity.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
+import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/mappers.dart' show mvCoverUrl;
+import 'package:overtone/core/models/mv_models.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/repositories/mv_repository.dart';
+import 'package:overtone/data/storage/device_identity.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 按队列吐响应体，并记录请求，供断言 URL / body。

@@ -430,7 +430,7 @@ class SettingsPage extends ConsumerWidget {
             title: '关于',
             children: [
               ListTile(
-                title: Text('kugo', style: kugo.body),
+                title: Text('泛音', style: kugo.body),
                 subtitle: Text(
                   '0.1.0 · 学习/研究向第三方客户端\n不提供音频中转或账号托管',
                   style: kugo.caption,

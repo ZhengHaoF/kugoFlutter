@@ -14,11 +14,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/core/api/netease/netease_client.dart';
-import 'package:kugo/core/api/netease/netease_mappers.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_mappers.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/data/repositories/search_repository.dart';
 
 /// Verbatim copy of `CoverCache.headersFor` (防盗链按 CDN 域名下发)。
 Map<String, String> headersFor(String url) {

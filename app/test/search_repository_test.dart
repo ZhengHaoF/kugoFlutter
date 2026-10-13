@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:kugo/core/api/kugou/kugo_client.dart';
-import 'package:kugo/core/api/mappers.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
+import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/mappers.dart';
+import 'package:overtone/data/repositories/search_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Serves canned JSON keyed by the endpoint path in the request URL.

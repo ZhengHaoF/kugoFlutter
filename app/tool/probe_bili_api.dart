@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/core/api/bili/bili_endpoints.dart';
-import 'package:kugo/core/api/bili/bili_qr_login.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/core/api/bili/bili_endpoints.dart';
+import 'package:overtone/core/api/bili/bili_qr_login.dart';
 import 'package:qr/qr.dart';
 
 /// CLI：哔哩哔哩接口调试探针（B1 协议走私 + 账号阶段探针提前）。

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:kugo/features/player/audio_player_port.dart';
+import 'package:overtone/features/player/audio_player_port.dart';
 
 class FakeAudioPlayer implements AudioPlayerPort {
   final _pos = StreamController<Duration>.broadcast();

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/features/desktop_lyric/desktop_lyric_protocol.dart';
-import 'package:kugo/features/desktop_lyric/desktop_lyric_style.dart';
-import 'package:kugo/core/models/track.dart';
+import 'package:overtone/features/desktop_lyric/desktop_lyric_protocol.dart';
+import 'package:overtone/features/desktop_lyric/desktop_lyric_style.dart';
+import 'package:overtone/core/models/track.dart';
 
 /// Android 原生 `LyricWire.parseSnapshot` 依赖的 wire 键名契约。
 /// 改协议时两边（Dart / Kotlin）必须同步，这里锁死字段名。

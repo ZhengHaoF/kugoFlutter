@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/diagnostics/startup_services.dart';
+import 'package:overtone/core/diagnostics/startup_services.dart';
 
 void main() {
   testWidgets(

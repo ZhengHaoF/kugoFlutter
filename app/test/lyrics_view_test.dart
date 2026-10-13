@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
-import 'package:kugo/shared/widgets/lyrics_view.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
+import 'package:overtone/shared/widgets/lyrics_view.dart';
 
 List<LyricLine> _sample() => const [
       LyricLine(

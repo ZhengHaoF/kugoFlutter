@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/kugo_crypto.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugo_crypto.dart';
+import 'package:overtone/core/api/kugou/kugo_sign.dart';
 
 void main() {
   group('KugoSign.signCloudKey', () {

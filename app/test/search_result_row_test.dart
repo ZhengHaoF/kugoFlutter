@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/shared/widgets/common.dart';
+import 'package:overtone/shared/widgets/common.dart';
 
 void main() {
   group('SearchResultRow', () {

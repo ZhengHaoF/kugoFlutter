@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/daily_recommend.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/recommend/daily_recommend_page.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
-import 'package:kugo/shared/widgets/common.dart';
+import 'package:overtone/core/models/daily_recommend.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/recommend/daily_recommend_page.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
+import 'package:overtone/shared/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';

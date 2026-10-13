@@ -77,7 +77,7 @@ class DesktopShell with WindowListener {
     // 刻意不设 size / center：保留用户上次调过的窗口尺寸与位置。
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
-        title: 'kugo',
+        title: '泛音',
         minimumSize: Size(900, 640),
         titleBarStyle: TitleBarStyle.hidden,
         windowButtonVisibility: false,
@@ -219,8 +219,8 @@ class DesktopShell with WindowListener {
     final name = s.current?.name ?? '';
     final artist = s.current?.artist ?? '';
     final title = name.isEmpty
-        ? 'kugo'
-        : (artist.isEmpty ? 'kugo · $name' : 'kugo · $name · $artist');
+        ? '泛音'
+        : (artist.isEmpty ? '泛音 · $name' : '泛音 · $name · $artist');
     unawaited(windowManager.setTitle(title));
   }
 
@@ -359,7 +359,7 @@ class DesktopShell with WindowListener {
     unawaited(
       TaskbarBridge.mediaState({
         'trackKey': track?.identityKey ?? '',
-        'title': track?.name ?? 'kugo',
+        'title': track?.name ?? '泛音',
         'artist': track?.artist ?? '选择歌曲开始播放',
         'playing': s.isPlaying,
         'favorite':

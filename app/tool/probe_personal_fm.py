@@ -5,7 +5,7 @@ module/personal_fm.js so we can see the raw gateway response.
 
 Fill TOKEN / USERID / GUID / DFID from the app's local
 SharedPreferences (`flutter.auth.user.v1` + device keys), or from env:
-  KUGO_FM_TOKEN, KUGO_FM_USERID, KUGO_FM_GUID, KUGO_FM_DFID
+  OVERTONE_FM_TOKEN, OVERTONE_FM_USERID, OVERTONE_FM_GUID, OVERTONE_FM_DFID
 """
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ import time
 import urllib.error
 import urllib.request
 
-TOKEN = os.environ.get("KUGO_FM_TOKEN", "")
-USERID = os.environ.get("KUGO_FM_USERID", "")
-GUID = os.environ.get("KUGO_FM_GUID", "")
-DFID = os.environ.get("KUGO_FM_DFID", "-")
-DEV = "kugoFlutter"
+TOKEN = os.environ.get("OVERTONE_FM_TOKEN", "")
+USERID = os.environ.get("OVERTONE_FM_USERID", "")
+GUID = os.environ.get("OVERTONE_FM_GUID", "")
+DFID = os.environ.get("OVERTONE_FM_DFID", "-")
+DEV = "overtoneFlutter"
 
 APPID = "3116"
 CLIENTVER = "11440"
@@ -103,8 +103,8 @@ def post(url: str, query: dict, body_obj: dict, headers: dict, label: str) -> No
 def main() -> None:
     if not TOKEN or not USERID or not GUID:
         raise SystemExit(
-            "Set KUGO_FM_TOKEN / KUGO_FM_USERID / KUGO_FM_GUID "
-            "(optional KUGO_FM_DFID) before probing."
+            "Set OVERTONE_FM_TOKEN / OVERTONE_FM_USERID / OVERTONE_FM_GUID "
+            "(optional OVERTONE_FM_DFID) before probing."
         )
     mid = mid_from_guid(GUID)
     print("mid =", mid)

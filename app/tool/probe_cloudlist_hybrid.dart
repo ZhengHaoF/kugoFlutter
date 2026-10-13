@@ -74,7 +74,7 @@ Future<void> main() async {
           'clienttime': '$clienttime',
           'x-router': 'cloudlist.service.kugou.com',
           'Cookie':
-              'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=kugoFlutter',
+              'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=overtoneFlutter',
           'kg-rc': '1',
           'kg-thash': '5d816a0',
           'kg-rec': '1',
@@ -121,7 +121,7 @@ Future<void> main() async {
         'clienttime': '$clienttime',
         'x-router': 'cloudlist.service.kugou.com',
         'Cookie':
-            'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=kugoFlutter',
+            'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=overtoneFlutter',
         'kg-rc': '1',
         'kg-thash': '5d816a0',
         'kg-rec': '1',
@@ -169,7 +169,7 @@ Future<void> main() async {
         'clienttime': '$clienttime',
         'x-router': 'cloudlist.service.kugou.com',
         'Cookie':
-            'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=kugoFlutter',
+            'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=overtoneFlutter',
         'kg-rc': '1',
         'kg-thash': '5d816a0',
         'kg-rec': '1',

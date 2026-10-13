@@ -178,7 +178,7 @@ class KugoDb extends _$KugoDb {
       final dir = Platform.isLinux
           ? await getApplicationSupportDirectory()
           : await getApplicationDocumentsDirectory();
-      final file = File(p.join(dir.path, 'kugo', 'kugo.sqlite'));
+      final file = File(p.join(dir.path, 'overtone', 'overtone.sqlite'));
       await file.parent.create(recursive: true);
       return NativeDatabase.createInBackground(file);
     });

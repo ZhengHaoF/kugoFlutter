@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/theme/kugo_theme.dart';
-import 'package:kugo/shared/widgets/common.dart';
+import 'package:overtone/core/theme/kugo_theme.dart';
+import 'package:overtone/shared/widgets/common.dart';
 
 void main() {
   testWidgets('showKugoBottomSheet renders bottom sheet on small/mobile screen',

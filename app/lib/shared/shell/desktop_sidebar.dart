@@ -113,7 +113,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'kugo',
+                              '泛音',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: kugo.title.copyWith(

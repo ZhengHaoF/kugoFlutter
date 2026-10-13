@@ -369,7 +369,7 @@ class KugoApp extends ConsumerWidget {
     final mode = settings.materialThemeMode;
 
     return MaterialApp.router(
-      title: 'kugo',
+      title: '泛音',
       debugShowCheckedModeBanner: false,
       themeMode: mode,
       theme: buildKugoTheme(Brightness.light),

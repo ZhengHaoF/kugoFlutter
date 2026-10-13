@@ -71,7 +71,7 @@ void main() {
   test('Android Release builds all supported ABIs without debug signing', () {
     expect(
       workflow,
-      contains("ORG_GRADLE_PROJECT_kugoAllowTestSigning: 'false'"),
+      contains("ORG_GRADLE_PROJECT_overtoneAllowTestSigning: 'false'"),
     );
     expect(workflow, contains('--split-per-abi'));
     expect(
@@ -95,7 +95,7 @@ void main() {
       expect(workflow, contains('secrets.$compatibleSecret'));
     }
     expect(workflow, contains('bash tool/package_android_release.sh'));
-    expect(workflow, isNot(contains('kugo-android-test-only-')));
+    expect(workflow, isNot(contains('overtone-android-test-only-')));
     final gradle = File('android/app/build.gradle.kts').readAsStringSync();
     expect(gradle, contains('!hasReleaseSigning && !allowTestSigning'));
     expect(gradle, contains('releaseSigning.values.all'));
@@ -127,12 +127,12 @@ void main() {
       );
       expect(installer, contains(r'IconFilename: "{app}\data\flutter_assets'));
       final probe = File('tool/test_windows_installer.ps1').readAsStringSync();
-      expect(probe, contains('Remove-KugoProbeDirectory'));
+      expect(probe, contains('Remove-OvertoneProbeDirectory'));
       expect(probe, contains('Write-Error -ErrorRecord'));
       final iconProbe = File(
         'tool/test_windows_app_icons.ps1',
       ).readAsStringSync();
-      expect(iconProbe, contains('Stop-KugoProbeProcess'));
+      expect(iconProbe, contains('Stop-OvertoneProbeProcess'));
     },
   );
 

@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kugo/app.dart';
-import 'package:kugo/features/explore/explore_page.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/playlist/playlist_detail_page.dart';
-import 'package:kugo/features/recommend/daily_recommend_page.dart';
-import 'package:kugo/features/settings/settings_page.dart';
-import 'package:kugo/shared/shell/desktop_sidebar.dart';
-import 'package:kugo/shared/widgets/desktop_player_bar.dart';
-import 'package:kugo/shared/widgets/mini_player_bar.dart';
+import 'package:overtone/app.dart';
+import 'package:overtone/features/explore/explore_page.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/playlist/playlist_detail_page.dart';
+import 'package:overtone/features/recommend/daily_recommend_page.dart';
+import 'package:overtone/features/settings/settings_page.dart';
+import 'package:overtone/shared/shell/desktop_sidebar.dart';
+import 'package:overtone/shared/widgets/desktop_player_bar.dart';
+import 'package:overtone/shared/widgets/mini_player_bar.dart';
 
 import 'fakes/fake_audio_player.dart';
 

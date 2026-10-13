@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/shared/widgets/kugo_h_scroll.dart';
+import 'package:overtone/shared/widgets/kugo_h_scroll.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
 /// KugoHScroll 行为回归：滚轮 hijack / 边缘放行 / 鼠标拖拽 / 点击不误触 /

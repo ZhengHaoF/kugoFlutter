@@ -76,7 +76,7 @@ class LinuxMediaBridge implements KugoMediaBridge {
       await bus.registerObject(object).timeout(const Duration(seconds: 2));
       final reply = await bus
           .requestName(
-            busName ?? '$mprisRoot.kugo.instance$pid',
+            busName ?? '$mprisRoot.overtone.instance$pid',
             flags: {DBusRequestNameFlag.doNotQueue},
           )
           .timeout(const Duration(seconds: 2));
@@ -148,7 +148,7 @@ class LinuxMprisObject extends DBusObject {
     'CanQuit': const DBusBoolean(false),
     'CanRaise': const DBusBoolean(false),
     'HasTrackList': const DBusBoolean(false),
-    'Identity': const DBusString('kugo'),
+    'Identity': const DBusString('Overtone'),
     'DesktopEntry': const DBusString('com.kugo.kugo'),
     'SupportedUriSchemes': DBusArray.string([]),
     'SupportedMimeTypes': DBusArray.string([]),

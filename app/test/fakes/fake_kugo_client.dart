@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:kugo/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugo_client.dart';
 
 /// 脚本化 [KugoClient]：按 URL 关键字回放响应体，并记录调用。
 ///

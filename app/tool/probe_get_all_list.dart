@@ -13,7 +13,7 @@ const token =
 const userId = '2511133520';
 const guid = '2b9c607bf85a801ca492f2d95bb4e67b';
 const dfid = '0QeBfz1rwip04Bv9cF415aed';
-const dev = 'kugoFlutter';
+const dev = 'overtoneFlutter';
 
 Future<void> hit(
   Dio dio,

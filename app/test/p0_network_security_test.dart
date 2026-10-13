@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/credential_transport.dart';
-import 'package:kugo/core/api/kugou/kugo_client.dart';
-import 'package:kugo/core/api/network_log.dart';
-import 'package:kugo/data/repositories/login_repository.dart';
-import 'package:kugo/data/storage/device_identity.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
+import 'package:overtone/core/api/kugou/credential_transport.dart';
+import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/network_log.dart';
+import 'package:overtone/data/repositories/login_repository.dart';
+import 'package:overtone/data/storage/device_identity.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_kugo_client.dart';
@@ -23,7 +23,7 @@ void main() {
       'kugo_device_dfid': 'fixture-dfid',
       'kugo_device_guid': 'fixture-guid',
       'kugo_device_mid': 'fixture-mid',
-      'kugo_device_dev': 'kugoFlutter',
+      'kugo_device_dev': 'overtoneFlutter',
       'kugo_device_dfid_registered': true,
     });
   });

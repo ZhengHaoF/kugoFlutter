@@ -107,7 +107,7 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HX
         'dfid=$dfid',
         'KUGOU_API_MID=$mid',
         'KUGOU_API_GUID=$guid',
-        'KUGOU_API_DEV=kugoFlutter',
+        'KUGOU_API_DEV=overtoneFlutter',
       ].join(';'),
     };
     try {

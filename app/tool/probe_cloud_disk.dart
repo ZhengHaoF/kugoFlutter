@@ -13,7 +13,7 @@
 //   dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID> --confirm
 //
 // Credentials (CLI overrides env):
-//   --token / KUGO_TOKEN, --userid / KUGO_USERID, --guid / KUGO_GUID, --dfid / KUGO_DFID
+//   --token / OVERTONE_TOKEN, --userid / OVERTONE_USERID, --guid / OVERTONE_GUID, --dfid / OVERTONE_DFID
 //
 // Dumps full JSON field trees so api-notes.md can record the real payload shape.
 import 'dart:convert';
@@ -22,8 +22,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
-import 'package:kugo/core/api/kugou/kugo_crypto.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugo_crypto.dart';
+import 'package:overtone/core/api/kugou/kugo_sign.dart';
 
 const _mcloudBase = 'https://mcloudservice.kugou.com';
 const _gateway = 'https://gateway.kugou.com';
@@ -52,18 +52,18 @@ class Creds {
         'dfid=$dfid',
         'KUGOU_API_MID=$mid',
         'KUGOU_API_GUID=$guid',
-        'KUGOU_API_DEV=kugoFlutter',
+        'KUGOU_API_DEV=overtoneFlutter',
       ].join(';');
 }
 
 void main(List<String> args) async {
   final opts = _parseArgs(args);
   final suite = opts['suite'] ?? 'all';
-  final token = opts['token'] ?? Platform.environment['KUGO_TOKEN'] ?? '';
-  final userId = opts['userid'] ?? Platform.environment['KUGO_USERID'] ?? '';
+  final token = opts['token'] ?? Platform.environment['OVERTONE_TOKEN'] ?? '';
+  final userId = opts['userid'] ?? Platform.environment['OVERTONE_USERID'] ?? '';
   final guid =
-      opts['guid'] ?? Platform.environment['KUGO_GUID'] ?? KugoSign.randomAlnum(32);
-  final dfid = opts['dfid'] ?? Platform.environment['KUGO_DFID'] ?? '-';
+      opts['guid'] ?? Platform.environment['OVERTONE_GUID'] ?? KugoSign.randomAlnum(32);
+  final dfid = opts['dfid'] ?? Platform.environment['OVERTONE_DFID'] ?? '-';
   final hash = (opts['hash'] ?? '').toLowerCase();
   final fileid = opts['fileid'] ?? '';
   final page = int.tryParse(opts['page'] ?? '1') ?? 1;
@@ -76,7 +76,7 @@ void main(List<String> args) async {
       '缺少登录凭证。用法示例：\n'
       '  dart run tool/probe_cloud_disk.dart --suite list '
       '--token <T> --userid <U>\n'
-      '或设置环境变量 KUGO_TOKEN / KUGO_USERID。'
+      '或设置环境变量 OVERTONE_TOKEN / OVERTONE_USERID。'
     );
     exit(2);
   }

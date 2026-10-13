@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'fakes/fake_music_source.dart';
-import 'package:kugo/core/models/fm_mode.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/features/fm/fm_controller.dart';
-import 'package:kugo/features/fm/fm_radio_card.dart';
-import 'package:kugo/features/player/fm_controls.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/core/models/fm_mode.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/features/fm/fm_controller.dart';
+import 'package:overtone/features/fm/fm_radio_card.dart';
+import 'package:overtone/features/player/fm_controls.dart';
+import 'package:overtone/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';

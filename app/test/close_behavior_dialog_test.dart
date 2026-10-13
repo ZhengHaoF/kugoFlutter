@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/theme/kugo_theme.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
-import 'package:kugo/shared/tray/close_behavior_dialog.dart';
+import 'package:overtone/core/theme/kugo_theme.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
+import 'package:overtone/shared/tray/close_behavior_dialog.dart';
 
 class _Harness {
   CloseBehaviorChoice? result;
@@ -33,7 +33,7 @@ void main() {
     final harness = _Harness();
     await _openDialog(tester, harness);
 
-    expect(find.text('关闭 kugo'), findsOneWidget);
+    expect(find.text('关闭 泛音'), findsOneWidget);
     expect(find.text('最小化到托盘'), findsOneWidget);
     expect(find.text('退出应用'), findsOneWidget);
     expect(find.text('记住我的选择'), findsOneWidget);
@@ -45,7 +45,7 @@ void main() {
 
     expect(harness.result?.behavior, CloseBehavior.quit);
     expect(harness.result?.remember, isTrue);
-    expect(find.text('关闭 kugo'), findsNothing);
+    expect(find.text('关闭 泛音'), findsNothing);
   });
 
   testWidgets('不勾记住时 remember 为 false', (tester) async {
@@ -67,6 +67,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.result, isNull);
-    expect(find.text('关闭 kugo'), findsNothing);
+    expect(find.text('关闭 泛音'), findsNothing);
   });
 }

@@ -1,5 +1,5 @@
-#ifndef KUGO_DESKTOP_LYRIC_HOST_H_
-#define KUGO_DESKTOP_LYRIC_HOST_H_
+#ifndef OVERTONE_DESKTOP_LYRIC_HOST_H_
+#define OVERTONE_DESKTOP_LYRIC_HOST_H_
 #include <flutter_linux/flutter_linux.h>
 #include <gtk/gtk.h>
 

@@ -40,7 +40,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     // 首帧前保持隐藏（见 FlutterWindow::OnCreate）。
     Win32Window::Size size(720, 88);
     Win32Window::Point origin(80, 56);
-    if (!window.Create(L"kugo-lyric", origin, size)) {
+    if (!window.Create(L"overtone-lyric", origin, size)) {
       return EXIT_FAILURE;
     }
     window.SetQuitOnClose(true);
@@ -57,7 +57,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // clamps to the work area, so a high-DPI / small screen opens smaller.
   Win32Window::Size size(1280, 960);
   Win32Window::Point origin(0, 0);
-  if (!window.Create(L"kugo", origin, size)) {
+  if (!window.Create(L"泛音", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/features/desktop_lyric/desktop_lyric_protocol.dart';
-import 'package:kugo/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
-import 'package:kugo/features/desktop_lyric/lyric_window/lyric_window_view.dart';
+import 'package:overtone/features/desktop_lyric/desktop_lyric_protocol.dart';
+import 'package:overtone/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
+import 'package:overtone/features/desktop_lyric/lyric_window/lyric_window_view.dart';
 
 void main() {
   testWidgets('unlock button stays inside the native polling hot region', (

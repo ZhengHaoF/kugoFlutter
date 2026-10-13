@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/theme/hero_tags.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/recommend/daily_recommend_page.dart';
-import 'package:kugo/shared/widgets/common.dart';
-import 'package:kugo/shared/widgets/cover_box.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/theme/hero_tags.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/recommend/daily_recommend_page.dart';
+import 'package:overtone/shared/widgets/common.dart';
+import 'package:overtone/shared/widgets/cover_box.dart';
 
 import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_music_source.dart';

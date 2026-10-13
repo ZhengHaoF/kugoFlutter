@@ -2,14 +2,14 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/audio_quality.dart';
-import 'package:kugo/core/models/cloud_models.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/data/storage/kugo_db.dart';
-import 'package:kugo/data/storage/playback_position_store.dart';
-import 'package:kugo/data/storage/queue_store.dart';
-import 'package:kugo/data/storage/track_metadata.dart';
+import 'package:overtone/core/models/audio_quality.dart';
+import 'package:overtone/core/models/cloud_models.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/data/storage/kugo_db.dart';
+import 'package:overtone/data/storage/playback_position_store.dart';
+import 'package:overtone/data/storage/queue_store.dart';
+import 'package:overtone/data/storage/track_metadata.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 

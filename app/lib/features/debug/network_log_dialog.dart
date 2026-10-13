@@ -148,7 +148,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
       _toast('暂无日志');
       return;
     }
-    await Clipboard.setData(ClipboardData(text: '== kugo 网络日志 ==\n\n$text'));
+    await Clipboard.setData(ClipboardData(text: '== 泛音 网络日志 ==\n\n$text'));
     _toast('已复制全部日志 (${logs.length} 条)');
   }
 

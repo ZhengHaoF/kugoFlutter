@@ -195,7 +195,7 @@ Future<void> _startMediaSession(
         builder: () => KugoAudioHandler(player),
         config: AudioServiceConfig(
           androidNotificationChannelId: 'com.kugo.player',
-          androidNotificationChannelName: 'kugo 播放',
+          androidNotificationChannelName: '泛音 播放',
           androidNotificationOngoing: true,
           androidStopForegroundOnPause: true,
           // 通知的主色跟着当前调色板走（原来是写死的深色 primary）。

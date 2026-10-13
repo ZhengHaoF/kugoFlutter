@@ -22,8 +22,8 @@ short="${GITHUB_SHA:0:7}"
 run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
 for file in \
-  android/kugo-android-test-only.apk android/SHA256SUMS.txt android/BUILD-INFO.txt \
-  windows/kugo.exe windows/flutter_windows.dll windows/libmpv-2.dll \
+  android/overtone-android-test-only.apk android/SHA256SUMS.txt android/BUILD-INFO.txt \
+  windows/overtone.exe windows/flutter_windows.dll windows/libmpv-2.dll \
   windows/data/app.so windows/data/icudtl.dat windows/data/flutter_assets/AssetManifest.bin windows/SHA256SUMS.txt \
   windows/BUILD-INFO.txt windows/NATIVE-CREDENTIALS.txt; do
   [[ -s "$input/$file" ]] || {
@@ -58,9 +58,9 @@ if [[ "$(rg -c '^PASS ' "$input/windows/NATIVE-CREDENTIALS.txt" || true)" != 5 ]
   exit 1
 fi
 
-apk="kugo-android-$short-test-only.apk"
-windows_zip="kugo-windows-x64-$short-portable-test-only.zip"
-cp "$input/android/kugo-android-test-only.apk" "$output/$apk"
+apk="overtone-android-$short-test-only.apk"
+windows_zip="overtone-windows-x64-$short-portable-test-only.zip"
+cp "$input/android/overtone-android-test-only.apk" "$output/$apk"
 (
   cd "$input/windows"
   zip -q -r "$output/$windows_zip" .
@@ -68,7 +68,7 @@ cp "$input/android/kugo-android-test-only.apk" "$output/$apk"
 unzip -tq "$output/$windows_zip"
 
 printf '%s\n' \
-  "kugo TEST-ONLY release" \
+  "overtone TEST-ONLY release" \
   "commit=$GITHUB_SHA" \
   "run=$run_url" \
   "Android: release-mode APK with an Android Debug test certificate; API 24+." \
@@ -82,14 +82,14 @@ printf '%s\n' \
 )
 
 cat <<EOF > "$output/RELEASE-NOTES.md"
-# kugo 测试版
+# overtone 测试版
 
 这是开发测试包，不是正式签名发布版本。构建源码为 \`$GITHUB_SHA\`，两端构建、质量门禁及 Windows 原生凭据探针通过后才发布。
 
 ## 下载与安装
 
 - **Android**：下载 \`$apk\`，支持 Android 7.0 / API 24 及以上；也可用 \`adb install -r $apk\` 安装。
-- **Windows x64**：下载 \`$windows_zip\`，完整解压后运行 \`kugo.exe\`；保留所有 DLL 与 \`data/\`，不要只复制 EXE。
+- **Windows x64**：下载 \`$windows_zip\`，完整解压后运行 \`overtone.exe\`；保留所有 DLL 与 \`data/\`，不要只复制 EXE。
 - **校验**：下载 \`SHA256SUMS.txt\` 与相应文件，在同一目录核对 SHA-256；\`BUILD-INFO.txt\` 记录构建来源和签名边界。
 
 ## 测试版边界

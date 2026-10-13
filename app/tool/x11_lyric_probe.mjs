@@ -124,7 +124,7 @@ try {
   const rendered = screenshot('transparent-lyrics');
   const sample = [g.X + g.WIDTH - 10, g.Y + 10];
   const clear = pixel(baseline, ...sample) === pixel(rendered, ...sample);
-  check(clear === (process.env.KUGO_COMPOSITOR !== '0'),
+  check(clear === (process.env.OVERTONE_COMPOSITOR !== '0'),
     clear ? 'transparent pixels reveal underlying window' : 'no-compositor card fallback');
   snapshot({isPlaying:true, positionMs:500});
   await wait(1000);

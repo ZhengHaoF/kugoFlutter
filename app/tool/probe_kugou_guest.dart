@@ -11,7 +11,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/sources/kugou/kugou_source.dart';
+import 'package:overtone/data/sources/kugou/kugou_source.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 单条探针结果，最后汇总成矩阵。

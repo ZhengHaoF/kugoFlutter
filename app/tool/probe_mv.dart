@@ -13,8 +13,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:kugo/core/api/kugou/kugo_client.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugo_client.dart';
+import 'package:overtone/core/api/kugou/kugo_sign.dart';
 
 Future<void> main() async {
   final dio = Dio(

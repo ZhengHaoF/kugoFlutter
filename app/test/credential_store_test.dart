@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/data/storage/bili_auth_store.dart';
-import 'package:kugo/data/storage/credential_store.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/data/storage/bili_auth_store.dart';
+import 'package:overtone/data/storage/credential_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');

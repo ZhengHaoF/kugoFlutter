@@ -38,7 +38,7 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   GtkWidget* window = gtk_widget_get_toplevel(GTK_WIDGET(view));
-  if (!GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "kugo-lyric")))
+  if (!GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "overtone-lyric")))
     gtk_widget_show(window);
 }
 
@@ -68,11 +68,11 @@ static void my_application_activate(GApplication* application) {
   if (use_header_bar) {
     GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
     gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "kugo");
+    gtk_header_bar_set_title(header_bar, "泛音");
     gtk_header_bar_set_show_close_button(header_bar, TRUE);
     gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
   } else {
-    gtk_window_set_title(window, "kugo");
+    gtk_window_set_title(window, "泛音");
   }
 
   gtk_window_set_default_size(window, 1280, 720);

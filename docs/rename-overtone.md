@@ -565,6 +565,15 @@ Rename-InFiles "\bkugo\b" "theme" @("app/lib", "app/test")
 
 `desktop_lyric_bridge.dart:237` 的 `...Platform.environment` 是整体透传，无需逐个列名，跟着上述常量走即可。
 
+### 6.2 原生内部的跨文件契约（同类原子操作，实施中新发现）
+
+| 契约 | 位置 | 说明 |
+| --- | --- | --- |
+| GTK 对象数据键 `"kugo-lyric"` | `app/linux/runner/desktop_lyric_host.cc:125,141,254`（写入）、`app/linux/runner/my_application.cc:41`（读取） | Linux 侧用 `g_object_set_data` / `g_object_get_data` 标记歌词窗，键名两边必须一致，否则歌词窗识别失效。与 Windows 侧 `L"kugo-lyric"`（窗口标题，Step 1 已改）是**不同机制、同名字符串**，别只改一处 |
+| Linux 歌词窗标题 `"kugo X11 lyrics"` | `app/linux/runner/desktop_lyric_host.cc:255`（设置）、`app/tool/run_x11_main_lyric_probe.sh:25,40,66,72`（xdotool 按标题搜窗口） | 标题是探针定位窗口的契约，两边必须同改 |
+| MPRIS bus 名 `$mprisRoot.kugo.instance$pid` | `app/lib/features/player/linux_media_bridge.dart:79`（lib）、`app/tool/linux_integration_probe.dart:223`（探针镜像） | 探针复刻了 lib 的 bus 名规则，需同步 |
+| 原生探针窗口类名 / CMake 项目名 | `app/tool/native_media_probe/probe.cpp:45`（`KugoNativeMediaProbeOwner`）、`app/tool/native_media_probe/CMakeLists.txt:2`（`kugo_native_media_probe`） | 大写 K 与小写下划线两种形式，`kugo-` 批量替换抓不到，需显式改 |
+
 **验收**：`rg -n "kugo/" app`、`rg -n "KUGO_LYRIC" app` 均无输出；Windows 桌面歌词窗口、任务栏缩略图按钮、
 Android 悬浮歌词、Linux 桌面能力探测逐一真机/真桌面验证。
 

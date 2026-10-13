@@ -122,7 +122,7 @@ gboolean report_bounds(gpointer data) {
 gboolean configured(GtkWidget*, GdkEventConfigure*, gpointer data) {
   auto* host = static_cast<Host*>(data);
   if (!host->window ||
-      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(host->window), "kugo-lyric")))
+      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(host->window), "overtone-lyric")))
     return FALSE;
   // A WM may create a fresh frame on hide/show or resize.
   if (host->input_set) input_shape(host->window, host->input);
@@ -138,7 +138,7 @@ void method_call(FlMethodChannel*, FlMethodCall* call, gpointer data) {
   g_autoptr(FlValue) result = nullptr;
   g_autoptr(FlMethodResponse) response = nullptr;
   if (!window ||
-      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "kugo-lyric"))) {
+      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "overtone-lyric"))) {
     response = FL_METHOD_RESPONSE(fl_method_error_response_new(
         "unavailable", "X11 lyric host is unavailable in this process", nullptr));
   } else if (std::strcmp(method, "getCapabilities") == 0) {
@@ -251,8 +251,8 @@ void method_call(FlMethodChannel*, FlMethodCall* call, gpointer data) {
 }  // namespace
 
 void prepare_desktop_lyric_window(GtkWindow* window, FlView* view) {
-  g_object_set_data(G_OBJECT(window), "kugo-lyric", GINT_TO_POINTER(1));
-  gtk_window_set_title(window, "kugo X11 lyrics");
+  g_object_set_data(G_OBJECT(window), "overtone-lyric", GINT_TO_POINTER(1));
+  gtk_window_set_title(window, "overtone X11 lyrics");
   gtk_window_set_decorated(window, FALSE);
   gtk_window_set_titlebar(window, nullptr);
   gtk_window_set_skip_taskbar_hint(window, TRUE);

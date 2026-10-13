@@ -46,7 +46,7 @@ Future<void> main() async {
     jsonEncode({'clienttime_ms': dateNow, 'key': encKey}),
   );
   final t2 = KugoCrypto.aesEncrypt(
-    '$guid|0f607264fc6318a92b9e13c65db7cd3c||kugoFlutter|$dateNow',
+    '$guid|0f607264fc6318a92b9e13c65db7cd3c||overtoneFlutter|$dateNow',
     key: liteT2Key,
     iv: liteT2Iv,
   ) as String;
@@ -64,7 +64,7 @@ Future<void> main() async {
     'params': encStr,
     'userid': userId,
     'clienttime_ms': dateNow,
-    'dev': 'kugoFlutter',
+    'dev': 'overtoneFlutter',
   };
   final bodyJson = jsonEncode(dataMap);
   final query = <String, dynamic>{
@@ -84,7 +84,7 @@ Future<void> main() async {
           'dfid': dfid,
           'mid': mid,
           'Cookie':
-              'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=kugoFlutter',
+              'token=$token; userid=$userId; dfid=$dfid; KUGOU_API_MID=$mid; KUGOU_API_GUID=$guid; KUGOU_API_DEV=overtoneFlutter',
         },
       ),
     );

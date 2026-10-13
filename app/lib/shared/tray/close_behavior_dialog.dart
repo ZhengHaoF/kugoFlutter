@@ -33,7 +33,7 @@ Future<CloseBehaviorChoice?> showCloseBehaviorDialog(
       final kugo = KugoTheme.of(dialogContext);
       return StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('关闭 kugo'),
+          title: const Text('关闭 泛音'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

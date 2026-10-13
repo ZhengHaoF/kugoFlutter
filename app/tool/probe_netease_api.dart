@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:kugo/core/api/netease/netease_client.dart';
-import 'package:kugo/core/api/netease/netease_endpoints.dart';
-import 'package:kugo/core/source/music_source.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_endpoints.dart';
+import 'package:overtone/core/source/music_source.dart';
 import 'package:qr/qr.dart';
 
 /// CLI：网易云接口调试探针。

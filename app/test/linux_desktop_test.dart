@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/desktop_capabilities.dart';
-import 'package:kugo/core/platform.dart';
-import 'package:kugo/core/theme/kugo_theme.dart';
-import 'package:kugo/features/cloud/cloud_upload_picker.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
-import 'package:kugo/shared/tray/close_behavior_dialog.dart';
-import 'package:kugo/shared/tray/desktop_tray.dart';
+import 'package:overtone/core/desktop_capabilities.dart';
+import 'package:overtone/core/platform.dart';
+import 'package:overtone/core/theme/kugo_theme.dart';
+import 'package:overtone/features/cloud/cloud_upload_picker.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
+import 'package:overtone/shared/tray/close_behavior_dialog.dart';
+import 'package:overtone/shared/tray/desktop_tray.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/netease/netease_mappers.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/features/auth/netease_login_controller.dart';
-import 'package:kugo/features/likes/netease_likes_controller.dart';
+import 'package:overtone/core/api/netease/netease_mappers.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/features/auth/netease_login_controller.dart';
+import 'package:overtone/features/likes/netease_likes_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_device_login_source.dart';

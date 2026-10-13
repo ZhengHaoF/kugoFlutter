@@ -75,7 +75,7 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'kugo',
+                    '泛音',
                     style: kugo.caption.copyWith(
                       fontSize: 12,
                       color: kugo.textSecondary,

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/storage/playback_position_store.dart';
+import 'package:overtone/data/storage/playback_position_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

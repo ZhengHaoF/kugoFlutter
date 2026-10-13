@@ -26,7 +26,7 @@ import 'netease_failures.dart';
 const Map<String, String> neteasePlaybackHeaders = {
   'Referer': 'https://music.163.com',
   'User-Agent':
-      'Mozilla/5.0 (Linux; Android 10; kugo-netease-probe) AppleWebKit/537.36 '
+      'Mozilla/5.0 (Linux; Android 10; overtone-netease-probe) AppleWebKit/537.36 '
       '(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
 };
 

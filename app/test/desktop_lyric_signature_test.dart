@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/desktop_lyric/desktop_lyric_style.dart';
-import 'package:kugo/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/desktop_lyric/desktop_lyric_style.dart';
+import 'package:overtone/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
 
 List<LyricLine> _lines() => const [
       LyricLine(timeMs: 0, endMs: 4000, text: '第一行'),

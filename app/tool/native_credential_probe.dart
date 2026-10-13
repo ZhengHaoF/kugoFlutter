@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:kugo/data/storage/credential_store.dart';
+import 'package:overtone/data/storage/credential_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// CI-only entrypoint. This executable is never copied into the application

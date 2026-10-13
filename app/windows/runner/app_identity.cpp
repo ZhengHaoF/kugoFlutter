@@ -13,7 +13,7 @@ namespace {
 // Must match AudioServiceConfig.androidNotificationChannelId (SMTC AppMediaId).
 constexpr wchar_t kAppUserModelId[] = L"com.kugo.player";
 constexpr wchar_t kShortcutName[] = L"kugo.lnk";
-constexpr wchar_t kAppDisplayName[] = L"kugo";
+constexpr wchar_t kAppDisplayName[] = L"泛音";
 
 std::wstring ExePath() {
   wchar_t buffer[MAX_PATH]{};

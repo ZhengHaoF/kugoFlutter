@@ -11,7 +11,7 @@ export LIBGL_ALWAYS_SOFTWARE=1 NO_AT_BRIDGE=1
 wm= compositor=
 trap 'kill ${compositor:-} ${wm:-} 2>/dev/null || true; rm -rf "$work"' EXIT
 openbox > "$out/wm.log" 2>&1 & wm=$!
-if [[ "${KUGO_COMPOSITOR:-1}" == 1 ]]; then
+if [[ "${OVERTONE_COMPOSITOR:-1}" == 1 ]]; then
   picom --config /dev/null --backend xrender > "$out/compositor.log" 2>&1 &
   compositor=$!
 fi

@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/mappers.dart';
-import 'package:kugo/core/models/cloud_models.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/repositories/cloud_repository.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
+import 'package:overtone/core/api/mappers.dart';
+import 'package:overtone/core/models/cloud_models.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/repositories/cloud_repository.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeDioAdapter implements HttpClientAdapter {

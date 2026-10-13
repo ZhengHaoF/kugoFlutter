@@ -4,10 +4,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/data/repositories/user_repository.dart';
-import 'package:kugo/features/profile/source_library_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/data/repositories/user_repository.dart';
+import 'package:overtone/features/profile/source_library_controller.dart';
 
 class _FakeDioAdapter implements HttpClientAdapter {
   _FakeDioAdapter(this.handler);
@@ -50,7 +50,7 @@ void main() {
       'kugo_device_dfid_registered': true,
       'kugo_device_dfid': 'test_dfid',
       'kugo_device_guid': 'test_guid',
-      'kugo_device_dev': 'kugoFlutter',
+      'kugo_device_dev': 'overtoneFlutter',
     });
   });
 

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/repositories/lyric_repository.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/data/repositories/lyric_repository.dart';
 
 import 'fakes/fake_kugo_client.dart';
 

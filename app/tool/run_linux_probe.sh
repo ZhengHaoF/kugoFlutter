@@ -20,15 +20,15 @@ cleanup() {
 }
 trap cleanup EXIT
 openbox > "$out/window-manager.log" 2>&1 & wm=$!
-if [[ "${KUGO_PROBE_BACKEND:-x11}" == wayland ]]; then
+if [[ "${OVERTONE_PROBE_BACKEND:-x11}" == wayland ]]; then
   weston --backend=x11-backend.so --width=1440 --height=1000 \
-    --socket=kugo-probe --idle-time=0 > "$out/weston.log" 2>&1 & compositor=$!
+    --socket=overtone-probe --idle-time=0 > "$out/weston.log" 2>&1 & compositor=$!
   for _ in {1..100}; do
-    [[ -S "$XDG_RUNTIME_DIR/kugo-probe" ]] && break
+    [[ -S "$XDG_RUNTIME_DIR/overtone-probe" ]] && break
     sleep .1
   done
-  [[ -S "$XDG_RUNTIME_DIR/kugo-probe" ]]
-  export WAYLAND_DISPLAY=kugo-probe GDK_BACKEND=wayland
+  [[ -S "$XDG_RUNTIME_DIR/overtone-probe" ]]
+  export WAYLAND_DISPLAY=overtone-probe GDK_BACKEND=wayland
 fi
 pulseaudio --daemonize=no --exit-idle-time=-1 > "$out/pulse.log" 2>&1 & pulse=$!
 for _ in {1..50}; do
@@ -39,7 +39,7 @@ pactl load-module module-null-sink sink_name=kugo_test > "$out/sink-module.txt"
 pactl set-default-sink kugo_test
 ffmpeg -nostdin -v error -f lavfi -i testsrc=size=320x180:rate=20 \
   -t 6 -pix_fmt yuv420p -c:v mpeg4 -y "$out/fixture.mp4"
-export KUGO_PROBE_VIDEO="$out/fixture.mp4"
+export OVERTONE_PROBE_VIDEO="$out/fixture.mp4"
 parec --device=kugo_test.monitor --format=s16le --rate=48000 --channels=2 \
   > "$out/audio.raw" 2> "$out/record.log" & record=$!
 timeout 100 "$binary" > "$out/probe.log" 2>&1 & app=$!

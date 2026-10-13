@@ -178,8 +178,8 @@ Future<void> showAboutSheet(BuildContext context) {
             Center(child: Text('关于', style: kugo.section)),
             const SizedBox(height: KugoSpacing.md),
             _AboutRow(label: '版本', value: '0.1.0'),
-            _AboutRow(label: '形态', value: 'Android · 移动端优先'),
-            _AboutRow(label: '定位', value: '酷狗概念版第三方客户端'),
+            _AboutRow(label: '形态', value: 'Android · Windows · Linux'),
+            _AboutRow(label: '定位', value: '多音源第三方客户端'),
             const SizedBox(height: KugoSpacing.md),
             Text(
               '个人学习 / 研究向项目。数据经公开接口直接获取，不提供音频中转或云端账号托管。'

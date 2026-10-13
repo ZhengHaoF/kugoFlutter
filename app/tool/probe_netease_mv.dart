@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:kugo/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
 
 /// CLI：网易云 **MV** 接口探针（A0）。
 ///

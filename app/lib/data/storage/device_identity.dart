@@ -52,12 +52,12 @@ class DeviceIdentity {
     var dev = prefs.getString(_kDev) ?? '';
     if (guid.isEmpty) {
       guid = KugoSign.md5Hex(
-        'kugo-flutter-${DateTime.now()}-${KugoSign.randomAlnum(16)}',
+        'overtone-flutter-${DateTime.now()}-${KugoSign.randomAlnum(16)}',
       );
       await prefs.setString(_kGuid, guid);
     }
     if (dev.isEmpty) {
-      dev = 'kugoFlutter';
+      dev = 'overtoneFlutter';
       await prefs.setString(_kDev, dev);
     }
     var mid = prefs.getString(_kMid) ?? KugoSign.calculateMid(guid);

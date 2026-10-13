@@ -23,11 +23,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kugo/data/repositories/play_repository.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
-import 'package:kugo/features/auth/auth_controller.dart';
-import 'package:kugo/features/player/audio_player_port.dart';
-import 'package:kugo/features/player/media_kit_player.dart';
+import 'package:overtone/data/repositories/play_repository.dart';
+import 'package:overtone/data/repositories/search_repository.dart';
+import 'package:overtone/features/auth/auth_controller.dart';
+import 'package:overtone/features/player/audio_player_port.dart';
+import 'package:overtone/features/player/media_kit_player.dart';
 import 'package:media_kit/media_kit.dart';
 
 /// 进程启动后等待多久才播第一首。真实使用中用户要翻页面才点播放，
@@ -257,7 +257,7 @@ class _ProbeAppState extends State<_ProbeApp> {
             padding: const EdgeInsets.all(16),
             children: [
               const Text(
-                'kugo · Windows 音频探针',
+                '泛音 · Windows 音频探针',
                 style: TextStyle(color: Colors.white, fontSize: 18),
               ),
               const SizedBox(height: 12),

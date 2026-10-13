@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:kugo/core/models/audio_quality.dart';
-import 'package:kugo/core/models/daily_recommend.dart';
-import 'package:kugo/core/models/fm_mode.dart';
-import 'package:kugo/core/models/search_result.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/core/source/registry.dart';
+import 'package:overtone/core/models/audio_quality.dart';
+import 'package:overtone/core/models/daily_recommend.dart';
+import 'package:overtone/core/models/fm_mode.dart';
+import 'package:overtone/core/models/search_result.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/core/source/registry.dart';
 
 /// 测试用离线音源：实现基类 + 常用能力，不碰网络。
 class FakeMusicSource
