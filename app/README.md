@@ -31,7 +31,7 @@ Wayland 小窗不承诺绝对定位或始终置顶，真实 GNOME/KDE 与实体�
 ```bash
 flutter pub get --enforce-lockfile
 flutter build linux --release --no-pub
-./build/linux/x64/release/bundle/kugo
+./build/linux/x64/release/bundle/overtone
 ```
 
 ```powershell

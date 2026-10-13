@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="icon_background">#FFF2F4F8</color>
-    <!-- Matches KugoPalette.light.bg so the launch window never flashes. -->
+    <!-- Matches OvertonePalette.light.bg so the launch window never flashes. -->
     <color name="launch_background">#FFF2F4F8</color>
 </resources>

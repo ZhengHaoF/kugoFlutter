@@ -35,12 +35,12 @@ for _ in {1..50}; do
   if pactl info > /dev/null 2>&1; then break; fi
   sleep .1
 done
-pactl load-module module-null-sink sink_name=kugo_test > "$out/sink-module.txt"
-pactl set-default-sink kugo_test
+pactl load-module module-null-sink sink_name=overtone_test > "$out/sink-module.txt"
+pactl set-default-sink overtone_test
 ffmpeg -nostdin -v error -f lavfi -i testsrc=size=320x180:rate=20 \
   -t 6 -pix_fmt yuv420p -c:v mpeg4 -y "$out/fixture.mp4"
 export OVERTONE_PROBE_VIDEO="$out/fixture.mp4"
-parec --device=kugo_test.monitor --format=s16le --rate=48000 --channels=2 \
+parec --device=overtone_test.monitor --format=s16le --rate=48000 --channels=2 \
   > "$out/audio.raw" 2> "$out/record.log" & record=$!
 timeout 100 "$binary" > "$out/probe.log" 2>&1 & app=$!
 for _ in {1..900}; do

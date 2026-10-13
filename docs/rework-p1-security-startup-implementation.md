@@ -2,7 +2,7 @@
 
 ## 范围与基线
 
-本批接续 [P1 首批 PR #5](https://github.com/ZhengHaoF/kugoFlutter/pull/5)，处理 R13 与 R14。P2、Wayland 专项及 Linux 应用交付不在本批范围；Android/Windows 制品构建配置另一个提交和 PR 交付。
+本批接续 [P1 首批 PR #5](https://github.com/ZhengHaoF/overtone/pull/5)，处理 R13 与 R14。P2、Wayland 专项及 Linux 应用交付不在本批范围；Android/Windows 制品构建配置另一个提交和 PR 交付。
 
 ## 安全存储
 

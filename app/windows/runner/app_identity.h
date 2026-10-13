@@ -11,4 +11,7 @@ void ApplyAppUserModelId();
 // and the icon from the CURRENT Debug/Profile/Release bundle.
 void EnsureStartMenuShortcut();
 
+// One-time cleanup of the pre-rename kugo.lnk shortcut (same AUMID, old name).
+void RemoveLegacyShortcut();
+
 #endif  // RUNNER_APP_IDENTITY_H_

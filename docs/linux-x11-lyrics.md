@@ -1,6 +1,6 @@
-# kugoFlutter Linux X11 悬浮歌词方案与验收记录
+# overtone Linux X11 悬浮歌词方案与验收记录
 
-> 当前状态：P0/P1 [PR #2](https://github.com/ZhengHaoF/kugoFlutter/pull/2) 与 X11 歌词 [PR #3](https://github.com/ZhengHaoF/kugoFlutter/pull/3) 已按后续授权合并到 main；合并后的 [Ubuntu 22.04/24.04 CI](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38028673352) 通过。下文的分支、基线和“不直接合并”描述保留实施阶段历史；Wayland 的当前推进决策见下一节。
+> 当前状态：P0/P1 [PR #2](https://github.com/ZhengHaoF/overtone/pull/2) 与 X11 歌词 [PR #3](https://github.com/ZhengHaoF/overtone/pull/3) 已按后续授权合并到 main；合并后的 [Ubuntu 22.04/24.04 CI](https://github.com/ZhengHaoF/overtone/actions/runs/38028673352) 通过。下文的分支、基线和“不直接合并”描述保留实施阶段历史；Wayland 的当前推进决策见下一节。
 
 本轮仅推进 P2 的 X11 悬浮歌词，沿用现有双进程、TCP 快照、LRC/KRC 渲染和样式设置，不重写播放器。代码与本记录一并提交到 `feat/linux-x11-lyrics`；基础为 P0/P1 分支提交 `ba4591033ae59db5e185b3c70f1793220aab4a34`，不直接合并主分支。
 
@@ -31,7 +31,7 @@ Wayland 使用独立门控：后端未知或原生 Wayland 时不展示该入口
 
 新增 `app/linux/runner/desktop_lyric_host.{h,cc}`，在 `my_application.cc` 中为歌词进程准备独立 GTK 窗口、移除标题栏，并在首次 Flutter 帧时保持隐藏直到 Dart 初始化完毕。主窗不使用歌词宿主；Linux 实现不返回或复用 Windows HWND。
 
-- **通道**：`kugo/desktop_lyric_host` 实现尺寸、位置、顶部居中、显示/隐藏、置顶、任务栏提示、光标位置、拖动和可见区域检查。
+- **通道**：`overtone/desktop_lyric_host` 实现尺寸、位置、顶部居中、显示/隐藏、置顶、任务栏提示、光标位置、拖动和可见区域检查。
 - **输入区域**：GDK input shape 管理输入范围；对 Openbox 这类重设父窗口的管理器，还同步自身 WM frame 的 ShapeInput。只给客户端设空区域时，外层 frame 仍能吞掉点击，已用真实下层窗口收到的 ButtonPress 验证修正。
 - **拖动安全**：开始原生拖动前检查鼠标左键仍按下，避免异步 Flutter 手势在按钮释放后启动 WM move 并留下输入抓取。锁定时释放抓取，隐藏/显示与 configure 事件重新应用输入区域。
 - **位置持久化**：原生 configure-event 在 150 ms 防抖后发送 `boundsChanged`，子进程经 IPC 回传主窗写 SharedPreferences。不依赖可能被 WM 吃掉的 Flutter onPanEnd；允许有限负坐标以适配左侧/上方屏幕，恢复时检查显示器工作区，越界回默认位。
@@ -80,19 +80,19 @@ flutter test --no-pub --reporter expanded
 flutter build linux --release --no-pub
 xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
   bash tool/run_x11_lyric_probe.sh \
-  build/linux/x64/release/bundle/kugo build/lyric-x11
-KUGO_COMPOSITOR=0 xvfb-run -a -s '-screen 0 1440x1000x24' \
+  build/linux/x64/release/bundle/overtone build/lyric-x11
+OVERTONE_COMPOSITOR=0 xvfb-run -a -s '-screen 0 1440x1000x24' \
   dbus-run-session -- bash tool/run_x11_lyric_probe.sh \
-  build/linux/x64/release/bundle/kugo build/lyric-fallback
+  build/linux/x64/release/bundle/overtone build/lyric-fallback
 GDK_SCALE=2 GDK_DPI_SCALE=0.5 xvfb-run -a \
   -s '-screen 0 2880x2000x24' dbus-run-session -- \
   bash tool/run_x11_lyric_probe.sh \
-  build/linux/x64/release/bundle/kugo build/lyric-hidpi
+  build/linux/x64/release/bundle/overtone build/lyric-hidpi
 set -o pipefail
 mkdir -p build/lyric-main
 xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
   bash tool/run_x11_main_lyric_probe.sh \
-  build/linux/x64/release/bundle/kugo build/lyric-main \
+  build/linux/x64/release/bundle/overtone build/lyric-main \
   | tee build/lyric-main/probe.log
 ```
 

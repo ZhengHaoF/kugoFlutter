@@ -21,9 +21,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   const bool lyric_process = IsDesktopLyricProcess();
   if (!lyric_process) {
     // Must run before any SMTC / taskbar surface. Without an AUMID + Start Menu
-    // shortcut, Win11 media card shows「未知应用」instead of「kugo」.
+    // shortcut, Win11 media card shows「未知应用」instead of「泛音」.
     // 歌词进程是无任务栏的悬浮窗，不需要 AUMID。
     ApplyAppUserModelId();
+    RemoveLegacyShortcut();
     EnsureStartMenuShortcut();
   }
 

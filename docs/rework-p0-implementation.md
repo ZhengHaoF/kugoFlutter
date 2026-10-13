@@ -1,4 +1,4 @@
-# kugoFlutter P0 Rework 实施与验收记录
+# overtone P0 Rework 实施与验收记录
 
 本轮基于 `main@0154f6361d5450ff63a146f9b8033d24ba2a1db2`，分支为 `fix/rework-p0-security-playback-session`。按用户确认处理 [Rework 评估](rework-assessment-2026-10-10.md) 的 R01/R02/R06/R10，提交 PR 供审查，不直接合并 main，不推进 Wayland 专项适配。
 
@@ -7,7 +7,7 @@
 ### R01：凭据传输
 
 - **统一防护**：新增 `credential_transport.dart`，挂在酷狗通用 client 和所有自持 Dio 的酷狗 repository。含 Authorization/Cookie、token/t1/密码等凭据的请求只允许可信酷狗 HTTPS 主机，凭据请求及账号/设备注册请求不自动跟随重定向；注入测试 Dio 也不会绕过防护。
-- **自动注入范围**：通用 KugoClient 只在 HTTPS `gateway.kugou.com` / `kugouvip.kugou.com` 自动附加会话，不再把账号 header 发送到公共 HTTP 媒体接口或外部连通性探测目标。
+- **自动注入范围**：通用 KugouClient 只在 HTTPS `gateway.kugou.com` / `kugouvip.kugou.com` 自动附加会话，不再把账号 header 发送到公共 HTTP 媒体接口或外部连通性探测目标。
 - **资料降级**：移除 relation/grade 的明文资料补充请求，保留既有 HTTPS usercenter/VIP。旧域名 HTTPS 证书校验失败，未禁用验证，也未进行 HTTP 回退；新等级/听歌时长等专属字段可能缺失，保留本地已有档案，不伪造数据。
 - **短信**：发送验证码改为 HTTPS gateway + `x-router: login.user.kugou.com`，不再发向旧 HTTP 主机；请求结构已离线验证，真实短信发送未验收，也没有在本轮发送短信。
 - **云盘**：初始化宿主改为经匿名 TLS 验证的 HTTPS bssulbig，曲库匹配走 HTTPS gateway，动态上传 host 必须为合法酷狗目标并升级 HTTPS；外部/带 userinfo/query 的目标安全拒绝。TLS 失败不会回退 HTTP。
@@ -78,7 +78,7 @@ flutter test --no-pub --concurrency 2 --reporter expanded
 flutter build linux --release --no-pub
 xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
   bash tool/run_x11_lyric_probe.sh \
-  build/linux/x64/release/bundle/kugo build/rework-x11-lyrics
+  build/linux/x64/release/bundle/overtone build/rework-x11-lyrics
 ```
 
 基础媒体探针沿用 `tool/linux_integration_probe.dart` / `tool/run_linux_probe.sh`；正式 bundle 应先保存，探针构建会替换 build 目录下的入口。嵌套 Wayland 仅作既有基础行为回归，不是恢复 Wayland 专项适配。
@@ -92,4 +92,4 @@ xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
 
 ## 代码依据
 
-原始漏洞和风险依据保留在 [评估文档](rework-assessment-2026-10-10.md)，链接固定到基线提交，便于对照而不误认修复后代码。[基线账号实现](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/auth/auth_controller.dart) [基线播放器](https://github.com/ZhengHaoF/kugoFlutter/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/player/player_controller.dart)
+原始漏洞和风险依据保留在 [评估文档](rework-assessment-2026-10-10.md)，链接固定到基线提交，便于对照而不误认修复后代码。[基线账号实现](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/auth/auth_controller.dart) [基线播放器](https://github.com/ZhengHaoF/overtone/blob/0154f6361d5450ff63a146f9b8033d24ba2a1db2/app/lib/features/player/player_controller.dart)

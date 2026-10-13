@@ -4,20 +4,20 @@
 
 ## 制品库与获取
 
-同时提供两个入口：[GitHub Releases 测试版](https://github.com/ZhengHaoF/kugoFlutter/releases)供直接下载 APK 与 Windows ZIP，GitHub Actions Artifacts 保留原始构建附件。Releases 全部标记为 prerelease，不冒充正式发布、不设置为正式 latest，不配置未知外部制品平台，也不交付 Linux 应用包。
+同时提供两个入口：[GitHub Releases 测试版](https://github.com/ZhengHaoF/overtone/releases)供直接下载 APK 与 Windows ZIP，GitHub Actions Artifacts 保留原始构建附件。Releases 全部标记为 prerelease，不冒充正式发布、不设置为正式 latest，不配置未知外部制品平台，也不交付 Linux 应用包。
 
-运行入口为 [Android and Windows apps](https://github.com/ZhengHaoF/kugoFlutter/actions/workflows/apps.yml)。仅支持主分支 `main` 的手动运行，不在 PR、push 或合并时自动执行。打开 Actions 中该工作流，点击 Run workflow，选择 `main` 后启动；先通过锁文件还原、静态分析及全量测试，再构建两个平台，上传保留 30 天的制品。每个制品含提交 SHA、运行地址、安装说明和 SHA-256 校验记录。
+运行入口为 [Android and Windows apps](https://github.com/ZhengHaoF/overtone/actions/workflows/apps.yml)。仅支持主分支 `main` 的手动运行，不在 PR、push 或合并时自动执行。打开 Actions 中该工作流，点击 Run workflow，选择 `main` 后启动；先通过锁文件还原、静态分析及全量测试，再构建两个平台，上传保留 30 天的制品。每个制品含提交 SHA、运行地址、安装说明和 SHA-256 校验记录。
 
 只有在原仓库的 `main` 上手动运行且两个平台成功后才会发布测试版；PR、fork 和功能分支绝不发布。所有 job 都检查仓库、分支和手动事件，即使误选其他分支，执行到本版本规则时也会全部跳过，不分配构建 runner。发布 job 单独申请 `contents: write`，其他 job 仍只有读取权限；复核两端文件完整性、提交/运行来源及 SHA-256，先上传到 draft，再公开为 prerelease，避免出现可见但附件不完整的版本。
 
-测试版 tag 为 `test-<run_number>-<run_attempt>-<short_sha>`，每次重跑单独保留，不覆盖既有公开测试版或正式版本。Releases 附件为 `kugo-android-<short_sha>-test-only.apk`、`kugo-windows-x64-<short_sha>-portable-test-only.zip`、`SHA256SUMS.txt`、`BUILD-INFO.txt`；发布说明包含安装方法、签名与验收边界及构建链接，Windows ZIP 保留完整运行目录。
+测试版 tag 为 `test-<run_number>-<run_attempt>-<short_sha>`，每次重跑单独保留，不覆盖既有公开测试版或正式版本。Releases 附件为 `overtone-android-<short_sha>-test-only.apk`、`overtone-windows-x64-<short_sha>-portable-test-only.zip`、`SHA256SUMS.txt`、`BUILD-INFO.txt`；发布说明包含安装方法、签名与验收边界及构建链接，Windows ZIP 保留完整运行目录。
 
 Actions Artifacts 仍按 30 天策略保留，Releases 附件没有套用该自动到期设置。仓库为公开仓库，测试包也公开发布；它们不含真实账号或用户签名秘密。
 
 ## Android
 
-- 制品名 `kugo-android-test-only-<commit>`，内容为通用 Release 模式 APK `kugo-android-test-only.apk`，而不是 AAB 或不能安装的无签名 APK。
-- 没有提供正式签名材料，本 CI 明确以 `kugoAllowTestSigning=true` 使用 debug 测试签名。TEST-ONLY 字样写入制品名及 BUILD-INFO，不能称为正式发布包。
+- 制品名 `overtone-android-test-only-<commit>`，内容为通用 Release 模式 APK `overtone-android-test-only.apk`，而不是 AAB 或不能安装的无签名 APK。
+- 没有提供正式签名材料，本 CI 明确以 `overtoneAllowTestSigning=true` 使用 debug 测试签名。TEST-ONLY 字样写入制品名及 BUILD-INFO，不能称为正式发布包。
 - 上传前用 Android SDK 的 apksigner 验证 APK 签名并打印证书信息；这证明包具有可验证签名，不等于证明正式发布身份。
 - 正常正式 Release 缺 `android/key.properties` 时构建失败，不再静默回退 debug 签名。
 - CI 测试密钥由 runner 生成，跨运行可能不同，不能承诺覆盖升级。不要为了安装测试包贸然卸载有数据的旧应用；同包名不同签名时系统可能拒绝覆盖。
@@ -26,9 +26,9 @@ Actions Artifacts 仍按 30 天策略保留，Releases 附件没有套用该自�
 
 ## Windows
 
-- 制品名 `kugo-windows-x64-portable-<commit>`，是 Windows x64 Release 模式完整便携目录。
-- 包含 `kugo.exe`、Flutter 引擎和插件 DLL、media_kit 原生库以及 `data/` 资源。不得只取一个 EXE 分发。
-- 解压全部目录再打开 kugo.exe。本轮无 Authenticode 签名、无 MSI/安装器，不伪称签名正式版本。
+- 制品名 `overtone-windows-x64-portable-<commit>`，是 Windows x64 Release 模式完整便携目录。
+- 包含 `overtone.exe`、Flutter 引擎和插件 DLL、media_kit 原生库以及 `data/` 资源。不得只取一个 EXE 分发。
+- 解压全部目录再打开 overtone.exe。本轮无 Authenticode 签名、无 MSI/安装器，不伪称签名正式版本。
 - 缺 VC++ 运行库时安装 Microsoft Visual C++ 2015–2022 x64 Redistributable。Windows 驱动、扬声器、蓝牙、SMTC、悬浮歌词和真实用户权限仍需物理设备验收。
 - CI 额外构建隔离测试入口，在 Windows runner 上执行原生安全存储迁移、清除明文、替换读回、退出阻断及原生删除探针。生产目录先复制保存，探针 EXE 不混入交付目录；成功证据 `NATIVE-CREDENTIALS.txt` 随制品上传。此探针不是完整应用试玩或真机验收。
 

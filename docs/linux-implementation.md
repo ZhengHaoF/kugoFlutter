@@ -1,4 +1,4 @@
-# kugoFlutter Linux P0/P1 实施与验收记录
+# overtone Linux P0/P1 实施与验收记录
 
 > 历史阶段记录：下文“P2 暂不做”“Linux 不开放悬浮歌词”等描述仅指 P0/P1 交付时。后续获授权实施的 X11 歌词方案与验收见 [X11 歌词记录](linux-x11-lyrics.md)，不改写本轮历史测试结果。
 
@@ -18,14 +18,14 @@
 
 ### 原生工程与可复现构建
 
-- **Linux runner**：新增 `app/linux/`，二进制名 `kugo`，应用 ID `com.kugo.kugo`，注册实际 GDK 后端探测通道，保留命令行参数传递。
+- **Linux runner**：新增 `app/linux/`，二进制名 `overtone`，应用 ID `com.com.overtone.overtone`，注册实际 GDK 后端探测通道，保留命令行参数传递。
 - **媒体依赖**：增加 `media_kit_libs_linux 1.2.1` 与 `dbus ^0.7.15`，其余播放器架构不替换；提交应用 `pubspec.lock`，CI 使用 `--enforce-lockfile`。Linux 媒体库仍依赖系统 libmpv，不是自带全部运行依赖的独立安装包。[media_kit Linux 依赖说明](https://pub.dev/packages/media_kit/versions/1.2.6)
 - **构建修正**：只对 `tray_manager_plugin` 放宽 AppIndicator 的 deprecated 声明警告为非致命，其余编译告警策略不全局关闭；按插件输出接入 mimalloc 静态库。没有修改缓存中的第三方插件源码。
 - **CI**：新增 `.github/workflows/linux.yml`，Ubuntu 22.04/24.04 x64，固定 Flutter 3.47.7，执行依赖解析、分析、全量测试、生产构建、X11/嵌套 Wayland 探针并保存日志及 bundle。新增配置不等于远端 CI 已运行通过，最终运行状态以 PR checks 为准。
 
-远端验收已闭环：代码提交 `e494b338c871deb19d2c5b78a98999945bf7d667` 在 Ubuntu 22.04 和 24.04 均通过锁文件校验、静态分析、1019 项测试、生产 Release 构建及 X11/原生 Wayland 探针，日志均输出 `ALL_CHECKS_PASSED`，并捕获非零音频 PCM。[通过的 GitHub Actions 运行](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38018536440)
+远端验收已闭环：代码提交 `e494b338c871deb19d2c5b78a98999945bf7d667` 在 Ubuntu 22.04 和 24.04 均通过锁文件校验、静态分析、1019 项测试、生产 Release 构建及 X11/原生 Wayland 探针，日志均输出 `ALL_CHECKS_PASSED`，并捕获非零音频 PCM。[通过的 GitHub Actions 运行](https://github.com/ZhengHaoF/overtone/actions/runs/38018536440)
 
-两台 CI 的音频峰值均为 8000；Ubuntu 22.04 的 X11/Wayland 非零样本为 113700/101738，Ubuntu 24.04 为 102320/113238。后续提交仅补充此验收文档，不改变已验证的应用代码；真实桌面边界不因 CI 通过而取消。[对应 CI 日志与产物](https://github.com/ZhengHaoF/kugoFlutter/actions/runs/38018536440)
+两台 CI 的音频峰值均为 8000；Ubuntu 22.04 的 X11/Wayland 非零样本为 113700/101738，Ubuntu 24.04 为 102320/113238。后续提交仅补充此验收文档，不改变已验证的应用代码；真实桌面边界不因 CI 通过而取消。[对应 CI 日志与产物](https://github.com/ZhengHaoF/overtone/actions/runs/38018536440)
 
 ### 平台能力与降级
 
@@ -41,7 +41,7 @@
 
 ### MPRIS 与播放游标
 
-评估原建议先考察 `audio_service_mpris 0.2.1`。实际检查已解析源码后发现 Stop 分发缺口、track ID 未输出及若干能力声明不能满足本轮要求，因此没有接入该包，改为通过 `dbus` 编写独立 Linux `KugoMediaBridge`，不替换 Windows/移动端媒体桥。
+评估原建议先考察 `audio_service_mpris 0.2.1`。实际检查已解析源码后发现 Stop 分发缺口、track ID 未输出及若干能力声明不能满足本轮要求，因此没有接入该包，改为通过 `dbus` 编写独立 Linux `OvertoneMediaBridge`，不替换 Windows/移动端媒体桥。
 
 - **真实命令**：Play、Pause、PlayPause、Stop、Next、Previous、相对 Seek、SetPosition、Volume、LoopStatus、Shuffle 均转发到同一个 PlayerController。
 - **正确单位**：D-Bus 位置/时长为微秒，控制器使用毫秒；定位验证当前 track ID，过时或越界定位不误作用于其他曲目。
@@ -88,7 +88,7 @@ flutter pub get --enforce-lockfile
 flutter analyze --no-pub
 flutter test --no-pub
 flutter build linux --release --no-pub
-./build/linux/x64/release/bundle/kugo
+./build/linux/x64/release/bundle/overtone
 ```
 
 本轮 bundle 尚非安装包；运行时应保留完整的 lib/data 目录，并安装相应系统运行依赖，不要只复制 ELF。[Flutter Linux 构建与分发](https://docs.flutter.dev/platform-integration/linux/building)
@@ -98,10 +98,10 @@ flutter build linux --release --no-pub
 ```bash
 flutter build linux --release --no-pub -t tool/linux_integration_probe.dart
 xvfb-run -a -s '-screen 0 1440x1000x24' dbus-run-session -- \
-  bash tool/run_linux_probe.sh build/linux/x64/release/bundle/kugo build/probe-x11
-KUGO_PROBE_BACKEND=wayland xvfb-run -a -s '-screen 0 1600x1200x24' \
+  bash tool/run_linux_probe.sh build/linux/x64/release/bundle/overtone build/probe-x11
+OVERTONE_PROBE_BACKEND=wayland xvfb-run -a -s '-screen 0 1600x1200x24' \
   dbus-run-session -- bash tool/run_linux_probe.sh \
-  build/linux/x64/release/bundle/kugo build/probe-wayland
+  build/linux/x64/release/bundle/overtone build/probe-wayland
 # 探针与生产版共用产物目录，完成后必须重新构建正式入口：
 flutter build linux --release --no-pub
 ```

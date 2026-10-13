@@ -72,7 +72,7 @@ void center_top(GtkWindow* window, int width, int height, int top) {
                   area.y + std::clamp(top, 0, std::max(0, area.height - height)));
 }
 bool transparent(GtkWindow* window) {
-  return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "kugo-alpha")) != 0;
+  return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "overtone-alpha")) != 0;
 }
 void input_shape(GtkWindow* window, cairo_region_t* region) {
   GdkWindow* native = gtk_widget_get_window(GTK_WIDGET(window));
@@ -260,7 +260,7 @@ void prepare_desktop_lyric_window(GtkWindow* window, FlView* view) {
   GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(window));
   GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
   const bool alpha = visual && gdk_screen_is_composited(screen);
-  g_object_set_data(G_OBJECT(window), "kugo-alpha", GINT_TO_POINTER(alpha));
+  g_object_set_data(G_OBJECT(window), "overtone-alpha", GINT_TO_POINTER(alpha));
   if (alpha) {
     gtk_widget_set_visual(GTK_WIDGET(window), visual);
     gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);

@@ -1,4 +1,4 @@
-# kugo UI 评审与优化清单（Android / Windows）
+# overtone UI 评审与优化清单（Android / Windows）
 
 评审范围：`app/lib` 全部 UI 层（主题、壳层、播放器、各 feature 页），对照 `app/windows` 桌面配置。
 评审日期：2026-09-26。行号对应评审时的 HEAD。
@@ -22,9 +22,9 @@
 
 | 项 | 位置 | 为什么值得保留 |
 |---|---|---|
-| 颜色全部 token 化，通过 ThemeExtension 读取 | `core/theme/kugo_tokens.dart`、`kugo_theme.dart` | `Theme.of(context)` 自动注册依赖，`const` widget 也不会在主题切换后变旧 |
+| 颜色全部 token 化，通过 ThemeExtension 读取 | `core/theme/overtone_tokens.dart`、`overtone_theme.dart` | `Theme.of(context)` 自动注册依赖，`const` widget 也不会在主题切换后变旧 |
 | 高频播放进度走独立 ValueNotifier，不塞进 `PlayerState` | `features/player/player_controller.dart` | 各页 `ref.watch` 只在切歌/播放暂停时重建，不会跟着每帧进度重绘整个页面 |
-| 桌面自写 `DesktopPageTransitionsBuilder`（不缩放、不平铺快照） | `core/theme/kugo_theme.dart:129` | Hero 落点零亚像素抖动； settled 帧直接画 child |
+| 桌面自写 `DesktopPageTransitionsBuilder`（不缩放、不平铺快照） | `core/theme/overtone_theme.dart:129` | Hero 落点零亚像素抖动； settled 帧直接画 child |
 | 迷你播放条按亮度 Key 重挂 | `shared/shell/root_shell.dart:227` | 主题切换后不会残留旧调色板 |
 | 桌面滚轮平滑 | `shared/widgets/smooth_scroll.dart` | 桌面端手感的关键一环，别为了加滚动条把它替换掉 |
 | 空态/错误态/音源停用态有专门组件 | `shared/widgets/async_body.dart`、`common.dart:189` | 不是白屏也不是一串 toast |
@@ -60,26 +60,26 @@ if (!isMainTab) return Scaffold(body: widget.child);   // 无 MiniPlayerBar，�
 （`/player`、`/login`）才隐藏。
 
 ### 2. ✅ Windows 端八处横向列表：滚动条 → 拖拽/滚轮/边缘渐隐（2026-09-27 重构）
-`shared/widgets/kugo_h_scroll.dart`（`KugoHScroll`，8 处横排共用，改一处全生效）。
+`shared/widgets/overtone_h_scroll.dart`（`OvertoneHScroll`，8 处横排共用，改一处全生效）。
 
 首轮（2026-09-26）给所有横排加了常显细 Scrollbar + `wheelToHorizontal`；一天后用户
 反馈滚动条割裂卡片行，要求改成鼠标滚轮/点击滑动。本轮**推倒滚动条**，换成三件套：
 
 * **去滚动条**：删 `Scrollbar`/`ScrollbarTheme`（桌面端曾 `thumbVisibility: true`）。
   可发现性由「溢出侧边缘渐隐」补偿（`fadeEdges`，`ShaderMask` + dstIn，
-  渐隐宽度 [KugoHScroll.fadeLength]；范式同 `lyrics_view.dart`）。
+  渐隐宽度 [OvertoneHScroll.fadeLength]；范式同 `lyrics_view.dart`）。
   chips/页签行显式 `fadeEdges: false`——渐隐会啃胶囊圆角，且它们很少溢出。
 * **鼠标拖拽**：框架默认 `dragDevices` **不含 mouse**（Flutter 源码
   `scroll_configuration.dart` 的 `_kTouchLikeDeviceTypes`），桌面「按住拖动」必须
   显式放开。`ScrollConfiguration.copyWith(dragDevices: +mouse)` **只包横排容器**，
   不全局开（框架注释警告全局放开会毁掉文本选择）。
-* **滚轮滚横排**（`KugoHWheelMode.silky`）：包 `SilkyScroll(direction: horizontal,
+* **滚轮滚横排**（`OvertoneHWheelMode.silky`）：包 `SilkyScroll(direction: horizontal,
   behavior: always)`——悬停时 silky 的 hover-stack 抑制外层页面滚动，滚到边缘由
   `forwardAlwaysMouseWheelDeltaAtEdge` 把剩余 delta 放行回页面。
   **不能自己写 `pointerSignalResolver.register` 手搓**：外层竖向页面（
   `smooth_scroll.dart`）的滚轮是 silky 用裸 `Listener` 接的，不参与 resolver 竞争，
   内层注册得再干净页面也照样滚 → 双重滚动。
-* **FM 盘阵走 `KugoHWheelMode.raw`**（自研 `pointerScroll` 路径）：silky 的
+* **FM 盘阵走 `OvertoneHWheelMode.raw`**（自研 `pointerScroll` 路径）：silky 的
   `SilkyScrollPosition.pointerScroll` 对 mouse 事件直接吞掉，`_OneStepSnapPhysics`
   的「甩动后吸附」会断链。且 FM 整屏独占，本来无页面劫持问题。
 * **顺带修一个双倍速 bug**：旧实现 dx（触摸板横滑）由「框架 Scrollable + 裸
@@ -89,9 +89,9 @@ if (!isMainTab) return Scaffold(body: widget.child);   // 无 MiniPlayerBar，�
 插入那一刻 Flutter 把 ShaderMask 下面整棵子树（ListView + silky State +
 ScrollPosition）**卸载重挂**——滚轮 tick 一次就被 dispose、offset 归零、拖拽失效。
 修法：**包装层常驻，只让 shaderCallback 的渐变内容随状态变**。`test/
-kugo_h_scroll_test.dart` 的「渐隐层常驻：滚动连续不重置」用例钉死这条。
+overtone_h_scroll_test.dart` 的「渐隐层常驻：滚动连续不重置」用例钉死这条。
 
-测试（`test/kugo_h_scroll_test.dart`，6 例）：滚轮 hijack / 边缘放行 / 鼠标拖拽
+测试（`test/overtone_h_scroll_test.dart`，6 例）：滚轮 hijack / 边缘放行 / 鼠标拖拽
 （注意 widget test 里鼠标拖拽要**分两次 move**——单次大 moveBy 过不了手势基线）/
 点击不误触 / dx 单份 / chips 行不劫持页面。
 裸写 silky 之前先读 `docs/...` 无相关记录——依据在 pub 缓存源码
@@ -105,15 +105,15 @@ kugo_h_scroll_test.dart` 的「渐隐层常驻：滚动连续不重置」用例�
 `fm/fm_radio_card.dart:795`（`wheelMode: raw`）。
 
 **2026-09-28 修正（实测推翻「滚轮滚横排」这一条）**：发现页两条卡片带原先传
-`KugoHWheelMode.silky`，即 `mouseWheelVerticalDeltaBehavior.always`——竖向滚轮被
+`OvertoneHWheelMode.silky`，即 `mouseWheelVerticalDeltaBehavior.always`——竖向滚轮被
 横排劫持，必须先把横排滚到边缘，剩余 delta 才放行回页面。用户反馈「往下滚到横排
 又变横向滚动，体验很差」。横排嵌在竖滚页面里**不该劫持竖向滚轮**：框架默认
 （`scrollable.dart` 横向只认 dx）和 silky 默认（`forwardToVerticalAncestorOrSelf`）
 本来都不劫持，这是当初对包默认值的显式覆盖。两条卡片带已回退为默认 `none`：
 滚轮归页面，横滚走 **Shift+滚轮**（框架 `pointerAxisModifiers` 白送）/ 触控板两指
-横滑 / 鼠标按住拖拽，可发现性仍由边缘渐隐兜底。`KugoHWheelMode.silky` 仅保留给
+横滑 / 鼠标按住拖拽，可发现性仍由边缘渐隐兜底。`OvertoneHWheelMode.silky` 仅保留给
 FM 等整屏独占场景（那里没有"滚轮被吃掉过不去"的陷阱）。组件与
-`kugo_h_scroll_test.dart` 不变，本次只改调用点。
+`overtone_h_scroll_test.dart` 不变，本次只改调用点。
 
 ### 3. ✅ 桌面端歌词不能手动滚动（已修复）
 `shared/widgets/lyrics_view.dart`
@@ -140,7 +140,7 @@ build 里两处 `addPostFrameCallback` 收敛成去重后的 `_queueRecenter()`�
 
 ```dart
 await windowManager.waitUntilReadyToShow(
-  const WindowOptions(title: 'kugo', minimumSize: Size(900, 640)),
+  const WindowOptions(title: 'overtone', minimumSize: Size(900, 640)),
 );
 ```
 
@@ -188,11 +188,11 @@ await windowManager.waitUntilReadyToShow(
   超长行是已知取舍。要收回限宽必须整组页面一起定，别再单点限宽造成横跳。
 
 ### 8. ✅ 悬停态、光标、tooltip 成体系（2026-09-28）
-`shared/widgets/kugo_clickable.dart`：
-- **`KugoClickable`**：MouseRegion + 手型光标 + AnimatedContainer hover 底纹
+`shared/widgets/overtone_clickable.dart`：
+- **`OvertoneClickable`**：MouseRegion + 手型光标 + AnimatedContainer hover 底纹
   （与侧栏同一套黑洗，浅/深各一档 alpha）。
-- **`KugoIconButton`**：强制 tooltip 的 Material 图标钮。
-- **`KugoIconAction`**：非 Material 工具条小钮（hover 圆角洗 + tooltip）。
+- **`OvertoneIconButton`**：强制 tooltip 的 Material 图标钮。
+- **`OvertoneIconAction`**：非 Material 工具条小钮（hover 圆角洗 + tooltip）。
 
 已替换：`PlaylistCard`/`TrackTile`/`SearchResultRow`（common）、榜单卡、
 发现页专辑/歌手卡、推荐枢纽入口卡、FM 卡内圆钮、搜索 tab 芯片、源筛选芯片、
@@ -245,12 +245,12 @@ await windowManager.waitUntilReadyToShow(
 |---|---|---|
 | 预测式返回 | `android/app/src/main/AndroidManifest.xml` | 未开 `android:enableOnBackInvokedCallback="true"`，Android 13+ 没有返回手势预览 |
 | 启动画面 | `res/values/styles.xml` | 仍是旧 `LaunchTheme`/`NormalTheme`，未迁移 Android 12+ SplashScreen API；深色优先的用户启动瞬间可能吃到浅色 windowBackground |
-| 通知主色写死 | ~~`main.dart:82`~~ ✅ 改为 `kugoPaletteFor(brightness).primary` | 原写死值是深色主题 primary，浅色下通知是块深蓝 |
-| 主色写死 | ~~`history/history_page.dart:437`~~ ✅ 改为 `kugo.primary` | 同上，「预估时长」卡片 |
-| 红心色三部曲 | `likes_page.dart:555`、`full_player_page.dart:1128`/`:1207` | `0xFFE87A90` 抄了三份，应进 `KugoPalette` |
-| 危险操作色 | `history_page.dart:309`、`profile_detail_page.dart:193` | 直接用 `Colors.redAccent`，应加 `KugoPalette.danger` 并区分深浅色 |
-| Hero tag 字面量 | `song_detail_page.dart:202` 等 4 处 | `'player-cover-$id'` 手写，没走 `KugoHeroTags` |
-| 圆角家族失控 | `profile_detail_page`、`recommend_hub_page`、`fm_page`、`history_page` 多处 | 实际用了 4/6/8/9/10/12/14/16/20/24，`KugoRadius` 只有 chip/card/tile/cover 四档；建议补 sheet/panel/badge 三档并全局替换 |
+| 通知主色写死 | ~~`main.dart:82`~~ ✅ 改为 `overtonePaletteFor(brightness).primary` | 原写死值是深色主题 primary，浅色下通知是块深蓝 |
+| 主色写死 | ~~`history/history_page.dart:437`~~ ✅ 改为 `overtone.primary` | 同上，「预估时长」卡片 |
+| 红心色三部曲 | `likes_page.dart:555`、`full_player_page.dart:1128`/`:1207` | `0xFFE87A90` 抄了三份，应进 `OvertonePalette` |
+| 危险操作色 | `history_page.dart:309`、`profile_detail_page.dart:193` | 直接用 `Colors.redAccent`，应加 `OvertonePalette.danger` 并区分深浅色 |
+| Hero tag 字面量 | `song_detail_page.dart:202` 等 4 处 | `'player-cover-$id'` 手写，没走 `OvertoneHeroTags` |
+| 圆角家族失控 | `profile_detail_page`、`recommend_hub_page`、`fm_page`、`history_page` 多处 | 实际用了 4/6/8/9/10/12/14/16/20/24，`OvertoneRadius` 只有 chip/card/tile/cover 四档；建议补 sheet/panel/badge 三档并全局替换 |
 
 ---
 
@@ -287,7 +287,7 @@ await windowManager.waitUntilReadyToShow(
 
 **第二轮 · 桌面感（两到三天）** ✅ 2026-09-28 完成
 6. 内容宽度档位化（#7）
-7. `KugoClickable` / `KugoIconButton` 统一 hover+tooltip（#8）
+7. `OvertoneClickable` / `OvertoneIconButton` 统一 hover+tooltip（#8）
 8. 快捷键补全（#9；ExcludeSemantics 因 AXTree 闪退保留，见 §3）
 9. 标题栏方案落地（#10）+ 侧栏折叠/指示条/文案（#11）
 

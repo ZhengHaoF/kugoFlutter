@@ -1,6 +1,6 @@
-# kugoFlutter P1 首批 Rework 实施与验收记录
+# overtone P1 首批 Rework 实施与验收记录
 
-本轮沿用上次提出的音质切换、持久化及相邻会话一致性范围，基于 P0 提交 `f456d271d7d28863ddafb2777bf87d6d8398a402`，分支为 `fix/rework-p1-quality-persistence`。P0 的 [PR #4](https://github.com/ZhengHaoF/kugoFlutter/pull/4) 在本轮开始时仍未合并，因此 P1 PR 以 P0 分支为基线供独立审查，不直接合并主分支。
+本轮沿用上次提出的音质切换、持久化及相邻会话一致性范围，基于 P0 提交 `f456d271d7d28863ddafb2777bf87d6d8398a402`，分支为 `fix/rework-p1-quality-persistence`。P0 的 [PR #4](https://github.com/ZhengHaoF/overtone/pull/4) 在本轮开始时仍未合并，因此 P1 PR 以 P0 分支为基线供独立审查，不直接合并主分支。
 
 ## 实施范围与状态
 
@@ -66,7 +66,7 @@ flutter test --no-pub --concurrency 4 --reporter expanded
 flutter build linux --release --no-pub
 flutter build linux --release --no-pub -t tool/linux_integration_probe.dart
 xvfb-run -a dbus-run-session -- bash tool/run_linux_probe.sh \
-  build/linux/x64/release/bundle/kugo build/p1-native-probe
+  build/linux/x64/release/bundle/overtone build/p1-native-probe
 ```
 
 本轮还扩展既有 Linux 原生探针，验证首次真实 libmpv 播放的周期保存、暂停换音质和播放中换音质；虚拟音频输出只证明合成音频解码与时钟，不代表物理扬声器、真实歌曲或真机验收。

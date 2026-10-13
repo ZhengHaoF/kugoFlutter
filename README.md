@@ -4,14 +4,14 @@
 
 ## 下载与手动打包
 
-打开 [GitHub Releases 下载页面](https://github.com/ZhengHaoF/kugoFlutter/releases)，按版本说明下载对应设备的 Android APK、Windows 安装程序或完整绿色 ZIP。现有 `test-*` **Pre-release** 是旧测试包；正式包需按下述流程手动生成。绿色 ZIP 需完整解压后运行 `kugo.exe`，请保留所有 DLL 和 `data/` 资源。
+打开 [GitHub Releases 下载页面](https://github.com/ZhengHaoF/overtone/releases)，按版本说明下载对应设备的 Android APK、Windows 安装程序或完整绿色 ZIP。现有 `test-*` **Pre-release** 是旧测试包；正式包需按下述流程手动生成。绿色 ZIP 需完整解压后运行 `overtone.exe`，请保留所有 DLL 和 `data/` 资源。
 
 当前打包入口仅允许在 Actions 中手动启动 `main` 主分支，不在推送、PR 或合并时自动执行。配置要求 Android 使用正式密钥并提供 ARM32、ARM64、x86_64 三种 APK；Windows 提供 Release 安装程序和绿色 ZIP，但尚未配置 Authenticode 代码签名。默认只生成 Actions 附件，手动勾选 `publish` 才发布正式 GitHub Release；签名配置、下载与验收边界见 [交付说明](docs/release-packaging.md)。现有 `test-*` Release 是历史测试包，不冒充上述正式包。
 
 | 文档 | 说明 |
 | --- | --- |
 | [设计方案.md](设计方案.md) | 产品定位、架构、功能范围（含实现对照） |
-| [docs/rename-overtone.md](docs/rename-overtone.md) | kugo → 泛音（Overtone）改名实施计划：分步清单、符号映射、提交切分 |
+| [docs/rename-overtone.md](docs/rename-overtone.md) | overtone → 泛音（Overtone）改名实施计划：分步清单、符号映射、提交切分 |
 | [多音源接入方案.md](多音源接入方案.md) | 多音源契约与架构（阶段 A/B 已落地） |
 | [网易云接口文档.md](网易云接口文档.md) | 网易云接口清单与实测状态（含 G8 评论/热搜、MV） |
 | [哔哩哔哩接入方案.md](哔哩哔哩接入方案.md) | B 站接入架构 + 功能差异；B3/B4 代码补齐，登录态与真机验收待完成，见 [验证记录](docs/bili-integration-validation.md) |

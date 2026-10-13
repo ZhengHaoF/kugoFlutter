@@ -240,7 +240,7 @@ class _ProbeAppState extends State<_ProbeApp> {
     ascii('data');
     u32(dataBytes.length);
 
-    final dir = await Directory.systemTemp.createTemp('kugo_probe');
+    final dir = await Directory.systemTemp.createTemp('overtone_probe');
     final file = File('${dir.path}${Platform.pathSeparator}tone.wav');
     await file.writeAsBytes([...header.takeBytes(), ...dataBytes]);
     return file;

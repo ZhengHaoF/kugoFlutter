@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
-File get _spikeLogFile => File(r'C:\Users\zheng\kugo_spike.log');
+File get _spikeLogFile => File(r'C:\Users\zheng\overtone_spike.log');
 
 void _spikeLog(String msg) {
   try {
