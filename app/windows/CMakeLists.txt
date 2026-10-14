@@ -85,6 +85,15 @@ if(TARGET audio_service_win_plugin)
     _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
 endif()
 
+# flutter_secure_storage_windows 原生 C++ 插件引入了 <atlstr.h>。
+# 若宿主机 VS 生成工具未安装可选的 C++ ATL 组件，MSVC 会报 C1083: 无法打开包括文件: “atlstr.h”。
+# 该插件在现代 Flutter Windows 运行时走 Dart FFI (win32)，此处为缺少 ATL 的环境
+# 在 runner/atlstr.h 中提供了轻量且语义一致的 CA2W/CW2A 转换器，并将其所在目录加入插件的 include 路径。
+if(TARGET flutter_secure_storage_windows_plugin)
+  target_include_directories(flutter_secure_storage_windows_plugin PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/runner")
+endif()
+
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can
