@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/theme/kugo_theme.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/shared/shell/desktop_sidebar.dart';
-import 'package:kugo/shared/branding/app_logo.dart';
+import 'package:overtone/core/theme/overtone_theme.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/shared/shell/desktop_sidebar.dart';
+import 'package:overtone/shared/branding/app_logo.dart';
 
 import 'fakes/fake_audio_player.dart';
 
@@ -20,7 +20,7 @@ void main() {
         ),
       ],
       child: MaterialApp(
-        theme: buildKugoTheme(Brightness.light),
+        theme: buildOvertoneTheme(Brightness.light),
         home: Scaffold(
           body: Row(
             children: [

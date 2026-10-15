@@ -9,7 +9,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="kugo"
+        android:label="泛音"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

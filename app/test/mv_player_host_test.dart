@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/mv_models.dart';
-import 'package:kugo/features/mv/mv_player_host.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/core/models/mv_models.dart';
+import 'package:overtone/features/mv/mv_player_host.dart';
+import 'package:overtone/features/player/player_controller.dart';
 
 import 'fakes/fake_audio_player.dart';
 

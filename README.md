@@ -1,10 +1,10 @@
-# kugoFulutter
+# 泛音 Overtone
 
-酷狗概念版 **第三方 Flutter 客户端**（个人学习 / 研究向）。
+多音源 **第三方 Flutter 客户端**（个人学习 / 研究向）。
 
 ## 下载与手动打包
 
-打开 [GitHub Releases 下载页面](https://github.com/ZhengHaoF/kugoFlutter/releases)，按版本说明下载对应设备的 Android APK、Windows 安装程序或完整绿色 ZIP。现有 `test-*` **Pre-release** 是旧测试包；正式包需按下述流程手动生成。绿色 ZIP 需完整解压后运行 `kugo.exe`，请保留所有 DLL 和 `data/` 资源。
+打开 [GitHub Releases 下载页面](https://github.com/ZhengHaoF/overtone/releases)，按版本说明下载对应设备的 Android APK、Windows 安装程序或完整绿色 ZIP。现有 `test-*` **Pre-release** 是旧测试包；正式包需按下述流程手动生成。绿色 ZIP 需完整解压后运行 `overtone.exe`，请保留所有 DLL 和 `data/` 资源。
 
 当前打包入口仅允许在 Actions 中手动启动 `main` 主分支，不在推送、PR 或合并时自动执行。配置要求 Android 使用正式密钥并提供 ARM32、ARM64、x86_64 三种 APK；Windows 提供 Release 安装程序和绿色 ZIP，但尚未配置 Authenticode 代码签名。默认只生成 Actions 附件，手动勾选 `publish` 才发布正式 GitHub Release；签名配置、下载与验收边界见 [交付说明](docs/release-packaging.md)。现有 `test-*` Release 是历史测试包，不冒充上述正式包。
 
@@ -17,12 +17,6 @@
 | [桌面歌词接入方案.md](桌面歌词接入方案.md) | 桌面歌词方案（双进程 TCP IPC，已落地）+ 安卓悬浮歌词 + 透明背景实测无解记录 |
 | [app/README.md](app/README.md) | 工程运行说明 |
 | [docs/release-packaging.md](docs/release-packaging.md) | Android 三种 ABI 正式签名 APK、Windows 安装程序与绿色 ZIP、主分支手动打包及发布 |
-| [docs/android-windows-delivery.md](docs/android-windows-delivery.md) | 旧 Android/Windows 测试包的历史下载、签名与验收说明 |
-| [docs/linux-compatibility-assessment.md](docs/linux-compatibility-assessment.md) | Linux 实施前兼容评估 |
-| [docs/linux-implementation.md](docs/linux-implementation.md) | Linux P0/P1 实施、复跑与验收边界 |
-| [docs/linux-x11-lyrics.md](docs/linux-x11-lyrics.md) | 已合并的 X11 悬浮歌词方案与验收；Wayland 专项适配暂缓，留待以后 |
-| [docs/rework-assessment-2026-10-10.md](docs/rework-assessment-2026-10-10.md) | 修复前 Rework 评估、优先级与验证缺口 |
-| [docs/rework-p0-implementation.md](docs/rework-p0-implementation.md) | 四项 P0 安全/播放/会话返工、回归及安全降级边界 |
 | [docs/api-notes.md](docs/api-notes.md) | 接口与网络说明（含 MV / 云盘协议） |
 | [docs/gap-vs-echomusic.md](docs/gap-vs-echomusic.md) | 业务能力差距 + Windows 系统集成 / 二期 backlog |
 | [docs/personal-fm-vs-echomusic.md](docs/personal-fm-vs-echomusic.md) | 私人 FM 现状与差距 |
@@ -106,6 +100,6 @@ flutter run
 
 ## 合规声明
 
-个人学习 / 研究向第三方客户端。不提供音频中转或云端账号托管。请遵守当地法律与目标平台服务条款；对外发布请勿使用「酷狗」注册商标作为应用名。
+个人学习 / 研究向第三方客户端。不提供音频中转或云端账号托管。请遵守当地法律与目标平台服务条款；应用名「泛音」与各音乐平台无关联。
 
 License: MIT（见 [LICENSE](LICENSE)）。

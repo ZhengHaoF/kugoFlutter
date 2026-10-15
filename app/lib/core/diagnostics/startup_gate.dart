@@ -78,10 +78,10 @@ class _StartupGateState extends State<StartupGate> {
                 const SizedBox(height: 16),
                 Text(
                   _error != null
-                      ? 'kugo 启动失败（${_error.runtimeType}）。请检查系统权限和运行依赖。'
+                      ? '泛音 启动失败（${_error.runtimeType}）。请检查系统权限和运行依赖。'
                       : _timedOut
                       ? '启动服务响应超时。仍在等待当前操作结束，避免重复初始化。'
-                      : '正在启动 kugo…',
+                      : '正在启动泛音…',
                   textAlign: TextAlign.center,
                 ),
                 if (_error != null) ...[

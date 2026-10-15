@@ -230,7 +230,7 @@ bool FlutterWindow::OnCreate() {
 void FlutterWindow::RegisterTaskbarChannel() {
   taskbar_channel_ =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-          flutter_controller_->engine()->messenger(), "kugo/taskbar",
+          flutter_controller_->engine()->messenger(), "overtone/taskbar",
           &flutter::StandardMethodCodec::GetInstance());
 
   taskbar_.SetEventHandler([this](const std::string &command) {

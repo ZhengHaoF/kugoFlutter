@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/player/audio_service_handler.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/player/audio_service_handler.dart';
+import 'package:overtone/features/player/player_controller.dart';
 
 import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_music_source.dart';
@@ -31,7 +31,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t('a')]);
@@ -59,7 +59,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t('a')]);
@@ -84,7 +84,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t(_songId)]);
@@ -113,7 +113,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     Track hashed(String id, String hash) => Track(
@@ -175,7 +175,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t('a'), _t('b')]);
@@ -210,7 +210,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     final shapes = <List<int>?>[];
@@ -254,7 +254,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     final track = Track(
@@ -296,7 +296,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t('a')]);
@@ -323,7 +323,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t('a')]);
@@ -344,10 +344,10 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
-    // Q8-A：FM 无第二条通知链路，同一 PlayerController → KugoAudioHandler。
+    // Q8-A：FM 无第二条通知链路，同一 PlayerController → OvertoneAudioHandler。
     final fmTrack = Track(
       id: 'fm_1',
       name: '夜曲',
@@ -377,7 +377,7 @@ void main() {
     );
     addTearDown(container.dispose);
     final controller = container.read(playerControllerProvider.notifier);
-    final handler = KugoAudioHandler(controller);
+    final handler = OvertoneAudioHandler(controller);
     controller.attachBridge(handler);
 
     await controller.playQueue([_t('a')]);
@@ -408,7 +408,7 @@ const _songId = 'a';
 /// keeps the failure message readable instead of retrying per event.
 Future<void> _exercisePositionPushes(
   FakeAudioPlayer engine,
-  KugoAudioHandler handler,
+  OvertoneAudioHandler handler,
 ) async {
   final pushed = <int>[];
   final sub = handler.playbackState.listen(

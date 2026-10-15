@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/netease/netease_client.dart';
-import 'package:kugo/core/api/netease/netease_mappers.dart';
-import 'package:kugo/core/models/cloud_models.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/sources/netease/netease_source.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_mappers.dart';
+import 'package:overtone/core/models/cloud_models.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/sources/netease/netease_source.dart';
 
 /// J 组音乐云盘。fixture 取自 2026-10-09 真机探针输出
 /// （`--suite cloud --qr`，uid 1593114455：460 个文件 / 19.3G of 60G），

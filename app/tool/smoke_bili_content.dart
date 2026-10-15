@@ -1,5 +1,5 @@
-import 'package:kugo/core/api/bili/bili_qr_login.dart';
-import 'package:kugo/data/sources/bili/bili_source.dart';
+import 'package:overtone/core/api/bili/bili_qr_login.dart';
+import 'package:overtone/data/sources/bili/bili_source.dart';
 
 /// 不持有账号凭据的公开内容冒烟：dart run tool/smoke_bili_content.dart。
 /// 只打印摘要，不输出 Cookie、二维码 token 或音轨签名 URL。

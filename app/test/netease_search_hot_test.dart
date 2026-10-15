@@ -7,9 +7,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/netease/netease_client.dart';
-import 'package:kugo/core/api/netease/netease_mappers.dart';
-import 'package:kugo/data/sources/netease/netease_source.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_mappers.dart';
+import 'package:overtone/data/sources/netease/netease_source.dart';
 
 const String _hotJson = '''
 {"code":200,"result":{"hots":[

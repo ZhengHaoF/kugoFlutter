@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/fm_mode.dart';
-import 'package:kugo/core/models/playback_source.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
-import 'package:kugo/features/fm/fm_controller.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/core/models/fm_mode.dart';
+import 'package:overtone/core/models/playback_source.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
+import 'package:overtone/features/fm/fm_controller.dart';
+import 'package:overtone/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';

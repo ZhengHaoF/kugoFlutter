@@ -9,7 +9,7 @@ import 'core/app_navigator.dart';
 import 'core/models/track.dart' show PlaylistBrief;
 import 'core/platform.dart';
 import 'core/source/music_platform.dart';
-import 'core/theme/kugo_theme.dart';
+import 'core/theme/overtone_theme.dart';
 import 'features/album/album_detail_page.dart';
 import 'features/artist/artist_detail_page.dart';
 import 'features/auth/login_page.dart';
@@ -101,7 +101,7 @@ Widget _lyricsRouteTransition(
 
 final _routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    navigatorKey: kugoNavigatorKey,
+    navigatorKey: overtoneNavigatorKey,
     initialLocation: '/explore',
     redirect: (context, state) {
       final path = state.uri.path;
@@ -178,7 +178,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
       // go_router `src/match.dart`），于是 NavigatorState 的
       // _debugCheckDuplicatedPageKeys 断言失败：
       //   '!keyReservation.contains(key)': is not true.
-      // 也不能用 `parentNavigatorKey: kugoNavigatorKey` 绕 —— go_router 在
+      // 也不能用 `parentNavigatorKey: overtoneNavigatorKey` 绕 —— go_router 在
       // `route.dart:481` 明确断言「branch 内子路由的 parentNavigatorKey 必须为 null
       // 或等于该 branch 自己的 navigatorKey」，那样会在**构造路由表时**直接崩。
       // 想让它渲染在根 navigator，唯一正确做法就是定义在顶级。
@@ -359,8 +359,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class KugoApp extends ConsumerWidget {
-  const KugoApp({super.key});
+class OvertoneApp extends ConsumerWidget {
+  const OvertoneApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -369,18 +369,18 @@ class KugoApp extends ConsumerWidget {
     final mode = settings.materialThemeMode;
 
     return MaterialApp.router(
-      title: 'kugo',
+      title: '泛音',
       debugShowCheckedModeBanner: false,
       themeMode: mode,
-      theme: buildKugoTheme(Brightness.light),
-      darkTheme: buildKugoTheme(Brightness.dark),
+      theme: buildOvertoneTheme(Brightness.light),
+      darkTheme: buildOvertoneTheme(Brightness.dark),
       scrollBehavior: isDesktopPlatform
           ? const _NoScrollbarScrollBehavior()
           : null,
       routerConfig: router,
       builder: (context, child) {
         // Status/navigation bars follow the resolved theme, not the OS setting.
-        applyKugoSystemUi(Theme.of(context).brightness);
+        applyOvertoneSystemUi(Theme.of(context).brightness);
         final content = child ?? const SizedBox.shrink();
         // MV 浮动小窗叠在所有路由之上（引擎未活时自身零尺寸、不挡交互）。
         final stack = Stack(

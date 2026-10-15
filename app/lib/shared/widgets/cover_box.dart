@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/cache/cover_cache.dart';
 import '../../core/theme/cover_palette.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 
 /// Album/playlist cover. Network art is cached on disk via [CoverCache];
 /// falls back to a seed gradient while loading or on error.
@@ -14,7 +14,7 @@ class CoverBox extends StatefulWidget {
     super.key,
     required this.seed,
     this.size = 56,
-    this.radius = KugoRadius.cover,
+    this.radius = OvertoneRadius.cover,
     this.child,
   });
 
@@ -176,8 +176,8 @@ class _CoverBoxState extends State<CoverBox> {
   }
 
   Widget _placeholder({required bool fill}) {
-    final kugo = KugoTheme.of(context);
-    final colors = CoverPalette.fromSeed(widget.seed, kugo.palette);
+    final theme = OvertoneTheme.of(context);
+    final colors = CoverPalette.fromSeed(widget.seed, theme.palette);
     final box = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(widget.radius),
@@ -237,8 +237,8 @@ Widget coverHeroFlightShuttle(
   final from = _coverFromHeroContext(fromHeroContext);
   final to = _coverFromHeroContext(toHeroContext);
   final seed = to?.seed ?? from?.seed ?? '';
-  final fromRadius = from?.radius ?? KugoRadius.cover;
-  final toRadius = to?.radius ?? KugoRadius.cover;
+  final fromRadius = from?.radius ?? OvertoneRadius.cover;
+  final toRadius = to?.radius ?? OvertoneRadius.cover;
   final bytes = seed.isEmpty ? null : CoverCache.instance.peek(seed);
   // The Hero box grows to roughly the player cover size; decode for that so a
   // 2000px source does not get uploaded as a full-size texture mid-flight.
@@ -289,7 +289,7 @@ class CoverHero extends StatelessWidget {
     required this.tag,
     required this.seed,
     this.size = 56,
-    this.radius = KugoRadius.cover,
+    this.radius = OvertoneRadius.cover,
     this.child,
   });
 

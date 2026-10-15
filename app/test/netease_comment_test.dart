@@ -10,13 +10,13 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/netease/netease_client.dart';
-import 'package:kugo/core/api/netease/netease_mappers.dart';
-import 'package:kugo/core/models/comment.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/sources/netease/netease_source.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_mappers.dart';
+import 'package:overtone/core/models/comment.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/sources/netease/netease_source.dart';
 
 const String _listJson = '''
 {"code":200,"message":"成功","data":{

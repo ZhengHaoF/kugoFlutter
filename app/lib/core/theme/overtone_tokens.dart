@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 /// Resolved color tokens for the active theme (dark / light).
 ///
-/// Read through [KugoTheme.of] — never from a global, so widgets that use
+/// Read through [OvertoneTheme.of] — never from a global, so widgets that use
 /// these colors always rebuild when the theme flips.
-class KugoPalette {
-  const KugoPalette({
+class OvertonePalette {
+  const OvertonePalette({
     required this.brightness,
     required this.bg,
     required this.surface,
@@ -47,7 +47,7 @@ class KugoPalette {
         colors: playerGradientStops,
       );
 
-  static const dark = KugoPalette(
+  static const dark = OvertonePalette(
     brightness: Brightness.dark,
     bg: Color(0xFF0B0E14),
     surface: Color(0xFF151A24),
@@ -66,7 +66,7 @@ class KugoPalette {
     ],
   );
 
-  static const light = KugoPalette(
+  static const light = OvertonePalette(
     brightness: Brightness.light,
     bg: Color(0xFFF2F4F8),
     surface: Color(0xFFFFFFFF),
@@ -86,14 +86,14 @@ class KugoPalette {
   );
 }
 
-abstract final class KugoRadius {
+abstract final class OvertoneRadius {
   static const chip = 999.0;
   static const card = 20.0;
   static const tile = 14.0;
   static const cover = 12.0;
 }
 
-abstract final class KugoSpacing {
+abstract final class OvertoneSpacing {
   static const xs = 4.0;
   static const sm = 8.0;
   static const md = 12.0;

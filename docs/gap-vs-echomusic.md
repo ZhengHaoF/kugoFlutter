@@ -1,21 +1,21 @@
-# kugoFlutter vs EchoMusic — 功能差距清单
+# overtone vs EchoMusic — 功能差距清单
 
 > 对比日期：2026-09-19 · **状态按代码刷新：2026-09-28（并入 Windows 系统集成）· 2026-10-07 二次刷新（云盘 / 桌面歌词 / MV 状态）**
 > 基准：`D:\work\EchoMusic`（Electron + Vue3，v2.3.2-beta.5）
-> 对象：`D:\work\kugoFulutter\app`（Flutter，Android + Windows）
-> 用途：作为 kugo 的二期 backlog 输入（业务能力 + Windows 系统集成；原 `windows-gap-vs-echomusic.md` 已并入 §三）
+> 对象：`D:\work\overtone\app`（Flutter，Android + Windows）
+> 用途：作为 overtone 的二期 backlog 输入（业务能力 + Windows 系统集成；原 `windows-gap-vs-echomusic.md` 已并入 §三）
 
 ---
 
 ## 一、结论速览
 
-| 维度 | kugo 现状 | EchoMusic | 差距 |
+| 维度 | overtone 现状 | EchoMusic | 差距 |
 | --- | --- | --- | --- |
 | 核心听歌闭环 | 完整（登录、搜索、播放、歌单/专辑/歌手、FM、榜单、每日推荐、歌词、评论、设置、云端我喜欢/收藏） | 完整 | 已对齐 |
 | 内容形态 | 音频 + **MV（含弹幕）** + **酷狗云盘** | 音频 + MV + 动态封面 + 云盘 | 缺动态封面；MV 评论非 EchoMusic 项 |
 | 社交与互动 | 评论读写（歌曲/歌单/专辑）+ 楼层 + 分类/热词 + 弹幕 + 点赞（网易） | 评论读写 + 楼层 + 弹幕 | 基本对齐；余楼层内二次回复、收藏数 |
 | 用户资产管理 | 收藏/关注/云端我喜欢同步；**缺自建歌单 CRUD** | 自建歌单增删改 + 排序 + 封面编辑 | 缺歌单写入 |
-| 歌词 | **LRC + KRC 逐字**（卡拉 OK 着色）+ 译文 + 音译副行 + 字号/行间距滑块 + **桌面歌词（双进程窗 + 安卓悬浮）** | LRC/YRC 逐字 + 音译 + 换肤 + 写真 + 桌面歌词 + 弹幕 | 缺换肤/写真；桌面歌词待打磨（透明背景无解，见 §三备忘） |
+| 歌词 | **LRC + KRC 逐字**（卡拉 OK 着色）+ 译文 + 音译副行 + 字号/行间距滑块 + **结果缓存 + 全局/逐曲时间微调** + **桌面歌词（双进程窗 + 安卓悬浮）** | LRC/YRC 逐字 + 音译 + 换肤 + 写真 + 桌面歌词 + 弹幕 | 缺换肤/写真；桌面歌词待打磨（透明背景无解，见 §三备忘） |
 | 音效 | 无 | 10 段 EQ + LUFS + 空间音效 + DSP 热插拔 | 缺音效引擎 |
 | 播放能力 | 队列/模式/音质/定时 | + 倍速 + 歌曲过渡 + 音量 + 输出设备 + 独占 | 缺倍速 UI（Port/引擎已有） |
 | 搜索 | **歌曲/歌单/专辑/歌手/MV** 五 Tab | 歌曲/歌手/专辑/歌单/歌词/MV 六维 | 缺歌词（接口 404） |
@@ -44,7 +44,7 @@
 
 ### P1 · 与参考项目的主要能力差
 
-| # | 功能 | EchoMusic 实现 | kugo 现状 | 移动端建议 |
+| # | 功能 | EchoMusic 实现 | overtone 现状 | 移动端建议 |
 | --- | --- | --- | --- | --- |
 | 6 | **搜索多维度** | 六 Tab | ✅ **已落地** 五 Tab（歌曲/歌单/专辑/歌手/**MV**）；歌词接口 404 不做。字段见 `api-notes.md` |
 | 7 | **自建歌单** | 新建/改名/改标签/改简介/改封面/排序 | 云端歌单可浏览/收藏同步；**无写入 CRUD** | 移动端价值高，接 `playlist/add` 系列接口 |
@@ -71,7 +71,7 @@
 | # | 功能 | 说明 |
 | --- | --- | --- |
 | 16 | 音频增强（EQ / 响度 / 空间音效） | 移动端需原生 DSP，成本高；可先用 `just_audio` 生态的 `audio_session` 或平台音效 |
-| 17 | 歌曲过渡 / 淡入淡出 | EchoMusic 有 `player transition` 设置；kugo 仅依赖系统 gapless |
+| 17 | 歌曲过渡 / 淡入淡出 | EchoMusic 有 `player transition` 设置；overtone 仅依赖系统 gapless |
 | 18 | 音量/输出设备管理 | 移动端语义不同，通常不做 |
 | 19 | 听歌识曲 | 麦克风采集 + 指纹匹配，成本高 |
 | 20 | 一起听 | 需服务端房间，违背「不托管」原则 |
@@ -82,7 +82,7 @@
 | 25 | 个人资料编辑 | 头像/昵称修改 |
 | 26 | 听歌时长上报 | `listenReport.ts` |
 | 27 | 等级/乐龄展示 | 个人中心经验进度 |
-| 28 | 主题背景透明/毛玻璃、主题色自定义 | kugo 已是 ThemeExtension 双主题，可扩展色相 |
+| 28 | 主题背景透明/毛玻璃、主题色自定义 | overtone 已是 ThemeExtension 双主题，可扩展色相 |
 | 29 | 应用内更新检查 | EchoMusic 内置版本检测 |
 | 30 | 备份与恢复（设置/数据） | `ctx.backups` |
 
@@ -126,12 +126,12 @@
 | # | 功能 | 现状 | 优先级 |
 | --- | --- | --- | --- |
 | W1 | **全局快捷键** | 仅窗口内 3 键；焦点不在窗口时媒体键外无热键，无录制 UI | **P0 首位** |
-| W2 | 任务栏封面预览 / 窗口标题曲名 | 标题已随歌曲/歌手更新；2026-10-11 新增可选 DWM 封面信息卡、G 图标回退和独立开关，设备端悬停/Peek 验收待完成 | P1，见 [实施说明](windows-desktop-media-implementation.md) |
-| W3 | 任务栏快捷播控横条 | 2026-10-11 新增独立原生浮条、主播放器播控、进度/音量、位置保存与全屏隐藏；默认关闭，非 Explorer 内嵌 | P1，内嵌另立实验，见 [实施说明](windows-desktop-media-implementation.md) |
+| W2 | 任务栏封面预览 / 窗口标题曲名 | 标题已随歌曲/歌手更新；2026-10-11 新增可选 DWM 封面信息卡、G 图标回退和独立开关，设备端悬停/Peek 验收待完成 | P1 |
+| W3 | 任务栏快捷播控横条 | 2026-10-11 新增独立原生浮条、主播放器播控、进度/音量、位置保存与全屏隐藏；默认关闭，非 Explorer 内嵌 | P1；真嵌任务栏另立实验 |
 | W4 | 独立迷你播放器窗口 | 仅应用内 `DesktopPlayerBar` / `MiniPlayerBar` | P1 |
 | W5 | 窗口材质（Mica / Acrylic） | 标准 Flutter 窗 + 深色标题栏 | P1 |
 | W6 | 自定义标题栏 / 全屏钮 / 界面缩放 Ctrl± | 系统标题栏 | P1 |
-| W7 | 记住窗口大小位置 | 每次启动 `main.cpp` 固定 1280×960 居中 | P1 |
+| W7 | 记住窗口大小位置 | ✅ **已落地**：`window_bounds_store` 拖动/缩放去抖落盘，启动恢复尺寸/位置/最大化；无绝对定位能力的后端只恢复尺寸。启动初始值仍为 1280×960 夹到工作区 | — |
 | W8 | 开机自启 + 启动最小化到托盘 | 无（`pubspec` 无 `launch_at_startup`） | P2 |
 | W9 | 电源管理（播放防休眠 / 挂起暂停 / 唤醒恢复） | 无 | P2 |
 | W10 | 音频输出设备 / 独占模式 | media_kit 默认输出 | P2 |
@@ -141,7 +141,7 @@
 
 ### 落地备忘（踩过的坑）
 
-- **SMTC 不必自研 WinRT**：`audio_service_win` 覆盖媒体键 / 系统媒体卡 / 进度；`KugoAudioHandler` 已按 AVRCP 语义推送 3 槽 carousel。只缺缩略图质量或音频类别时再补 `Windows.Media.Control` 旁路。
+- **SMTC 不必自研 WinRT**：`audio_service_win` 覆盖媒体键 / 系统媒体卡 / 进度；`OvertoneAudioHandler` 已按 AVRCP 语义推送 3 槽 carousel。只缺缩略图质量或音频类别时再补 `Windows.Media.Control` 旁路。
 - **`audio_session` 仍无 Windows 实现**（`hasAudioFocusSession=false`），不要在 Windows 路径调 `AudioSession.instance`。
 - **退桌别用 `windowManager.destroy()`**：Windows 上它只 `PostQuitMessage(0)`，跳过窗口销毁与引擎收尾，进程卡住不退出（leanflutter/window_manager#478 / #502 / #590）。`DesktopShell.quit()` 走 `setPreventClose(false)` + `windowManager.close()` 标准路径。
 - **托盘与关闭行为同居 `DesktopShell`**：`setPreventClose(true)` 统一拦截，`closeBehavior` 决定 hide / `quit()` / 弹窗；托盘「退出」直接 `quit()` 不再二次询问；`_closePromptOpen` 防止叠出多个对话框。
@@ -195,7 +195,7 @@
 
 ---
 
-## 四、kugo 相对 EchoMusic 的**优势项**（无需补齐）
+## 四、overtone 相对 EchoMusic 的**优势项**（无需补齐）
 
 - 移动端原生后台播放链路：`audio_service` + 媒体会话 + AVRCP（EchoMusic 靠 `echo-media-controls` addon，桌面场景不同）
 - 锁屏 / 车机蓝牙歌词（近期 commit `d9d4c36` 专门修过 AVRCP 进度单调推送，桌面端无对应场景）
@@ -246,6 +246,10 @@
    遗留：Windows 透明背景无可靠解（见 §三备忘），当前半透明深色卡片
 ✅ 网易云 MV A0/A1 已完成（2026-09-28）：探针 + mvDetail/mvUrl + MvDetailSource；A2 搜索 / A3 收藏未做
    （NeteaseSource 未 implements MvSearchSource/MvCollectSource），口径见 网易云接口文档.md §十
+✅ EchoMusic 细节对齐（2026-10-15）：MV 音频兜底（播放失败借关联曲库 MV 音轨，默认关）
+   + 播放停滞自愈（推进量看门狗 → 重取地址 / 重建加载 / seek 回断点）
+✅ EchoMusic 细节对齐（2026-10-15）：歌词结果缓存（LRU + 在途去重，切回上一首不重取）
+   + 歌词时间偏移统一入口（全局 + 逐曲微调，应用内歌词与桌面歌词窗共用同一生效值）
 
 当前排期主线：产品二期（M6）或网易云接口调试（另文）
   —— 酷狗音源抽象已收口；功能页仍有部分直接走 Repository，第二源接入时再收薄。

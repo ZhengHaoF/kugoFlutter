@@ -5,15 +5,15 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
-import '../lib/core/api/kugou/kugo_crypto.dart';
-import '../lib/core/api/kugou/kugo_sign.dart';
+import '../lib/core/api/kugou/kugou_crypto.dart';
+import '../lib/core/api/kugou/kugou_sign.dart';
 
 const token =
     '4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7';
 const userId = '2511133520';
 const guid = '2b9c607bf85a801ca492f2d95bb4e67b';
 const dfid = '0QeBfz1rwip04Bv9cF415aed';
-const dev = 'kugoFlutter';
+const dev = 'overtoneFlutter';
 
 Future<void> hit(
   Dio dio,
@@ -25,17 +25,17 @@ Future<void> hit(
   Map<String, dynamic>? headerExtra,
   bool signBody = true,
 }) async {
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final bodyJson = jsonEncode(body);
   final query = <String, dynamic>{
-    ...KugoSign.defaultParams(dfid: dfid, mid: mid),
+    ...KugouSign.defaultParams(dfid: dfid, mid: mid),
     'plat': 1,
     'userid': int.tryParse(userId) ?? userId,
     'token': token,
     if (queryExtra != null) ...queryExtra,
   };
-  query['signature'] = KugoSign.signatureAndroidParams(
+  query['signature'] = KugouSign.signatureAndroidParams(
     query,
     data: signBody ? bodyJson : '',
   );
@@ -48,7 +48,7 @@ Future<void> hit(
     'KUGOU_API_DEV=$dev',
   ].join(';');
   final headers = <String, dynamic>{
-    'User-Agent': KugoSign.userAgent,
+    'User-Agent': KugouSign.userAgent,
     'Content-Type': 'application/json',
     'dfid': dfid,
     'mid': mid,
@@ -82,12 +82,12 @@ Future<void> main() async {
       receiveTimeout: const Duration(seconds: 15),
     ),
   );
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final pPlain = jsonEncode({'clienttime': clienttime, 'token': token});
-  final pRaw = KugoCrypto.rsaEncryptRaw(pPlain).toUpperCase();
-  final pPkcs = KugoCrypto.rsaEncryptPkcs1(pPlain).toUpperCase();
-  final aes = KugoCrypto.playlistAesEncrypt(
+  final pRaw = KugouCrypto.rsaEncryptRaw(pPlain).toUpperCase();
+  final pPkcs = KugouCrypto.rsaEncryptPkcs1(pPlain).toUpperCase();
+  final aes = KugouCrypto.playlistAesEncrypt(
     jsonEncode({
       'userid': int.parse(userId),
       'token': token,
@@ -129,7 +129,7 @@ Future<void> main() async {
     router: 'cloudlist.service.kugou.com',
     body: {
       ...baseBody,
-      'p': KugoCrypto.rsaEncryptRaw(
+      'p': KugouCrypto.rsaEncryptRaw(
         jsonEncode({'token': token, 'clienttime': clienttime}),
       ).toUpperCase(),
     },

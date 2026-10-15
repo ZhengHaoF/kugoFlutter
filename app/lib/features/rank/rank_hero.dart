@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/cache/cover_cache.dart';
 import '../../core/models/track.dart';
 import '../../core/source/music_platform.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
 
 /// Tag helper for rank cover hero transition.
@@ -47,7 +47,7 @@ class RankCardSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final inset = dense ? 8.0 : 12.0;
     return Material(
       type: MaterialType.transparency,
@@ -57,7 +57,7 @@ class RankCardSurface extends StatelessWidget {
           CoverBox(
             seed: brief.coverUrl,
             size: 0,
-            radius: KugoRadius.card,
+            radius: OvertoneRadius.card,
           ),
           DecoratedBox(
             decoration: BoxDecoration(
@@ -77,9 +77,9 @@ class RankCardSurface extends StatelessWidget {
                     brief.name,
                     maxLines: dense ? 2 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: kugo.section.copyWith(
+                    style: theme.section.copyWith(
                       fontSize: dense ? 13 : 17,
-                      color: kugo.onCover,
+                      color: theme.onCover,
                       decoration: TextDecoration.none,
                     ),
                   ),
@@ -90,9 +90,9 @@ class RankCardSurface extends StatelessWidget {
                     brief.playCountLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: kugo.caption.copyWith(
+                    style: theme.caption.copyWith(
                       fontSize: dense ? 11 : null,
-                      color: showTitle ? kugo.onCoverMuted : Colors.white70,
+                      color: showTitle ? theme.onCoverMuted : Colors.white70,
                       decoration: TextDecoration.none,
                     ),
                   ),
@@ -124,7 +124,7 @@ class RankDetailHeaderSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final b = brief;
     final cover = b?.coverUrl ?? '';
     final hasRealCover = cover.isNotEmpty &&
@@ -204,19 +204,19 @@ class RankDetailHeaderSurface extends StatelessWidget {
           bgWidget(),
           DecoratedBox(
             decoration: BoxDecoration(
-              gradient: rankDetailHeaderGradient(kugo.bg),
+              gradient: rankDetailHeaderGradient(theme.bg),
             ),
           ),
           Positioned(
-            left: KugoSpacing.lg,
-            right: KugoSpacing.lg,
-            bottom: KugoSpacing.lg,
+            left: OvertoneSpacing.lg,
+            right: OvertoneSpacing.lg,
+            bottom: OvertoneSpacing.lg,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   b?.name ?? '歌单',
-                  style: kugo.title.copyWith(decoration: TextDecoration.none),
+                  style: theme.title.copyWith(decoration: TextDecoration.none),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -228,7 +228,7 @@ class RankDetailHeaderSurface extends StatelessWidget {
                           if (b.updateFrequency.isNotEmpty) b.updateFrequency,
                           '来源：${platform.label}',
                         ].join(' · '),
-                  style: kugo.caption.copyWith(decoration: TextDecoration.none),
+                  style: theme.caption.copyWith(decoration: TextDecoration.none),
                 ),
                 if (b?.rankTypeName.isNotEmpty == true) ...[
                   const SizedBox(height: 4),
@@ -236,8 +236,8 @@ class RankDetailHeaderSurface extends StatelessWidget {
                     b!.rankTypeName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: kugo.caption.copyWith(
-                      color: kugo.textSecondary.withValues(alpha: 0.85),
+                    style: theme.caption.copyWith(
+                      color: theme.textSecondary.withValues(alpha: 0.85),
                       decoration: TextDecoration.none,
                     ),
                   ),
@@ -248,8 +248,8 @@ class RankDetailHeaderSurface extends StatelessWidget {
                     b!.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: kugo.caption.copyWith(
-                      color: kugo.textSecondary.withValues(alpha: 0.8),
+                    style: theme.caption.copyWith(
+                      color: theme.textSecondary.withValues(alpha: 0.8),
                       decoration: TextDecoration.none,
                     ),
                   ),
@@ -272,7 +272,7 @@ Widget rankHeroFlightShuttle(
   BuildContext fromHeroContext,
   BuildContext toHeroContext,
 ) {
-  final kugo = KugoTheme.of(flightContext);
+  final theme = OvertoneTheme.of(flightContext);
 
   PlaylistBrief? brief;
   int tracksCount = 0;
@@ -314,13 +314,13 @@ Widget rankHeroFlightShuttle(
           end: Alignment.bottomCenter,
           colors: [Colors.transparent, Colors.transparent],
         );
-  final headerGrad = rankDetailHeaderGradient(kugo.bg);
+  final headerGrad = rankDetailHeaderGradient(theme.bg);
 
   final isPush = flightDirection == HeroFlightDirection.push;
   final fromGrad = isPush ? cardGrad : headerGrad;
   final toGrad = isPush ? headerGrad : cardGrad;
-  final fromRadius = isPush ? KugoRadius.card : 0.0;
-  final toRadius = isPush ? 0.0 : KugoRadius.card;
+  final fromRadius = isPush ? OvertoneRadius.card : 0.0;
+  final toRadius = isPush ? 0.0 : OvertoneRadius.card;
 
   return AnimatedBuilder(
     animation: animation,
@@ -376,9 +376,9 @@ Widget rankHeroFlightShuttle(
                             brief.name,
                             maxLines: dense ? 2 : 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.section.copyWith(
+                            style: theme.section.copyWith(
                               fontSize: dense ? 13 : 17,
-                              color: kugo.onCover,
+                              color: theme.onCover,
                               decoration: TextDecoration.none,
                             ),
                           ),
@@ -387,10 +387,10 @@ Widget rankHeroFlightShuttle(
                         if (brief.playCountLabel.isNotEmpty)
                           Text(
                             brief.playCountLabel,
-                            style: kugo.caption.copyWith(
+                            style: theme.caption.copyWith(
                               fontSize: dense ? 11 : null,
                               color: showTitle
-                                  ? kugo.onCoverMuted
+                                  ? theme.onCoverMuted
                                   : Colors.white70,
                               decoration: TextDecoration.none,
                             ),
@@ -401,9 +401,9 @@ Widget rankHeroFlightShuttle(
                 ),
               if (headerTextOpacity > 0)
                 Positioned(
-                  left: KugoSpacing.lg,
-                  right: KugoSpacing.lg,
-                  bottom: KugoSpacing.lg,
+                  left: OvertoneSpacing.lg,
+                  right: OvertoneSpacing.lg,
+                  bottom: OvertoneSpacing.lg,
                   child: Opacity(
                     opacity: headerTextOpacity,
                     child: Column(
@@ -411,7 +411,7 @@ Widget rankHeroFlightShuttle(
                       children: [
                         Text(
                           brief?.name ?? '歌单',
-                          style: kugo.title
+                          style: theme.title
                               .copyWith(decoration: TextDecoration.none),
                         ),
                         const SizedBox(height: 6),
@@ -427,7 +427,7 @@ Widget rankHeroFlightShuttle(
                                   if (platform != null)
                                     '来源：${platform.label}',
                                 ].join(' · '),
-                          style: kugo.caption
+                          style: theme.caption
                               .copyWith(decoration: TextDecoration.none),
                         ),
                         if (brief?.rankTypeName.isNotEmpty == true) ...[
@@ -436,8 +436,8 @@ Widget rankHeroFlightShuttle(
                             brief!.rankTypeName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.caption.copyWith(
-                              color: kugo.textSecondary
+                            style: theme.caption.copyWith(
+                              color: theme.textSecondary
                                   .withValues(alpha: 0.85),
                               decoration: TextDecoration.none,
                             ),
@@ -449,9 +449,9 @@ Widget rankHeroFlightShuttle(
                             brief!.description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.caption.copyWith(
+                            style: theme.caption.copyWith(
                               color:
-                                  kugo.textSecondary.withValues(alpha: 0.8),
+                                  theme.textSecondary.withValues(alpha: 0.8),
                               decoration: TextDecoration.none,
                             ),
                           ),

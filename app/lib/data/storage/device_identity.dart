@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../features/auth/auth_token_holder.dart';
 import '../repositories/device_repository.dart';
 
@@ -51,16 +51,16 @@ class DeviceIdentity {
     var guid = prefs.getString(_kGuid) ?? '';
     var dev = prefs.getString(_kDev) ?? '';
     if (guid.isEmpty) {
-      guid = KugoSign.md5Hex(
-        'kugo-flutter-${DateTime.now()}-${KugoSign.randomAlnum(16)}',
+      guid = KugouSign.md5Hex(
+        'overtone-flutter-${DateTime.now()}-${KugouSign.randomAlnum(16)}',
       );
       await prefs.setString(_kGuid, guid);
     }
     if (dev.isEmpty) {
-      dev = 'kugoFlutter';
+      dev = 'overtoneFlutter';
       await prefs.setString(_kDev, dev);
     }
-    var mid = prefs.getString(_kMid) ?? KugoSign.calculateMid(guid);
+    var mid = prefs.getString(_kMid) ?? KugouSign.calculateMid(guid);
 
     var registered = prefs.getBool(_kRegistered) ?? false;
     if (!registered && _shouldRetry(prefs)) {
@@ -72,7 +72,7 @@ class DeviceIdentity {
           guid = reg.guid;
           await prefs.setString(_kGuid, guid);
           // mid derives from guid, so recompute unless the server sent one.
-          if (reg.mid.isEmpty) mid = KugoSign.calculateMid(guid);
+          if (reg.mid.isEmpty) mid = KugouSign.calculateMid(guid);
         }
         if (reg.mid.isNotEmpty) {
           mid = reg.mid;

@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/desktop_lyric/desktop_lyric_style.dart';
 import '../../features/settings/settings_controller.dart';
 import 'common.dart';
@@ -17,7 +17,7 @@ Future<void> showDesktopLyricStyleSheet(
   BuildContext context,
   WidgetRef ref,
 ) {
-  return showKugoBottomSheet<void>(
+  return showOvertoneBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) => _StyleEditor(initial: ref.read(settingsControllerProvider).desktopLyricStyle),
@@ -61,27 +61,27 @@ class _StyleEditorState extends ConsumerState<_StyleEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final bottom = MediaQuery.viewPaddingOf(context).bottom;
 
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(KugoSpacing.lg, 12, KugoSpacing.lg, 12 + bottom),
+        padding: EdgeInsets.fromLTRB(OvertoneSpacing.lg, 12, OvertoneSpacing.lg, 12 + bottom),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(child: Text('桌面歌词样式', style: kugo.section)),
-              const SizedBox(height: KugoSpacing.md),
+              Center(child: Text('桌面歌词样式', style: theme.section)),
+              const SizedBox(height: OvertoneSpacing.md),
               _Preview(style: _style),
-              const SizedBox(height: KugoSpacing.md),
+              const SizedBox(height: OvertoneSpacing.md),
               _PresetBar(
                 current: _style,
                 onPick: (s) => _apply(s),
               ),
-              const SizedBox(height: KugoSpacing.md),
+              const SizedBox(height: OvertoneSpacing.md),
               _ColorRow(
                 label: '已唱颜色',
                 value: _style.sungColor,
@@ -155,7 +155,7 @@ class _StyleEditorState extends ConsumerState<_StyleEditor> {
                 onChanged: (v) => _apply(_style.copyWith(fontWeight: v), persist: false),
                 onChangeEnd: (v) => _apply(_style.copyWith(fontWeight: v)),
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               TextButton(
                 onPressed: () => _apply(const DesktopLyricStyle()),
                 child: const Text('恢复默认'),
@@ -189,7 +189,7 @@ class _Preview extends StatelessWidget {
       // 棋盘格底：无论背景透明与否都能看清效果。
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KugoTheme.of(context).divider),
+        border: Border.all(color: OvertoneTheme.of(context).divider),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -288,7 +288,7 @@ class _PresetBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return SizedBox(
       height: 36,
       child: ListView.separated(
@@ -305,9 +305,9 @@ class _PresetBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: selected ? kugo.primary.withValues(alpha: 0.16) : kugo.surfaceElevated,
+                color: selected ? theme.primary.withValues(alpha: 0.16) : theme.surfaceElevated,
                 border: Border.all(
-                  color: selected ? kugo.primary : kugo.divider,
+                  color: selected ? theme.primary : theme.divider,
                 ),
               ),
               child: Row(
@@ -325,8 +325,8 @@ class _PresetBar extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     p.name,
-                    style: kugo.caption.copyWith(
-                      color: selected ? kugo.primary : kugo.textPrimary,
+                    style: theme.caption.copyWith(
+                      color: selected ? theme.primary : theme.textPrimary,
                     ),
                   ),
                 ],
@@ -354,11 +354,11 @@ class _ColorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
-      title: Text(label, style: kugo.body),
+      title: Text(label, style: theme.body),
       trailing: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () async {
@@ -371,7 +371,7 @@ class _ColorRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: Color(value),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: kugo.divider),
+            border: Border.all(color: theme.divider),
           ),
         ),
       ),
@@ -402,15 +402,15 @@ class _SliderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Text(label, style: kugo.body),
+            Text(label, style: theme.body),
             const Spacer(),
-            Text(display, style: kugo.caption),
+            Text(display, style: theme.caption),
           ],
         ),
         SliderTheme(
@@ -474,10 +474,10 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return AlertDialog(
-      backgroundColor: kugo.surfaceElevated,
-      title: Text('选择颜色', style: kugo.section.copyWith(fontSize: 16)),
+      backgroundColor: theme.surfaceElevated,
+      title: Text('选择颜色', style: theme.section.copyWith(fontSize: 16)),
       content: SizedBox(
         width: math.min(360, MediaQuery.sizeOf(context).width * 0.8),
         child: Column(
@@ -490,7 +490,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
               decoration: BoxDecoration(
                 color: _color,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: kugo.divider),
+                border: Border.all(color: theme.divider),
               ),
             ),
             const SizedBox(height: 12),
@@ -513,7 +513,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                       decoration: BoxDecoration(
                         color: c,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: kugo.divider),
+                        border: Border.all(color: theme.divider),
                       ),
                     ),
                   ),
@@ -607,12 +607,12 @@ class _HsvSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          SizedBox(width: 56, child: Text(label, style: kugo.caption)),
+          SizedBox(width: 56, child: Text(label, style: theme.caption)),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(

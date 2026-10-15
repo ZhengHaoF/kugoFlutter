@@ -5,7 +5,7 @@ import 'package:silky_scroll/silky_scroll.dart';
 import '../../core/platform.dart';
 
 /// 鼠标滚轮在横向滚动容器上的行为（仅桌面端有效；触屏永远走原生拖拽）。
-enum KugoHWheelMode {
+enum OvertoneHWheelMode {
   /// 不接管：竖向滚轮事件留给外层竖向页面。
   ///
   /// chips/页签行的默认——它们嵌在竖向页面里，溢出是附带情况，
@@ -34,22 +34,22 @@ enum KugoHWheelMode {
 ///
 /// 桌面端 Windows 上横向 [ListView] 的短板与对策：
 /// 1. **看不出「右边还有内容」** → 不用常显 Scrollbar（它一直是项目里一条
-///    4px 灰条，割裂卡片行），改成溢出侧的边缘渐隐（[KugoHScroll.fadeEdges]）；
+///    4px 灰条，割裂卡片行），改成溢出侧的边缘渐隐（[OvertoneHScroll.fadeEdges]）；
 /// 2. **鼠标拖不动** → 框架默认 `dragDevices` 不含 [PointerDeviceKind.mouse]
 ///    （Flutter 源码 `scroll_configuration.dart` 的 `_kTouchLikeDeviceTypes`），
-///    这里显式放开（[KugoHScroll.draggable]）；
-/// 3. **滚轮滚不动横向** → [KugoHWheelMode.silky]，悬停时 hijack、到边缘
+///    这里显式放开（[OvertoneHScroll.draggable]）；
+/// 3. **滚轮滚不动横向** → [OvertoneHWheelMode.silky]，悬停时 hijack、到边缘
 ///    放行回外层页面。
 ///
 /// 触摸板两指横滑（dx 分量）**不需要任何特殊处理**：框架的 Scrollable 在
 /// `PointerSignalResolver` 里自己会处理。这里再动一次就是双倍速——
 /// 曾经的 bug，现在 dx 一律不碰。
-class KugoHScroll extends StatefulWidget {
-  const KugoHScroll({
+class OvertoneHScroll extends StatefulWidget {
+  const OvertoneHScroll({
     super.key,
     required this.builder,
     this.controller,
-    this.wheelMode = KugoHWheelMode.none,
+    this.wheelMode = OvertoneHWheelMode.none,
     this.fadeEdges = true,
     this.draggable = true,
     this.fadeLength = 24,
@@ -59,7 +59,7 @@ class KugoHScroll extends StatefulWidget {
   ///
   /// [controller] 是容器注入的（外部传入的，或 silky 托管的那一个），
   /// 调用方必须挂到自己的 ScrollView 上。[physics] 只在
-  /// [KugoHWheelMode.silky] 下非空（silky 的动态 physics，需转发给
+  /// [OvertoneHWheelMode.silky] 下非空（silky 的动态 physics，需转发给
   /// ScrollView，否则阻断态不生效）；其余模式传 null。
   final Widget Function(
     BuildContext context,
@@ -70,7 +70,7 @@ class KugoHScroll extends StatefulWidget {
   /// 外部已经持有 controller 时传入（例如需要监听做吸附）。
   final ScrollController? controller;
 
-  final KugoHWheelMode wheelMode;
+  final OvertoneHWheelMode wheelMode;
 
   /// 溢出侧的边缘渐隐。卡片行开，chips/页签行关（渐隐会把胶囊圆角
   /// 啃出豁口，且它们本就很少溢出）。
@@ -83,7 +83,7 @@ class KugoHScroll extends StatefulWidget {
   final double fadeLength;
 
   @override
-  State<KugoHScroll> createState() => _KugoHScrollState();
+  State<OvertoneHScroll> createState() => _OvertoneHScrollState();
 }
 
 /// 框架默认 dragDevices（touch/stylus/invertedStylus/trackpad/unknown）
@@ -98,7 +98,7 @@ const Set<PointerDeviceKind> _kDragDevicesWithMouse = <PointerDeviceKind>{
   PointerDeviceKind.mouse,
 };
 
-class _KugoHScrollState extends State<KugoHScroll> {
+class _OvertoneHScrollState extends State<OvertoneHScroll> {
   /// 始终创建：外部 controller 可能在生命周期内被替换（didUpdateWidget），
   /// 留一个自己的可以让 getter 永不返回 null，代价只是一条没人 attach 的空
   /// controller。
@@ -188,7 +188,7 @@ class _KugoHScrollState extends State<KugoHScroll> {
   // ── 组装 ────────────────────────────────────────────────────────
 
   Widget _buildContent() {
-    if (widget.wheelMode == KugoHWheelMode.silky && isDesktopPlatform) {
+    if (widget.wheelMode == OvertoneHWheelMode.silky && isDesktopPlatform) {
       return SilkyScroll(
         controller: _controller,
         direction: Axis.horizontal,
@@ -202,7 +202,7 @@ class _KugoHScrollState extends State<KugoHScroll> {
       );
     }
     final inner = widget.builder(context, _controller, null);
-    if (widget.wheelMode == KugoHWheelMode.raw) {
+    if (widget.wheelMode == OvertoneHWheelMode.raw) {
       return Listener(onPointerSignal: _onPointerSignal, child: inner);
     }
     return inner;

@@ -11,7 +11,7 @@ import '../../core/models/track.dart';
 import '../../core/source/music_platform.dart';
 import 'track_metadata.dart';
 
-part 'kugo_db.g.dart';
+part 'overtone_db.g.dart';
 
 /// One row of the current play queue (ordered by [position]).
 class QueueTracks extends Table {
@@ -142,10 +142,10 @@ List<Track> _decodePrefsList(String? raw) {
 }
 
 @DriftDatabase(tables: [QueueTracks, QueueMeta, HistoryTracks])
-class KugoDb extends _$KugoDb {
-  KugoDb([QueryExecutor? executor]) : super(executor ?? _open());
+class OvertoneDb extends _$OvertoneDb {
+  OvertoneDb([QueryExecutor? executor]) : super(executor ?? _open());
 
-  KugoDb.forTesting(super.executor);
+  OvertoneDb.forTesting(super.executor);
 
   @override
   int get schemaVersion => 3;
@@ -178,7 +178,7 @@ class KugoDb extends _$KugoDb {
       final dir = Platform.isLinux
           ? await getApplicationSupportDirectory()
           : await getApplicationDocumentsDirectory();
-      final file = File(p.join(dir.path, 'kugo', 'kugo.sqlite'));
+      final file = File(p.join(dir.path, 'overtone', 'overtone.sqlite'));
       await file.parent.create(recursive: true);
       return NativeDatabase.createInBackground(file);
     });

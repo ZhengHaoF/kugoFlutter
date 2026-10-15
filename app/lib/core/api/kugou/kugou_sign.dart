@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 
 /// Kugou client signature (concept/lite platform), ported from KuGouMusicApi.
-abstract final class KugoSign {
+abstract final class KugouSign {
   /// Concept app (lite).
   static const appId = '3116';
   static const clientVer = '11440';

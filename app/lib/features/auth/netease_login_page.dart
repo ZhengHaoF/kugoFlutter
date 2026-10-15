@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 import 'netease_login_controller.dart';
 
@@ -36,14 +36,14 @@ class _NeteaseLoginPageState extends ConsumerState<NeteaseLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final state = ref.watch(neteaseLoginControllerProvider);
     final controller = ref.read(neteaseLoginControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: const Text('网易云账号')),
       body: SmoothSingleChildScrollView(
-        padding: const EdgeInsets.all(KugoSpacing.xl),
+        padding: const EdgeInsets.all(OvertoneSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -58,27 +58,27 @@ class _NeteaseLoginPageState extends ConsumerState<NeteaseLoginPage> {
                 },
               ),
             ] else ...[
-              Text('网易云扫码登录', style: kugo.section),
+              Text('网易云扫码登录', style: theme.section),
               const SizedBox(height: 8),
               Text(
                 '打开手机「网易云音乐」App → 扫一扫，扫描下方二维码',
-                style: kugo.caption,
+                style: theme.caption,
               ),
-              const SizedBox(height: KugoSpacing.xxl),
+              const SizedBox(height: OvertoneSpacing.xxl),
               Center(child: _QrArea(state: state, onRefresh: controller.startQr)),
             ],
-            const SizedBox(height: KugoSpacing.xl),
+            const SizedBox(height: OvertoneSpacing.xl),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: kugo.surface,
-                borderRadius: BorderRadius.circular(KugoRadius.tile),
+                color: theme.surface,
+                borderRadius: BorderRadius.circular(OvertoneRadius.tile),
               ),
               child: Text(
                 '说明：登录仅走网易云真实网关，失败不会生成假账号。\n'
                 '登录态（MUSIC_U）只存本机，退出即清除。',
-                style: kugo.caption.copyWith(
-                  color: kugo.textTertiary,
+                style: theme.caption.copyWith(
+                  color: theme.textTertiary,
                   height: 1.55,
                 ),
               ),
@@ -98,7 +98,7 @@ class _QrArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final phase = state.phase;
 
     if (phase == NeteaseQrPhase.loading || phase == NeteaseQrPhase.idle) {
@@ -128,7 +128,7 @@ class _QrArea extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(KugoRadius.card),
+            borderRadius: BorderRadius.circular(OvertoneRadius.card),
           ),
           child: QrImageView(
             data: state.qrContentUrl,
@@ -136,18 +136,18 @@ class _QrArea extends StatelessWidget {
             backgroundColor: Colors.white,
           ),
         ),
-        const SizedBox(height: KugoSpacing.lg),
+        const SizedBox(height: OvertoneSpacing.lg),
         Text(
           switch (phase) {
             NeteaseQrPhase.scanned => '已扫码，请在手机上确认',
             NeteaseQrPhase.success => '登录成功',
             _ => '请用网易云音乐 App 扫码登录',
           },
-          style: kugo.body,
+          style: theme.body,
         ),
         if (phase == NeteaseQrPhase.waiting) ...[
           const SizedBox(height: 8),
-          Text('每 2 秒自动检测', style: kugo.caption),
+          Text('每 2 秒自动检测', style: theme.caption),
         ],
       ],
     );
@@ -169,25 +169,25 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('已登录', style: kugo.section),
-        const SizedBox(height: KugoSpacing.md),
+        Text('已登录', style: theme.section),
+        const SizedBox(height: OvertoneSpacing.md),
         Material(
-          color: kugo.surface,
-          borderRadius: BorderRadius.circular(KugoRadius.card),
+          color: theme.surface,
+          borderRadius: BorderRadius.circular(OvertoneRadius.card),
           child: ListTile(
             leading: Icon(
               Icons.account_circle_rounded,
               size: 40,
-              color: kugo.primary,
+              color: theme.primary,
             ),
-            title: Text(nickname, style: kugo.body),
+            title: Text(nickname, style: theme.body),
             subtitle: Text(
               'UID $userId${isVip ? ' · VIP' : ''}',
-              style: kugo.caption,
+              style: theme.caption,
             ),
             trailing: TextButton(
               onPressed: onLogout,
@@ -215,14 +215,14 @@ class _StatusBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 48, color: kugo.textTertiary),
-        const SizedBox(height: KugoSpacing.md),
-        Text(message, style: kugo.caption, textAlign: TextAlign.center),
-        const SizedBox(height: KugoSpacing.lg),
+        Icon(icon, size: 48, color: theme.textTertiary),
+        const SizedBox(height: OvertoneSpacing.md),
+        Text(message, style: theme.caption, textAlign: TextAlign.center),
+        const SizedBox(height: OvertoneSpacing.lg),
         FilledButton(onPressed: onAction, child: Text(actionLabel)),
       ],
     );

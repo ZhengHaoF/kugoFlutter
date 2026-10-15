@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/shared/taskbar/taskbar_bridge.dart';
+import 'package:overtone/shared/taskbar/taskbar_bridge.dart';
 
 void main() {
   group('taskbarModeFor', () {

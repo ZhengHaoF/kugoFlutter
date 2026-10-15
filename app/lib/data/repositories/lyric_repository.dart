@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugou_client.dart';
 import '../../core/models/track.dart';
 import '../../core/utils/krc_parser.dart';
 import '../../core/utils/lrc_parser.dart';
 
 class LyricRepository {
-  LyricRepository({KugoClient? client}) : _client = client ?? kugoClient;
+  LyricRepository({KugouClient? client}) : _client = client ?? kugouClient;
 
-  final KugoClient _client;
+  final KugouClient _client;
 
   /// 拉取当前曲歌词。
   ///
@@ -50,8 +50,8 @@ class LyricRepository {
   ) async {
     try {
       final searchUrl = buildUrl(
-        KugoEndpoints.lyrics,
-        KugoEndpoints.lyricSearch,
+        KugouEndpoints.lyrics,
+        KugouEndpoints.lyricSearch,
         {
           'ver': 1,
           'man': 'yes',
@@ -130,7 +130,7 @@ class LyricRepository {
     required String fmt,
   }) async {
     try {
-      final url = buildUrl(KugoEndpoints.lyrics, KugoEndpoints.lyricDownload, {
+      final url = buildUrl(KugouEndpoints.lyrics, KugouEndpoints.lyricDownload, {
         'ver': 1,
         'client': 'pc',
         'id': id,

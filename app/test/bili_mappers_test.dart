@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/core/api/bili/bili_mappers.dart';
-import 'package:kugo/core/models/audio_quality.dart';
-import 'package:kugo/core/source/music_platform.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/core/api/bili/bili_mappers.dart';
+import 'package:overtone/core/models/audio_quality.dart';
+import 'package:overtone/core/source/music_platform.dart';
 
 /// B 站 mapper 单测：固定 JSON fixture，不联外网（方案 §10）。
 void main() {

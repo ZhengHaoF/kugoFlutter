@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/shared/widgets/cover_box.dart';
+import 'package:overtone/shared/widgets/cover_box.dart';
 
 void main() {
   // 回归：交叉淡入重构后，AnimatedSwitcher 默认 layoutBuilder 的 Stack 是

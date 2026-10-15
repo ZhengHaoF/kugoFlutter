@@ -23,7 +23,7 @@ import '../branding/window_icon.dart';
 
 /// Windows / 桌面壳：托盘 + 关闭到托盘 + 任务栏 Thumbar/进度条。
 ///
-/// 只在 `main()` 调用；测试直接 pump [KugoApp]，不会碰到 window_manager。
+/// 只在 `main()` 调用；测试直接 pump [OvertoneApp]，不会碰到 window_manager。
 class DesktopShell with WindowListener {
   DesktopShell(this._container);
 
@@ -77,7 +77,7 @@ class DesktopShell with WindowListener {
     // 刻意不设 size / center：保留用户上次调过的窗口尺寸与位置。
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
-        title: 'kugo',
+        title: '泛音',
         minimumSize: Size(900, 640),
         titleBarStyle: TitleBarStyle.hidden,
         windowButtonVisibility: false,
@@ -219,8 +219,8 @@ class DesktopShell with WindowListener {
     final name = s.current?.name ?? '';
     final artist = s.current?.artist ?? '';
     final title = name.isEmpty
-        ? 'kugo'
-        : (artist.isEmpty ? 'kugo · $name' : 'kugo · $name · $artist');
+        ? '泛音'
+        : (artist.isEmpty ? '泛音 · $name' : '泛音 · $name · $artist');
     unawaited(windowManager.setTitle(title));
   }
 
@@ -359,7 +359,7 @@ class DesktopShell with WindowListener {
     unawaited(
       TaskbarBridge.mediaState({
         'trackKey': track?.identityKey ?? '',
-        'title': track?.name ?? 'kugo',
+        'title': track?.name ?? '泛音',
         'artist': track?.artist ?? '选择歌曲开始播放',
         'playing': s.isPlaying,
         'favorite':
@@ -550,7 +550,7 @@ class DesktopShell with WindowListener {
   ///「每次询问」branch: show the prompt, then act on the answer (and persist it
   /// when「记住我的选择」was ticked).
   Future<void> _promptClose() async {
-    final context = kugoNavigatorKey.currentContext;
+    final context = overtoneNavigatorKey.currentContext;
     if (context == null) {
       // Keep the window recoverable if startup has not mounted a navigator.
       if (_container.read(desktopTrayAvailableProvider)) {

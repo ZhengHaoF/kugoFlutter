@@ -1,11 +1,11 @@
 import 'package:flutter/services.dart';
 
-/// Android 悬浮歌词原生通道（`kugo/lyric_overlay`）。
+/// Android 悬浮歌词原生通道（`overtone/lyric_overlay`）。
 ///
 /// 协议快照格式与 [DesktopLyricSnapshot.toWire] 一致；命令回调见
 /// `LyricOverlayPlugin` 的 `command`。
 abstract final class AndroidOverlayHost {
-  static const _channel = MethodChannel('kugo/lyric_overlay');
+  static const _channel = MethodChannel('overtone/lyric_overlay');
 
   /// 原生 → Dart：`{'m': method, 'd': data?}`。
   static void setCommandHandler(

@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 /// 对端是 `windows/runner/taskbar_host.cpp`（ITaskbarList3）。仅 Windows 有意义；
 /// 其他平台调用会 no-op（MethodChannel 无实现）。
 class TaskbarBridge {
-  static const MethodChannel _channel = MethodChannel('kugo/taskbar');
+  static const MethodChannel _channel = MethodChannel('overtone/taskbar');
 
   static bool _listening = false;
 

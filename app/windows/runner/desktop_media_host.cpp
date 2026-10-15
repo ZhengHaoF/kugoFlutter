@@ -11,7 +11,7 @@
 namespace {
 constexpr int kWidth = 700;
 constexpr int kHeight = 104;
-constexpr wchar_t kClass[] = L"KugoDesktopMediaBar";
+constexpr wchar_t kClass[] = L"OvertoneDesktopMediaBar";
 constexpr COLORREF kBackground = RGB(22, 29, 38);
 constexpr COLORREF kForeground = RGB(237, 243, 245);
 constexpr COLORREF kAccent = RGB(69, 205, 167);
@@ -117,7 +117,7 @@ void DesktopMediaHost::Configure(bool preview, bool bar, int x, int y) {
     // Unowned tool window: hiding the player to tray must not hide this bar.
     bar_ =
         ::CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST,
-                          kClass, L"kugo 播控横条", WS_POPUP, 0, 0, kWidth,
+                          kClass, L"泛音 播控横条", WS_POPUP, 0, 0, kWidth,
                           kHeight, nullptr, nullptr, wc.hInstance, this);
     if (!bar_) {
       enabled_ = false;
@@ -243,7 +243,7 @@ HBITMAP DesktopMediaHost::Render(int width, int height, bool bar) {
          std::max(12, side / 2), kAccent, true);
   }
   const int text_x = pad * 2 + side;
-  Text(dc, title_.empty() ? L"kugo" : title_,
+  Text(dc, title_.empty() ? L"泛音" : title_,
        RECT{text_x, pad, bar ? 350 : w - pad, pad + h / 3},
        bar ? 17 : std::max(10, h / 10), kForeground);
   Text(dc, artist_,

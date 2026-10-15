@@ -6,8 +6,8 @@ import '../../../features/auth/auth_token_holder.dart';
 import '../network_log.dart';
 import 'credential_transport.dart';
 
-class KugoApiException implements Exception {
-  KugoApiException(
+class KugouApiException implements Exception {
+  KugouApiException(
     this.message, {
     this.code,
     this.cause,
@@ -22,7 +22,7 @@ class KugoApiException implements Exception {
   final bool filtered;
 
   @override
-  String toString() => 'KugoApiException($code): $message';
+  String toString() => 'KugouApiException($code): $message';
 }
 
 bool looksLikeUrlFilter(dynamic body) {
@@ -37,7 +37,7 @@ bool looksLikeUrlFilter(dynamic body) {
 
 /// Kugou often serves JSON with `Content-Type: text/html`.
 /// Dio keeps those bodies as [String]; decode when possible.
-dynamic decodeKugoBody(dynamic data) {
+dynamic decodeKugouBody(dynamic data) {
   if (data is! String) return data;
   final trimmed = data.trim();
   if (trimmed.isEmpty) return data;
@@ -52,8 +52,8 @@ dynamic decodeKugoBody(dynamic data) {
 typedef NetworkLogSink = void Function(NetworkLog log);
 
 /// Thin Dio wrapper with mobile-friendly headers, timeout, and log hooks.
-class KugoClient {
-  KugoClient({Dio? dio, NetworkLogSink? onLog}) : _dio = dio ?? _createDio() {
+class KugouClient {
+  KugouClient({Dio? dio, NetworkLogSink? onLog}) : _dio = dio ?? _createDio() {
     _onLog = onLog;
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -179,20 +179,20 @@ class KugoClient {
       if (looksLikeUrlFilter(res.data)) {
         final denied =
             res.data is String && (res.data as String).contains('Access Deny');
-        throw KugoApiException(
+        throw KugouApiException(
           denied ? '接口拒绝访问（Access Deny）' : '网络网关拦截（URL过滤），无法访问酷狗接口',
           code: res.statusCode,
           filtered: !denied,
         );
       }
-      return decodeKugoBody(res.data);
+      return decodeKugouBody(res.data);
     } on DioException catch (e) {
-      throw KugoApiException(
+      throw KugouApiException(
         e.message ?? 'network error',
         code: e.response?.statusCode,
         cause: e,
       );
-    } on KugoApiException {
+    } on KugouApiException {
       rethrow;
     }
   }
@@ -205,7 +205,7 @@ class KugoClient {
         options: Options(responseType: ResponseType.plain),
       );
       if (looksLikeUrlFilter(res.data)) {
-        throw KugoApiException(
+        throw KugouApiException(
           '网络网关拦截（URL过滤），无法访问酷狗接口',
           code: res.statusCode,
           filtered: true,
@@ -213,18 +213,18 @@ class KugoClient {
       }
       return res.data ?? '';
     } on DioException catch (e) {
-      throw KugoApiException(
+      throw KugouApiException(
         e.message ?? 'network error',
         code: e.response?.statusCode,
         cause: e,
       );
-    } on KugoApiException {
+    } on KugouApiException {
       rethrow;
     }
   }
 }
 
-final kugoClient = KugoClient();
+final kugouClient = KugouClient();
 
 String buildUrl(String base, String path, [Map<String, dynamic>? query]) {
   final b = base.endsWith('/') ? base.substring(0, base.length - 1) : base;

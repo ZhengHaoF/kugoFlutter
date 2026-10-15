@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:kugo/core/api/netease/netease_crypto.dart';
+import 'package:overtone/core/api/netease/netease_crypto.dart';
 
 void main() {
   // 1) RSA 公钥解析结果

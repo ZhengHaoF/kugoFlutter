@@ -4,10 +4,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:kugo/core/api/endpoints.dart';
-import 'package:kugo/core/api/kugou/kugo_client.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
-import 'package:kugo/core/api/mappers.dart';
+import 'package:overtone/core/api/endpoints.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
+import 'package:overtone/core/api/mappers.dart';
 
 Future<void> main() async {
   final dio = Dio(
@@ -19,8 +19,8 @@ Future<void> main() async {
     ),
   );
 
-  final guid = KugoSign.randomAlnum(32);
-  final mid = KugoSign.calculateMid(guid);
+  final guid = KugouSign.randomAlnum(32);
+  final mid = KugouSign.calculateMid(guid);
   final dfid = '-';
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
@@ -36,15 +36,15 @@ Future<void> main() async {
       'dfid': dfid,
       'mid': mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       ...extraQuery,
     };
     params['signature'] =
-        KugoSign.signatureAndroidParams(params, data: bodyJson);
+        KugouSign.signatureAndroidParams(params, data: bodyJson);
     final headers = <String, dynamic>{
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       'Content-Type': 'application/json',
       'dfid': dfid,
       'clienttime': '$clienttime',
@@ -71,7 +71,7 @@ Future<void> main() async {
       if (looksLikeUrlFilter(raw)) {
         stdout.writeln('URL FILTER / 拦截');
       } else {
-        final decoded = decodeKugoBody(res.data);
+        final decoded = decodeKugouBody(res.data);
         if (decoded is Map) {
           final map = Map<String, dynamic>.from(decoded);
           stdout.writeln(
@@ -104,42 +104,42 @@ Future<void> main() async {
   await post(
     'style-prefixed',
     url:
-        '${KugoEndpoints.gateway}${KugoEndpoints.everydayStyleRecommendPrefixed}',
+        '${KugouEndpoints.gateway}${KugouEndpoints.everydayStyleRecommendPrefixed}',
     extraQuery: {'tagids': ''},
     body: const <String, dynamic>{},
   );
 
   await post(
     'style-xrouter',
-    url: '${KugoEndpoints.gateway}${KugoEndpoints.everydayStyleRecommendPrefixed}',
-    router: KugoEndpoints.everydayRouter,
+    url: '${KugouEndpoints.gateway}${KugouEndpoints.everydayStyleRecommendPrefixed}',
+    router: KugouEndpoints.everydayRouter,
     extraQuery: {'tagids': ''},
     body: const <String, dynamic>{},
   );
 
   await post(
     'daily-parity',
-    url: '${KugoEndpoints.gateway}${KugoEndpoints.everydayRecommend}',
-    router: KugoEndpoints.everydayRouter,
+    url: '${KugouEndpoints.gateway}${KugouEndpoints.everydayRecommend}',
+    router: KugouEndpoints.everydayRouter,
     extraQuery: {'platform': 'ios'},
     body: null,
   );
 
   await post(
     'special-recommend',
-    url: '${KugoEndpoints.gateway}${KugoEndpoints.specialRecommend}',
-    router: KugoEndpoints.specialRecommendRouter,
+    url: '${KugouEndpoints.gateway}${KugouEndpoints.specialRecommend}',
+    router: KugouEndpoints.specialRecommendRouter,
     body: {
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'mid': mid,
-      'clientver': int.parse(KugoSign.clientVer),
+      'clientver': int.parse(KugouSign.clientVer),
       'platform': 'android',
       'clienttime': clienttime,
       'userid': 0,
       'module_id': 1,
       'page': 1,
       'pagesize': 6,
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
       'special_recommend': {
         'withtag': 1,
         'withsong': 0,
@@ -158,7 +158,7 @@ Future<void> main() async {
 
   await post(
     'top-ip',
-    url: '${KugoEndpoints.musicAdService}${KugoEndpoints.topIp}',
+    url: '${KugouEndpoints.musicAdService}${KugouEndpoints.topIp}',
     extraQuery: {'clientver': 12349, 'area_code': 1},
     body: {'tags': <String, dynamic>{}},
   );

@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/comment.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/repositories/comment_repository.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
-import 'package:kugo/data/sources/kugou/kugou_source.dart';
+import 'package:overtone/core/models/comment.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/data/repositories/comment_repository.dart';
+import 'package:overtone/data/repositories/search_repository.dart';
+import 'package:overtone/data/sources/kugou/kugou_source.dart';
 
 /// 只实现解析 mixsongid 用到的 `searchSongs`，其余交给 noSuchMethod。
 class _FakeSearch implements SearchRepository {

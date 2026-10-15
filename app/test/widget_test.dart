@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/app.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/app.dart';
+import 'package:overtone/features/player/player_controller.dart';
 
 import 'fakes/fake_audio_player.dart';
 
@@ -15,7 +15,7 @@ void main() {
           playerControllerProvider
               .overrideWith(() => PlayerController(engine: FakeAudioPlayer())),
         ],
-        child: const KugoApp(),
+        child: const OvertoneApp(),
       ),
     );
     await tester.pump(const Duration(milliseconds: 50));

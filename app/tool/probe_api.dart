@@ -54,8 +54,8 @@ Future<void> main() async {
     {
       'r': 'play/getdata',
       'hash': 'b3a52a7a958bf0aed0ebfba2e9a818b7',
-      'mid': 'kugo_mid',
-      'guid': 'kugo_guid',
+      'mid': 'overtone_mid',
+      'guid': 'overtone_guid',
       'platid': 4,
       'appid': 1014,
     },

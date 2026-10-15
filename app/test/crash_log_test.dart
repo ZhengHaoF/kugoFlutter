@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/diagnostics/crash_log.dart';
+import 'package:overtone/core/diagnostics/crash_log.dart';
 
 import 'fakes/fake_path_provider.dart';
 

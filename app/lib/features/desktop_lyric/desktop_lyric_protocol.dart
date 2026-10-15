@@ -5,7 +5,7 @@ import 'desktop_lyric_style.dart';
 const String kDesktopLyricWindowArg = 'desktop_lyric';
 
 /// 主窗 ↔ 歌词窗通信通道（bidirectional 配对）。
-const String kDesktopLyricChannel = 'kugo/desktop_lyric';
+const String kDesktopLyricChannel = 'overtone/desktop_lyric';
 
 /// 播放态快照：主窗组装后经 `snapshot` 推给歌词窗。
 class DesktopLyricSnapshot {

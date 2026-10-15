@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/search/search_history_controller.dart';
-import 'package:kugo/features/search/search_page.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/search/search_history_controller.dart';
+import 'package:overtone/features/search/search_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';

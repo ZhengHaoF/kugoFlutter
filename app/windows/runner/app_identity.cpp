@@ -12,8 +12,10 @@ namespace {
 
 // Must match AudioServiceConfig.androidNotificationChannelId (SMTC AppMediaId).
 constexpr wchar_t kAppUserModelId[] = L"com.kugo.player";
-constexpr wchar_t kShortcutName[] = L"kugo.lnk";
-constexpr wchar_t kAppDisplayName[] = L"kugo";
+constexpr wchar_t kShortcutName[] = L"overtone.lnk";
+constexpr wchar_t kAppDisplayName[] = L"泛音";
+// Pre-rename shortcut name. Kept only so the stale one can be deleted once.
+constexpr wchar_t kLegacyShortcutName[] = L"kugo.lnk";
 
 std::wstring ExePath() {
   wchar_t buffer[MAX_PATH]{};
@@ -36,6 +38,49 @@ void ApplyAppUserModelId() {
   ::SetCurrentProcessExplicitAppUserModelID(kAppUserModelId);
 }
 
+// The 2026-10-13 rename kept the AUMID but moved the shortcut file from
+// kugo.lnk to overtone.lnk. Without this, every user is left with a stale
+// Start Menu entry pointing at the old executable.
+void RemoveLegacyShortcut() {
+  wchar_t programs[MAX_PATH]{};
+  if (FAILED(::SHGetFolderPathW(nullptr, CSIDL_PROGRAMS, nullptr,
+                                SHGFP_TYPE_CURRENT, programs))) {
+    return;
+  }
+  const std::wstring legacy =
+      std::wstring(programs) + L"\\" + kLegacyShortcutName;
+  if (::GetFileAttributesW(legacy.c_str()) == INVALID_FILE_ATTRIBUTES) return;
+
+  // Only ever delete a shortcut that carries OUR identity; never touch an
+  // unrelated shortcut that merely happens to be named overtone.lnk.
+  IShellLinkW* link = nullptr;
+  if (FAILED(::CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_PPV_ARGS(&link))) ||
+      link == nullptr) {
+    return;
+  }
+  IPersistFile* persist = nullptr;
+  bool owned = false;
+  if (SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&persist))) && persist) {
+    if (SUCCEEDED(persist->Load(legacy.c_str(), STGM_READ))) {
+      IPropertyStore* store = nullptr;
+      if (SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&store))) && store) {
+        PROPVARIANT identity;
+        ::PropVariantInit(&identity);
+        if (SUCCEEDED(store->GetValue(PKEY_AppUserModel_ID, &identity)) &&
+            identity.vt == VT_LPWSTR && identity.pwszVal) {
+          owned = std::wcscmp(identity.pwszVal, kAppUserModelId) == 0;
+        }
+        ::PropVariantClear(&identity);
+        store->Release();
+      }
+      persist->Release();
+    }
+  }
+  link->Release();
+  if (owned) ::DeleteFileW(legacy.c_str());
+}
+
 void EnsureStartMenuShortcut() {
   const std::wstring link_path = StartMenuShortcutPath();
   if (link_path.empty()) return;
@@ -56,7 +101,7 @@ void EnsureStartMenuShortcut() {
       ::GetFileAttributesW(link_path.c_str()) != INVALID_FILE_ATTRIBUTES;
   if (exists) {
     // Refresh only a shortcut carrying OUR identity; never replace a user's
-    // unrelated shortcut merely because it happens to be named kugo.lnk.
+    // unrelated shortcut merely because it happens to be named overtone.lnk.
     if (FAILED(persist->Load(link_path.c_str(), STGM_READ))) {
       persist->Release();
       link->Release();

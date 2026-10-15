@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/diagnostics/crash_log.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 
 /// 崩溃日志详情（只读 + 清空）。内容为空时给一句明确的「没有崩溃记录」。
 Future<void> showCrashLogDialog(BuildContext context) {
@@ -45,11 +45,11 @@ class _CrashLogDialogState extends State<_CrashLogDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final text = _text ?? '';
     return AlertDialog(
-      backgroundColor: kugo.surfaceElevated,
-      title: Text('崩溃日志', style: kugo.section),
+      backgroundColor: theme.surfaceElevated,
+      title: Text('崩溃日志', style: theme.section),
       content: SizedBox(
         width: 520,
         height: 360,
@@ -57,12 +57,12 @@ class _CrashLogDialogState extends State<_CrashLogDialog> {
             ? const Center(child: CircularProgressIndicator())
             : text.trim().isEmpty
                 ? Center(
-                    child: Text('没有崩溃记录', style: kugo.caption),
+                    child: Text('没有崩溃记录', style: theme.caption),
                   )
                 : SingleChildScrollView(
                     child: SelectableText(
                       text,
-                      style: kugo.caption.copyWith(height: 1.35),
+                      style: theme.caption.copyWith(height: 1.35),
                     ),
                   ),
       ),

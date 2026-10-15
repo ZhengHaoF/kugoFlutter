@@ -31,7 +31,7 @@ const signKey = (hash, mid, userid = 0) => md5(`${hash}${saltKey}${appid}${mid}$
 
 async function probe(label, hash, albumId = 0, albumAudioId = 0) {
   const dfid = randomString(24);
-  const guid = md5(`kugo-${Date.now()}-${Math.random()}`);
+  const guid = md5(`overtone-${Date.now()}-${Math.random()}`);
   const mid = calculateMid(guid);
   const clienttime = Math.floor(Date.now() / 1000);
   const hashL = String(hash).toLowerCase();

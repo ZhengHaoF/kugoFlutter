@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/bili/bili_sign.dart';
+import 'package:overtone/core/api/bili/bili_sign.dart';
 
 /// WBI 签名单测。黄金向量由 PowerShell 独立实现同算法算得（互不依赖的
 /// 两个实现互证）；imgKey/subKey 取 bilibili-API-collect 公示样例键，

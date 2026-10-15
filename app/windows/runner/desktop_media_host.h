@@ -59,7 +59,7 @@ private:
   POINT drag_offset_{};
   std::string gesture_key_;
   std::string key_;
-  std::wstring title_ = L"kugo";
+  std::wstring title_ = L"泛音";
   std::wstring artist_;
   int64_t position_ = 0;
   int64_t duration_ = 0;

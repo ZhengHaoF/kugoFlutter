@@ -7,8 +7,8 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
 import 'comment_composer_sheet.dart';
 import 'comment_tile.dart';
@@ -306,34 +306,34 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text('评论', style: kugo.section),
+            Text('评论', style: theme.section),
             const SizedBox(width: 8),
             if (_comments.total > 0)
               Text(
                 '${formatCount(_comments.total)}条',
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
+                style: theme.caption.copyWith(color: theme.textTertiary),
               ),
           ],
         ),
-        const SizedBox(height: KugoSpacing.sm),
+        const SizedBox(height: OvertoneSpacing.sm),
         // 无写侧能力（网易）时**不渲染**写入口 —— 渲染出来点了才提示不支持更糟。
-        if (_writeSource != null) _composerEntry(kugo),
-        const SizedBox(height: KugoSpacing.md),
+        if (_writeSource != null) _composerEntry(theme),
+        const SizedBox(height: OvertoneSpacing.md),
         if (_loading)
           const Padding(
-            padding: EdgeInsets.all(KugoSpacing.xl),
+            padding: EdgeInsets.all(OvertoneSpacing.xl),
             child: Center(child: CircularProgressIndicator()),
           )
         else if (_comments.items.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: KugoSpacing.lg),
-            child: Text(_error, style: kugo.caption),
+            padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.lg),
+            child: Text(_error, style: theme.caption),
           )
         else ...[
           for (final c in _comments.items)
@@ -355,9 +355,9 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
             )
           else
             Padding(
-              padding: const EdgeInsets.only(top: KugoSpacing.sm),
+              padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
               child: Center(
-                child: Text('没有更多评论了', style: kugo.caption),
+                child: Text('没有更多评论了', style: theme.caption),
               ),
             ),
         ],
@@ -366,28 +366,28 @@ class _ResourceCommentSectionState extends State<ResourceCommentSection> {
   }
 
   /// 「说点什么…」入口：未登录时点击直接引导登录。
-  Widget _composerEntry(KugoTheme kugo) {
+  Widget _composerEntry(OvertoneTheme theme) {
     return InkWell(
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(OvertoneRadius.card),
       onTap: () => _compose(),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: KugoSpacing.md,
+          horizontal: OvertoneSpacing.md,
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          color: kugo.surfaceElevated,
-          borderRadius: BorderRadius.circular(KugoRadius.card),
-          border: Border.all(color: kugo.divider),
+          color: theme.surfaceElevated,
+          borderRadius: BorderRadius.circular(OvertoneRadius.card),
+          border: Border.all(color: theme.divider),
         ),
         child: Row(
           children: [
-            Icon(Icons.edit_outlined, size: 16, color: kugo.textTertiary),
+            Icon(Icons.edit_outlined, size: 16, color: theme.textTertiary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 _isLoggedIn ? '说点什么…' : '登录后参与评论',
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
+                style: theme.caption.copyWith(color: theme.textTertiary),
               ),
             ),
           ],

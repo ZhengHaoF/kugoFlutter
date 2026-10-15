@@ -9,8 +9,8 @@ import '../../core/models/playback_source.dart';
 import '../../core/models/track.dart';
 import '../../core/theme/cover_palette.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../fm/fm_controller.dart';
 import '../fm/fm_radio_card.dart';
@@ -124,7 +124,7 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
     final playerCtl = ref.read(playerControllerProvider.notifier);
@@ -144,11 +144,11 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
     _syncAnimations(playing: showPlaying);
     final accent = CoverPalette.accentFromSeed(
       fmCurrent?.coverUrl ?? 'fm',
-      kugo.palette,
+      theme.palette,
     );
 
     final radioCard = FmRadioCard(
-      kugo: kugo,
+      theme: theme,
       accent: accent,
       mode: fm.pendingMode,
       pool: fm.pendingPool,
@@ -171,7 +171,7 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
     );
 
     final carousel = FmVinylCarousel(
-      kugo: kugo,
+      theme: theme,
       accent: accent,
       spin: _spin,
       tracks: fmQueue,
@@ -205,7 +205,7 @@ class _QuickEntriesState extends ConsumerState<QuickEntries>
           carousel: carousel,
         ),
         // 舞台阴影外溢略多，给下方入口留一点空气。
-        const SizedBox(height: KugoSpacing.lg),
+        const SizedBox(height: OvertoneSpacing.lg),
         // Android 无桌面侧栏：挂「为你推荐 + 探索」入口。窄屏纵向堆叠，
         // 半宽卡片里的副标题会把 68 高的卡挤爆。
         LayoutBuilder(
@@ -252,10 +252,10 @@ class DiscoveryEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Material(
       key: const ValueKey('discovery_entry_card'),
-      color: kugo.surface,
+      color: theme.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -265,7 +265,7 @@ class DiscoveryEntryCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kugo.divider),
+            border: Border.all(color: theme.divider),
           ),
           child: Row(
             children: [
@@ -278,13 +278,13 @@ class DiscoveryEntryCard extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      kugo.secondary,
-                      Color.lerp(kugo.secondary, kugo.primary, 0.40)!,
+                      theme.secondary,
+                      Color.lerp(theme.secondary, theme.primary, 0.40)!,
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: kugo.secondary.withValues(alpha: 0.28),
+                      color: theme.secondary.withValues(alpha: 0.28),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -304,7 +304,7 @@ class DiscoveryEntryCard extends StatelessWidget {
                   children: [
                     Text(
                       '探索',
-                      style: kugo.body.copyWith(
+                      style: theme.body.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -314,9 +314,9 @@ class DiscoveryEntryCard extends StatelessWidget {
                       '歌单 · 榜单 · 新碟 · 歌手',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.caption.copyWith(
+                      style: theme.caption.copyWith(
                         fontSize: 12,
-                        color: kugo.textSecondary,
+                        color: theme.textSecondary,
                       ),
                     ),
                   ],
@@ -327,11 +327,11 @@ class DiscoveryEntryCard extends StatelessWidget {
                 height: 32,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: kugo.secondary.withValues(alpha: 0.12),
+                  color: theme.secondary.withValues(alpha: 0.12),
                 ),
                 child: Icon(
                   Icons.chevron_right_rounded,
-                  color: kugo.secondary,
+                  color: theme.secondary,
                   size: 20,
                 ),
               ),
@@ -356,11 +356,11 @@ class RecommendHubEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final dayStr = DateTime.now().day.toString();
     return Material(
       key: const ValueKey('recommend_hub_entry_card'),
-      color: kugo.surface,
+      color: theme.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -370,15 +370,15 @@ class RecommendHubEntryCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kugo.divider),
+            border: Border.all(color: theme.divider),
           ),
           child: Row(
             children: [
               // EchoMusic: .feature-icon .gradient-primary（大号日历数字）
               Hero(
-                tag: KugoHeroTags.dailyRecommendBadge,
+                tag: OvertoneHeroTags.dailyRecommendBadge,
                 flightShuttleBuilder:
-                    KugoHeroTags.dailyRecommendBadgeFlightShuttle,
+                    OvertoneHeroTags.dailyRecommendBadgeFlightShuttle,
                 child: Material(
                   type: MaterialType.transparency,
                   child: Container(
@@ -390,13 +390,13 @@ class RecommendHubEntryCard extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          kugo.primary,
-                          Color.lerp(kugo.primary, kugo.secondary, 0.35)!,
+                          theme.primary,
+                          Color.lerp(theme.primary, theme.secondary, 0.35)!,
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: kugo.primary.withValues(alpha: 0.30),
+                          color: theme.primary.withValues(alpha: 0.30),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -425,7 +425,7 @@ class RecommendHubEntryCard extends StatelessWidget {
                   children: [
                     Text(
                       '为你推荐',
-                      style: kugo.body.copyWith(
+                      style: theme.body.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -433,9 +433,9 @@ class RecommendHubEntryCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '每日 · 风格 · 歌单精选',
-                      style: kugo.caption.copyWith(
+                      style: theme.caption.copyWith(
                         fontSize: 12,
-                        color: kugo.textSecondary,
+                        color: theme.textSecondary,
                       ),
                     ),
                   ],
@@ -447,11 +447,11 @@ class RecommendHubEntryCard extends StatelessWidget {
                 height: 32,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: kugo.primary.withValues(alpha: 0.12),
+                  color: theme.primary.withValues(alpha: 0.12),
                 ),
                 child: Icon(
                   Icons.auto_awesome_rounded,
-                  color: kugo.primary,
+                  color: theme.primary,
                   size: 18,
                 ),
               ),

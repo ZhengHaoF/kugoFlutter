@@ -43,7 +43,7 @@ std::vector<std::string> GetCommandLineArguments() {
 
 bool IsDesktopLyricProcess() {
   wchar_t env[8] = {};
-  const DWORD n = ::GetEnvironmentVariableW(L"KUGO_LYRIC_PROCESS", env, 8);
+  const DWORD n = ::GetEnvironmentVariableW(L"OVERTONE_LYRIC_PROCESS", env, 8);
   if (n > 0 && n < 8 && env[0] == L'1') {
     return true;
   }

@@ -10,17 +10,17 @@ import 'dart:typed_data';
 import 'package:dbus/dbus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kugo/core/desktop_capabilities.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/models/audio_quality.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/storage/kugo_db.dart';
-import 'package:kugo/data/storage/playback_position_store.dart';
-import 'package:kugo/shared/tray/window_bounds_store.dart';
-import 'package:kugo/features/mv/mv_desktop_mini.dart';
-import 'package:kugo/features/player/linux_media_bridge.dart';
-import 'package:kugo/features/player/media_kit_player.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/core/desktop_capabilities.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/models/audio_quality.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
+import 'package:overtone/data/storage/playback_position_store.dart';
+import 'package:overtone/shared/tray/window_bounds_store.dart';
+import 'package:overtone/features/mv/mv_desktop_mini.dart';
+import 'package:overtone/features/player/linux_media_bridge.dart';
+import 'package:overtone/features/player/media_kit_player.dart';
+import 'package:overtone/features/player/player_controller.dart';
 import 'package:media_kit/media_kit.dart' show MediaKit, Player, Media;
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:window_manager/window_manager.dart';
@@ -35,7 +35,7 @@ void main() async {
   await windowManager.waitUntilReadyToShow(
     const WindowOptions(
       size: Size(1000, 700),
-      title: 'kugo Linux integration probe',
+      title: 'overtone Linux integration probe',
     ),
     () async => windowManager.show(),
   );
@@ -92,7 +92,7 @@ class _ProbeState extends State<Probe> {
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         if (request.headers.value('Referer') != 'https://www.bilibili.com' ||
-            request.headers.value('User-Agent') != 'kugo-linux-probe') {
+            request.headers.value('User-Agent') != 'overtone-linux-probe') {
           request.response.statusCode = 403;
           await request.response.close();
           return;
@@ -129,7 +129,7 @@ class _ProbeState extends State<Probe> {
           url: 'http://127.0.0.1:${server.port}/tone.wav',
           headers: {
             'Referer': 'https://www.bilibili.com',
-            'User-Agent': 'kugo-linux-probe',
+            'User-Agent': 'overtone-linux-probe',
           },
         );
       final rawPlayer = Player();
@@ -165,11 +165,11 @@ class _ProbeState extends State<Probe> {
         (await DesktopWindowBoundsStore.load()).width == 1111,
         'native SharedPreferences window settings persist',
       );
-      final database = KugoDb();
+      final database = OvertoneDb();
       await database.writeQueue(queue, 1, 'listLoop');
       await database.appendHistory(queue.first);
       await database.close();
-      final reopened = KugoDb();
+      final reopened = OvertoneDb();
       try {
         final restored = await reopened.readQueue();
         check(
@@ -220,7 +220,7 @@ class _ProbeState extends State<Probe> {
       remoteClient = DBusClient.session();
       final remote = DBusRemoteObject(
         remoteClient,
-        name: '$mprisRoot.kugo.instance$pid',
+        name: '$mprisRoot.overtone.instance$pid',
         path: DBusObjectPath('/org/mpris/MediaPlayer2'),
       );
       await remote.callMethod(mprisPlayer, 'Pause', []);
@@ -290,8 +290,8 @@ class _ProbeState extends State<Probe> {
         'desktop mini-window restores normal size',
       );
 
-      final path = Platform.environment['KUGO_PROBE_VIDEO'];
-      if (path == null) throw StateError('KUGO_PROBE_VIDEO fixture required');
+      final path = Platform.environment['OVERTONE_PROBE_VIDEO'];
+      if (path == null) throw StateError('OVERTONE_PROBE_VIDEO fixture required');
       videoPlayer = Player();
       video = VideoController(
         videoPlayer,

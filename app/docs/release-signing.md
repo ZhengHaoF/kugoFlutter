@@ -1,5 +1,9 @@
 # Release 签名说明
 
+> 多 ABI 正式签名 APK 与 Windows 安装程序 / 绿色 ZIP 的**当前交付流程**见
+> [docs/release-packaging.md](../../docs/release-packaging.md)（主分支手动打包，含 apksigner
+> 三 ABI 签名指纹一致性验收）。本文保留本地 keystore 生成 / 更换与单包构建的操作说明。
+
 ## 当前状态（M4）
 
 | 项 | 状态 |

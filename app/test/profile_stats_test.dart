@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/features/profile/profile_stats.dart';
-import 'package:kugo/features/profile/user_profile_detail.dart';
+import 'package:overtone/features/profile/profile_stats.dart';
+import 'package:overtone/features/profile/user_profile_detail.dart';
 
 void main() {
   group('formatListeningDuration', () {

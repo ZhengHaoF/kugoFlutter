@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/data/sources/bili/bili_source.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/data/sources/bili/bili_source.dart';
 
 /// CLI：B 站音源**适配层**冒烟（B5 装配验证）。
 ///

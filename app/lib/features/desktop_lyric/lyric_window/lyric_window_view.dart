@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/kugo_theme.dart';
+import '../../../core/theme/overtone_theme.dart';
 import '../desktop_lyric_host.dart';
 import 'karaoke_sweep_line.dart';
 import 'lyric_window_controller.dart';
@@ -220,8 +220,8 @@ class _LyricBlock extends StatelessWidget {
                   fontSize: (isTr ? 13 : 14) * scale,
                   height: 1.25,
                   fontWeight: isTr ? FontWeight.w400 : FontWeight.w500,
-                  fontFamily: kugoFontFamily,
-                  fontFamilyFallback: kugoFontFamilyFallback,
+                  fontFamily: overtoneFontFamily,
+                  fontFamilyFallback: overtoneFontFamilyFallback,
                 ),
               ),
             );

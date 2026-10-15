@@ -5,9 +5,9 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart' show SourceFailure;
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
-import '../../shared/widgets/common.dart' show showKugoBottomSheet;
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../shared/widgets/common.dart' show showOvertoneBottomSheet;
 
 /// MV 弹幕入口按钮 + 设置 / 发送面板。
 ///
@@ -43,11 +43,11 @@ class MvBarrageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return IconButton(
       tooltip: enabled ? '弹幕已开启 · 设置与发送' : '弹幕已关闭 · 设置与发送',
-      color: enabled ? kugo.primary : color,
-      onPressed: () => showKugoBottomSheet<void>(
+      color: enabled ? theme.primary : color,
+      onPressed: () => showOvertoneBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         builder: (_) => _MvBarrageSheet(
@@ -157,17 +157,17 @@ class _MvBarrageSheetState extends State<_MvBarrageSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.86,
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-          KugoSpacing.xl,
-          KugoSpacing.md,
-          KugoSpacing.xl,
-          KugoSpacing.xl,
+          OvertoneSpacing.xl,
+          OvertoneSpacing.md,
+          OvertoneSpacing.xl,
+          OvertoneSpacing.xl,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,28 +177,28 @@ class _MvBarrageSheetState extends State<_MvBarrageSheet> {
               child: Container(
                 width: 36,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: KugoSpacing.lg),
+                margin: const EdgeInsets.only(bottom: OvertoneSpacing.lg),
                 decoration: BoxDecoration(
-                  color: kugo.divider,
+                  color: theme.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             Row(
               children: [
-                Icon(Icons.subtitles_outlined, size: 20, color: kugo.primary),
-                const SizedBox(width: KugoSpacing.sm),
-                Text('弹幕', style: kugo.section),
+                Icon(Icons.subtitles_outlined, size: 20, color: theme.primary),
+                const SizedBox(width: OvertoneSpacing.sm),
+                Text('弹幕', style: theme.section),
                 const Spacer(),
                 Text(
                   _enabled ? '显示中' : '已关闭',
-                  style: kugo.caption.copyWith(color: kugo.textSecondary),
+                  style: theme.caption.copyWith(color: theme.textSecondary),
                 ),
-                const SizedBox(width: KugoSpacing.sm),
+                const SizedBox(width: OvertoneSpacing.sm),
                 Switch(value: _enabled, onChanged: _setEnabled),
               ],
             ),
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             _LabeledSlider(
               label: '透明度',
               valueLabel: '${_config.opacity}%',
@@ -238,30 +238,30 @@ class _MvBarrageSheetState extends State<_MvBarrageSheet> {
               ),
               onChangeEnd: (_) => _updateConfig(_config, persist: true),
             ),
-            const SizedBox(height: KugoSpacing.sm),
-            Text('密度', style: kugo.caption.copyWith(color: kugo.textSecondary)),
-            const SizedBox(height: KugoSpacing.xs),
+            const SizedBox(height: OvertoneSpacing.sm),
+            Text('密度', style: theme.caption.copyWith(color: theme.textSecondary)),
+            const SizedBox(height: OvertoneSpacing.xs),
             _SegmentedRow<int>(
               value: _config.density,
               options: const [(1, '稀疏'), (2, '适中'), (3, '密集')],
               onSelect: (v) =>
                   _updateConfig(_config.copyWith(density: v), persist: true),
             ),
-            const SizedBox(height: KugoSpacing.md),
-            Text('显示区域', style: kugo.caption.copyWith(color: kugo.textSecondary)),
-            const SizedBox(height: KugoSpacing.xs),
+            const SizedBox(height: OvertoneSpacing.md),
+            Text('显示区域', style: theme.caption.copyWith(color: theme.textSecondary)),
+            const SizedBox(height: OvertoneSpacing.xs),
             _SegmentedRow<int>(
               value: _config.area,
               options: const [(25, '顶部'), (50, '上半屏'), (100, '全屏')],
               onSelect: (v) =>
                   _updateConfig(_config.copyWith(area: v), persist: true),
             ),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             Text(
               '发送弹幕',
-              style: kugo.caption.copyWith(color: kugo.textSecondary),
+              style: theme.caption.copyWith(color: theme.textSecondary),
             ),
-            const SizedBox(height: KugoSpacing.xs),
+            const SizedBox(height: OvertoneSpacing.xs),
             TextField(
               controller: _draftController,
               maxLength: kBarrageMaxLength,
@@ -274,13 +274,13 @@ class _MvBarrageSheetState extends State<_MvBarrageSheet> {
                 isDense: true,
               ),
             ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             Row(
               children: [
                 Expanded(
                   child: Text(
                     _enabled ? '' : '发送后开启弹幕即可在画面上看到',
-                    style: kugo.caption.copyWith(color: kugo.textTertiary),
+                    style: theme.caption.copyWith(color: theme.textTertiary),
                   ),
                 ),
                 FilledButton(
@@ -325,7 +325,7 @@ class _LabeledSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -334,11 +334,11 @@ class _LabeledSlider extends StatelessWidget {
           children: [
             Text(
               label,
-              style: kugo.caption.copyWith(color: kugo.textSecondary),
+              style: theme.caption.copyWith(color: theme.textSecondary),
             ),
             Text(
               valueLabel,
-              style: kugo.caption.copyWith(color: kugo.textPrimary),
+              style: theme.caption.copyWith(color: theme.textPrimary),
             ),
           ],
         ),
@@ -368,7 +368,7 @@ class _SegmentedRow<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Row(
       children: [
         for (final (optionValue, label) in options)
@@ -379,7 +379,7 @@ class _SegmentedRow<T> extends StatelessWidget {
                 label: label,
                 selected: optionValue == value,
                 onTap: () => onSelect(optionValue),
-                kugo: kugo,
+                theme: theme,
               ),
             ),
           ),
@@ -393,31 +393,31 @@ class _SegmentButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    required this.kugo,
+    required this.theme,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: selected
-          ? kugo.primary.withValues(alpha: 0.14)
-          : kugo.surface,
-      borderRadius: BorderRadius.circular(KugoRadius.tile),
+          ? theme.primary.withValues(alpha: 0.14)
+          : theme.surface,
+      borderRadius: BorderRadius.circular(OvertoneRadius.tile),
       child: InkWell(
-        borderRadius: BorderRadius.circular(KugoRadius.tile),
+        borderRadius: BorderRadius.circular(OvertoneRadius.tile),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: KugoSpacing.sm),
+          padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.sm),
           child: Center(
             child: Text(
               label,
-              style: kugo.caption.copyWith(
-                color: selected ? kugo.primary : kugo.textSecondary,
+              style: theme.caption.copyWith(
+                color: selected ? theme.primary : theme.textSecondary,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),

@@ -134,7 +134,7 @@ String formatGender(Object? value) {
 }
 
 /// KuGou VIP timestamps are `yyyy-MM-dd HH:mm:ss` (space, not `T`).
-DateTime? parseKugoDateTime(Object? value) {
+DateTime? parseKugouDateTime(Object? value) {
   if (value == null) return null;
   final raw = value.toString().trim();
   if (raw.isEmpty || raw == '0') return null;
@@ -153,7 +153,7 @@ String? formatVipExpireText(Object? vipEndTime, {DateTime? now}) {
   final raw = vipEndTime.toString().trim();
   if (raw.isEmpty || raw == '0') return null;
   final clock = now ?? DateTime.now();
-  final expire = parseKugoDateTime(raw);
+  final expire = parseKugouDateTime(raw);
   if (expire == null) return null;
   final diff = expire.difference(clock);
   if (diff.isNegative) return '已过期';
@@ -172,7 +172,7 @@ String formatVipDate(Object? value) {
   if (value == null) return '--';
   final raw = value.toString().trim();
   if (raw.isEmpty || raw == '0') return '--';
-  final d = parseKugoDateTime(raw);
+  final d = parseKugouDateTime(raw);
   if (d == null) return raw;
   String pad(int n) => n.toString().padLeft(2, '0');
   return '${d.year}-${pad(d.month)}-${pad(d.day)} ${pad(d.hour)}:${pad(d.minute)}';

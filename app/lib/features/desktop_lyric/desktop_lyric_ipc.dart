@@ -25,9 +25,9 @@ abstract final class LyricIpc {
   static const argPortPrefix = '--ipc-port=';
 
   /// 环境变量兜底（CLI 传参之外，原生层也能读到）。
-  static const envProcess = 'KUGO_LYRIC_PROCESS';
-  static const envPort = 'KUGO_LYRIC_IPC_PORT';
-  static const envToken = 'KUGO_LYRIC_IPC_TOKEN';
+  static const envProcess = 'OVERTONE_LYRIC_PROCESS';
+  static const envPort = 'OVERTONE_LYRIC_IPC_PORT';
+  static const envToken = 'OVERTONE_LYRIC_IPC_TOKEN';
 
   static bool isAuthenticatedHello(Map<String, Object?> message, String token) {
     final data = message['d'];

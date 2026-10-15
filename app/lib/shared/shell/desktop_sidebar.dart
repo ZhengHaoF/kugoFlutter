@@ -11,7 +11,7 @@ import '../../core/source/features.dart';
 import '../../features/profile/source_account.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../features/player/player_controller.dart';
 import '../branding/app_logo.dart';
 
@@ -53,7 +53,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // Only the LIVE badge depends on player state — don't rebuild the whole
     // rail (and its hover regions) on every position tick.
     final isFmActive = ref.watch(
@@ -71,9 +71,9 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
       width: _collapsed ? _collapsedWidth : _expandedWidth,
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: kugo.surface,
+        color: theme.surface,
         border: Border(
-          right: BorderSide(color: kugo.divider, width: 1),
+          right: BorderSide(color: theme.divider, width: 1),
         ),
       ),
       child: LayoutBuilder(
@@ -113,10 +113,10 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'kugo',
+                              '泛音',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.title.copyWith(
+                              style: theme.title.copyWith(
                                 fontSize: 18,
                                 letterSpacing: -0.5,
                                 height: 1.15,
@@ -127,10 +127,10 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                               _platformLabel(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: kugo.caption.copyWith(
+                              style: theme.caption.copyWith(
                                 fontSize: 10,
                                 height: 1.25,
-                                color: kugo.textTertiary,
+                                color: theme.textTertiary,
                               ),
                             ),
                           ],
@@ -151,7 +151,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                 child: ListView(
                   padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
                   children: [
-                    if (!compact) _buildGroupHeader('在线音乐', kugo),
+                    if (!compact) _buildGroupHeader('在线音乐', theme),
                     _SidebarItem(
                       icon: Icons.auto_awesome_rounded,
                       label: '发现',
@@ -186,13 +186,13 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: kugo.primary.withValues(alpha: 0.2),
+                                color: theme.primary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 'LIVE',
                                 style: TextStyle(
-                                  color: kugo.primary,
+                                  color: theme.primary,
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -203,7 +203,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                     ),
 
                     const SizedBox(height: 16),
-                    if (!compact) _buildGroupHeader('我的音乐', kugo),
+                    if (!compact) _buildGroupHeader('我的音乐', theme),
                     _SidebarItem(
                       icon: Icons.person_rounded,
                       label: '我的',
@@ -246,7 +246,7 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
                     ),
 
                     const SizedBox(height: 16),
-                    if (!compact) _buildGroupHeader('通用', kugo),
+                    if (!compact) _buildGroupHeader('通用', theme),
                     _SidebarItem(
                       icon: Icons.settings_rounded,
                       label: '系统设置',
@@ -271,17 +271,17 @@ class _DesktopSidebarState extends ConsumerState<DesktopSidebar> {
     return '概念版';
   }
 
-  Widget _buildGroupHeader(String title, KugoTheme kugo) {
+  Widget _buildGroupHeader(String title, OvertoneTheme theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
       child: Text(
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: kugo.caption.copyWith(
+        style: theme.caption.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: kugo.textTertiary,
+          color: theme.textTertiary,
           letterSpacing: 0.5,
         ),
       ),
@@ -300,7 +300,7 @@ class _CollapseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Tooltip(
       message: collapsed ? '展开侧栏' : '折叠侧栏',
       child: IconButton(
@@ -313,7 +313,7 @@ class _CollapseButton extends StatelessWidget {
           collapsed
               ? Icons.keyboard_arrow_right_rounded
               : Icons.keyboard_arrow_left_rounded,
-          color: kugo.textTertiary,
+          color: theme.textTertiary,
         ),
       ),
     );
@@ -357,13 +357,13 @@ class _SidebarItemState extends State<_SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final activeColor = kugo.primary;
-    final inactiveColor = kugo.textSecondary;
+    final theme = OvertoneTheme.of(context);
+    final activeColor = theme.primary;
+    final inactiveColor = theme.textSecondary;
     // Same RGB as the hover fill (black); only alpha animates. Avoids
     // Colors.transparent (transparent black) lerping through gray.
     final hoverFill =
-        Colors.black.withValues(alpha: kugo.isLight ? 0.08 : 0.18);
+        Colors.black.withValues(alpha: theme.isLight ? 0.08 : 0.18);
     final idleFill = Colors.black.withValues(alpha: 0);
     final compact = widget.compact;
 
@@ -393,7 +393,7 @@ class _SidebarItemState extends State<_SidebarItem> {
                     fontSize: 13,
                     fontWeight:
                         widget.selected ? FontWeight.w600 : FontWeight.normal,
-                    color: widget.selected ? activeColor : kugo.textPrimary,
+                    color: widget.selected ? activeColor : theme.textPrimary,
                   ),
                 ),
               ),
@@ -411,7 +411,7 @@ class _SidebarItemState extends State<_SidebarItem> {
         // 选中只留两个信号：淡底 + 左侧短胶囊。底色从 0.14 压到 0.10，
         // 免得和指示条一起抢眼。
         color: widget.selected
-            ? kugo.primary.withValues(alpha: 0.10)
+            ? theme.primary.withValues(alpha: 0.10)
             : _hovered
                 ? hoverFill
                 : idleFill,

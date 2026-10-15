@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../core/api/kugou/credential_transport.dart';
 
-import '../../core/api/kugou/kugo_crypto.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_crypto.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 
 /// Device identity returned by KuGou `POST /risk/v2/r_register_dev`.
 class DeviceRegistration {
@@ -101,8 +101,8 @@ class DeviceRepository {
       'temperatureValue': '',
     };
 
-    final aes = KugoCrypto.playlistAesEncrypt(jsonEncode(dataMap));
-    final p = KugoCrypto.rsaEncryptPkcs1(
+    final aes = KugouCrypto.playlistAesEncrypt(jsonEncode(dataMap));
+    final p = KugouCrypto.rsaEncryptPkcs1(
       jsonEncode({'aes': aes.key, 'uid': 0, 'token': ''}),
     );
 
@@ -110,8 +110,8 @@ class DeviceRepository {
       'dfid': dfid,
       'mid': mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       'part': 1,
       'platid': 1,
@@ -119,7 +119,7 @@ class DeviceRepository {
     };
     // request.js signs the android way, and register_dev sends a raw string
     // body — that body is part of the signature.
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: aes.str);
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: aes.str);
 
     try {
       final res = await _dio.post<List<int>>(
@@ -128,7 +128,7 @@ class DeviceRepository {
         data: aes.str,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'dfid': dfid,
             'clienttime': '$clienttime',
             'mid': mid,
@@ -150,7 +150,7 @@ class DeviceRepository {
       // to plain JSON when the server answered in the clear.
       final raw = utf8.decode(bytes, allowMalformed: true);
       Map<String, dynamic>? body;
-      final decrypted = KugoCrypto.playlistAesDecrypt(
+      final decrypted = KugouCrypto.playlistAesDecrypt(
         base64.encode(bytes),
         aes.key,
       );

@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/theme/hero_tags.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/recommend/daily_recommend_page.dart';
-import 'package:kugo/shared/widgets/common.dart';
-import 'package:kugo/shared/widgets/cover_box.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/theme/hero_tags.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/recommend/daily_recommend_page.dart';
+import 'package:overtone/shared/widgets/common.dart';
+import 'package:overtone/shared/widgets/cover_box.dart';
 
 import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_music_source.dart';
 
 void main() {
-  group('KugoHeroTags', () {
+  group('OvertoneHeroTags', () {
     test('generates expected namespace tags', () {
-      expect(KugoHeroTags.playlistCover('123'), 'playlist-cover-123');
-      expect(KugoHeroTags.albumCover('456'), 'album-cover-456');
-      expect(KugoHeroTags.artistAvatar('789'), 'artist-avatar-789');
-      expect(KugoHeroTags.songCover('abc'), 'song-cover-abc');
-      expect(KugoHeroTags.rankCover('rank1'), 'rank-cover-rank1');
-      expect(KugoHeroTags.searchBar, 'hero-search-bar');
-      expect(KugoHeroTags.dailyRecommendBadge, 'hero-daily-recommend-badge');
+      expect(OvertoneHeroTags.playlistCover('123'), 'playlist-cover-123');
+      expect(OvertoneHeroTags.albumCover('456'), 'album-cover-456');
+      expect(OvertoneHeroTags.artistAvatar('789'), 'artist-avatar-789');
+      expect(OvertoneHeroTags.songCover('abc'), 'song-cover-abc');
+      expect(OvertoneHeroTags.rankCover('rank1'), 'rank-cover-rank1');
+      expect(OvertoneHeroTags.searchBar, 'hero-search-bar');
+      expect(OvertoneHeroTags.dailyRecommendBadge, 'hero-daily-recommend-badge');
     });
   });
 
@@ -44,7 +44,7 @@ void main() {
       );
 
       final heroFinder = find.byWidgetPredicate(
-        (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('playlist_1'),
+        (w) => w is Hero && w.tag == OvertoneHeroTags.playlistCover('playlist_1'),
       );
       expect(heroFinder, findsOneWidget);
     });
@@ -56,14 +56,14 @@ void main() {
             body: SearchResultRow(
               imageSeed: 'http://album.jpg',
               title: '夜的第七章',
-              heroTag: KugoHeroTags.albumCover('album_99'),
+              heroTag: OvertoneHeroTags.albumCover('album_99'),
             ),
           ),
         ),
       );
 
       final heroFinder = find.byWidgetPredicate(
-        (w) => w is Hero && w.tag == KugoHeroTags.albumCover('album_99'),
+        (w) => w is Hero && w.tag == OvertoneHeroTags.albumCover('album_99'),
       );
       expect(heroFinder, findsOneWidget);
     });
@@ -73,7 +73,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: CoverHero(
-              tag: KugoHeroTags.artistAvatar('singer_7'),
+              tag: OvertoneHeroTags.artistAvatar('singer_7'),
               seed: 'singer_7',
               size: 48,
               radius: 999,
@@ -84,7 +84,7 @@ void main() {
       );
 
       final heroFinder = find.byWidgetPredicate(
-        (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('singer_7'),
+        (w) => w is Hero && w.tag == OvertoneHeroTags.artistAvatar('singer_7'),
       );
       expect(heroFinder, findsOneWidget);
       expect(find.byIcon(Icons.person_rounded), findsOneWidget);
@@ -108,9 +108,9 @@ void main() {
       final heroFinder = find.byWidgetPredicate(
         (w) =>
             w is Hero &&
-            w.tag == KugoHeroTags.dailyRecommendBadge &&
+            w.tag == OvertoneHeroTags.dailyRecommendBadge &&
             w.flightShuttleBuilder ==
-                KugoHeroTags.dailyRecommendBadgeFlightShuttle,
+                OvertoneHeroTags.dailyRecommendBadgeFlightShuttle,
       );
       expect(heroFinder, findsOneWidget);
     });
@@ -130,7 +130,7 @@ void main() {
                   SizedBox(
                     width: 50,
                     height: 50,
-                    child: KugoHeroTags.dailyRecommendBadgeFlightShuttle(
+                    child: OvertoneHeroTags.dailyRecommendBadgeFlightShuttle(
                       context,
                       animController,
                       HeroFlightDirection.push,
@@ -141,7 +141,7 @@ void main() {
                   SizedBox(
                     width: 50,
                     height: 50,
-                    child: KugoHeroTags.dailyRecommendBadgeFlightShuttle(
+                    child: OvertoneHeroTags.dailyRecommendBadgeFlightShuttle(
                       context,
                       animController,
                       HeroFlightDirection.pop,

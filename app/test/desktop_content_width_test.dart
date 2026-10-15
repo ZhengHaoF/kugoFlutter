@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/theme/responsive.dart';
+import 'package:overtone/core/theme/responsive.dart';
 
 /// 一行铺满的折算规则：先定张数，再等分拉伸到整行。
 void main() {

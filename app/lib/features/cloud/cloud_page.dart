@@ -11,8 +11,8 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/profile/source_account.dart';
@@ -408,7 +408,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final desktop = isDesktopView(context);
     final platforms = ref.watch(accountSourcePlatformsProvider);
@@ -445,10 +445,10 @@ class _CloudPageState extends ConsumerState<CloudPage> {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              desktop ? KugoSpacing.lg : KugoSpacing.md,
-              KugoSpacing.lg,
-              KugoSpacing.sm,
+              OvertoneSpacing.lg,
+              desktop ? OvertoneSpacing.lg : OvertoneSpacing.md,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.sm,
             ),
             child: Row(
               children: [
@@ -464,7 +464,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                 Expanded(
                   child: Text(
                     '音乐云盘',
-                    style: kugo.section.copyWith(fontSize: 20),
+                    style: theme.section.copyWith(fontSize: 20),
                   ),
                 ),
                 if (logged && _uploader != null)
@@ -487,10 +487,10 @@ class _CloudPageState extends ConsumerState<CloudPage> {
           if (platforms.length > 1)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
+                OvertoneSpacing.lg,
                 0,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: SourceFilterBar(
                 platforms: platforms,
@@ -511,20 +511,20 @@ class _CloudPageState extends ConsumerState<CloudPage> {
           else
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
+                OvertoneSpacing.lg,
                 0,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: SourceLabel(platform: _platform, compact: true),
             ),
           if (logged && _capacity.totalBytes > 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
+                OvertoneSpacing.lg,
                 0,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,21 +537,21 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                       // 看起来像「一直在加载」。
                       value: _capacity.usedRatio,
                       minHeight: 4,
-                      backgroundColor: kugo.primary.withValues(alpha: 0.12),
+                      backgroundColor: theme.primary.withValues(alpha: 0.12),
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(_capacityLabel, style: kugo.caption),
+                  Text(_capacityLabel, style: theme.caption),
                 ],
               ),
             ),
           if (_uploading)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
+                OvertoneSpacing.lg,
                 0,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,7 +568,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                   const SizedBox(height: 6),
                   Text(
                     '上传中 $_uploadDone / $_uploadTotal · $_uploadLabel',
-                    style: kugo.caption,
+                    style: theme.caption,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -576,14 +576,14 @@ class _CloudPageState extends ConsumerState<CloudPage> {
               ),
             ),
           if (!logged)
-            Expanded(child: _buildLoginPrompt(kugo))
+            Expanded(child: _buildLoginPrompt(theme))
           else ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
-                KugoSpacing.sm,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: TextField(
                 controller: _searchController,
@@ -601,11 +601,11 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                         ),
                   isDense: true,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(KugoRadius.tile),
+                    borderRadius: BorderRadius.circular(OvertoneRadius.tile),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: kugo.primary.withValues(alpha: 0.06),
+                  fillColor: theme.primary.withValues(alpha: 0.06),
                 ),
                 onChanged: (v) => setState(() => _searchQuery = v),
               ),
@@ -613,10 +613,10 @@ class _CloudPageState extends ConsumerState<CloudPage> {
             if (displayed.isNotEmpty || _loading)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  KugoSpacing.lg,
-                  KugoSpacing.sm,
-                  KugoSpacing.lg,
-                  KugoSpacing.sm,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.sm,
+                  OvertoneSpacing.lg,
+                  OvertoneSpacing.sm,
                 ),
                 child: Row(
                   children: [
@@ -625,7 +625,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                           ? '找到 ${displayed.length} 首 / 共 $_total 首'
                           : '共 ${_tracks.length} 首'
                               '${_resolvingRest ? '（正在补全…）' : ''}',
-                      style: kugo.caption,
+                      style: theme.caption,
                     ),
                     const Spacer(),
                     FilledButton.icon(
@@ -657,7 +657,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                   itemBuilder: (context, index) {
                     if (index >= displayed.length) {
                       return Padding(
-                        padding: const EdgeInsets.all(KugoSpacing.lg),
+                        padding: const EdgeInsets.all(OvertoneSpacing.lg),
                         child: Center(
                           child: _loadingMore || _resolvingRest
                               ? const SizedBox(
@@ -688,7 +688,7 @@ class _CloudPageState extends ConsumerState<CloudPage> {
                           size: 20,
                           color: _pendingDeleteIds.contains(track.id)
                               ? Colors.redAccent
-                              : kugo.textSecondary,
+                              : theme.textSecondary,
                         ),
                         tooltip: '从云盘删除',
                         onPressed: _deleting
@@ -706,31 +706,31 @@ class _CloudPageState extends ConsumerState<CloudPage> {
     );
   }
 
-  Widget _buildLoginPrompt(KugoTheme kugo) {
+  Widget _buildLoginPrompt(OvertoneTheme theme) {
     final label = _platform.label;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(KugoSpacing.xl),
+        padding: const EdgeInsets.all(OvertoneSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.cloud_outlined,
               size: 56,
-              color: kugo.textSecondary.withValues(alpha: 0.6),
+              color: theme.textSecondary.withValues(alpha: 0.6),
             ),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             Text(
               '登录后查看云盘',
-              style: kugo.section.copyWith(fontSize: 18),
+              style: theme.section.copyWith(fontSize: 18),
             ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             Text(
               '云盘是$label账号的私有文件库',
-              style: kugo.caption,
+              style: theme.caption,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             FilledButton(
               onPressed: () => context.push(loginRouteFor(_platform)),
               child: Text('登录$label账号'),

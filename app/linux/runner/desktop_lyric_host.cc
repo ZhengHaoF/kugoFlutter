@@ -72,7 +72,7 @@ void center_top(GtkWindow* window, int width, int height, int top) {
                   area.y + std::clamp(top, 0, std::max(0, area.height - height)));
 }
 bool transparent(GtkWindow* window) {
-  return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "kugo-alpha")) != 0;
+  return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "overtone-alpha")) != 0;
 }
 void input_shape(GtkWindow* window, cairo_region_t* region) {
   GdkWindow* native = gtk_widget_get_window(GTK_WIDGET(window));
@@ -122,7 +122,7 @@ gboolean report_bounds(gpointer data) {
 gboolean configured(GtkWidget*, GdkEventConfigure*, gpointer data) {
   auto* host = static_cast<Host*>(data);
   if (!host->window ||
-      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(host->window), "kugo-lyric")))
+      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(host->window), "overtone-lyric")))
     return FALSE;
   // A WM may create a fresh frame on hide/show or resize.
   if (host->input_set) input_shape(host->window, host->input);
@@ -138,7 +138,7 @@ void method_call(FlMethodChannel*, FlMethodCall* call, gpointer data) {
   g_autoptr(FlValue) result = nullptr;
   g_autoptr(FlMethodResponse) response = nullptr;
   if (!window ||
-      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "kugo-lyric"))) {
+      !GPOINTER_TO_INT(g_object_get_data(G_OBJECT(window), "overtone-lyric"))) {
     response = FL_METHOD_RESPONSE(fl_method_error_response_new(
         "unavailable", "X11 lyric host is unavailable in this process", nullptr));
   } else if (std::strcmp(method, "getCapabilities") == 0) {
@@ -251,8 +251,8 @@ void method_call(FlMethodChannel*, FlMethodCall* call, gpointer data) {
 }  // namespace
 
 void prepare_desktop_lyric_window(GtkWindow* window, FlView* view) {
-  g_object_set_data(G_OBJECT(window), "kugo-lyric", GINT_TO_POINTER(1));
-  gtk_window_set_title(window, "kugo X11 lyrics");
+  g_object_set_data(G_OBJECT(window), "overtone-lyric", GINT_TO_POINTER(1));
+  gtk_window_set_title(window, "overtone X11 lyrics");
   gtk_window_set_decorated(window, FALSE);
   gtk_window_set_titlebar(window, nullptr);
   gtk_window_set_skip_taskbar_hint(window, TRUE);
@@ -260,7 +260,7 @@ void prepare_desktop_lyric_window(GtkWindow* window, FlView* view) {
   GdkScreen* screen = gtk_widget_get_screen(GTK_WIDGET(window));
   GdkVisual* visual = gdk_screen_get_rgba_visual(screen);
   const bool alpha = visual && gdk_screen_is_composited(screen);
-  g_object_set_data(G_OBJECT(window), "kugo-alpha", GINT_TO_POINTER(alpha));
+  g_object_set_data(G_OBJECT(window), "overtone-alpha", GINT_TO_POINTER(alpha));
   if (alpha) {
     gtk_widget_set_visual(GTK_WIDGET(window), visual);
     gtk_widget_set_app_paintable(GTK_WIDGET(window), TRUE);
@@ -276,7 +276,7 @@ void register_desktop_lyric_host(GtkWindow* window, FlView* view) {
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel = fl_method_channel_new(
       fl_engine_get_binary_messenger(fl_view_get_engine(view)),
-      "kugo/desktop_lyric_host", FL_METHOD_CODEC(codec));
+      "overtone/desktop_lyric_host", FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(
       channel, method_call, host, [](gpointer data) { delete static_cast<Host*>(data); });
   host->channel = channel;

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/repositories/discovery_repository.dart';
+import 'package:overtone/data/repositories/discovery_repository.dart';
 
 void main() {
   test('extractPlaylistTagGroups maps tag_name + son[].tag_id', () {

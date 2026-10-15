@@ -8,8 +8,8 @@ import '../../core/models/track.dart';
 import '../../core/platform.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/theme/cover_palette.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../fm/fm_controller.dart';
@@ -26,13 +26,13 @@ class FmEntryPill extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
     final fmCtl = ref.read(fmControllerProvider.notifier);
     final accent = CoverPalette.accentFromSeed(
       player.current?.coverUrl ?? 'fm',
-      kugo.palette,
+      theme.palette,
     );
     // 档位/曲库是酷狗红心 Radio 独有语义：无档位轴的源改挂电台名。
     final sourceLabel = fmCtl.displaySource?.label ?? '';
@@ -42,10 +42,10 @@ class FmEntryPill extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
+        OvertoneSpacing.lg,
         0,
-        KugoSpacing.lg,
-        KugoSpacing.sm,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.sm,
       ),
       child: Align(
         alignment: Alignment.centerLeft,
@@ -53,13 +53,13 @@ class FmEntryPill extends ConsumerWidget {
           button: true,
           label: '私人 FM 电台：$pillLabel',
           child: InkWell(
-            borderRadius: BorderRadius.circular(KugoRadius.chip),
+            borderRadius: BorderRadius.circular(OvertoneRadius.chip),
             onTap: () => showFmSheet(context),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: kugo.surface.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(KugoRadius.chip),
+                color: theme.surface.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                 border: Border.all(color: accent.withValues(alpha: 0.45)),
               ),
               child: Row(
@@ -69,8 +69,8 @@ class FmEntryPill extends ConsumerWidget {
                   const SizedBox(width: 6),
                   Text(
                     pillLabel,
-                    style: kugo.caption.copyWith(
-                      color: kugo.textPrimary,
+                    style: theme.caption.copyWith(
+                      color: theme.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -91,7 +91,7 @@ class FmEntryPill extends ConsumerWidget {
                   Icon(
                     Icons.keyboard_arrow_up_rounded,
                     size: 16,
-                    color: kugo.textSecondary,
+                    color: theme.textSecondary,
                   ),
                 ],
               ),
@@ -202,7 +202,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final fm = ref.watch(fmControllerProvider);
     final player = ref.watch(playerControllerProvider);
     final fmCtl = ref.read(fmControllerProvider.notifier);
@@ -210,25 +210,25 @@ class _FmSheetState extends ConsumerState<_FmSheet>
     final current = player.current;
     final accent = CoverPalette.accentFromSeed(
       current?.coverUrl ?? 'fm',
-      kugo.palette,
+      theme.palette,
     );
     // 档位轴 / 角标都随源变化：网易私人 FM 没有模式与曲库。
     final modeAxis = fmCtl.hasModeAxis;
     final source = fmCtl.displaySource ?? fm.source ?? MusicPlatform.kugou;
 
     final slivers = [
-      if (!widget.isDesktop) SliverToBoxAdapter(child: _grabber(kugo)),
+      if (!widget.isDesktop) SliverToBoxAdapter(child: _grabber(theme)),
       if (widget.isDesktop) const SliverToBoxAdapter(child: SizedBox(height: 16)),
-      SliverToBoxAdapter(child: _header(context, kugo, fm, fmCtl)),
+      SliverToBoxAdapter(child: _header(context, theme, fm, fmCtl)),
       if (fm.hasPendingChange)
-        SliverToBoxAdapter(child: _pendingBar(kugo, fm, fmCtl)),
+        SliverToBoxAdapter(child: _pendingBar(theme, fm, fmCtl)),
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
           // 电台卡现在是 1:1 深底方卡，不喜欢/播放/红心都在卡内 footer，
           // 面板里不再另放一排圆钮（FmActionRow 已退场）。
           child: FmRadioCard(
-            kugo: kugo,
+            theme: theme,
             accent: accent,
             mode: fm.pendingMode,
             pool: fm.pendingPool,
@@ -259,12 +259,12 @@ class _FmSheetState extends ConsumerState<_FmSheet>
         ),
       ),
       const SliverToBoxAdapter(
-        child: SizedBox(height: KugoSpacing.lg),
+        child: SizedBox(height: OvertoneSpacing.lg),
       ),
       // 封面圆盘一行排开：侧位按面板宽算，不足时 ghost 补满，不再半截空台。
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
           child: LayoutBuilder(
             builder: (context, constraints) {
               // 面板窄，盘也收一档；与 FM 页同一套封面铺满画法。
@@ -283,7 +283,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
                 }
               }
               return FmVinylStage(
-                kugo: kugo,
+                theme: theme,
                 accent: accent,
                 spin: _spin,
                 coverUrl: current?.coverUrl ?? 'fm',
@@ -304,15 +304,15 @@ class _FmSheetState extends ConsumerState<_FmSheet>
         ),
       ),
       SliverToBoxAdapter(
-        child: _nowPlaying(kugo, current),
+        child: _nowPlaying(theme, current),
       ),
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: KugoSpacing.lg,
+            horizontal: OvertoneSpacing.lg,
           ),
           child: FmSourceBadge(
-            kugo: kugo,
+            theme: theme,
             platform: source,
             fromServer: fm.fromServer,
             gatewayError: fm.gatewayError,
@@ -323,12 +323,12 @@ class _FmSheetState extends ConsumerState<_FmSheet>
         ),
       ),
       const SliverToBoxAdapter(
-        child: SizedBox(height: KugoSpacing.md),
+        child: SizedBox(height: OvertoneSpacing.md),
       ),
-      SliverToBoxAdapter(child: _upcomingHeader(kugo, fm, player)),
-      _upcomingList(kugo, player, playerCtl),
+      SliverToBoxAdapter(child: _upcomingHeader(theme, fm, player)),
+      _upcomingList(theme, player, playerCtl),
       const SliverToBoxAdapter(
-        child: SizedBox(height: KugoSpacing.xxl),
+        child: SizedBox(height: OvertoneSpacing.xxl),
       ),
     ];
 
@@ -338,7 +338,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
         child: Material(
           color: Colors.transparent,
           elevation: 16,
-          shape: Border(left: BorderSide(color: kugo.divider, width: 1)),
+          shape: Border(left: BorderSide(color: theme.divider, width: 1)),
           child: SizedBox(
             width: 440,
             height: double.infinity,
@@ -346,7 +346,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
               decoration: BoxDecoration(
                 gradient: CoverPalette.playerBackground(
                   current?.coverUrl ?? 'fm',
-                  kugo.palette,
+                  theme.palette,
                 ),
               ),
               child: Stack(
@@ -396,7 +396,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
               decoration: BoxDecoration(
                 gradient: CoverPalette.playerBackground(
                   current?.coverUrl ?? 'fm',
-                  kugo.palette,
+                  theme.palette,
                 ),
               ),
               // DraggableScrollableSheet 必须用自己的 ScrollPosition，
@@ -420,16 +420,16 @@ class _FmSheetState extends ConsumerState<_FmSheet>
     return player.queue.sublist(from, to);
   }
 
-  Widget _grabber(KugoTheme kugo) => Center(
+  Widget _grabber(OvertoneTheme theme) => Center(
         child: Container(
           margin: const EdgeInsets.only(
-            top: KugoSpacing.sm,
-            bottom: KugoSpacing.xs,
+            top: OvertoneSpacing.sm,
+            bottom: OvertoneSpacing.xs,
           ),
           width: 36,
           height: 4,
           decoration: BoxDecoration(
-            color: kugo.textTertiary.withValues(alpha: 0.5),
+            color: theme.textTertiary.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -438,12 +438,12 @@ class _FmSheetState extends ConsumerState<_FmSheet>
   /// 面板抬头：标题居中 + 右上角歌池轴胶囊（与原 FM 页位置一致）+ 关闭。
   Widget _header(
     BuildContext context,
-    KugoTheme kugo,
+    OvertoneTheme theme,
     FmSession fm,
     FmController fmCtl,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.sm),
       child: Row(
         children: [
           IconButton(
@@ -455,15 +455,15 @@ class _FmSheetState extends ConsumerState<_FmSheet>
             child: Text(
               '私人 FM',
               textAlign: TextAlign.center,
-              style: kugo.section,
+              style: theme.section,
             ),
           ),
           // 歌池轴只在有档位语义的源（酷狗）出现；无轴时留等宽占位让标题居中。
           if (fmCtl.hasModeAxis)
             Padding(
-              padding: const EdgeInsets.only(right: KugoSpacing.xs),
+              padding: const EdgeInsets.only(right: OvertoneSpacing.xs),
               child: FmCapsuleSwitch<FmSongPool>(
-                kugo: kugo,
+                theme: theme,
                 values: FmSongPool.values,
                 labelOf: (p) => p.label,
                 selected: fm.pendingPool,
@@ -479,9 +479,9 @@ class _FmSheetState extends ConsumerState<_FmSheet>
   }
 
   /// 曲名 / 歌手（黑胶下方，与 FM 页一致）。
-  Widget _nowPlaying(KugoTheme kugo, Track? track) {
+  Widget _nowPlaying(OvertoneTheme theme, Track? track) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xxl),
+      padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.xxl),
       child: Column(
         children: [
           Text(
@@ -489,24 +489,24 @@ class _FmSheetState extends ConsumerState<_FmSheet>
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: kugo.playerTitle,
+            style: theme.playerTitle,
           ),
           const SizedBox(height: 6),
-          Text(track?.artist ?? '', style: kugo.caption),
-          const SizedBox(height: KugoSpacing.md),
-          FmInfoChips(kugo: kugo, track: track),
+          Text(track?.artist ?? '', style: theme.caption),
+          const SizedBox(height: OvertoneSpacing.md),
+          FmInfoChips(theme: theme, track: track),
         ],
       ),
     );
   }
 
   /// 轴切了但还没生效时的提示条：说清「下一首生效」并给一键立即生效。
-  Widget _pendingBar(KugoTheme kugo, FmSession fm, FmController fmCtl) {
+  Widget _pendingBar(OvertoneTheme theme, FmSession fm, FmController fmCtl) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.sm,
-        KugoSpacing.lg,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.sm,
+        OvertoneSpacing.lg,
         0,
       ),
       child: Row(
@@ -514,7 +514,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
           Expanded(
             child: Text(
               '已切到 ${fm.pendingMode.label} · ${fm.pendingPool.label}，下一首生效',
-              style: kugo.caption.copyWith(color: kugo.primary, fontSize: 11),
+              style: theme.caption.copyWith(color: theme.primary, fontSize: 11),
             ),
           ),
           TextButton(
@@ -526,25 +526,25 @@ class _FmSheetState extends ConsumerState<_FmSheet>
     );
   }
 
-  Widget _upcomingHeader(KugoTheme kugo, FmSession fm, PlayerState player) {
+  Widget _upcomingHeader(OvertoneTheme theme, FmSession fm, PlayerState player) {
     final left = player.queue.isEmpty
         ? 0
         : player.queue.length - player.currentIndex - 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.sm,
-        KugoSpacing.lg,
-        KugoSpacing.xs,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.sm,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.xs,
       ),
       child: Row(
         children: [
-          Text('接下来', style: kugo.section),
-          const SizedBox(width: KugoSpacing.sm),
+          Text('接下来', style: theme.section),
+          const SizedBox(width: OvertoneSpacing.sm),
           Expanded(
             child: Text(
               fm.appending ? '正在续接歌池…' : '$left 首待播',
-              style: kugo.caption,
+              style: theme.caption,
             ),
           ),
         ],
@@ -553,7 +553,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
   }
 
   Widget _upcomingList(
-    KugoTheme kugo,
+    OvertoneTheme theme,
     PlayerState player,
     PlayerController playerCtl,
   ) {
@@ -564,14 +564,14 @@ class _FmSheetState extends ConsumerState<_FmSheet>
     if (upcoming.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.all(KugoSpacing.lg),
-          child: Text('歌池正在续接…', style: kugo.caption),
+          padding: const EdgeInsets.all(OvertoneSpacing.lg),
+          child: Text('歌池正在续接…', style: theme.caption),
         ),
       );
     }
     return SliverList.separated(
       itemCount: upcoming.length,
-      separatorBuilder: (_, _) => Divider(color: kugo.divider, height: 1),
+      separatorBuilder: (_, _) => Divider(color: theme.divider, height: 1),
       itemBuilder: (context, i) {
         final t = upcoming[i];
         return ListTile(
@@ -586,7 +586,7 @@ class _FmSheetState extends ConsumerState<_FmSheet>
           title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(t.artist, maxLines: 1),
           trailing: t.durationMs > 0
-              ? Text(t.durationLabel, style: kugo.caption)
+              ? Text(t.durationLabel, style: theme.caption)
               : null,
           onTap: () {
             // 直接跳到待播列表里的某一首（原先侧立唱片堆的能力）。

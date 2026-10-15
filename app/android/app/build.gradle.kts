@@ -13,14 +13,14 @@ val keystoreProperties = Properties().apply {
 }
 // CI test packages must opt in explicitly. A normal release build never
 // silently falls back to the debug key.
-val allowTestSigning = providers.gradleProperty("kugoAllowTestSigning")
+val allowTestSigning = providers.gradleProperty("overtoneAllowTestSigning")
     .map { it == "true" }.getOrElse(false)
 // CI uses environment variables instead of writing passwords into key.properties.
 val releaseSigning = mapOf(
-    "storeFile" to "KUGO_KEYSTORE_FILE",
-    "storePassword" to "KUGO_STORE_PASSWORD",
-    "keyAlias" to "KUGO_KEY_ALIAS",
-    "keyPassword" to "KUGO_KEY_PASSWORD",
+    "storeFile" to "OVERTONE_KEYSTORE_FILE",
+    "storePassword" to "OVERTONE_STORE_PASSWORD",
+    "keyAlias" to "OVERTONE_KEY_ALIAS",
+    "keyPassword" to "OVERTONE_KEY_PASSWORD",
 ).mapValues { (property, environment) ->
     keystoreProperties.getProperty(property)
         ?: providers.environmentVariable(environment).orNull
@@ -31,8 +31,8 @@ val isReleaseTask = gradle.startParameter.taskNames.any {
 }
 if (isReleaseTask && !hasReleaseSigning && !allowTestSigning) {
     throw GradleException(
-        "Release signing is missing or incomplete. Configure key.properties or KUGO_* signing environment variables, or explicitly " +
-        "use -PkugoAllowTestSigning=true for a TEST-ONLY artifact."
+        "Release signing is missing or incomplete. Configure key.properties or OVERTONE_* signing environment variables, or explicitly " +
+        "use -PovertoneAllowTestSigning=true for a TEST-ONLY artifact."
     )
 }
 

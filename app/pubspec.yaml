@@ -1,5 +1,5 @@
-name: kugo
-description: "酷狗概念版第三方 Flutter 客户端（学习/研究向）"
+name: overtone
+description: "多音源第三方 Flutter 客户端（学习/研究向）"
 publish_to: 'none'
 version: 0.1.0+1
 

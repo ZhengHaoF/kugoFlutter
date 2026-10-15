@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/features/mv/mv_desktop_mini.dart';
+import 'package:overtone/features/mv/mv_desktop_mini.dart';
 
 void main() {
   group('MvDesktopMini — 桌面迷你窗窗口参数', () {

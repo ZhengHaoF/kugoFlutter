@@ -5,9 +5,9 @@ project(runner LANGUAGES CXX)
 # named inside the ICON directive changes. Track the ICO at configure time and
 # include a content-derived header in Runner.rc, so incremental Debug builds
 # see a normal include dependency as well.
-set(KUGO_APP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.ico")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${KUGO_APP_ICON_FILE}")
-file(SHA256 "${KUGO_APP_ICON_FILE}" KUGO_APP_ICON_SHA256)
+set(OVERTONE_APP_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/resources/app_icon.ico")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${OVERTONE_APP_ICON_FILE}")
+file(SHA256 "${OVERTONE_APP_ICON_FILE}" OVERTONE_APP_ICON_SHA256)
 configure_file("app_icon_version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/app_icon_version.h" @ONLY)
 
 # Define the application target. To change its name, change BINARY_NAME in the

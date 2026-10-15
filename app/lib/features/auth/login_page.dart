@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
 import 'auth_controller.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -54,7 +54,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final auth = ref.watch(authControllerProvider);
     final controller = ref.read(authControllerProvider.notifier);
 
@@ -71,9 +71,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
         title: const Text('登录'),
         bottom: TabBar(
           controller: _tabs,
-          indicatorColor: kugo.primary,
-          labelColor: kugo.primary,
-          unselectedLabelColor: kugo.textSecondary,
+          indicatorColor: theme.primary,
+          labelColor: theme.primary,
+          unselectedLabelColor: theme.textSecondary,
           tabs: const [
             Tab(text: '扫码'),
             Tab(text: '验证码'),
@@ -92,21 +92,21 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ),
             // --- SMS ---
             SmoothListView(
-              padding: const EdgeInsets.all(KugoSpacing.xl),
+              padding: const EdgeInsets.all(OvertoneSpacing.xl),
               children: [
-                Text('手机验证码登录', style: kugo.section),
+                Text('手机验证码登录', style: theme.section),
                 const SizedBox(height: 8),
                 Text(
                   '使用酷狗绑定手机号接收短信验证码',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
-                const SizedBox(height: KugoSpacing.xl),
+                const SizedBox(height: OvertoneSpacing.xl),
                 _Field(
                   controller: _phone,
                   hint: '手机号',
                   keyboardType: TextInputType.phone,
                 ),
-                const SizedBox(height: KugoSpacing.md),
+                const SizedBox(height: OvertoneSpacing.md),
                 Row(
                   children: [
                     Expanded(
@@ -135,11 +135,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             ? null
                             : () => controller.sendSmsCode(_phone.text),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: kugo.primary,
-                          side: BorderSide(color: kugo.primary),
+                          foregroundColor: theme.primary,
+                          side: BorderSide(color: theme.primary),
                           shape: RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(KugoRadius.chip),
+                                BorderRadius.circular(OvertoneRadius.chip),
                           ),
                         ),
                         child: Text(
@@ -151,13 +151,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
                     ),
                   ],
                 ),
-                const SizedBox(height: KugoSpacing.lg),
+                const SizedBox(height: OvertoneSpacing.lg),
                 if (auth.errorMessage.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: KugoSpacing.md),
+                    padding: const EdgeInsets.only(bottom: OvertoneSpacing.md),
                     child: Text(
                       auth.errorMessage,
-                      style: kugo.caption.copyWith(
+                      style: theme.caption.copyWith(
                         color: auth.status == LoginStatus.logged
                             ? Colors.orangeAccent
                             : Colors.redAccent,
@@ -186,17 +186,17 @@ class _LoginPageState extends ConsumerState<LoginPage>
             ),
             // --- Password ---
             SmoothListView(
-              padding: const EdgeInsets.all(KugoSpacing.xl),
+              padding: const EdgeInsets.all(OvertoneSpacing.xl),
               children: [
-                Text('账号密码登录', style: kugo.section),
+                Text('账号密码登录', style: theme.section),
                 const SizedBox(height: 8),
                 Text(
                   '酷狗账号 / 手机号 + 密码',
-                  style: kugo.caption,
+                  style: theme.caption,
                 ),
-                const SizedBox(height: KugoSpacing.xl),
+                const SizedBox(height: OvertoneSpacing.xl),
                 _Field(controller: _username, hint: '账号 / 手机号'),
-                const SizedBox(height: KugoSpacing.md),
+                const SizedBox(height: OvertoneSpacing.md),
                 _Field(
                   controller: _password,
                   hint: '密码',
@@ -212,13 +212,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         setState(() => _obscurePwd = !_obscurePwd),
                   ),
                 ),
-                const SizedBox(height: KugoSpacing.lg),
+                const SizedBox(height: OvertoneSpacing.lg),
                 if (auth.errorMessage.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: KugoSpacing.md),
+                    padding: const EdgeInsets.only(bottom: OvertoneSpacing.md),
                     child: Text(
                       auth.errorMessage,
-                      style: kugo.caption
+                      style: theme.caption
                           .copyWith(color: Colors.redAccent),
                     ),
                   ),
@@ -248,10 +248,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.xl,
+            OvertoneSpacing.xl,
             0,
-            KugoSpacing.xl,
-            KugoSpacing.lg,
+            OvertoneSpacing.xl,
+            OvertoneSpacing.lg,
           ),
           child: OutlinedButton.icon(
             onPressed: () async {
@@ -259,11 +259,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
               if (context.mounted) context.pop();
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: kugo.textPrimary,
-              side: BorderSide(color: kugo.divider),
+              foregroundColor: theme.textPrimary,
+              side: BorderSide(color: theme.divider),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(KugoRadius.chip),
+                borderRadius: BorderRadius.circular(OvertoneRadius.chip),
               ),
             ),
             icon: const Icon(Icons.person_outline_rounded, size: 18),
@@ -283,7 +283,7 @@ class _QrLoginView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final phase = auth.qrPhase;
     final url = auth.qrContentUrl;
 
@@ -300,7 +300,7 @@ class _QrLoginView extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(KugoRadius.card),
+              borderRadius: BorderRadius.circular(OvertoneRadius.card),
             ),
             child: QrImageView(
               data: url,
@@ -308,18 +308,18 @@ class _QrLoginView extends StatelessWidget {
               backgroundColor: Colors.white,
             ),
           ),
-          const SizedBox(height: KugoSpacing.lg),
+          const SizedBox(height: OvertoneSpacing.lg),
           Text(
             switch (phase) {
               QrPhase.scanned => '已扫码，请在手机上确认',
               QrPhase.success => '登录成功',
               _ => '请用酷狗 App 扫码登录',
             },
-            style: kugo.body,
+            style: theme.body,
           ),
           if (phase == QrPhase.waiting) ...[
             const SizedBox(height: 8),
-            Text('每 3 秒自动检测', style: kugo.caption),
+            Text('每 3 秒自动检测', style: theme.caption),
           ],
         ],
       );
@@ -340,30 +340,30 @@ class _QrLoginView extends StatelessWidget {
     }
 
     return SmoothSingleChildScrollView(
-      padding: const EdgeInsets.all(KugoSpacing.xl),
+      padding: const EdgeInsets.all(OvertoneSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('酷狗扫码登录', style: kugo.section),
+          Text('酷狗扫码登录', style: theme.section),
           const SizedBox(height: 8),
           Text(
             '打开手机酷狗扫一扫；登录后可同步喜欢与播放地址权限',
-            style: kugo.caption,
+            style: theme.caption,
           ),
-          const SizedBox(height: KugoSpacing.xxl),
+          const SizedBox(height: OvertoneSpacing.xxl),
           Center(child: center),
-          const SizedBox(height: KugoSpacing.xl),
+          const SizedBox(height: OvertoneSpacing.xl),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: kugo.surface,
-              borderRadius: BorderRadius.circular(KugoRadius.tile),
+              color: theme.surface,
+              borderRadius: BorderRadius.circular(OvertoneRadius.tile),
             ),
             child: Text(
               '说明：登录仅走真实网关，失败不会生成假账号。\n'
               '播放公开曲目通常也需要登录态（游客通道已关闭）。',
-              style: kugo.caption.copyWith(
-                color: kugo.textTertiary,
+              style: theme.caption.copyWith(
+                color: theme.textTertiary,
                 height: 1.55,
               ),
             ),
@@ -389,14 +389,14 @@ class _StatusBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 48, color: kugo.textTertiary),
-        const SizedBox(height: KugoSpacing.md),
-        Text(message, style: kugo.caption, textAlign: TextAlign.center),
-        const SizedBox(height: KugoSpacing.lg),
+        Icon(icon, size: 48, color: theme.textTertiary),
+        const SizedBox(height: OvertoneSpacing.md),
+        Text(message, style: theme.caption, textAlign: TextAlign.center),
+        const SizedBox(height: OvertoneSpacing.lg),
         FilledButton(onPressed: onAction, child: Text(actionLabel)),
       ],
     );
@@ -420,20 +420,20 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
-      style: kugo.body,
+      style: theme.body,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: kugo.caption,
+        hintStyle: theme.caption,
         filled: true,
-        fillColor: kugo.surface,
+        fillColor: theme.surface,
         suffixIcon: suffix,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(KugoRadius.tile),
+          borderRadius: BorderRadius.circular(OvertoneRadius.tile),
           borderSide: BorderSide.none,
         ),
       ),

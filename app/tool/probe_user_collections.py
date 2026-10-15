@@ -15,15 +15,15 @@ import urllib.error
 import urllib.request
 
 TOKEN = os.environ.get(
-    "KUGO_TOKEN",
+    "OVERTONE_TOKEN",
     "4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7",
 )
-USERID = os.environ.get("KUGO_USERID", "2511133520")
+USERID = os.environ.get("OVERTONE_USERID", "2511133520")
 GUID = os.environ.get(
-    "KUGO_GUID", "2b9c607bf85a801ca492f2d95bb4e67b"
+    "OVERTONE_GUID", "2b9c607bf85a801ca492f2d95bb4e67b"
 )
-DFID = os.environ.get("KUGO_DFID", "0QeBfz1rwip04Bv9cF415aed")
-DEV = os.environ.get("KUGO_DEV", "kugoFlutter")
+DFID = os.environ.get("OVERTONE_DFID", "0QeBfz1rwip04Bv9cF415aed")
+DEV = os.environ.get("OVERTONE_DEV", "overtoneFlutter")
 
 APPID = 3116
 CLIENTVER = 11440
@@ -183,7 +183,7 @@ def main() -> None:
     )
 
     # listid filled after get_all_list if needed; try type=0 empty first
-    listid = os.environ.get("KUGO_LISTID", "0")
+    listid = os.environ.get("OVERTONE_LISTID", "0")
     post(
         "get_list_all_file_v3",
         "/v4/get_list_all_file_v3",

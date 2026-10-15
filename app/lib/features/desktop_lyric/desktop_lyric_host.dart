@@ -1,13 +1,13 @@
 import 'package:flutter/services.dart';
 
-/// 桌面歌词窗口原生操作（`kugo/desktop_lyric_host`）。
+/// 桌面歌词窗口原生操作（`overtone/desktop_lyric_host`）。
 ///
 /// 每个 Flutter 引擎（主窗 / 歌词子窗）各自绑定自己的原生窗口，
 /// **不要用 window_manager**：多引擎下它会串窗导致主窗假死。
 class DesktopLyricHost {
   DesktopLyricHost._();
 
-  static const _channel = MethodChannel('kugo/desktop_lyric_host');
+  static const _channel = MethodChannel('overtone/desktop_lyric_host');
 
   static Future<Map<Object?, Object?>> capabilities() async =>
       await _channel.invokeMethod<Map<Object?, Object?>>('getCapabilities') ??

@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../platform.dart';
-import 'kugo_tokens.dart';
+import 'overtone_tokens.dart';
 
 /// UI font family — bundled MiSans (Regular).
 ///
 /// Declared under `flutter/fonts` in pubspec.yaml so every platform gets the
 /// same face. Only Regular is shipped; heavier [FontWeight]s are synthesized.
-String? get kugoFontFamily => 'MiSans';
+String? get overtoneFontFamily => 'MiSans';
 
-/// System faces tried when [kugoFontFamily] lacks a glyph (rare CJK, emoji…).
-List<String>? get kugoFontFamilyFallback => const [
+/// System faces tried when [overtoneFontFamily] lacks a glyph (rare CJK, emoji…).
+List<String>? get overtoneFontFamilyFallback => const [
   'Segoe UI',
   'Microsoft YaHei',
   'Microsoft YaHei UI',
@@ -21,15 +21,15 @@ List<String>? get kugoFontFamilyFallback => const [
   'Noto Sans SC',
 ];
 
-/// ThemeExtension — idiomatic `KugoTheme.of(context)` access.
+/// ThemeExtension — idiomatic `OvertoneTheme.of(context)` access.
 ///
 /// Every color/style read goes through here (never a global) so widgets
 /// rebuild automatically when the theme flips. `Theme.of(context)` registers
 /// the dependency for us, which is why `const` widgets stay correct.
-class KugoTheme extends ThemeExtension<KugoTheme> {
-  const KugoTheme(this.palette);
+class OvertoneTheme extends ThemeExtension<OvertoneTheme> {
+  const OvertoneTheme(this.palette);
 
-  final KugoPalette palette;
+  final OvertonePalette palette;
 
   bool get isLight => palette.isLight;
   Color get bg => palette.bg;
@@ -52,62 +52,62 @@ class KugoTheme extends ThemeExtension<KugoTheme> {
   Color get onCoverMuted => Colors.white70;
 
   TextStyle get greeting => TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 28,
         fontWeight: FontWeight.w700,
         color: textPrimary,
         height: 1.2,
       );
   TextStyle get title => TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 22,
         fontWeight: FontWeight.w700,
         color: textPrimary,
       );
   TextStyle get section => TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: textPrimary,
       );
   TextStyle get body => TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 15,
         fontWeight: FontWeight.w500,
         color: textPrimary,
       );
   TextStyle get caption => TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: textSecondary,
       );
   TextStyle get playerTitle => TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: textPrimary,
       );
 
-  static KugoTheme of(BuildContext context) =>
-      Theme.of(context).extension<KugoTheme>() ?? fallback;
+  static OvertoneTheme of(BuildContext context) =>
+      Theme.of(context).extension<OvertoneTheme>() ?? fallback;
 
-  /// Used by widget tests / previews that build without [buildKugoTheme].
-  static const fallback = KugoTheme(KugoPalette.dark);
-
-  @override
-  KugoTheme copyWith({KugoPalette? palette}) =>
-      KugoTheme(palette ?? this.palette);
+  /// Used by widget tests / previews that build without [buildOvertoneTheme].
+  static const fallback = OvertoneTheme(OvertonePalette.dark);
 
   @override
-  KugoTheme lerp(ThemeExtension<KugoTheme>? other, double t) {
-    if (other is! KugoTheme) return this;
+  OvertoneTheme copyWith({OvertonePalette? palette}) =>
+      OvertoneTheme(palette ?? this.palette);
+
+  @override
+  OvertoneTheme lerp(ThemeExtension<OvertoneTheme>? other, double t) {
+    if (other is! OvertoneTheme) return this;
     return t < 0.5 ? this : other;
   }
 }
@@ -219,18 +219,18 @@ class _DesktopFadeThroughTransition extends StatelessWidget {
   }
 }
 
-KugoPalette kugoPaletteFor(Brightness brightness) =>
-    brightness == Brightness.light ? KugoPalette.light : KugoPalette.dark;
+OvertonePalette overtonePaletteFor(Brightness brightness) =>
+    brightness == Brightness.light ? OvertonePalette.light : OvertonePalette.dark;
 
-ThemeData buildKugoTheme(Brightness brightness) {
-  final p = kugoPaletteFor(brightness);
+ThemeData buildOvertoneTheme(Brightness brightness) {
+  final p = overtonePaletteFor(brightness);
   final isLight = brightness == Brightness.light;
 
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    fontFamily: kugoFontFamily,
-    fontFamilyFallback: kugoFontFamilyFallback,
+    fontFamily: overtoneFontFamily,
+    fontFamilyFallback: overtoneFontFamilyFallback,
     scaffoldBackgroundColor: p.bg,
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
@@ -263,7 +263,7 @@ ThemeData buildKugoTheme(Brightness brightness) {
       onInverseSurface: isLight ? Colors.white : p.bg,
       scrim: Colors.black,
     ),
-    extensions: [KugoTheme(p)],
+    extensions: [OvertoneTheme(p)],
     splashFactory: InkSparkle.splashFactory,
   );
 
@@ -275,8 +275,8 @@ ThemeData buildKugoTheme(Brightness brightness) {
       systemOverlayStyle:
           isLight ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
       titleTextStyle: TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: p.textPrimary,
@@ -311,8 +311,8 @@ ThemeData buildKugoTheme(Brightness brightness) {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: isLight ? const Color(0xFF23262E) : p.surfaceElevated,
       contentTextStyle: TextStyle(
-        fontFamily: kugoFontFamily,
-        fontFamilyFallback: kugoFontFamilyFallback,
+        fontFamily: overtoneFontFamily,
+        fontFamilyFallback: overtoneFontFamilyFallback,
         color: Colors.white,
         fontSize: 14,
       ),
@@ -331,18 +331,18 @@ ThemeData buildKugoTheme(Brightness brightness) {
         backgroundColor: p.primary,
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KugoRadius.chip),
+          borderRadius: BorderRadius.circular(OvertoneRadius.chip),
         ),
       ),
     ),
   );
 }
 
-void applyKugoSystemUi(Brightness brightness) {
+void applyOvertoneSystemUi(Brightness brightness) {
   // 桌面端没有状态栏 / 系统导航栏，SystemChrome 在 Windows 上无实现。
   if (isDesktopPlatform) return;
   final isLight = brightness == Brightness.light;
-  final p = kugoPaletteFor(brightness);
+  final p = overtonePaletteFor(brightness);
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

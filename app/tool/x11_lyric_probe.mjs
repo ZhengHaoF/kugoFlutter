@@ -104,7 +104,7 @@ try {
   const baseline = screenshot('baseline');
   child = spawn(path.resolve(binary),
     ['desktop_lyric', `--ipc-port=${server.address().port}`], {
-      env: {...process.env, KUGO_LYRIC_PROCESS:'1', KUGO_LYRIC_IPC_TOKEN:token},
+      env: {...process.env, OVERTONE_LYRIC_PROCESS:'1', OVERTONE_LYRIC_IPC_TOKEN:token},
       stdio:['ignore', 'pipe', 'pipe']
     });
   child.stdout.pipe(childLog, {end:false});
@@ -124,7 +124,7 @@ try {
   const rendered = screenshot('transparent-lyrics');
   const sample = [g.X + g.WIDTH - 10, g.Y + 10];
   const clear = pixel(baseline, ...sample) === pixel(rendered, ...sample);
-  check(clear === (process.env.KUGO_COMPOSITOR !== '0'),
+  check(clear === (process.env.OVERTONE_COMPOSITOR !== '0'),
     clear ? 'transparent pixels reveal underlying window' : 'no-compositor card fallback');
   snapshot({isPlaying:true, positionMs:500});
   await wait(1000);

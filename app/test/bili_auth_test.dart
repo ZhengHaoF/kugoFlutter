@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/core/api/bili/bili_qr_login.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/data/sources/bili/bili_source.dart';
-import 'package:kugo/data/storage/bili_auth_store.dart';
-import 'package:kugo/data/storage/credential_store.dart';
-import 'package:kugo/features/auth/bili_login_controller.dart';
-import 'package:kugo/features/auth/bili_login_page.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/core/api/bili/bili_qr_login.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/data/sources/bili/bili_source.dart';
+import 'package:overtone/data/storage/bili_auth_store.dart';
+import 'package:overtone/data/storage/credential_store.dart';
+import 'package:overtone/features/auth/bili_login_controller.dart';
+import 'package:overtone/features/auth/bili_login_page.dart';
 
 class FakeClient extends BiliClient {
   FakeClient() : super(dio: Dio());

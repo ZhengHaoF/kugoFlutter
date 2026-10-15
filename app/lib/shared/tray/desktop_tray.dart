@@ -108,7 +108,7 @@ class DesktopTray with TrayListener implements TrayPort {
     await trayManager.setIcon(resolveTrayIconPath());
     _iconCreated = true;
     if (DesktopCapabilities.current.trayTooltip) {
-      await trayManager.setToolTip('kugo');
+      await trayManager.setToolTip('泛音');
     }
     trayManager.addListener(this);
     await _rebuildMenu();

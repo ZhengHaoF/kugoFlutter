@@ -3,9 +3,9 @@ import 'dart:io' show ZLibEncoder;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/utils/krc_parser.dart';
-import 'package:kugo/core/utils/lrc_parser.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/utils/krc_parser.dart';
+import 'package:overtone/core/utils/lrc_parser.dart';
 
 /// Build a `krc1` container the way Kugou download returns it.
 Uint8List packKrc(String plain) {

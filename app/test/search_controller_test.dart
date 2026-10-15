@@ -1,15 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/kugo_client.dart';
-import 'package:kugo/core/models/search_result.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
-import 'package:kugo/data/sources/kugou/kugou_source.dart';
-import 'package:kugo/features/search/search_controller.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
+import 'package:overtone/core/api/kugou/kugou_client.dart';
+import 'package:overtone/core/models/search_result.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/data/repositories/search_repository.dart';
+import 'package:overtone/data/sources/kugou/kugou_source.dart';
+import 'package:overtone/features/search/search_controller.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
 
 /// Records every call and serves scripted pages so we can assert on
 /// laziness / per-tab pagination without touching the network.
@@ -168,7 +168,7 @@ class _GatewayBlockedRepo extends _RecordingRepo {
     int page = 1,
     int pageSize = 30,
   }) async {
-    throw KugoApiException('网络网关拦截（URL过滤），无法访问酷狗接口', filtered: true);
+    throw KugouApiException('网络网关拦截（URL过滤），无法访问酷狗接口', filtered: true);
   }
 }
 

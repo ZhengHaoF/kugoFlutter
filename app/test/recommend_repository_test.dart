@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/repositories/recommend_repository.dart';
+import 'package:overtone/data/repositories/recommend_repository.dart';
 
 /// 每日推荐的「今日心情」：按一年中的第几天从固定池里取一个标签。
 ///

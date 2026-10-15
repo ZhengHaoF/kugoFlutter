@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/track.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
-import '../../data/storage/kugo_db.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../data/storage/overtone_db.dart';
 import '../../data/storage/queue_store.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
@@ -186,7 +186,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final filteredTracks = _getFilteredTracks();
 
@@ -196,10 +196,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                style: kugo.body,
+                style: theme.body,
                 decoration: InputDecoration(
                   hintText: '搜索历史歌曲、歌手...',
-                  hintStyle: kugo.caption,
+                  hintStyle: theme.caption,
                   border: InputBorder.none,
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -250,8 +250,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 // Tab selector
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: KugoSpacing.lg,
-                    vertical: KugoSpacing.xs,
+                    horizontal: OvertoneSpacing.lg,
+                    vertical: OvertoneSpacing.xs,
                   ),
                   child: SizedBox(
                     width: double.infinity,
@@ -282,11 +282,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: KugoSpacing.xs),
+                const SizedBox(height: OvertoneSpacing.xs),
                 Expanded(
                   child: _selectedTab == 0
-                      ? _buildRecordsTab(kugo, player, filteredTracks)
-                      : _buildStatsTab(kugo),
+                      ? _buildRecordsTab(theme, player, filteredTracks)
+                      : _buildStatsTab(theme),
                 ),
               ],
             ),
@@ -294,7 +294,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
   }
 
   Widget _buildRecordsTab(
-    KugoTheme kugo,
+    OvertoneTheme theme,
     PlayerState player,
     List<Track> filteredTracks,
   ) {
@@ -327,10 +327,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.sm,
-            KugoSpacing.lg,
-            KugoSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.sm,
           ),
           child: Row(
             children: [
@@ -338,7 +338,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 _searchQuery.isNotEmpty
                     ? '找到 ${filteredTracks.length} 首 / 共 ${_entries.length} 首'
                     : '共 ${filteredTracks.length} 首',
-                style: kugo.caption,
+                style: theme.caption,
               ),
               const Spacer(),
               FilledButton.icon(
@@ -388,7 +388,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       icon: Icon(
                         Icons.close_rounded,
                         size: 18,
-                        color: kugo.textSecondary.withValues(alpha: 0.6),
+                        color: theme.textSecondary.withValues(alpha: 0.6),
                       ),
                       tooltip: '从历史移除',
                       onPressed: requestRemove,
@@ -410,7 +410,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
     );
   }
 
-  Widget _buildStatsTab(KugoTheme kugo) {
+  Widget _buildStatsTab(OvertoneTheme theme) {
     if (_entries.isEmpty) {
       return AsyncBody(
         loading: false,
@@ -481,10 +481,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
 
     return SmoothListView(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.md,
-        KugoSpacing.lg,
-        KugoSpacing.xxl,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.md,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.xxl,
       ),
       children: [
         // Metric Cards
@@ -493,29 +493,29 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             Expanded(
               child: _MetricCard(
                 icon: Icons.music_note_rounded,
-                color: kugo.primary,
+                color: theme.primary,
                 label: '历史曲目',
                 value: '$totalSongs 首',
               ),
             ),
-            const SizedBox(width: KugoSpacing.md),
+            const SizedBox(width: OvertoneSpacing.md),
             Expanded(
               child: _MetricCard(
                 icon: Icons.access_time_rounded,
                 // 原来是写死的 0xFF5B7CFF（深色主题的 primary），浅色下是一块
                 // 深蓝压在浅底卡片上；这里跟着当前调色板走。
-                color: kugo.primary,
+                color: theme.primary,
                 label: '预估时长',
                 value: durationText,
               ),
             ),
           ],
         ),
-        const SizedBox(height: KugoSpacing.lg),
+        const SizedBox(height: OvertoneSpacing.lg),
 
         // 7-day activity bar chart
         GlassSurface(
-          padding: const EdgeInsets.all(KugoSpacing.lg),
+          padding: const EdgeInsets.all(OvertoneSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -524,13 +524,13 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   Icon(
                     Icons.calendar_today_rounded,
                     size: 16,
-                    color: kugo.primary,
+                    color: theme.primary,
                   ),
                   const SizedBox(width: 8),
-                  Text('近 7 天听歌频次', style: kugo.section.copyWith(fontSize: 16)),
+                  Text('近 7 天听歌频次', style: theme.section.copyWith(fontSize: 16)),
                 ],
               ),
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               SizedBox(
                 height: 120,
                 child: Row(
@@ -551,11 +551,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                 children: [
                                   Text(
                                     '${dailyCounts[i]}',
-                                    style: kugo.caption.copyWith(
+                                    style: theme.caption.copyWith(
                                       fontSize: 10,
                                       color: dailyCounts[i] > 0
-                                          ? kugo.primary
-                                          : kugo.textSecondary.withValues(
+                                          ? theme.primary
+                                          : theme.textSecondary.withValues(
                                               alpha: 0.5,
                                             ),
                                     ),
@@ -566,10 +566,10 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                         .clamp(4.0, 70.0),
                                     decoration: BoxDecoration(
                                       gradient: dailyCounts[i] > 0
-                                          ? kugo.accentGradient
+                                          ? theme.accentGradient
                                           : null,
                                       color: dailyCounts[i] == 0
-                                          ? kugo.surfaceElevated
+                                          ? theme.surfaceElevated
                                           : null,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
@@ -577,7 +577,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                   const SizedBox(height: 6),
                                   Text(
                                     dayLabels[i],
-                                    style: kugo.caption.copyWith(fontSize: 10),
+                                    style: theme.caption.copyWith(fontSize: 10),
                                   ),
                                 ],
                               ),
@@ -591,11 +591,11 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             ],
           ),
         ),
-        const SizedBox(height: KugoSpacing.lg),
+        const SizedBox(height: OvertoneSpacing.lg),
 
         // Time of Day distribution
         GlassSurface(
-          padding: const EdgeInsets.all(KugoSpacing.lg),
+          padding: const EdgeInsets.all(OvertoneSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -604,13 +604,13 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   Icon(
                     Icons.wb_twilight_rounded,
                     size: 16,
-                    color: kugo.primary,
+                    color: theme.primary,
                   ),
                   const SizedBox(width: 8),
-                  Text('听歌时段偏好', style: kugo.section.copyWith(fontSize: 16)),
+                  Text('听歌时段偏好', style: theme.section.copyWith(fontSize: 16)),
                 ],
               ),
-              const SizedBox(height: KugoSpacing.md),
+              const SizedBox(height: OvertoneSpacing.md),
               _TimeBucketRow(
                 icon: Icons.nightlight_round,
                 label: '凌晨 (00:00 - 05:59)',
@@ -618,7 +618,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 total: totalSongs,
                 color: const Color(0xFF8B7CF6),
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               _TimeBucketRow(
                 icon: Icons.wb_sunny_rounded,
                 label: '上午 (06:00 - 11:59)',
@@ -626,7 +626,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 total: totalSongs,
                 color: const Color(0xFFE8B86D),
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               _TimeBucketRow(
                 icon: Icons.wb_cloudy_rounded,
                 label: '下午 (12:00 - 17:59)',
@@ -634,7 +634,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 total: totalSongs,
                 color: const Color(0xFF5BB8A8),
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               _TimeBucketRow(
                 icon: Icons.dark_mode_rounded,
                 label: '夜晚 (18:00 - 23:59)',
@@ -645,12 +645,12 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             ],
           ),
         ),
-        const SizedBox(height: KugoSpacing.lg),
+        const SizedBox(height: OvertoneSpacing.lg),
 
         // Top Artists
         if (topArtistsList.isNotEmpty)
           GlassSurface(
-            padding: const EdgeInsets.all(KugoSpacing.lg),
+            padding: const EdgeInsets.all(OvertoneSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -659,16 +659,16 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     Icon(
                       Icons.person_pin_rounded,
                       size: 16,
-                      color: kugo.primary,
+                      color: theme.primary,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       '常听歌手 TOP 榜',
-                      style: kugo.section.copyWith(fontSize: 16),
+                      style: theme.section.copyWith(fontSize: 16),
                     ),
                   ],
                 ),
-                const SizedBox(height: KugoSpacing.md),
+                const SizedBox(height: OvertoneSpacing.md),
                 for (int i = 0; i < topArtistsList.length; i++) ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -685,7 +685,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                 ? const Color(0xFFC0C0C0).withValues(alpha: 0.2)
                                 : i == 2
                                 ? const Color(0xFFCD7F32).withValues(alpha: 0.2)
-                                : kugo.surfaceElevated,
+                                : theme.surfaceElevated,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -699,15 +699,15 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                                   ? const Color(0xFF9E9E9E)
                                   : i == 2
                                   ? const Color(0xFFB87333)
-                                  : kugo.textSecondary,
+                                  : theme.textSecondary,
                             ),
                           ),
                         ),
-                        const SizedBox(width: KugoSpacing.md),
+                        const SizedBox(width: OvertoneSpacing.md),
                         Expanded(
                           child: Text(
                             topArtistsList[i].key,
-                            style: kugo.body.copyWith(
+                            style: theme.body.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
@@ -716,7 +716,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                         ),
                         Text(
                           '${topArtistsList[i].value} 次',
-                          style: kugo.caption,
+                          style: theme.caption,
                         ),
                       ],
                     ),
@@ -724,7 +724,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                   if (i < topArtistsList.length - 1)
                     Divider(
                       height: 1,
-                      color: kugo.divider.withValues(alpha: 0.3),
+                      color: theme.divider.withValues(alpha: 0.3),
                     ),
                 ],
               ],
@@ -750,9 +750,9 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.md),
+      padding: const EdgeInsets.all(OvertoneSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -767,13 +767,13 @@ class _MetricCard extends StatelessWidget {
                 child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 8),
-              Text(label, style: kugo.caption),
+              Text(label, style: theme.caption),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             value,
-            style: kugo.title.copyWith(fontSize: 18),
+            style: theme.title.copyWith(fontSize: 18),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -800,7 +800,7 @@ class _TimeBucketRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final ratio = total > 0 ? (count / total).clamp(0.0, 1.0) : 0.0;
     final percent = (ratio * 100).toStringAsFixed(0);
 
@@ -811,9 +811,9 @@ class _TimeBucketRow extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 6),
-            Text(label, style: kugo.caption),
+            Text(label, style: theme.caption),
             const Spacer(),
-            Text('$count 首 ($percent%)', style: kugo.caption),
+            Text('$count 首 ($percent%)', style: theme.caption),
           ],
         ),
         const SizedBox(height: 6),
@@ -821,7 +821,7 @@ class _TimeBucketRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: ratio,
-            backgroundColor: kugo.surfaceElevated,
+            backgroundColor: theme.surfaceElevated,
             valueColor: AlwaysStoppedAnimation<Color>(color),
             minHeight: 6,
           ),

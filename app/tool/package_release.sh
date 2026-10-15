@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $# -eq 2 ]] || { echo "Usage: $0 <artifact-input-directory> <release-output-directory>" >&2; exit 64; }
-: "${KUGO_VERSION:?Missing release version}"
-: "${KUGO_BUILD_NUMBER:?Missing build number}"
+: "${OVERTONE_VERSION:?Missing release version}"
+: "${OVERTONE_BUILD_NUMBER:?Missing build number}"
 : "${GITHUB_SHA:?Missing source commit}"
 : "${GITHUB_REPOSITORY:?Missing repository}"
 : "${GITHUB_RUN_ID:?Missing workflow run}"
 : "${GITHUB_SERVER_URL:?Missing server}"
-[[ "$KUGO_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "Invalid release version" >&2; exit 1; }
-[[ "$KUGO_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid build number" >&2; exit 1; }
+[[ "$OVERTONE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "Invalid release version" >&2; exit 1; }
+[[ "$OVERTONE_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid build number" >&2; exit 1; }
 [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "Invalid commit" >&2; exit 1; }
 input="$(cd "$1" && pwd)"
 mkdir -p "$2"
 output="$(cd "$2" && pwd)"
 run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-installer="kugo-$KUGO_VERSION-windows-x64-setup.exe"
-portable="kugo-$KUGO_VERSION-windows-x64-portable.zip"
+installer="overtone-$OVERTONE_VERSION-windows-x64-setup.exe"
+portable="overtone-$OVERTONE_VERSION-windows-x64-portable.zip"
 android_files=()
 required=(
   android/SIGNING.txt android/BUILD-INFO.txt
   windows/BUILD-INFO.txt windows/INSTALLER-TEST.txt
   "windows/installer/$installer"
-  windows/portable/kugo.exe windows/portable/flutter_windows.dll windows/portable/libmpv-2.dll
+  windows/portable/overtone.exe windows/portable/flutter_windows.dll windows/portable/libmpv-2.dll
   windows/portable/data/app.so windows/portable/data/icudtl.dat
   windows/portable/data/flutter_assets/AssetManifest.bin
   windows/portable/BUILD-INFO.txt windows/portable/NATIVE-CREDENTIALS.txt
 )
 for abi in armeabi-v7a arm64-v8a x86_64; do
-  apk="kugo-$KUGO_VERSION-android-$abi.apk"
+  apk="overtone-$OVERTONE_VERSION-android-$abi.apk"
   android_files+=("$apk")
   required+=("android/$apk")
 done
@@ -37,7 +37,7 @@ done
 for platform in android windows; do
   [[ -s "$input/$platform/SHA256SUMS.txt" ]] || { echo "Missing checksums: $platform" >&2; exit 1; }
   info="$input/$platform/BUILD-INFO.txt"
-  for line in "version=$KUGO_VERSION" "build=$KUGO_BUILD_NUMBER" "commit=$GITHUB_SHA" "run=$run_url"; do
+  for line in "version=$OVERTONE_VERSION" "build=$OVERTONE_BUILD_NUMBER" "commit=$GITHUB_SHA" "run=$run_url"; do
     tr -d '\r' < "$info" | rg -Fx "$line" >/dev/null || { echo "Artifact identity mismatch: $platform ($line)" >&2; exit 1; }
   done
   (
@@ -82,20 +82,20 @@ cp "$input/android/SIGNING.txt" "$output/ANDROID-SIGNING.txt"
   zip -q -r "$output/$portable" .
 )
 unzip -tq "$output/$portable"
-printf 'kugo Release\nversion=%s\nbuild=%s\ncommit=%s\nrun=%s\nAndroid: production key, armeabi-v7a/arm64-v8a/x86_64.\nWindows: x64 installer and portable bundle; Authenticode unsigned.\nActual-device and real-account acceptance remains pending.\n' \
-  "$KUGO_VERSION" "$KUGO_BUILD_NUMBER" "$GITHUB_SHA" "$run_url" > "$output/BUILD-INFO.txt"
+printf 'overtone Release\nversion=%s\nbuild=%s\ncommit=%s\nrun=%s\nAndroid: production key, armeabi-v7a/arm64-v8a/x86_64.\nWindows: x64 installer and portable bundle; Authenticode unsigned.\nActual-device and real-account acceptance remains pending.\n' \
+  "$OVERTONE_VERSION" "$OVERTONE_BUILD_NUMBER" "$GITHUB_SHA" "$run_url" > "$output/BUILD-INFO.txt"
 (
   cd "$output"
   sha256sum "${android_files[@]}" "$installer" "$portable" ANDROID-SIGNING.txt BUILD-INFO.txt > SHA256SUMS.txt
   sha256sum --strict -c SHA256SUMS.txt
 )
 cat <<EOF > "$output/RELEASE-NOTES.md"
-# kugo $KUGO_VERSION
+# overtone $OVERTONE_VERSION
 
-Release 模式发布包，构建编号 $KUGO_BUILD_NUMBER，源码 \`$GITHUB_SHA\`。
+Release 模式发布包，构建编号 $OVERTONE_BUILD_NUMBER，源码 \`$GITHUB_SHA\`。
 
 - Android：按设备 CPU 下载 \`armeabi-v7a\`（ARM 32 位）、\`arm64-v8a\`（ARM 64 位）或 \`x86_64\` APK。最低 Android 7.0 / API 24。所有 APK 经过签名验证，使用同一正式密钥，证书指纹见 ANDROID-SIGNING.txt；架构与拆包规则见 [Flutter 官方文档](https://docs.flutter.dev/deployment/android)。
-- Windows x64：\`$installer\` 为当前用户安装程序，含快捷方式及卸载；\`$portable\` 为完整绿色目录，解压后运行 kugo.exe，不要丢弃 DLL 和 data/。
+- Windows x64：\`$installer\` 为当前用户安装程序，含快捷方式及卸载；\`$portable\` 为完整绿色目录，解压后运行 overtone.exe，不要丢弃 DLL 和 data/。
 - Windows 安装程序及程序目前没有 Authenticode 代码签名，可能出现 SmartScreen 提示；Release 模式不等于已取得代码签名或商店认证，提示机制见 [Microsoft 说明](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)。
 - 请使用 SHA256SUMS.txt 核对下载文件。旧测试版 Android 的 debug 签名与正式签名不同，可能无法覆盖安装，不要为安装新包贸然卸载有数据的旧应用。
 - 真实账号、设备播放、长时运行仍需验收；CI 安装和原生探针不等同于真机验收。不提供 Linux 包。

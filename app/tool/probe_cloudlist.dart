@@ -8,8 +8,8 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:encrypt/encrypt.dart' as encrypt_pkg;
 
-import '../lib/core/api/kugou/kugo_crypto.dart';
-import '../lib/core/api/kugou/kugo_sign.dart';
+import '../lib/core/api/kugou/kugou_crypto.dart';
+import '../lib/core/api/kugou/kugou_sign.dart';
 
 const token =
     '4a02e46fe7546861f9db29c410801e32fa2680b2a90cb991468660db572d54f7';
@@ -35,7 +35,7 @@ Uint8List aesCbcRaw(String plain, String key16, String iv16) {
 }
 
 Future<void> main() async {
-  final mid = KugoSign.calculateMid(guid);
+  final mid = KugouSign.calculateMid(guid);
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 12),
@@ -45,7 +45,7 @@ Future<void> main() async {
     ),
   );
 
-  const litePem = KugoCrypto.liteRsaPem;
+  const litePem = KugouCrypto.liteRsaPem;
   const defaultPem = '''
 -----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HXqTW6lQ7LC8jr9fWZTwusknp+sVGzwd40MwP6U5yDE27M/X1+UR4tvOGOqp94TJtQ1EPnWGWXngpeIW5GxoQGao1rmYWAu6oi1z9XkChrsUdC6DJE5E221wf/4WLFxwAtRQIDAQAB
@@ -60,7 +60,7 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HX
     bool uidAsString = true,
   }) async {
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final aesSession = KugoCrypto.randomAlnum(6, lower: true);
+    final aesSession = KugouCrypto.randomAlnum(6, lower: true);
     final digest = md5Hex(aesSession);
     final aesKey = digest.substring(0, 16);
     final aesIv = digest.substring(16, 32);
@@ -70,7 +70,7 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HX
       'uid': uidAsString ? userId : int.parse(userId),
       'token': token,
     });
-    final p = KugoCrypto.rsaEncryptPkcs1(portraitPlain, pem: pem).toUpperCase();
+    final p = KugouCrypto.rsaEncryptPkcs1(portraitPlain, pem: pem).toUpperCase();
     final dataMap = <String, dynamic>{
       'userid': uidAsString ? userId : int.parse(userId),
       'token': token,
@@ -100,14 +100,14 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HX
       'kg-thash': '5d816a0',
       'kg-rec': '1',
       'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
-      'User-Agent': KugoSign.userAgent,
+      'User-Agent': KugouSign.userAgent,
       'Cookie': [
         'token=$token',
         'userid=$userId',
         'dfid=$dfid',
         'KUGOU_API_MID=$mid',
         'KUGOU_API_GUID=$guid',
-        'KUGOU_API_DEV=kugoFlutter',
+        'KUGOU_API_DEV=overtoneFlutter',
       ].join(';'),
     };
     try {

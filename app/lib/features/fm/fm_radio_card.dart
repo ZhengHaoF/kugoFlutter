@@ -6,11 +6,11 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import '../../core/models/fm_mode.dart';
 import '../../core/models/track.dart';
 import '../../core/source/music_platform.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../shared/widgets/cover_box.dart';
-import '../../shared/widgets/kugo_clickable.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_clickable.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 
 /// 私人 FM 的视觉件：电台卡 / 黑胶舞台 / 信息 chip / 来源标注 / 胶囊开关。
 ///
@@ -182,7 +182,7 @@ class FmStage extends StatelessWidget {
 class FmRadioCard extends StatelessWidget {
   const FmRadioCard({
     super.key,
-    required this.kugo,
+    required this.theme,
     required this.accent,
     required this.mode,
     required this.pool,
@@ -201,7 +201,7 @@ class FmRadioCard extends StatelessWidget {
     this.actionsEnabled = true,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
 
   /// 封面取色，只用于黑胶盘的光晕，不参与卡面（卡面用主题主色，保持可预期）。
   final Color accent;
@@ -236,7 +236,7 @@ class FmRadioCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color mix(double t) =>
-        Color.alphaBlend(kugo.primary.withValues(alpha: t), kCardBase);
+        Color.alphaBlend(theme.primary.withValues(alpha: t), kCardBase);
 
     // 电台名 = 档位名（酷狗）/ 显式传入（网易）。有档位轴时大标题就是档位名，
     // 无档位轴时大标题让给当前曲名，顶部标签挂电台名。
@@ -298,7 +298,7 @@ class FmRadioCard extends StatelessWidget {
                           center: const Alignment(-0.68, -0.64),
                           radius: 1.15,
                           colors: [
-                            kugo.primary.withValues(alpha: 0.22),
+                            theme.primary.withValues(alpha: 0.22),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.5],
@@ -315,7 +315,7 @@ class FmRadioCard extends StatelessWidget {
                         children: [
                           if (showModeAxis)
                             FmCapsuleSwitch<FmMode>(
-                              kugo: kugo,
+                              theme: theme,
                               values: FmMode.values,
                               labelOf: (m) => m.label,
                               selected: mode,
@@ -333,7 +333,7 @@ class FmRadioCard extends StatelessWidget {
                                 headline,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: kugo.greeting.copyWith(
+                                style: theme.greeting.copyWith(
                                   color: Colors.white,
                                   fontSize: titleSize,
                                   fontWeight: FontWeight.w800,
@@ -346,7 +346,7 @@ class FmRadioCard extends StatelessWidget {
                                 caption,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: kugo.caption.copyWith(
+                                style: theme.caption.copyWith(
                                   color: Colors.white70,
                                   fontSize: captionSize,
                                   fontWeight: FontWeight.w600,
@@ -424,7 +424,7 @@ class _FmStationTag extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
+        borderRadius: BorderRadius.circular(OvertoneRadius.chip),
       ),
       child: Text(
         label,
@@ -563,7 +563,7 @@ class _OneStepSnapPhysics extends ClampingScrollPhysics {
 class FmVinylCarousel extends StatefulWidget {
   const FmVinylCarousel({
     super.key,
-    required this.kugo,
+    required this.theme,
     required this.accent,
     required this.spin,
     required this.tracks,
@@ -577,7 +577,7 @@ class FmVinylCarousel extends StatefulWidget {
     double? height,
   }) : height = height ?? discSize;
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final Color accent;
   final AnimationController spin;
   final List<Track> tracks;
@@ -755,7 +755,7 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
       coverUrl: coverUrl,
       size: widget.discSize,
       accent: isCurrent ? widget.accent : Colors.transparent,
-      kugo: widget.kugo,
+      theme: widget.theme,
       onTap: () => _handleTap(index),
       isCurrent: isCurrent,
       ghost: false,
@@ -795,9 +795,9 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
           // 能不用拖拽翻盘的方式）。raw 模式绕开 silky：它的
           // SilkyScrollPosition 会吞掉 mouse 的 pointerScroll，_OneStepSnapPhysics
           // 的「甩动后吸附」会断链。
-          return KugoHScroll(
+          return OvertoneHScroll(
             controller: _scrollController,
-            wheelMode: KugoHWheelMode.raw,
+            wheelMode: OvertoneHWheelMode.raw,
             builder: (context, controller, _) => NotificationListener<ScrollNotification>(
               onNotification: _onScrollNotification,
               child: ListView.builder(
@@ -847,7 +847,7 @@ class _FmVinylCarouselState extends State<FmVinylCarousel> {
 class FmVinylStage extends StatelessWidget {
   const FmVinylStage({
     super.key,
-    required this.kugo,
+    required this.theme,
     required this.accent,
     required this.spin,
     required this.coverUrl,
@@ -863,7 +863,7 @@ class FmVinylStage extends StatelessWidget {
     double? height,
   }) : height = height ?? discSize;
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final Color accent;
   final AnimationController spin;
   final String coverUrl;
@@ -902,7 +902,7 @@ class FmVinylStage extends StatelessWidget {
                 coverUrl: coverUrl,
                 size: discSize,
                 accent: accent,
-                kugo: kugo,
+                theme: theme,
                 onTap: onTapCurrent,
                 isCurrent: true,
               ),
@@ -914,7 +914,7 @@ class FmVinylStage extends StatelessWidget {
                   coverUrl: upcoming[i].coverUrl,
                   size: discSize,
                   accent: Colors.transparent,
-                  kugo: kugo,
+                  theme: theme,
                   onTap: () => onPick(upcoming[i]),
                 )
               else if (showGhosts)
@@ -922,7 +922,7 @@ class FmVinylStage extends StatelessWidget {
                   coverUrl: '',
                   size: discSize,
                   accent: Colors.transparent,
-                  kugo: kugo,
+                  theme: theme,
                   onTap: () {},
                   ghost: true,
                 )
@@ -944,7 +944,7 @@ class _Vinyl extends StatefulWidget {
     required this.coverUrl,
     required this.size,
     required this.accent,
-    required this.kugo,
+    required this.theme,
     required this.onTap,
     this.isCurrent = false,
     this.ghost = false,
@@ -953,7 +953,7 @@ class _Vinyl extends StatefulWidget {
   final String coverUrl;
   final double size;
   final Color accent;
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final VoidCallback onTap;
   final bool isCurrent;
   final bool ghost;
@@ -967,7 +967,7 @@ class _VinylState extends State<_Vinyl> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = widget.kugo;
+    final theme = widget.theme;
     final size = widget.size;
     final rim = math.max(5.0, size * 0.045);
 
@@ -978,17 +978,17 @@ class _VinylState extends State<_Vinyl> {
         child: DecoratedBox(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: kugo.isLight
-                ? kugo.surfaceElevated
+            color: theme.isLight
+                ? theme.surfaceElevated
                 : Colors.white.withValues(alpha: 0.05),
             border: Border.all(
-              color: kugo.textTertiary.withValues(
-                alpha: kugo.isLight ? 0.28 : 0.34,
+              color: theme.textTertiary.withValues(
+                alpha: theme.isLight ? 0.28 : 0.34,
               ),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: kugo.isLight ? 0.05 : 0.28),
+                color: Colors.black.withValues(alpha: theme.isLight ? 0.05 : 0.28),
                 blurRadius: 28,
                 offset: const Offset(0, 12),
               ),
@@ -997,7 +997,7 @@ class _VinylState extends State<_Vinyl> {
           child: Icon(
             Icons.album_outlined,
             size: size * 0.26,
-            color: kugo.textTertiary.withValues(alpha: 0.5),
+            color: theme.textTertiary.withValues(alpha: 0.5),
           ),
         ),
       );
@@ -1005,7 +1005,7 @@ class _VinylState extends State<_Vinyl> {
 
     final accent = widget.accent;
     final hasAccent = widget.isCurrent && accent != Colors.transparent;
-    final isLight = kugo.isLight;
+    final isLight = theme.isLight;
     // 盘身：浅色页是标准黑胶（近黑，跟浅底拉开）；深色页抬到石墨蓝。
     // 旧值 #1C1C22 → #08080C 在深色页和 bg #0B0E14 同处一个暗区，盘沿、纹路、
     // 投影全「溶」进背景 —— 只剩封面在飘。深色页必须靠盘身本身立起来。
@@ -1263,7 +1263,7 @@ class _CardAction extends StatelessWidget {
       opacity: enabled ? 1 : 0.4,
       child: Tooltip(
         message: tooltip,
-        child: KugoClickable(
+        child: OvertoneClickable(
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(size / 2),
           child: Container(
@@ -1300,7 +1300,7 @@ class _CardPlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return GestureDetector(
       onTap: loading ? null : onTap,
       child: Container(
@@ -1308,10 +1308,10 @@ class _CardPlayButton extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: kugo.primary,
+          color: theme.primary,
           boxShadow: [
             BoxShadow(
-              color: kugo.primary.withValues(alpha: 0.35),
+              color: theme.primary.withValues(alpha: 0.35),
               blurRadius: size * 0.55,
               offset: const Offset(0, 10),
             ),
@@ -1342,12 +1342,12 @@ class _CardPlayButton extends StatelessWidget {
 class FmInfoChips extends StatelessWidget {
   const FmInfoChips({
     super.key,
-    required this.kugo,
+    required this.theme,
     this.track,
     this.center = true,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final Track? track;
 
   /// 面板里左对齐，移动端正中。
@@ -1366,21 +1366,21 @@ class FmInfoChips extends StatelessWidget {
     if (items.isEmpty) return const SizedBox.shrink();
     return Wrap(
       alignment: center ? WrapAlignment.center : WrapAlignment.start,
-      spacing: KugoSpacing.sm,
-      runSpacing: KugoSpacing.xs,
+      spacing: OvertoneSpacing.sm,
+      runSpacing: OvertoneSpacing.xs,
       children: [
         for (final item in items)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: kugo.surfaceElevated,
-              borderRadius: BorderRadius.circular(KugoRadius.chip),
-              border: Border.all(color: kugo.divider),
+              color: theme.surfaceElevated,
+              borderRadius: BorderRadius.circular(OvertoneRadius.chip),
+              border: Border.all(color: theme.divider),
             ),
             child: Text(
               item,
-              style: kugo.caption.copyWith(
-                color: kugo.textSecondary,
+              style: theme.caption.copyWith(
+                color: theme.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -1395,7 +1395,7 @@ class FmInfoChips extends StatelessWidget {
 class FmSourceBadge extends StatelessWidget {
   const FmSourceBadge({
     super.key,
-    required this.kugo,
+    required this.theme,
     required this.platform,
     required this.fromServer,
     required this.gatewayError,
@@ -1405,7 +1405,7 @@ class FmSourceBadge extends StatelessWidget {
     this.textAlign = TextAlign.center,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
 
   /// 当前会话音源（角标要能看出歌是哪个源给的）。
   final MusicPlatform platform;
@@ -1436,7 +1436,7 @@ class FmSourceBadge extends StatelessWidget {
       text,
       textAlign: textAlign,
       maxLines: 2,
-      style: kugo.caption.copyWith(color: kugo.textTertiary, fontSize: 11),
+      style: theme.caption.copyWith(color: theme.textTertiary, fontSize: 11),
     );
   }
 }
@@ -1445,7 +1445,7 @@ class FmSourceBadge extends StatelessWidget {
 class FmCapsuleSwitch<T> extends StatelessWidget {
   const FmCapsuleSwitch({
     super.key,
-    required this.kugo,
+    required this.theme,
     required this.values,
     required this.labelOf,
     required this.selected,
@@ -1454,7 +1454,7 @@ class FmCapsuleSwitch<T> extends StatelessWidget {
     this.onDarkSurface = false,
   });
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
   final List<T> values;
   final String Function(T) labelOf;
   final T selected;
@@ -1469,17 +1469,17 @@ class FmCapsuleSwitch<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final background = onDarkSurface
         ? Colors.white.withValues(alpha: 0.14)
-        : kugo.surfaceElevated.withValues(alpha: 0.9);
-    final foreground = onDarkSurface ? Colors.white70 : kugo.textSecondary;
+        : theme.surfaceElevated.withValues(alpha: 0.9);
+    final foreground = onDarkSurface ? Colors.white70 : theme.textSecondary;
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
+        borderRadius: BorderRadius.circular(OvertoneRadius.chip),
         border: Border.all(
           color: onDarkSurface
               ? Colors.white.withValues(alpha: 0.06)
-              : kugo.divider,
+              : theme.divider,
         ),
       ),
       child: Row(
@@ -1498,15 +1498,15 @@ class FmCapsuleSwitch<T> extends StatelessWidget {
                   color: value == selected
                       ? (onDarkSurface
                             ? Colors.white.withValues(alpha: 0.22)
-                            : kugo.primary)
+                            : theme.primary)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(KugoRadius.chip),
+                  borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                 ),
                 child: Text(
                   labelOf(value),
-                  style: kugo.caption.copyWith(
+                  style: theme.caption.copyWith(
                     color: value == selected
-                        ? (onDarkSurface ? Colors.white : kugo.onAccent)
+                        ? (onDarkSurface ? Colors.white : theme.onAccent)
                         : foreground,
                     fontWeight: value == selected
                         ? FontWeight.w700

@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/playback_source.dart';
 import '../../core/platform.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../features/desktop_lyric/desktop_lyric_bridge.dart';
 import '../../features/fm/fm_controller.dart';
 import '../../features/likes/likes_controller.dart';
@@ -65,7 +65,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final controller = ref.read(playerControllerProvider.notifier);
     final track = player.current;
@@ -78,9 +78,9 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
     return Container(
       height: 76,
       decoration: BoxDecoration(
-        color: kugo.surface,
+        color: theme.surface,
         border: Border(
-          top: BorderSide(color: kugo.divider, width: 1),
+          top: BorderSide(color: theme.divider, width: 1),
         ),
         boxShadow: [
           BoxShadow(
@@ -103,16 +103,16 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: kugo.surfaceElevated,
+                          color: theme.surfaceElevated,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.music_note_rounded,
-                          color: kugo.textTertiary,
+                          color: theme.textTertiary,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text('暂无播放音乐', style: kugo.caption),
+                      Text('暂无播放音乐', style: theme.caption),
                     ],
                   )
                 : Row(
@@ -173,7 +173,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                                   track.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: kugo.body.copyWith(
+                                  style: theme.body.copyWith(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                     height: 1.2,
@@ -192,7 +192,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                                   track.artist,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: kugo.caption.copyWith(
+                                  style: theme.caption.copyWith(
                                     fontSize: 12,
                                     height: 1.2,
                                   ),
@@ -213,7 +213,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                             ref.read(likesProvider.notifier).toggle(track),
                         size: 20,
                         activeColor: Colors.redAccent,
-                        inactiveColor: kugo.textTertiary,
+                        inactiveColor: theme.textTertiary,
                       ),
                     ],
                   ),
@@ -233,7 +233,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // 循环模式
-                        _buildLoopModeButton(player, controller, kugo),
+                        _buildLoopModeButton(player, controller, theme),
                         const SizedBox(width: 8),
 
                         // 上一首
@@ -245,8 +245,8 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                               player.canStepBack ? () => controller.previous() : null,
                           icon: const Icon(Icons.skip_previous_rounded, size: 24),
                           color: player.canStepBack
-                              ? kugo.textPrimary
-                              : kugo.textTertiary,
+                              ? theme.textPrimary
+                              : theme.textTertiary,
                         ),
                         const SizedBox(width: 8),
 
@@ -256,7 +256,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                           height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: kugo.primary,
+                            color: theme.primary,
                           ),
                           child: IconButton(
                             tooltip: player.isPlaying ? '暂停' : '播放',
@@ -278,7 +278,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           onPressed: () => controller.next(),
                           icon: const Icon(Icons.skip_next_rounded, size: 24),
-                          color: kugo.textPrimary,
+                          color: theme.textPrimary,
                         ),
                         const SizedBox(width: 8),
 
@@ -292,7 +292,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                                 .read(fmControllerProvider.notifier)
                                 .dislike(),
                             icon: const Icon(Icons.thumb_down_outlined, size: 18),
-                            color: kugo.textSecondary,
+                            color: theme.textSecondary,
                           ),
                         ],
                       ],
@@ -313,7 +313,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                           children: [
                             Text(
                               _formatDuration(currentPos),
-                              style: kugo.caption.copyWith(fontSize: 11),
+                              style: theme.caption.copyWith(fontSize: 11),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -327,9 +327,9 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                                       const RoundSliderOverlayShape(
                                     overlayRadius: 10,
                                   ),
-                                  activeTrackColor: kugo.primary,
-                                  inactiveTrackColor: kugo.divider,
-                                  thumbColor: kugo.primary,
+                                  activeTrackColor: theme.primary,
+                                  inactiveTrackColor: theme.divider,
+                                  thumbColor: theme.primary,
                                 ),
                                 child: Slider(
                                   value: progress,
@@ -351,7 +351,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                             const SizedBox(width: 8),
                             Text(
                               '-${_formatDuration((duration - currentPos).clamp(0, duration))}',
-                              style: kugo.caption.copyWith(fontSize: 11),
+                              style: theme.caption.copyWith(fontSize: 11),
                             ),
                           ],
                         );
@@ -414,7 +414,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                                   ? Icons.volume_down_rounded
                                   : Icons.volume_up_rounded,
                           size: 20,
-                          color: kugo.textSecondary,
+                          color: theme.textSecondary,
                         ),
                         onPressed: () {
                           if (player.volume > 0) {
@@ -437,9 +437,9 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                             overlayShape: const RoundSliderOverlayShape(
                               overlayRadius: 8,
                             ),
-                            activeTrackColor: kugo.textSecondary,
-                            inactiveTrackColor: kugo.divider,
-                            thumbColor: kugo.textPrimary,
+                            activeTrackColor: theme.textSecondary,
+                            inactiveTrackColor: theme.divider,
+                            thumbColor: theme.textPrimary,
                           ),
                           child: Slider(
                             value: _volumeDraft ?? player.volume.clamp(0.0, 1.0),
@@ -462,7 +462,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
 
                 // 桌面歌词开关（与设置页 / 托盘 / 标题栏同一状态）
                 if (isDesktopPlatform)
-                  _DesktopLyricToggle(kugo: kugo),
+                  _DesktopLyricToggle(theme: theme),
 
                 const SizedBox(width: 4),
 
@@ -473,7 +473,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
                   icon: Icon(
                     Icons.queue_music_rounded,
                     size: 22,
-                    color: kugo.textSecondary,
+                    color: theme.textSecondary,
                   ),
                 ),
               ],
@@ -488,7 +488,7 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
   Widget _buildLoopModeButton(
     PlayerState player,
     PlayerController controller,
-    KugoTheme kugo,
+    OvertoneTheme theme,
   ) {
     final (icon, tip) = switch (player.mode) {
       PlayerLoopMode.listLoop => (Icons.repeat_rounded, '列表循环'),
@@ -499,16 +499,16 @@ class _DesktopPlayerBarState extends ConsumerState<DesktopPlayerBar> {
     return IconButton(
       tooltip: tip,
       onPressed: () => controller.cycleMode(),
-      icon: Icon(icon, size: 20, color: kugo.textSecondary),
+      icon: Icon(icon, size: 20, color: theme.textSecondary),
     );
   }
 }
 
 /// 底栏「桌面歌词」开关：图标高亮表示已开启，与托盘/设置/标题栏同状态。
 class _DesktopLyricToggle extends ConsumerWidget {
-  const _DesktopLyricToggle({required this.kugo});
+  const _DesktopLyricToggle({required this.theme});
 
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -521,7 +521,7 @@ class _DesktopLyricToggle extends ConsumerWidget {
       icon: Icon(
         Icons.lyrics_outlined,
         size: 22,
-        color: enabled ? kugo.primary : kugo.textSecondary,
+        color: enabled ? theme.primary : theme.textSecondary,
       ),
     );
   }

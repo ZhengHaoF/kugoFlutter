@@ -16,10 +16,10 @@ import 'player_controller.dart';
 ///
 /// Seek-related [systemActions] must also be declared or many head units never
 /// show / refresh the position bar even when duration is present.
-class KugoAudioHandler extends BaseAudioHandler
+class OvertoneAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler
-    implements KugoMediaBridge {
-  KugoAudioHandler(this._controller);
+    implements OvertoneMediaBridge {
+  OvertoneAudioHandler(this._controller);
 
   /// Enables notification/lock-screen seek bar and MediaSession ACTION_SEEK_TO
   /// (required by audio_service; not auto-enabled on Android).
@@ -114,7 +114,7 @@ class KugoAudioHandler extends BaseAudioHandler
   /// idle, and audio_service then sends `stopService`, whose native side calls
   /// `deactivateMediaSession()` *and* `stopSelf()` — tearing the service down for
   /// good. The framework reuses the same service (and the same
-  /// `KugoAudioHandler`) for the next `play()`, so a swipe would leave every
+  /// `OvertoneAudioHandler`) for the next `play()`, so a swipe would leave every
   /// later session dead: no notification, no AVRCP, no progress bar. Just pause
   /// and drop the notification instead.
   @override
