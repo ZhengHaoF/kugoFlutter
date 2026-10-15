@@ -13,6 +13,13 @@
 > `flutter test --no-pub` 551 全绿。第三轮 P2/P3 剩余项仍未动。
 > 同日真机闪退：去掉 ExcludeSemantics 触发 Windows AXTree 崩溃，已恢复并
 > 记入 §3 #9；Mica 改为延后 + 多档回落。详见各条「踩坑」。
+>
+> **2026-10-15 复核**（对照当前代码逐条 grep）：§四 P2 与 §五 P3 的开放项**均仍未动**——
+> 预测式返回（`AndroidManifest.xml` 无 `enableOnBackInvokedCallback`）、启动画面（仍旧
+> `LaunchTheme`，未迁移 Android 12+ SplashScreen API）、红心色 `0xFFE87A90`（`full_player_page` /
+> `likes_page` / `history_page` 等多处仍手写）、危险操作色（`Colors.redAccent` 仍散落 10+ 处）、
+> Hero tag 字面量 `'player-cover-$id'`（6 处仍手写）、圆角家族（`OvertoneRadius` 仍只有
+> chip/card/tile/cover 四档，无 sheet/panel/badge，无 `danger` token）。
 
 ---
 

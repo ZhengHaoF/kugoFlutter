@@ -8,7 +8,7 @@
 
 ## 环境
 
-- Flutter 3.24+ / Dart 3.12+（本机验证：Flutter 3.44.4 / Dart 3.12.2）
+- Flutter 3.47+ / Dart 3.13+（仓库固定验证版本：Flutter 3.47.7 / Dart 3.13.5）
 - Android SDK（API 26+）
 
 ## 运行
@@ -21,12 +21,7 @@ flutter run -d 127.0.0.1:5557   # 或你的设备 ID
 
 ## Release 打包
 
-Linux P0/P1 构建与原生探针见 [Linux 实施记录](../docs/linux-implementation.md)。
-本轮固定验证 SDK 为 Flutter 3.47.7 / Dart 3.13.5；X11 悬浮歌词实现与证据见
-[X11 歌词记录](../docs/linux-x11-lyrics.md)，原生 Wayland 不开放全局悬浮歌词。
-Wayland 新增专项适配暂缓，留待以后明确恢复；已有基础播放与应用内歌词不回退，
-范围与恢复条件见该记录的“Wayland 专项适配暂缓”一节。
-Wayland 小窗不承诺绝对定位或始终置顶，真实 GNOME/KDE 与实体音频验收尚待完成。
+Linux 为源码 / 本地构建支持（无 CI 与发行包）：X11 悬浮歌词已落地；Wayland 全局悬浮歌词按现行决策**暂缓**（范围与恢复条件见根目录《桌面歌词接入方案.md》文首），原生 Wayland 与未知后端只用应用内歌词，基础播放 / MPRIS / 存储不回退。Linux P2（deb / AppImage 等发行打包）未实施；真实桌面验收（GNOME/KDE 媒体卡与托盘宿主、多屏 / 混合 DPI、两小时长时播放、实体音频）尚未闭环。本轮固定验证 SDK 为 Flutter 3.47.7 / Dart 3.13.5。
 
 ```bash
 flutter pub get --enforce-lockfile
@@ -67,9 +62,10 @@ lib/
 - [x] M4：正式签名 Release APK；MuMu 性能主观验收
 - [x] M5 酷狗音源抽象：`core/source` 契约 + `KugouSource` + `Track.platform` 身份；Player 走 Source
 - [x] 多音源：酷狗 + 网易云双源（搜索混排 / 我喜欢分源 / 详情深链 / 网易扫码登录）
+- [x] B 站（哔哩哔哩）：搜索、取流播放、扫码登录、本机凭据恢复、只读收藏夹/合集/系列/UP 主内容；真实登录与 Android/Windows 真机验收待完成，见 [验证记录](../docs/bili-integration-validation.md)
 - [x] 评论读写：歌曲/歌单/专辑 + 楼层 + 分类/热词 + 弹幕档位 + 网易点赞；热搜按源能力
 - [x] MV：酷狗搜索/详情/取流/播放页/多版本/收藏/歌手 MV/弹幕/小窗与画中画；网易详情+取流
-- [x] 酷狗音乐云盘：列表/容量/播放/删除/上传（曲库匹配 + 秒传）；P0 凭据防护改为 HTTPS 后，真实上传需重新验收，见 [安全返工边界](../docs/rework-p0-implementation.md)
+- [x] 酷狗音乐云盘：列表/容量/播放/删除/上传（曲库匹配 + 秒传）；P0 凭据防护改为 HTTPS 后，真实上传需重新验收，边界见 [api-notes 云盘一节](../docs/api-notes.md)
 - [x] 桌面歌词：Windows / Linux X11 双进程窗（KRC 逐字扫光 + 样式自定义）+ 安卓悬浮歌词 overlay
 - [x] 歌词：LRC + **KRC 逐字**（卡拉 OK）+ 译文/音译副行（播放页入口开关）
 - [x] 本地库：队列/历史 **Drift (SQLite)**（自动迁移旧 SharedPreferences；含 `platform` 列）

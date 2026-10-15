@@ -217,11 +217,9 @@ dart run tool/probe_mv.dart
 
 ## 下一步（可选）
 
-1. 校准多版本接口字段差异（mapper 已做多候选宽容解析）
-2. 真机网络异常场景复测（URL 过滤 / 风控 20028）
-3. 自建歌单写入接口调研（若做 CRUD）
-4. 歌词优先拉 `fmt=krc`（逐字），失败回落 `fmt=lrc`
-5. MV 落地：按上文端点写 `MvSource` capability + 播放页（取流已通）
+1. 真机网络异常场景复测（URL 过滤 / 风控 20028）
+2. 自建歌单写入接口调研（若做 CRUD，backlog 见 `gap-vs-echomusic.md`）
+3. MV 多版本字段、歌词 `fmt=krc` 逐字、MV 全链路均已于 2026-09 落地（现状见 README「当前状态」），本节端点与字段记录作为协议存档保留
 
 ---
 
@@ -401,7 +399,7 @@ JSON body（无 signature，`x-router: kmr.service.kugou.com`）：
 
 ### 上传（二期，五步）
 
-2026-10-10 P0 返工：账号凭据仅允许可信酷狗 HTTPS 目标，禁止自动重定向/HTTP 回退；动态上传地址必须校验主机并升级 HTTPS，旧 HTTP 协议记录不能作为解除防护的理由。HTTPS bssulbig 的匿名证书验证通过，但安全改路由后的真实匹配/秒传/分片仍待账号验收，见 [实施记录](rework-p0-implementation.md)。
+2026-10-10 P0 返工：账号凭据仅允许可信酷狗 HTTPS 目标，禁止自动重定向/HTTP 回退；动态上传地址必须校验主机并升级 HTTPS，旧 HTTP 协议记录不能作为解除防护的理由。HTTPS bssulbig 的匿名证书验证通过，但安全改路由后的真实匹配/秒传/分片仍待账号验收。
 
 1. **授权** GET `gateway /bsstrackercdngz/v1/upload/auth`
    - `filename` = **文件内容 MD5（小写）**

@@ -8,7 +8,7 @@
 - Windows：应用 EXE/任务栏与托盘 ICO，含 16、20、24、32、40、48、64、128、256 像素帧。
 - 应用内侧栏：展开和折叠状态共用 `AppLogo` 与 `assets/app_icon.png`，不再绘制旧蓝紫音符。
 - Windows 运行时：启动后使用 `assets/app_icon.ico` 设置窗口大小图标；插件从当前 Debug/Profile/Release 可执行文件旁的 Flutter assets 解析路径。
-- Windows 原生构建：ICO 内容散列进入资源头文件依赖，避免仅更新图标却沿用旧的 `Runner.rc.res`。已有、且带本应用 AUMID（`com.overtone.player`，改名时按 [docs/rename-overtone.md](../../docs/rename-overtone.md) §0.1 保留）的开始菜单快捷方式会更新为当前运行版本与图标，并通知 Shell 刷新；不覆盖无关的同名快捷方式。
+- Windows 原生构建：ICO 内容散列进入资源头文件依赖，避免仅更新图标却沿用旧的 `Runner.rc.res`。已有、且带本应用 AUMID（`com.overtone.player`）的开始菜单快捷方式会更新为当前运行版本与图标，并通知 Shell 刷新；不覆盖无关的同名快捷方式。该 AUMID 在 2026-10-13 泛音/Overtone 改名时**按决策保留**：用户不可见、无合规问题，改动会使既有开始菜单快捷方式过不了身份校验成为僵尸快捷方式，并重置 SMTC 媒体标识。
 - 托盘 PNG：64 × 64 透明图标，沿用既有资源路径。
 
 未修改 iOS 图标或新增 Linux 构建。本次不改应用界面主题色、业务逻辑或通知栏音乐状态图标。
