@@ -24,8 +24,8 @@ checksum_windows() {
 fixture() {
   local input="$1"
   mkdir -p "$input/android" "$input/windows/data/flutter_assets"
-  printf 'synthetic APK fixture, never publish\n' > "$input/android/kugo-android-test-only.apk"
-  for file in kugo.exe flutter_windows.dll libmpv-2.dll data/app.so data/icudtl.dat data/flutter_assets/AssetManifest.bin; do
+  printf 'synthetic APK fixture, never publish\n' > "$input/android/overtone-android-test-only.apk"
+  for file in overtone.exe flutter_windows.dll libmpv-2.dll data/app.so data/icudtl.dat data/flutter_assets/AssetManifest.bin; do
     printf 'synthetic Windows fixture, never publish\n' > "$input/windows/$file"
   done
   for platform in android windows; do
@@ -37,7 +37,7 @@ fixture() {
     > "$input/windows/NATIVE-CREDENTIALS.txt"
   (
     cd "$input/android"
-    sha256sum kugo-android-test-only.apk > SHA256SUMS.txt
+    sha256sum overtone-android-test-only.apk > SHA256SUMS.txt
   )
   checksum_windows "$input"
 }
@@ -52,18 +52,18 @@ reject() {
 
 fixture "$root/valid"
 bash "$script" "$root/valid" "$root/valid-output" > "$root/valid.log"
-test -s "$root/valid-output/kugo-android-1111111-test-only.apk"
-test -s "$root/valid-output/kugo-windows-x64-1111111-portable-test-only.zip"
+test -s "$root/valid-output/overtone-android-1111111-test-only.apk"
+test -s "$root/valid-output/overtone-windows-x64-1111111-portable-test-only.zip"
 (
   cd "$root/valid-output"
   sha256sum --strict -c SHA256SUMS.txt > /dev/null
 )
-unzip -p "$root/valid-output/kugo-windows-x64-1111111-portable-test-only.zip" kugo.exe |
-  cmp - "$root/valid/windows/kugo.exe"
+unzip -p "$root/valid-output/overtone-windows-x64-1111111-portable-test-only.zip" overtone.exe |
+  cmp - "$root/valid/windows/overtone.exe"
 echo "PASS complete test release packaging"
 
 fixture "$root/tampered"
-printf 'tampered\n' >> "$root/tampered/android/kugo-android-test-only.apk"
+printf 'tampered\n' >> "$root/tampered/android/overtone-android-test-only.apk"
 reject "$root/tampered" "$root/tampered-output" "APK checksum mismatch"
 
 fixture "$root/tampered-windows"

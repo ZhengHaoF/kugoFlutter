@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/source/music_platform.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../core/api/netease/netease_account_models.dart';
 import '../../features/auth/auth_controller.dart';
@@ -62,7 +62,7 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final isDesktop = isDesktopView(context);
 
     // 账号源：与「我的」页共用同一份选择（见 source_account.dart）。
@@ -105,12 +105,12 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
       // 去了是没有路由的死路；按游客说明只能看公开内容。
       final canLogin = canLoginSource(accountPlatform);
       return Scaffold(
-        backgroundColor: kugo.bg,
+        backgroundColor: theme.bg,
         body: SafeArea(
           child: Column(
             children: [
               const _DetailHeader(showLogout: false, onLogout: null),
-              sourceBar(KugoSpacing.lg),
+              sourceBar(OvertoneSpacing.lg),
               Expanded(
                 child: Center(
                   child: Column(
@@ -119,16 +119,16 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
                       Icon(
                         Icons.person_outline_rounded,
                         size: 64,
-                        color: kugo.textSecondary.withValues(alpha: 0.45),
+                        color: theme.textSecondary.withValues(alpha: 0.45),
                       ),
-                      const SizedBox(height: KugoSpacing.lg),
+                      const SizedBox(height: OvertoneSpacing.lg),
                       Text(
                         canLogin
                             ? '请先登录${accountPlatform.label}账号'
                             : '${accountPlatform.label}暂不支持账号登录',
-                        style: kugo.title.copyWith(fontSize: 16),
+                        style: theme.title.copyWith(fontSize: 16),
                       ),
-                      const SizedBox(height: KugoSpacing.xl),
+                      const SizedBox(height: OvertoneSpacing.xl),
                       if (canLogin)
                         FilledButton(
                           onPressed: () =>
@@ -138,7 +138,7 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
                       else
                         Text(
                           '搜索与播放公开内容无需登录',
-                          style: kugo.caption,
+                          style: theme.caption,
                           textAlign: TextAlign.center,
                         ),
                     ],
@@ -155,13 +155,13 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
         account.nickname.isEmpty ? '${accountPlatform.label}用户' : account.nickname;
 
     return Scaffold(
-      backgroundColor: kugo.bg,
+      backgroundColor: theme.bg,
       body: SafeArea(
         child: SmoothListView(
           padding: EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
-            KugoSpacing.md,
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.md,
+            OvertoneSpacing.lg,
             isDesktop ? 48 : 32,
           ),
           children: [
@@ -173,7 +173,7 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
                   confirmAndLogoutSource(context, ref, accountPlatform),
             ),
             sourceBar(0),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             _IdentityCard(
               avatarUrl: account.avatarUrl,
               displayName: displayName,
@@ -196,20 +196,20 @@ class _ProfileDetailPageState extends ConsumerState<ProfileDetailPage> {
               visitors: isKugou ? detail.visitors : null,
             ),
             if (isKugou) ...[
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               _ArchiveAndMembership(
                 userId: account.userId,
                 detail: detail,
                 isDesktop: isDesktop,
               ),
             ] else ...[
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               _NeteaseArchiveAndMembership(
                 state: netease,
                 isDesktop: isDesktop,
               ),
             ],
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             // 退出登录入口：从「我的」页统计卡下方拆迁到此（酷狗/网易云两源通用）。
             // 只有登录态走得到这个布局——未登录是上面那套「请先登录」。
             _LogoutTile(
@@ -231,9 +231,9 @@ class _DetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(KugoSpacing.lg, KugoSpacing.sm, KugoSpacing.sm, 0),
+      padding: const EdgeInsets.fromLTRB(OvertoneSpacing.lg, OvertoneSpacing.sm, OvertoneSpacing.sm, 0),
       child: Row(
         children: [
           // 桌面端靠侧栏导航，返回键冗余；移动端才显示。
@@ -252,7 +252,7 @@ class _DetailHeader extends StatelessWidget {
             ),
             const SizedBox(width: 4),
           ],
-          Text('个人中心', style: kugo.title.copyWith(fontSize: 22)),
+          Text('个人中心', style: theme.title.copyWith(fontSize: 22)),
           const Spacer(),
           if (showLogout && onLogout != null)
             IconButton(
@@ -283,12 +283,12 @@ class _LogoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return GlassSurface(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-        title: Text('退出登录', style: kugo.body.copyWith(color: Colors.redAccent)),
+        title: Text('退出登录', style: theme.body.copyWith(color: Colors.redAccent)),
         onTap: onTap,
       ),
     );
@@ -339,10 +339,10 @@ class _IdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final g = grade;
     return GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.xl),
+      padding: const EdgeInsets.all(OvertoneSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -354,7 +354,7 @@ class _IdentityCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: kugo.primary.withValues(alpha: 0.35),
+                    color: theme.primary.withValues(alpha: 0.35),
                     width: 2,
                   ),
                 ),
@@ -371,7 +371,7 @@ class _IdentityCard extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(width: KugoSpacing.xl),
+              const SizedBox(width: OvertoneSpacing.xl),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +383,7 @@ class _IdentityCard extends StatelessWidget {
                       children: [
                         Text(
                           displayName,
-                          style: kugo.title.copyWith(fontSize: 22),
+                          style: theme.title.copyWith(fontSize: 22),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -405,7 +405,7 @@ class _IdentityCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         signature,
-                        style: kugo.caption.copyWith(fontSize: 13),
+                        style: theme.caption.copyWith(fontSize: 13),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -420,7 +420,7 @@ class _IdentityCard extends StatelessWidget {
             ],
           ),
           if (g != null) ...[
-            const SizedBox(height: KugoSpacing.xl),
+            const SizedBox(height: OvertoneSpacing.xl),
             Row(
               children: [
                 Expanded(
@@ -462,53 +462,53 @@ class _IdentityCard extends StatelessWidget {
   void _showGradeSheet(BuildContext context) {
     final grade = this.grade;
     if (grade == null) return;
-    showKugoBottomSheet<void>(
+    showOvertoneBottomSheet<void>(
       context: context,
       builder: (sheetContext) {
-        final kugo = KugoTheme.of(sheetContext);
+        final theme = OvertoneTheme.of(sheetContext);
         final percent = grade.percent;
         return Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
             12,
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
             24,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Text('我的等级', style: kugo.section)),
+              Center(child: Text('我的等级', style: theme.section)),
               const SizedBox(height: 4),
               Center(
-                child: Text('每一次聆听，都在积累成长。', style: kugo.caption),
+                child: Text('每一次聆听，都在积累成长。', style: theme.caption),
               ),
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(KugoSpacing.lg),
+                padding: const EdgeInsets.all(OvertoneSpacing.lg),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      kugo.primary.withValues(alpha: 0.16),
-                      kugo.primary.withValues(alpha: 0.04),
+                      theme.primary.withValues(alpha: 0.16),
+                      theme.primary.withValues(alpha: 0.04),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kugo.divider),
+                  border: Border.all(color: theme.divider),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('当前等级', style: kugo.caption),
+                    Text('当前等级', style: theme.caption),
                     const SizedBox(height: 4),
                     Text(
                       grade.gradeLabel,
-                      style: kugo.title.copyWith(fontSize: 30),
+                      style: theme.title.copyWith(fontSize: 30),
                     ),
-                    const SizedBox(height: KugoSpacing.lg),
+                    const SizedBox(height: OvertoneSpacing.lg),
                     if (grade.available) ...[
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -518,12 +518,12 @@ class _IdentityCard extends StatelessWidget {
                               // 单位按源区分：酷狗攒经验，网易攒听歌首数。
                               '距 Lv.${grade.nextGrade} 还差 '
                               '${grade.remaining ?? 0} $gradeUnit',
-                              style: kugo.caption,
+                              style: theme.caption,
                             ),
                           ),
                           Text(
                             '${grade.current ?? 0} / ${grade.target ?? 0}',
-                            style: kugo.caption,
+                            style: theme.caption,
                           ),
                         ],
                       ),
@@ -533,16 +533,16 @@ class _IdentityCard extends StatelessWidget {
                         child: LinearProgressIndicator(
                           value: (percent / 100).clamp(0, 1).toDouble(),
                           minHeight: 6,
-                          backgroundColor: kugo.divider,
+                          backgroundColor: theme.divider,
                         ),
                       ),
                     ] else
-                      Text('暂未获取到下一等级进度', style: kugo.caption),
+                      Text('暂未获取到下一等级进度', style: theme.caption),
                     // 网易 `info` 给的等级权益（`$` 分隔，已拆成列表）；
                     // 酷狗没有这个字段，为空时不占位。
                     if (gradePrivileges.isNotEmpty) ...[
-                      const SizedBox(height: KugoSpacing.lg),
-                      Text('当前等级权益', style: kugo.caption),
+                      const SizedBox(height: OvertoneSpacing.lg),
+                      Text('当前等级权益', style: theme.caption),
                       const SizedBox(height: 6),
                       for (final p in gradePrivileges)
                         Padding(
@@ -553,11 +553,11 @@ class _IdentityCard extends StatelessWidget {
                               Icon(
                                 Icons.check_rounded,
                                 size: 14,
-                                color: kugo.primary,
+                                color: theme.primary,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
-                                child: Text(p, style: kugo.caption),
+                                child: Text(p, style: theme.caption),
                               ),
                             ],
                           ),
@@ -607,20 +607,20 @@ class _IPLocationTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: kugo.primary.withValues(alpha: 0.12),
+        color: theme.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: kugo.primary.withValues(alpha: 0.2)),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.2)),
       ),
       child: Text(
         text,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
-          color: kugo.primary,
+          color: theme.primary,
         ),
       ),
     );
@@ -636,10 +636,10 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      borderRadius: BorderRadius.circular(OvertoneRadius.tile),
       child: SizedBox(
         height: 56,
         child: Column(
@@ -648,10 +648,10 @@ class _Stat extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               value,
-              style: kugo.section.copyWith(fontSize: 20),
+              style: theme.section.copyWith(fontSize: 20),
             ),
             const SizedBox(height: 4),
-            Text(label, style: kugo.caption),
+            Text(label, style: theme.caption),
           ],
         ),
       ),
@@ -664,7 +664,7 @@ class _StatDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 32, color: KugoTheme.of(context).divider);
+    return Container(width: 1, height: 32, color: OvertoneTheme.of(context).divider);
   }
 }
 
@@ -682,20 +682,20 @@ class _ArchiveAndMembership extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final archive = GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.person_outline_rounded, size: 18, color: kugo.primary),
+              Icon(Icons.person_outline_rounded, size: 18, color: theme.primary),
               const SizedBox(width: 8),
-              Text('账号档案', style: kugo.section.copyWith(fontSize: 16)),
+              Text('账号档案', style: theme.section.copyWith(fontSize: 16)),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           _ArchiveRow(label: '用户 ID', value: userId.isEmpty ? '—' : userId),
           _ArchiveRow(label: '性别', value: formatGender(detail.gender)),
           _ArchiveRow(
@@ -715,18 +715,18 @@ class _ArchiveAndMembership extends StatelessWidget {
     );
 
     final membership = GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.card_giftcard_outlined, size: 18, color: kugo.primary),
+              Icon(Icons.card_giftcard_outlined, size: 18, color: theme.primary),
               const SizedBox(width: 8),
-              Text('会员状态', style: kugo.section.copyWith(fontSize: 16)),
+              Text('会员状态', style: theme.section.copyWith(fontSize: 16)),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           _MembershipTile(
             title: '畅听会员',
             active: detail.tvipActive,
@@ -736,7 +736,7 @@ class _ArchiveAndMembership extends StatelessWidget {
             beginText: formatVipDate(detail.tvipBegin),
             endText: formatVipDate(detail.tvipEnd),
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           _MembershipTile(
             title: '概念会员',
             active: detail.svipActive,
@@ -754,7 +754,7 @@ class _ArchiveAndMembership extends StatelessWidget {
       return Column(
         children: [
           archive,
-          const SizedBox(height: KugoSpacing.lg),
+          const SizedBox(height: OvertoneSpacing.lg),
           membership,
         ],
       );
@@ -763,7 +763,7 @@ class _ArchiveAndMembership extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(flex: 3, child: archive),
-        const SizedBox(width: KugoSpacing.lg),
+        const SizedBox(width: OvertoneSpacing.lg),
         Expanded(flex: 2, child: membership),
       ],
     );
@@ -795,14 +795,14 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final d = state.detail;
 
     // 加载中 / 整块失败：别铺一屏「—」，给一句人话。
-    if (state.loading && d.userId.isEmpty) return _hint(kugo, '正在获取账号信息…');
+    if (state.loading && d.userId.isEmpty) return _hint(theme, '正在获取账号信息…');
     if (state.loaded && d.userId.isEmpty) {
       return _hint(
-        kugo,
+        theme,
         state.error.isEmpty ? '账号信息获取失败，请稍后重试' : state.error,
       );
     }
@@ -813,18 +813,18 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
     final now = DateTime.now();
 
     final archive = GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.person_outline_rounded, size: 18, color: kugo.primary),
+              Icon(Icons.person_outline_rounded, size: 18, color: theme.primary),
               const SizedBox(width: 8),
-              Text('账号档案', style: kugo.section.copyWith(fontSize: 16)),
+              Text('账号档案', style: theme.section.copyWith(fontSize: 16)),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           _ArchiveRow(label: '用户 ID', value: d.userId.isEmpty ? '—' : d.userId),
           _ArchiveRow(label: '性别', value: neteaseGenderLabel(d.gender)),
           _ArchiveRow(label: '乐龄', value: neteaseAccountAge(d.createTime)),
@@ -847,18 +847,18 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
     );
 
     final membership = GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.card_giftcard_outlined, size: 18, color: kugo.primary),
+              Icon(Icons.card_giftcard_outlined, size: 18, color: theme.primary),
               const SizedBox(width: 8),
-              Text('会员状态', style: kugo.section.copyWith(fontSize: 16)),
+              Text('会员状态', style: theme.section.copyWith(fontSize: 16)),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           _MembershipTile(
             title: '黑胶VIP',
             active: heijiao?.isActiveAt(now) ?? false,
@@ -870,7 +870,7 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
             beginText: heijiao == null ? '--' : formatVipDate(heijiao.expireTime),
             endText: heijiao == null ? '--' : formatVipDate(heijiao.expireTime),
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           _MembershipTile(
             title: '音乐包',
             active: musicPackage?.isActiveAt(now) ?? false,
@@ -892,7 +892,7 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
       return Column(
         children: [
           archive,
-          const SizedBox(height: KugoSpacing.lg),
+          const SizedBox(height: OvertoneSpacing.lg),
           membership,
         ],
       );
@@ -901,26 +901,26 @@ class _NeteaseArchiveAndMembership extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(flex: 3, child: archive),
-        const SizedBox(width: KugoSpacing.lg),
+        const SizedBox(width: OvertoneSpacing.lg),
         Expanded(flex: 2, child: membership),
       ],
     );
   }
 
-  Widget _hint(KugoTheme kugo, String text) {
+  Widget _hint(OvertoneTheme theme, String text) {
     return GlassSurface(
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.info_outline_rounded,
             size: 18,
-            color: kugo.textSecondary,
+            color: theme.textSecondary,
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text, style: kugo.caption.copyWith(fontSize: 12)),
+            child: Text(text, style: theme.caption.copyWith(fontSize: 12)),
           ),
         ],
       ),
@@ -947,7 +947,7 @@ class _ArchiveRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       child: Row(
@@ -956,18 +956,18 @@ class _ArchiveRow extends StatelessWidget {
             width: _labelWidth,
             child: Text(
               label,
-              style: kugo.caption,
+              style: theme.caption,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: KugoSpacing.sm),
+          const SizedBox(width: OvertoneSpacing.sm),
           Expanded(
             child: Align(
               alignment: Alignment.centerRight,
               child: Text(
                 value,
-                style: kugo.body.copyWith(fontSize: 13),
+                style: theme.body.copyWith(fontSize: 13),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1000,15 +1000,15 @@ class _MembershipTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final bg = active
         ? accent.withValues(alpha: 0.12)
-        : kugo.surfaceElevated.withValues(alpha: 0.55);
+        : theme.surfaceElevated.withValues(alpha: 0.55);
     final border = active ? accent.withValues(alpha: 0.25) : Colors.transparent;
     return Opacity(
       opacity: active ? 1 : 0.62,
       child: Container(
-        padding: const EdgeInsets.all(KugoSpacing.md),
+        padding: const EdgeInsets.all(OvertoneSpacing.md),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(16),
@@ -1022,26 +1022,26 @@ class _MembershipTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: active
                     ? accent.withValues(alpha: 0.18)
-                    : kugo.surfaceElevated,
+                    : theme.surfaceElevated,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 18,
-                color: active ? accent : kugo.textSecondary,
+                color: active ? accent : theme.textSecondary,
               ),
             ),
-            const SizedBox(width: KugoSpacing.md),
+            const SizedBox(width: OvertoneSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: kugo.body.copyWith(
+                    style: theme.body.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: active ? accent : kugo.textPrimary,
+                      color: active ? accent : theme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1050,13 +1050,13 @@ class _MembershipTile extends StatelessWidget {
                       message: '开始 $beginText · 到期 $endText',
                       child: Text(
                         expireText!,
-                        style: kugo.caption.copyWith(fontSize: 11),
+                        style: theme.caption.copyWith(fontSize: 11),
                       ),
                     )
                   else
                     Text(
                       '未开通',
-                      style: kugo.caption.copyWith(
+                      style: theme.caption.copyWith(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),

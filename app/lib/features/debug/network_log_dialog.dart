@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugou_client.dart';
 import '../../core/api/network_log.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import 'network_log_provider.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -33,7 +33,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
     await _singleGet('https://www.baidu.com', methodLabel: '连通性');
     // 再打酷狗关键路径
     await _singleGet(
-      buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.searchSong, {
+      buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.searchSong, {
         'format': 'json',
         'keyword': '晴天',
         'page': 1,
@@ -43,7 +43,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
       methodLabel: '搜索',
     );
     await _singleGet(
-      buildUrl(KugoEndpoints.lyrics, KugoEndpoints.lyricSearch, {
+      buildUrl(KugouEndpoints.lyrics, KugouEndpoints.lyricSearch, {
         'ver': 1,
         'man': 'yes',
         'client': 'pc',
@@ -55,11 +55,11 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
       plain: true,
     );
     await _singleGet(
-      buildUrl(KugoEndpoints.wwwApi, KugoEndpoints.playData, {
+      buildUrl(KugouEndpoints.wwwApi, KugouEndpoints.playData, {
         'r': 'play/getdata',
         'hash': 'b3a52a7a958bf0aed0ebfba2e9a818b7',
-        'mid': 'kugo_mid',
-        'guid': 'kugo_guid',
+        'mid': 'overtone_mid',
+        'guid': 'overtone_guid',
         'platid': 4,
         'appid': 1014,
       }),
@@ -148,7 +148,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
       _toast('暂无日志');
       return;
     }
-    await Clipboard.setData(ClipboardData(text: '== kugo 网络日志 ==\n\n$text'));
+    await Clipboard.setData(ClipboardData(text: '== 泛音 网络日志 ==\n\n$text'));
     _toast('已复制全部日志 (${logs.length} 条)');
   }
 
@@ -189,7 +189,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final logs = ref.watch(networkLogProvider);
     final filteredLogs = _filterType == null
         ? logs
@@ -202,7 +202,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
         children: [
           Text(
             _live ? '网络请求日志 · 第 $_liveRound 轮' : '网络请求日志',
-            style: kugo.section.copyWith(fontSize: 18),
+            style: theme.section.copyWith(fontSize: 18),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -274,7 +274,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
                       Expanded(
                         child: Text(
                           '实时探测',
-                          style: kugo.caption,
+                          style: theme.caption,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -308,7 +308,7 @@ class _NetworkLogDialogState extends ConsumerState<NetworkLogDialog> {
             Expanded(
               child: filteredLogs.isEmpty
                   ? Center(
-                      child: Text('暂无日志', style: kugo.caption),
+                      child: Text('暂无日志', style: theme.caption),
                     )
                   : SmoothListViewSeparated(
                       itemCount: filteredLogs.length,
@@ -355,7 +355,7 @@ class _LogTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 4),
       childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
@@ -415,7 +415,7 @@ class _LogTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
-                      color: kugo.textTertiary,
+                      color: theme.textTertiary,
                     ),
                   ),
                 ),
@@ -446,7 +446,7 @@ class _LogTile extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: kugo.surfaceElevated.withValues(alpha: 0.5),
+            color: theme.surfaceElevated.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Column(

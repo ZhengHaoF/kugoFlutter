@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/repositories/discovery_repository.dart';
+import 'package:overtone/data/repositories/discovery_repository.dart';
 
 /// 探索发现页的三个纯提取函数。
 ///

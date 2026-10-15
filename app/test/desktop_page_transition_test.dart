@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/theme/kugo_theme.dart';
+import 'package:overtone/core/theme/overtone_theme.dart';
 
 void main() {
   ThemeData desktopTheme() =>
-      buildKugoTheme(Brightness.dark).copyWith(platform: TargetPlatform.windows);
+      buildOvertoneTheme(Brightness.dark).copyWith(platform: TargetPlatform.windows);
 
   Future<void> pumpDesktopApp(WidgetTester tester) async {
     await tester.pumpWidget(

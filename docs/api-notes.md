@@ -87,8 +87,8 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 注意点：
 
 - 注册用的 AES 与 `cryptoAesEncrypt` **不同**：key 为随机 6 位小写，
-  `encKey=md5(key)[0:16]`、`iv=md5(key)[16:32]`，输出 base64（`KugoCrypto.playlistAesEncrypt`）。
-- `p` 参数用 **RSAES-PKCS1-V1_5**（`KugoCrypto.rsaEncryptPkcs1`），不是裸 RSA。
+  `encKey=md5(key)[0:16]`、`iv=md5(key)[16:32]`，输出 base64（`KugouCrypto.playlistAesEncrypt`）。
+- `p` 参数用 **RSAES-PKCS1-V1_5**（`KugouCrypto.rsaEncryptPkcs1`），不是裸 RSA。
 - 签名要把请求体（那段 base64）拼进去：`signatureAndroidParams(params, data: body)`。
 - 播放地址 `/v5/url` **不受影响**：`song_url.js` 本来就用每次随机的 dfid。
 
@@ -97,7 +97,7 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 
 ## 响应形态（映射层）
 
-- **Content-Type 常为 `text/html`**，body 却是 JSON：客户端必须 `jsonDecode` 字符串体（`KugoClient.getJson` 已处理）。
+- **Content-Type 常为 `text/html`**，body 却是 JSON：客户端必须 `jsonDecode` 字符串体（`KugouClient.getJson` 已处理）。
 - 搜索单曲常见路径：`data.info[]`；字段 `hash` / `songname` / `singername` / `duration` / `album_id` / `audio_id` / `mixsongid`
 - 播放地址：`data.url` + `data.backup_url`（或嵌套 `urls`）
 - 歌词候选：`candidates[]` → `id` + `accesskey` → download 得 LRC 文本
@@ -187,7 +187,7 @@ App 行为（`lib/data/storage/device_identity.dart`）：
 
 - **播放地址**（`/v2/interface/index`）：
   - query：`cmd=123&ext=mp4&ismp3=0&type=1&pid=1&backupdomain=1&hash=<mvHash>` + 公共参数
-  - `key = md5(hash + saltKey + appid + mid + userid)`（即 `KugoSign.signKey`）
+  - `key = md5(hash + saltKey + appid + mid + userid)`（即 `KugouSign.signKey`）
   - `signature = signatureAndroidParams(全部 query 含 key)`
   - 响应：`data[<hash>].downurl` + `backupdownurl[]`，**实际文件是 `.mkv`**（尽管 `ext=mp4`）
   - 无签名裸请求 → `errcode 20006`
@@ -217,11 +217,9 @@ dart run tool/probe_mv.dart
 
 ## 下一步（可选）
 
-1. 校准多版本接口字段差异（mapper 已做多候选宽容解析）
-2. 真机网络异常场景复测（URL 过滤 / 风控 20028）
-3. 自建歌单写入接口调研（若做 CRUD）
-4. 歌词优先拉 `fmt=krc`（逐字），失败回落 `fmt=lrc`
-5. MV 落地：按上文端点写 `MvSource` capability + 播放页（取流已通）
+1. 真机网络异常场景复测（URL 过滤 / 风控 20028）
+2. 自建歌单写入接口调研（若做 CRUD，backlog 见 `gap-vs-echomusic.md`）
+3. MV 多版本字段、歌词 `fmt=krc` 逐字、MV 全链路均已于 2026-09 落地（现状见 README「当前状态」），本节端点与字段记录作为协议存档保留
 
 ---
 
@@ -308,7 +306,7 @@ cookie = token; userid; dfid; KUGOU_API_MID; KUGOU_API_GUID; KUGOU_API_DEV
 ```
 
 - `key` = `md5(appid + saltLite + clientver + clienttime)`（概念版 salt
-  `LnT6xpN3khm36zse0QzvmgTZ3waWdRSA`，即 `KugoSign.signParamsKey`）。
+  `LnT6xpN3khm36zse0QzvmgTZ3waWdRSA`，即 `KugouSign.signParamsKey`）。
 - **`notSignature`**：这组接口 **不带** android `signature`。
 - 响应用同一 AES key 解密；解不出回落明文 JSON。
 - 实现：`tool/probe_cloud_disk.dart` 的 `buildMcloudEnvelope`。
@@ -366,7 +364,7 @@ module 固定参数：
 | `ssl` | `0` |
 | `with_res_tag` | `0` |
 
-盐值：`ebd1ac3134c880bda6a2194537843caa0162e2e7`（`KugoSign.signCloudKey`）。
+盐值：`ebd1ac3134c880bda6a2194537843caa0162e2e7`（`KugouSign.signCloudKey`）。
 
 响应：`status=1` + `data.url` + `data.backup_url[]`（或 `backupUrl`）。
 
@@ -401,7 +399,7 @@ JSON body（无 signature，`x-router: kmr.service.kugou.com`）：
 
 ### 上传（二期，五步）
 
-2026-10-10 P0 返工：账号凭据仅允许可信酷狗 HTTPS 目标，禁止自动重定向/HTTP 回退；动态上传地址必须校验主机并升级 HTTPS，旧 HTTP 协议记录不能作为解除防护的理由。HTTPS bssulbig 的匿名证书验证通过，但安全改路由后的真实匹配/秒传/分片仍待账号验收，见 [实施记录](rework-p0-implementation.md)。
+2026-10-10 P0 返工：账号凭据仅允许可信酷狗 HTTPS 目标，禁止自动重定向/HTTP 回退；动态上传地址必须校验主机并升级 HTTPS，旧 HTTP 协议记录不能作为解除防护的理由。HTTPS bssulbig 的匿名证书验证通过，但安全改路由后的真实匹配/秒传/分片仍待账号验收。
 
 1. **授权** GET `gateway /bsstrackercdngz/v1/upload/auth`
    - `filename` = **文件内容 MD5（小写）**
@@ -439,8 +437,8 @@ JSON body（无 signature，`x-router: kmr.service.kugou.com`）：
 
 ```powershell
 cd app
-$env:KUGO_TOKEN = '<token>'
-$env:KUGO_USERID = '<userid>'
+$env:OVERTONE_TOKEN = '<token>'
+$env:OVERTONE_USERID = '<userid>'
 dart run tool/probe_cloud_disk.dart --suite list
 dart run tool/probe_cloud_disk.dart --suite url --hash <HASH>
 dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID>   # dry-run

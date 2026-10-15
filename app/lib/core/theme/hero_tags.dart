@@ -2,11 +2,11 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
-import 'kugo_theme.dart';
-import 'kugo_tokens.dart';
+import 'overtone_theme.dart';
+import 'overtone_tokens.dart';
 
 /// Centralized Hero tags to guarantee unique namespace and avoid typos.
-abstract final class KugoHeroTags {
+abstract final class OvertoneHeroTags {
   /// Playlist cover transition between lists/grids and detail page.
   static String playlistCover(String id) => 'playlist-cover-$id';
 
@@ -36,19 +36,19 @@ abstract final class KugoHeroTags {
     BuildContext fromHeroContext,
     BuildContext toHeroContext,
   ) {
-    final kugo = KugoTheme.of(flightContext);
+    final theme = OvertoneTheme.of(flightContext);
     return Material(
-      color: kugo.surface,
-      borderRadius: BorderRadius.circular(KugoRadius.chip),
+      color: theme.surface,
+      borderRadius: BorderRadius.circular(OvertoneRadius.chip),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: [
-            Icon(Icons.search_rounded, color: kugo.textSecondary),
+            Icon(Icons.search_rounded, color: theme.textSecondary),
             const SizedBox(width: 10),
             Text(
               '搜索歌曲、歌手、专辑',
-              style: kugo.caption.copyWith(
+              style: theme.caption.copyWith(
                 fontSize: 14,
                 decoration: TextDecoration.none,
               ),
@@ -68,7 +68,7 @@ abstract final class KugoHeroTags {
     BuildContext fromHeroContext,
     BuildContext toHeroContext,
   ) {
-    final kugo = KugoTheme.of(flightContext);
+    final theme = OvertoneTheme.of(flightContext);
     final isPush = flightDirection == HeroFlightDirection.push;
     final now = DateTime.now();
     final dayStr = now.day.toString();
@@ -78,17 +78,17 @@ abstract final class KugoHeroTags {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        kugo.primary,
-        Color.lerp(kugo.primary, kugo.secondary, 0.35)!,
+        theme.primary,
+        Color.lerp(theme.primary, theme.secondary, 0.35)!,
       ],
     );
-    final largeGrad = kugo.accentGradient;
+    final largeGrad = theme.accentGradient;
 
     final fromGrad = isPush ? compactGrad : largeGrad;
     final toGrad = isPush ? largeGrad : compactGrad;
 
-    final fromRadius = isPush ? 12.0 : KugoRadius.card;
-    final toRadius = isPush ? KugoRadius.card : 12.0;
+    final fromRadius = isPush ? 12.0 : OvertoneRadius.card;
+    final toRadius = isPush ? OvertoneRadius.card : 12.0;
 
     final fromShadowAlpha = isPush ? 0.30 : 0.0;
     final toShadowAlpha = isPush ? 0.0 : 0.30;
@@ -123,7 +123,7 @@ abstract final class KugoHeroTags {
               boxShadow: shadowAlpha > 0.01
                   ? [
                       BoxShadow(
-                        color: kugo.primary.withValues(alpha: shadowAlpha),
+                        color: theme.primary.withValues(alpha: shadowAlpha),
                         blurRadius: 10 * (shadowAlpha / 0.30),
                         offset: Offset(0, 4 * (shadowAlpha / 0.30)),
                       ),

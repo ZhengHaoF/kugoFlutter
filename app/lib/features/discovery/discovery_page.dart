@@ -10,16 +10,16 @@ import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/rank/rank_boards_grid.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/kugo_clickable.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_clickable.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
@@ -365,7 +365,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final settings = ref.watch(settingsControllerProvider);
 
     // 设置里改动整源开关或「发现」功能开关后回到本页：重算可用源，必要时切源并清缓存重取。
@@ -431,19 +431,19 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
               children: [
                 _capability<PlaylistCatalogSource>(active) == null
                     ? _unsupportedTab('歌单')
-                    : _buildPlaylistsTab(kugo),
+                    : _buildPlaylistsTab(theme),
                 _capability<RankSource>(active) == null
                     ? _unsupportedTab('排行榜')
                     : const RankBoardsGrid(),
                 _capability<NewAlbumFeedSource>(active) == null
                     ? _unsupportedTab('新碟上架')
-                    : _buildAlbumsTab(kugo),
+                    : _buildAlbumsTab(theme),
                 _capability<NewSongFeedSource>(active) == null
                     ? _unsupportedTab('新歌速递')
-                    : _buildNewSongsTab(kugo),
+                    : _buildNewSongsTab(theme),
                 _capability<ArtistListSource>(active) == null
                     ? _unsupportedTab('歌手')
-                    : _buildArtistsTab(kugo),
+                    : _buildArtistsTab(theme),
               ],
             ),
           ),
@@ -458,7 +458,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.only(top: KugoSpacing.xxl),
+            padding: const EdgeInsets.only(top: OvertoneSpacing.xxl),
             child: AsyncBody(
               loading: false,
               hasError: false,
@@ -474,12 +474,12 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
   }
 
   Widget _chipRow(List<Widget> children) {
-    return KugoHScroll(
+    return OvertoneHScroll(
       fadeEdges: false,
       builder: (context, controller, _) => SingleChildScrollView(
         controller: controller,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
         child: Row(children: [
           for (var i = 0; i < children.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
@@ -490,7 +490,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
-  Widget _buildPlaylistsTab(KugoTheme kugo) {
+  Widget _buildPlaylistsTab(OvertoneTheme theme) {
     final tags = [
       for (final g in _tagGroups)
         for (final t in g.child)
@@ -509,7 +509,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
         if (tags.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: KugoSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.md),
               child: _chipRow(tags),
             ),
           ),
@@ -539,7 +539,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
-  Widget _buildAlbumsTab(KugoTheme kugo) {
+  Widget _buildAlbumsTab(OvertoneTheme theme) {
     final regions = _capability<NewAlbumFeedSource>(_source)?.albumRegions ??
         const <({String id, String label})>[];
     return SmoothCustomScrollView(
@@ -547,7 +547,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
         if (regions.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: KugoSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.md),
               child: _filterChips(regions, _albumRegion, (id) {
                 setState(() => _albumRegion = id);
                 _loadAlbums();
@@ -576,7 +576,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
-  Widget _buildNewSongsTab(KugoTheme kugo) {
+  Widget _buildNewSongsTab(OvertoneTheme theme) {
     return SmoothCustomScrollView(
       slivers: [
         if (_newSongs.isNotEmpty)
@@ -605,7 +605,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
-  Widget _buildArtistsTab(KugoTheme kugo) {
+  Widget _buildArtistsTab(OvertoneTheme theme) {
     final artistSource = _capability<ArtistListSource>(_source);
     final genders = artistSource?.artistGenderOptions ??
         const <({String id, String label})>[];
@@ -618,7 +618,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: KugoSpacing.sm),
+            padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.sm),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -709,7 +709,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     if (loading && itemCount == 0) {
       return const SliverToBoxAdapter(
         child: Padding(
-          padding: EdgeInsets.all(KugoSpacing.xxl),
+          padding: EdgeInsets.all(OvertoneSpacing.xxl),
           child: Center(child: CircularProgressIndicator()),
         ),
       );
@@ -746,7 +746,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     // 列数仍按内容盒实际宽度算（SliverLayoutBuilder 给出 crossAxisExtent），
     // 与之前 LayoutBuilder 的口径一致。
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
       sliver: SliverLayoutBuilder(
         builder: (context, constraints) {
           // crossAxisExtent 已经是不含 SliverPadding 的内容盒宽度，
@@ -754,15 +754,15 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
           final width = constraints.crossAxisExtent.isFinite &&
                   constraints.crossAxisExtent > 0
               ? constraints.crossAxisExtent
-              : MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2;
+              : MediaQuery.sizeOf(context).width - OvertoneSpacing.lg * 2;
           final grid = coverGridDelegateForWidth(
             context,
             width,
             preferredExtent: preferredExtent,
             mobileAspectRatio: mobileAspectRatio,
             desktopAspectRatio: desktopAspectRatio,
-            mainAxisSpacing: KugoSpacing.lg,
-            crossAxisSpacing: KugoSpacing.lg,
+            mainAxisSpacing: OvertoneSpacing.lg,
+            crossAxisSpacing: OvertoneSpacing.lg,
             maxColumns: maxColumns,
           );
           return SliverGrid.builder(
@@ -785,7 +785,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     if (loading && songs.isEmpty) {
       return const SliverToBoxAdapter(
         child: Padding(
-          padding: EdgeInsets.all(KugoSpacing.xxl),
+          padding: EdgeInsets.all(OvertoneSpacing.xxl),
           child: Center(child: CircularProgressIndicator()),
         ),
       );
@@ -840,25 +840,25 @@ class _AlbumGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final meta = [
       if (album.artist.isNotEmpty) album.artist,
       if (album.publishDate.isNotEmpty) album.publishDate,
       if (album.trackCount > 0) '${album.trackCount}首',
     ].join(' · ');
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(OvertoneRadius.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(KugoRadius.card),
+              borderRadius: BorderRadius.circular(OvertoneRadius.card),
               child: CoverBox(
                 seed: album.coverUrl,
                 size: double.infinity,
-                radius: KugoRadius.card,
+                radius: OvertoneRadius.card,
               ),
             ),
           ),
@@ -867,14 +867,14 @@ class _AlbumGridCard extends StatelessWidget {
             album.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: kugo.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+            style: theme.body.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
           Text(
             meta,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: kugo.caption.copyWith(fontSize: 11),
+            style: theme.caption.copyWith(fontSize: 11),
           ),
         ],
       ),
@@ -892,7 +892,7 @@ class _ArtistGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const labelH = 18.0;
     const gap = 6.0;
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: LayoutBuilder(
@@ -923,7 +923,7 @@ class _ArtistGridCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: KugoTheme.of(context).body.copyWith(
+                  style: OvertoneTheme.of(context).body.copyWith(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         height: 1.2,

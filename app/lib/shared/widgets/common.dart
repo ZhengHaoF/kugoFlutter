@@ -8,13 +8,13 @@ import '../../core/platform.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/mv/mv_entry.dart';
-import 'kugo_clickable.dart';
+import 'overtone_clickable.dart';
 import 'cover_box.dart';
-import 'kugo_h_scroll.dart';
+import 'overtone_h_scroll.dart';
 
 /// Builds an `onArtistTap` callback for a track row.
 ///
@@ -48,13 +48,13 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.xl,
-        KugoSpacing.lg,
-        KugoSpacing.md,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.xl,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.md,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -62,14 +62,14 @@ class SectionHeader extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: kugo.section),
+              Text(title, style: theme.section),
               if (showAccent) ...[
                 const SizedBox(height: 6),
                 Container(
                   width: 28,
                   height: 3,
                   decoration: BoxDecoration(
-                    gradient: kugo.accentGradient,
+                    gradient: theme.accentGradient,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -85,13 +85,13 @@ class SectionHeader extends StatelessWidget {
                 children: [
                   Text(
                     actionLabel!,
-                    style: kugo.caption.copyWith(fontSize: 13),
+                    style: theme.caption.copyWith(fontSize: 13),
                   ),
                   const SizedBox(width: 2),
                   Icon(
                     Icons.chevron_right_rounded,
                     size: 16,
-                    color: kugo.textSecondary,
+                    color: theme.textSecondary,
                   ),
                 ],
               ),
@@ -110,12 +110,12 @@ class QualityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        gradient: gradient ? kugo.accentGradient : null,
-        color: gradient ? null : kugo.surfaceElevated,
+        gradient: gradient ? theme.accentGradient : null,
+        color: gradient ? null : theme.surfaceElevated,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -124,7 +124,7 @@ class QualityBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w600,
           // On the accent gradient the label must stay light in both themes.
-          color: gradient ? kugo.onAccent : kugo.textPrimary,
+          color: gradient ? theme.onAccent : theme.textPrimary,
           letterSpacing: 0.2,
         ),
       ),
@@ -168,16 +168,16 @@ class SourceLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final style = kugo.caption.copyWith(
+    final theme = OvertoneTheme.of(context);
+    final style = theme.caption.copyWith(
       fontSize: compact ? 10 : 11,
-      color: kugo.textTertiary,
+      color: theme.textTertiary,
     );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!compact) ...[
-          Icon(Icons.source_rounded, size: 12, color: kugo.textTertiary),
+          Icon(Icons.source_rounded, size: 12, color: theme.textTertiary),
           const SizedBox(width: 4),
         ],
         Text('$prefix${platform.label}', style: style),
@@ -201,23 +201,23 @@ class SourceDisabledView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final f = feature;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(KugoSpacing.xl),
+        padding: const EdgeInsets.all(OvertoneSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.power_settings_new, size: 44, color: kugo.textTertiary),
-            const SizedBox(height: KugoSpacing.lg),
+            Icon(Icons.power_settings_new, size: 44, color: theme.textTertiary),
+            const SizedBox(height: OvertoneSpacing.lg),
             Text(
               f == null
                   ? '${platform.label}音源已停用'
                   : '${platform.label}的「${f.label}」已关闭',
-              style: kugo.section,
+              style: theme.section,
             ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             Text(
               f == null
                   ? '本页内容依赖${platform.label}。已停用期间不再请求该音源；'
@@ -225,9 +225,9 @@ class SourceDisabledView extends StatelessWidget {
                   : '${platform.label}音源仍启用，只是这一项功能被单独关掉了；'
                       '开启后本页即可用。已在播放队列中的歌曲不受影响。',
               textAlign: TextAlign.center,
-              style: kugo.caption.copyWith(color: kugo.textTertiary),
+              style: theme.caption.copyWith(color: theme.textTertiary),
             ),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             FilledButton.tonal(
               onPressed: () => context.push('/settings'),
               child: const Text('去设置开启'),
@@ -254,7 +254,7 @@ class SourceFilterBar extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     this.showAll = true,
-    this.horizontalPadding = KugoSpacing.lg,
+    this.horizontalPadding = OvertoneSpacing.lg,
   });
 
   final List<MusicPlatform> platforms;
@@ -273,13 +273,13 @@ class SourceFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (platforms.length <= 1) return const SizedBox.shrink();
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       // 与「我的」页标题→筛选条间距对齐：紧贴 AppBar / TabBar 会显得挤。
-      padding: const EdgeInsets.only(top: KugoSpacing.md, bottom: KugoSpacing.sm),
+      padding: const EdgeInsets.only(top: OvertoneSpacing.md, bottom: OvertoneSpacing.sm),
       child: SizedBox(
         height: 32,
-        child: KugoHScroll(
+        child: OvertoneHScroll(
           fadeEdges: false,
           builder: (context, controller, _) => ListView(
             controller: controller,
@@ -291,15 +291,15 @@ class SourceFilterBar extends StatelessWidget {
                   label: '全部',
                   selected: selected == null,
                   onTap: () => onSelect(null),
-                  kugo: kugo,
+                  theme: theme,
                 ),
               for (var i = 0; i < platforms.length; i++) ...[
-                if (showAll || i > 0) const SizedBox(width: KugoSpacing.sm),
+                if (showAll || i > 0) const SizedBox(width: OvertoneSpacing.sm),
                 _SourceChip(
                   label: platforms[i].label,
                   selected: selected == platforms[i],
                   onTap: () => onSelect(platforms[i]),
-                  kugo: kugo,
+                  theme: theme,
                 ),
               ],
             ],
@@ -315,41 +315,41 @@ class _SourceChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    required this.kugo,
+    required this.theme,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final KugoTheme kugo;
+  final OvertoneTheme theme;
 
   @override
   Widget build(BuildContext context) {
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.chip),
+      borderRadius: BorderRadius.circular(OvertoneRadius.chip),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: kugo.surface,
-          borderRadius: BorderRadius.circular(KugoRadius.chip),
-          border: Border.all(color: selected ? kugo.primary : kugo.divider),
+          color: theme.surface,
+          borderRadius: BorderRadius.circular(OvertoneRadius.chip),
+          border: Border.all(color: selected ? theme.primary : theme.divider),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (selected) ...[
-              Icon(Icons.check_rounded, size: 13, color: kugo.primary),
+              Icon(Icons.check_rounded, size: 13, color: theme.primary),
               const SizedBox(width: 3),
             ],
             Text(
               label,
-              style: kugo.caption.copyWith(
+              style: theme.caption.copyWith(
                 fontSize: 12,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? kugo.primary : kugo.textSecondary,
+                color: selected ? theme.primary : theme.textSecondary,
               ),
             ),
           ],
@@ -424,17 +424,17 @@ class TrackTile extends StatelessWidget {
   );
 
   Widget _buildRow(BuildContext context, bool hovered) {
-    final kugo = KugoTheme.of(context);
-    final titleStyle = kugo.body.copyWith(
-      color: isPlaying ? kugo.primary : kugo.textPrimary,
+    final theme = OvertoneTheme.of(context);
+    final titleStyle = theme.body.copyWith(
+      color: isPlaying ? theme.primary : theme.textPrimary,
     );
 
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.tile),
+      borderRadius: BorderRadius.circular(OvertoneRadius.tile),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: KugoSpacing.lg,
+          horizontal: OvertoneSpacing.lg,
           vertical: 10,
         ),
         child: Row(
@@ -445,10 +445,10 @@ class TrackTile extends StatelessWidget {
                 child: Text(
                   '${index!}',
                   textAlign: TextAlign.center,
-                  style: kugo.caption.copyWith(
+                  style: theme.caption.copyWith(
                     color: isPlaying
-                        ? kugo.primary
-                        : kugo.textTertiary,
+                        ? theme.primary
+                        : theme.textTertiary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -461,18 +461,18 @@ class TrackTile extends StatelessWidget {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(KugoRadius.cover),
+                        borderRadius: BorderRadius.circular(OvertoneRadius.cover),
                       ),
                       child: Icon(
                         Icons.equalizer_rounded,
-                        color: kugo.primary,
+                        color: theme.primary,
                         size: 22,
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(width: KugoSpacing.md),
+            const SizedBox(width: OvertoneSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,10 +493,10 @@ class TrackTile extends StatelessWidget {
                             track.artist,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.caption.copyWith(
+                            style: theme.caption.copyWith(
                               color: onArtistTap == null
-                                  ? kugo.textSecondary
-                                  : kugo.primary,
+                                  ? theme.textSecondary
+                                  : theme.primary,
                             ),
                           ),
                         ),
@@ -519,7 +519,7 @@ class TrackTile extends StatelessWidget {
               ),
             ),
             if (showAlbum && track.album.isNotEmpty) ...[
-              const SizedBox(width: KugoSpacing.md),
+              const SizedBox(width: OvertoneSpacing.md),
               SizedBox(
                 width: 140,
                 child: Text(
@@ -527,12 +527,12 @@ class TrackTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
-                  style: kugo.caption.copyWith(color: kugo.textSecondary),
+                  style: theme.caption.copyWith(color: theme.textSecondary),
                 ),
               ),
             ],
             if (showMv && canOpenMv(track)) ...[
-              const SizedBox(width: KugoSpacing.xs),
+              const SizedBox(width: OvertoneSpacing.xs),
               // 桌面端跟随整行 hover 显现（对齐 EchoMusic），移动端常驻。
               IgnorePointer(
                 ignoring: isDesktopView(context) && !hovered,
@@ -546,22 +546,22 @@ class TrackTile extends StatelessWidget {
             if (trailing != null)
               trailing!
             else if (showAlbum) ...[
-              const SizedBox(width: KugoSpacing.md),
+              const SizedBox(width: OvertoneSpacing.md),
               SizedBox(
                 width: 48,
                 child: Text(
                   track.durationLabel,
                   textAlign: TextAlign.right,
-                  style: kugo.caption.copyWith(
-                    color: kugo.textTertiary,
+                  style: theme.caption.copyWith(
+                    color: theme.textTertiary,
                   ),
                 ),
               ),
             ] else
               Text(
                 track.durationLabel,
-                style: kugo.caption.copyWith(
-                  color: kugo.textTertiary,
+                style: theme.caption.copyWith(
+                  color: theme.textTertiary,
                 ),
               ),
           ],
@@ -622,10 +622,10 @@ class PlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    return KugoClickable(
+    final theme = OvertoneTheme.of(context);
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(OvertoneRadius.card),
       child: SizedBox(
         width: width,
         child: Column(
@@ -639,17 +639,17 @@ class PlaylistCard extends StatelessWidget {
                   if (playlist.id.isNotEmpty)
                     CoverHero(
                       tag: playlist.isRank
-                          ? KugoHeroTags.rankCover(playlist.id)
-                          : KugoHeroTags.playlistCover(playlist.id),
+                          ? OvertoneHeroTags.rankCover(playlist.id)
+                          : OvertoneHeroTags.playlistCover(playlist.id),
                       seed: playlist.coverUrl,
                       size: width,
-                      radius: KugoRadius.card,
+                      radius: OvertoneRadius.card,
                     )
                   else
                     CoverBox(
                       seed: playlist.coverUrl,
                       size: width,
-                      radius: KugoRadius.card,
+                      radius: OvertoneRadius.card,
                     ),
                   if (playlist.playCountLabel.isNotEmpty &&
                       !playlist.playCountLabel.contains('/'))
@@ -663,7 +663,7 @@ class PlaylistCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(KugoRadius.chip),
+                          borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -699,7 +699,7 @@ class PlaylistCard extends StatelessWidget {
               playlist.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: kugo.body.copyWith(fontSize: 13, height: 1.3),
+              style: theme.body.copyWith(fontSize: 13, height: 1.3),
             ),
             if (playlist.description.isNotEmpty) ...[
               const SizedBox(height: 2),
@@ -707,7 +707,7 @@ class PlaylistCard extends StatelessWidget {
                 playlist.description,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: kugo.caption,
+                style: theme.caption,
               ),
             ],
           ],
@@ -755,8 +755,8 @@ class SearchResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final radius = round ? 26.0 : KugoRadius.cover;
+    final theme = OvertoneTheme.of(context);
+    final radius = round ? 26.0 : OvertoneRadius.cover;
     final cover = CoverBox(
       seed: imageSeed,
       size: 52,
@@ -765,7 +765,7 @@ class SearchResultRow extends StatelessWidget {
           ? Icon(
               Icons.person_rounded,
               size: 24,
-              color: kugo.onAccent.withValues(alpha: 0.85),
+              color: theme.onAccent.withValues(alpha: 0.85),
             )
           : null,
     );
@@ -780,18 +780,18 @@ class SearchResultRow extends StatelessWidget {
     return RepaintBoundary(
       // 搜索结果行同样进长列表：给出重绘边界，避免行内变化（hover/封面淡入）
       // 把重绘范围扩散到整段列表。
-      child: KugoClickable(
+      child: OvertoneClickable(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(KugoRadius.tile),
+        borderRadius: BorderRadius.circular(OvertoneRadius.tile),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: KugoSpacing.lg,
+            horizontal: OvertoneSpacing.lg,
             vertical: 10,
           ),
           child: Row(
             children: [
               coverWidget,
-              const SizedBox(width: KugoSpacing.md),
+              const SizedBox(width: OvertoneSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -800,7 +800,7 @@ class SearchResultRow extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.body,
+                      style: theme.body,
                     ),
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -808,17 +808,17 @@ class SearchResultRow extends StatelessWidget {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.caption,
+                        style: theme.caption,
                       ),
                     ],
                   ],
                 ),
               ),
               if (trailingLabel.isNotEmpty) ...[
-                const SizedBox(width: KugoSpacing.sm),
+                const SizedBox(width: OvertoneSpacing.sm),
                 Text(
                   trailingLabel,
-                  style: kugo.caption.copyWith(color: kugo.textTertiary),
+                  style: theme.caption.copyWith(color: theme.textTertiary),
                 ),
               ],
               if (platform != null) ...[
@@ -836,8 +836,8 @@ class SearchResultRow extends StatelessWidget {
 class GlassSurface extends StatelessWidget {  const GlassSurface({
     super.key,
     required this.child,
-    this.radius = KugoRadius.card,
-    this.padding = const EdgeInsets.all(KugoSpacing.md),
+    this.radius = OvertoneRadius.card,
+    this.padding = const EdgeInsets.all(OvertoneSpacing.md),
   });
 
   final Widget child;
@@ -846,18 +846,18 @@ class GlassSurface extends StatelessWidget {  const GlassSurface({
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // Material (not a bare Container) so ListTile ink splashes inside the card
     // paint on this surface instead of reaching for a distant ancestor —
     // otherwise Flutter asserts and the ripples are invisible.
     return Material(
-      color: kugo.surface,
-      elevation: kugo.palette.isLight ? 1 : 0,
+      color: theme.surface,
+      elevation: theme.palette.isLight ? 1 : 0,
       shadowColor: Colors.black.withValues(alpha: 0.12),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        side: BorderSide(color: kugo.divider),
+        side: BorderSide(color: theme.divider),
       ),
       child: Padding(padding: padding, child: child),
     );
@@ -866,22 +866,22 @@ class GlassSurface extends StatelessWidget {  const GlassSurface({
 
 /// Themed bottom sheet chrome — background follows the **current** palette
 /// (never pass a hardcoded color into showModalBottomSheet.backgroundColor).
-class KugoSheetChrome extends StatelessWidget {
-  const KugoSheetChrome({super.key, required this.child});
+class OvertoneSheetChrome extends StatelessWidget {
+  const OvertoneSheetChrome({super.key, required this.child});
 
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     // Material (not a bare Container) so ListTile ink splashes inside sheets
     // have a surface to paint on.
     return Material(
-      color: kugo.surfaceElevated,
+      color: theme.surfaceElevated,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        side: BorderSide(color: kugo.divider),
+        side: BorderSide(color: theme.divider),
       ),
       child: child,
     );
@@ -890,8 +890,8 @@ class KugoSheetChrome extends StatelessWidget {
 
 /// Themed desktop side sheet chrome — docked to the right edge with desktop elevation,
 /// border-left divider, and comfortable width (~400px).
-class KugoDesktopSideSheetChrome extends StatelessWidget {
-  const KugoDesktopSideSheetChrome({
+class OvertoneDesktopSideSheetChrome extends StatelessWidget {
+  const OvertoneDesktopSideSheetChrome({
     super.key,
     required this.child,
     this.width = 400,
@@ -902,15 +902,15 @@ class KugoDesktopSideSheetChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Align(
       alignment: Alignment.centerRight,
       child: Material(
-        color: kugo.surfaceElevated,
+        color: theme.surfaceElevated,
         elevation: 16,
         shadowColor: Colors.black.withValues(alpha: 0.4),
         shape: Border(
-          left: BorderSide(color: kugo.divider, width: 1),
+          left: BorderSide(color: theme.divider, width: 1),
         ),
         child: SizedBox(
           width: width,
@@ -940,7 +940,7 @@ class KugoDesktopSideSheetChrome extends StatelessWidget {
   }
 }
 
-Future<T?> showKugoBottomSheet<T>({
+Future<T?> showOvertoneBottomSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool isScrollControlled = false,
@@ -953,7 +953,7 @@ Future<T?> showKugoBottomSheet<T>({
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (dialogContext, _, _) {
-        return KugoDesktopSideSheetChrome(
+        return OvertoneDesktopSideSheetChrome(
           child: builder(dialogContext),
         );
       },
@@ -979,7 +979,7 @@ Future<T?> showKugoBottomSheet<T>({
     backgroundColor: Colors.transparent,
     elevation: 0,
     isScrollControlled: isScrollControlled,
-    builder: (sheetContext) => KugoSheetChrome(
+    builder: (sheetContext) => OvertoneSheetChrome(
       child: SafeArea(child: builder(sheetContext)),
     ),
   );

@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/repositories/login_repository.dart';
-import 'package:kugo/data/storage/device_identity.dart';
-import 'package:kugo/data/storage/credential_store.dart';
-import 'package:kugo/features/auth/auth_controller.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
-import 'package:kugo/features/profile/user_profile_detail.dart';
+import 'package:overtone/data/repositories/login_repository.dart';
+import 'package:overtone/data/storage/device_identity.dart';
+import 'package:overtone/data/storage/credential_store.dart';
+import 'package:overtone/features/auth/auth_controller.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
+import 'package:overtone/features/profile/user_profile_detail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
@@ -16,7 +16,7 @@ const _device = <String, Object>{
   'kugo_device_dfid': 'fixture-dfid',
   'kugo_device_guid': 'fixture-guid',
   'kugo_device_mid': 'fixture-mid',
-  'kugo_device_dev': 'kugoFlutter',
+  'kugo_device_dev': 'overtoneFlutter',
   'kugo_device_dfid_registered': true,
 };
 

@@ -8,7 +8,7 @@ import 'package:pointycastle/asn1.dart';
 import 'package:pointycastle/export.dart';
 
 /// AES/RSA helpers matching KuGouMusicApi `util/crypto.js`.
-abstract final class KugoCrypto {
+abstract final class KugouCrypto {
   /// Lite platform RSA public key (SPKI PEM).
   static const liteRsaPem = '''
 -----BEGIN PUBLIC KEY-----

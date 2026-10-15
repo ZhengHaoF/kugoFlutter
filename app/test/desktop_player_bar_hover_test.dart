@@ -9,9 +9,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/shared/widgets/desktop_player_bar.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/shared/widgets/desktop_player_bar.dart';
 
 import 'fakes/fake_audio_player.dart';
 

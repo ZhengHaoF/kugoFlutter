@@ -2,7 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/track.dart';
 import '../../core/source/music_platform.dart';
-import 'kugo_db.dart';
+import 'overtone_db.dart';
 
 /// Queue + play-history persistence backed by Drift (SQLite).
 ///
@@ -12,12 +12,12 @@ import 'kugo_db.dart';
 class QueueStore {
   QueueStore._(this._db);
 
-  final KugoDb _db;
+  final OvertoneDb _db;
 
-  static KugoDb? _dbCache;
+  static OvertoneDb? _dbCache;
   static Future<QueueStore>? _opening;
 
-  static void setDbForTesting(KugoDb? db) {
+  static void setDbForTesting(OvertoneDb? db) {
     _dbCache = db;
     _opening = null;
   }
@@ -28,7 +28,7 @@ class QueueStore {
   static Future<QueueStore> open() {
     return _opening ??= () async {
       final prefs = await SharedPreferences.getInstance();
-      final db = _dbCache ??= KugoDb();
+      final db = _dbCache ??= OvertoneDb();
       await db.migrateFromPrefs(prefs);
       final store = QueueStore._(db);
       await store.prime();
@@ -80,7 +80,7 @@ class QueueStore {
     return h;
   }
 
-  /// Distinct tracks in history (capped at 200 by [KugoDb.appendHistory]).
+  /// Distinct tracks in history (capped at 200 by [OvertoneDb.appendHistory]).
   /// Prefer this over `loadHistoryAsync().length` when only a count is shown.
   Future<int> historyCount() => _db.countHistory();
 

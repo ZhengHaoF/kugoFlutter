@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'fakes/fake_music_source.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/theme/kugo_theme.dart';
-import 'package:kugo/features/fm/fm_radio_card.dart';
-import 'package:kugo/features/player/player_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/theme/overtone_theme.dart';
+import 'package:overtone/features/fm/fm_radio_card.dart';
+import 'package:overtone/features/player/player_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fakes/fake_audio_player.dart';
@@ -46,7 +46,7 @@ Future<void> _pumpCarousel(
 
   await tester.pumpWidget(
     MaterialApp(
-      theme: buildKugoTheme(Brightness.light),
+      theme: buildOvertoneTheme(Brightness.light),
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -54,7 +54,7 @@ Future<void> _pumpCarousel(
             height: 240,
             child: Builder(
               builder: (context) => FmVinylCarousel(
-                kugo: KugoTheme.of(context),
+                theme: OvertoneTheme.of(context),
                 accent: const Color(0xFF3B82F6),
                 spin: controller,
                 tracks: tracks,
@@ -173,7 +173,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildKugoTheme(Brightness.light),
+        theme: buildOvertoneTheme(Brightness.light),
         home: Scaffold(
           body: SafeArea(
             child: StatefulBuilder(
@@ -183,7 +183,7 @@ void main() {
                     SizedBox(
                       height: 220,
                       child: FmVinylCarousel(
-                        kugo: KugoTheme.of(context),
+                        theme: OvertoneTheme.of(context),
                         accent: const Color(0xFF3B82F6),
                         spin: spin,
                         tracks: _tracks(6),

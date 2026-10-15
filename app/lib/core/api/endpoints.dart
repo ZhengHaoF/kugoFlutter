@@ -3,7 +3,7 @@
 ///
 /// Network note (2026-09): this LAN blocks HTTPS to kugou and most
 /// play/stream hosts, but HTTP `mobilecdn` search + `lyrics` work.
-abstract final class KugoEndpoints {
+abstract final class KugouEndpoints {
   static const mobileCdn = 'http://mobilecdn.kugou.com';
   static const wwwApi = 'http://wwwapi.kugou.com';
   static const tracker = 'http://trackercdn.kugou.com';

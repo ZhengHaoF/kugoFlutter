@@ -10,7 +10,7 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * `kugo/lyric_overlay` MethodChannel：Dart 桥 ↔ 原生悬浮窗。
+ * `overtone/lyric_overlay` MethodChannel：Dart 桥 ↔ 原生悬浮窗。
  *
  * Dart → Native：show / hide / updateSnapshot / resetPosition / applyBounds /
  *                canDrawOverlays / openOverlaySettings
@@ -127,7 +127,7 @@ class LyricOverlayPlugin(
     }
 
     companion object {
-        const val CHANNEL = "kugo/lyric_overlay"
+        const val CHANNEL = "overtone/lyric_overlay"
 
         @Volatile
         private var instance: LyricOverlayPlugin? = null

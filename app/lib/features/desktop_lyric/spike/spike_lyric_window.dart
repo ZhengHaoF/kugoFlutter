@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
-File get _spikeLogFile => File(r'C:\Users\zheng\kugo_spike.log');
+File get _spikeLogFile => File(r'C:\Users\zheng\overtone_spike.log');
 
 void _spikeLog(String msg) {
   try {
@@ -20,7 +20,7 @@ void _spikeLog(String msg) {
 const String kSpikeLyricWindowArg = 'spike_desktop_lyric';
 
 /// Spike：主窗 ↔ 歌词窗的测试通道名（bidirectional 配对）。
-const String kSpikeChannelName = 'kugo/spike_lyric';
+const String kSpikeChannelName = 'overtone/spike_lyric';
 
 /// 桌面歌词 spike 子窗口。
 ///

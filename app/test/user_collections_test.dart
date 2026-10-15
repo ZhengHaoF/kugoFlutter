@@ -6,21 +6,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:kugo/core/models/search_result.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/core/theme/hero_tags.dart';
-import 'package:kugo/data/repositories/user_repository.dart';
-import 'package:kugo/features/auth/auth_controller.dart';
-import 'package:kugo/features/likes/likes_controller.dart';
-import 'package:kugo/features/likes/likes_page.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/profile/profile_detail_page.dart';
-import 'package:kugo/features/profile/profile_page.dart';
-import 'package:kugo/features/profile/user_profile_detail.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
+import 'package:overtone/core/models/search_result.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/core/theme/hero_tags.dart';
+import 'package:overtone/data/repositories/user_repository.dart';
+import 'package:overtone/features/auth/auth_controller.dart';
+import 'package:overtone/features/likes/likes_controller.dart';
+import 'package:overtone/features/likes/likes_page.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/profile/profile_detail_page.dart';
+import 'package:overtone/features/profile/profile_page.dart';
+import 'package:overtone/features/profile/user_profile_detail.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
 import 'fakes/fake_audio_player.dart';
 import 'fakes/fake_music_source.dart';
 
@@ -347,13 +347,13 @@ void main() {
       // Covers fly into PlaylistDetailPage's header Hero.
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('1'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.playlistCover('1'),
         ),
         findsOneWidget,
       );
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.playlistCover('2'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.playlistCover('2'),
         ),
         findsOneWidget,
       );
@@ -627,13 +627,13 @@ void main() {
       expect(find.text('华语流行天王 · 380 首单曲'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('a1'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.artistAvatar('a1'),
         ),
         findsOneWidget,
       );
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.artistAvatar('a2'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.artistAvatar('a2'),
         ),
         findsOneWidget,
       );
@@ -660,13 +660,13 @@ void main() {
       expect(find.text('江南'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.albumCover('alb1'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.albumCover('alb1'),
         ),
         findsOneWidget,
       );
       expect(
         find.byWidgetPredicate(
-          (w) => w is Hero && w.tag == KugoHeroTags.albumCover('alb2'),
+          (w) => w is Hero && w.tag == OvertoneHeroTags.albumCover('alb2'),
         ),
         findsOneWidget,
       );

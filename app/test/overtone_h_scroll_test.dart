@@ -1,10 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/shared/widgets/kugo_h_scroll.dart';
+import 'package:overtone/shared/widgets/overtone_h_scroll.dart';
 import 'package:silky_scroll/silky_scroll.dart';
 
-/// KugoHScroll 行为回归：滚轮 hijack / 边缘放行 / 鼠标拖拽 / 点击不误触 /
+/// OvertoneHScroll 行为回归：滚轮 hijack / 边缘放行 / 鼠标拖拽 / 点击不误触 /
 /// 触控板横滑单份 / chips 行不劫持页面 / 渐隐层不引发子树重挂。
 ///
 /// 跑在 Windows 宿主机上，`isDesktopPlatform` 为 true，桌面路径全部生效。
@@ -20,10 +20,10 @@ ScrollController? _pageController;
 final List<int> _taps = <int>[];
 
 Widget _buildRow({
-  KugoHWheelMode mode = KugoHWheelMode.silky,
+  OvertoneHWheelMode mode = OvertoneHWheelMode.silky,
   bool fadeEdges = true,
 }) {
-  return KugoHScroll(
+  return OvertoneHScroll(
     controller: _rowController,
     wheelMode: mode,
     fadeEdges: fadeEdges,
@@ -69,7 +69,7 @@ Widget _buildPage(Widget row) {
 
 Future<void> _pumpRow(
   WidgetTester tester, {
-  KugoHWheelMode mode = KugoHWheelMode.silky,
+  OvertoneHWheelMode mode = OvertoneHWheelMode.silky,
   bool fadeEdges = true,
 }) async {
   await tester.pumpWidget(
@@ -179,7 +179,7 @@ void main() {
   });
 
   testWidgets('none 模式（chips 行）滚轮只滚页面，不动横排', (tester) async {
-    await _pumpRow(tester, mode: KugoHWheelMode.none);
+    await _pumpRow(tester, mode: OvertoneHWheelMode.none);
 
     final pointer = TestPointer(1, PointerDeviceKind.mouse);
     await tester.sendEventToBinding(pointer.hover(_kHoverPoint));
@@ -212,7 +212,7 @@ void main() {
 
     // fadeEdges: true 有渐隐层，false 没有。
     expect(find.byType(ShaderMask), findsOneWidget);
-    await _pumpRow(tester, mode: KugoHWheelMode.none, fadeEdges: false);
+    await _pumpRow(tester, mode: OvertoneHWheelMode.none, fadeEdges: false);
     expect(find.byType(ShaderMask), findsNothing);
   });
 }

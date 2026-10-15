@@ -14,9 +14,9 @@ import '../../core/platform.dart' show isAndroidPlatform, isDesktopPlatform;
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
-import '../../shared/widgets/common.dart' show showKugoBottomSheet;
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../shared/widgets/common.dart' show showOvertoneBottomSheet;
 import '../player/player_controller.dart';
 import '../settings/settings_controller.dart';
 import 'mv_barrage_controls.dart';
@@ -229,7 +229,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
   Future<void> _exitFullscreenSystemUi() async {
     await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    applyKugoSystemUi(_sysUiBrightnessOnEnter ?? Brightness.dark);
+    applyOvertoneSystemUi(_sysUiBrightnessOnEnter ?? Brightness.dark);
   }
 
   // ── 迷你窗（桌面 P2-2 / 移动端 P2-3）──
@@ -276,7 +276,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
     MvHostState hostState,
     MvPlayerHostController host,
   ) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final videoController = host.videoController;
     return Stack(
       fit: StackFit.expand,
@@ -317,7 +317,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
             child: Align(
               alignment: Alignment.topCenter,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.xs),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -365,7 +365,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
             child: Align(
               alignment: Alignment.bottomCenter,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.xs),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
@@ -396,7 +396,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                           position: host.position,
                           duration: host.duration,
                           buffered: host.buffered,
-                          activeColor: kugo.primary,
+                          activeColor: theme.primary,
                           onSeek: _seekTo,
                         ),
                       )
@@ -624,7 +624,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
         ? null
         : musicSourceRegistry?.capability<MvBarrageSource>(barragePlatform);
 
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Focus(
       focusNode: _keyNode,
       autofocus: true,
@@ -703,8 +703,8 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                               child: SafeArea(
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: KugoSpacing.sm,
-                                    vertical: KugoSpacing.xs,
+                                    horizontal: OvertoneSpacing.sm,
+                                    vertical: OvertoneSpacing.xs,
                                   ),
                                   child: Row(
                                     children: [
@@ -715,7 +715,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                                           Icons.keyboard_arrow_down,
                                         ),
                                       ),
-                                      const SizedBox(width: KugoSpacing.xs),
+                                      const SizedBox(width: OvertoneSpacing.xs),
                                       Expanded(
                                         child: Text(
                                           state.brief?.name ?? widget.name,
@@ -871,16 +871,16 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                                   // 全屏（横屏）下收紧底部留白，把画面撑满。
                                   padding: _fullscreen
                                       ? const EdgeInsets.fromLTRB(
-                                          KugoSpacing.lg,
-                                          KugoSpacing.sm,
-                                          KugoSpacing.lg,
-                                          KugoSpacing.sm,
+                                          OvertoneSpacing.lg,
+                                          OvertoneSpacing.sm,
+                                          OvertoneSpacing.lg,
+                                          OvertoneSpacing.sm,
                                         )
                                       : const EdgeInsets.fromLTRB(
-                                          KugoSpacing.lg,
-                                          KugoSpacing.sm,
-                                          KugoSpacing.lg,
-                                          KugoSpacing.lg,
+                                          OvertoneSpacing.lg,
+                                          OvertoneSpacing.sm,
+                                          OvertoneSpacing.lg,
+                                          OvertoneSpacing.lg,
                                         ),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
@@ -892,7 +892,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                                           position: host.position,
                                           duration: host.duration,
                                           buffered: host.buffered,
-                                          activeColor: kugo.primary,
+                                          activeColor: theme.primary,
                                           onSeek: _seekTo,
                                         ),
                                       // 核心控件行：播放/暂停 · 倍速 · 静音 · 全屏
@@ -973,7 +973,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                       horizontal:
-                                                          KugoSpacing.sm,
+                                                          OvertoneSpacing.sm,
                                                     ),
                                                 minimumSize: const Size(0, 32),
                                                 tapTargetSize:
@@ -1029,7 +1029,7 @@ class _MvPlayerPageState extends ConsumerState<MvPlayerPage> {
     final detail = state.detail;
     final brief = detail?.brief ?? state.brief;
     if (detail == null && brief == null) return;
-    showKugoBottomSheet<void>(
+    showOvertoneBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _MvDetailSheet(
@@ -1062,7 +1062,7 @@ class _VersionPickerButton extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   Future<void> _openList(BuildContext context) async {
-    final selected = await showKugoBottomSheet<int>(
+    final selected = await showOvertoneBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _VersionListSheet(
@@ -1080,7 +1080,7 @@ class _VersionPickerButton extends StatelessWidget {
       onPressed: () => _openList(context),
       style: TextButton.styleFrom(
         foregroundColor: Colors.white70,
-        padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.xs),
+        padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.xs),
         minimumSize: const Size(0, 28),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
@@ -1103,7 +1103,7 @@ class _VersionListSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.6,
@@ -1114,18 +1114,18 @@ class _VersionListSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.xl,
-              KugoSpacing.md,
-              KugoSpacing.xl,
-              KugoSpacing.sm,
+              OvertoneSpacing.xl,
+              OvertoneSpacing.md,
+              OvertoneSpacing.xl,
+              OvertoneSpacing.sm,
             ),
             child: Row(
               children: [
-                Text('其他版本', style: kugo.section),
+                Text('其他版本', style: theme.section),
                 const Spacer(),
                 Text(
                   '${versions.length} 个',
-                  style: kugo.caption.copyWith(color: kugo.textSecondary),
+                  style: theme.caption.copyWith(color: theme.textSecondary),
                 ),
               ],
             ),
@@ -1133,7 +1133,7 @@ class _VersionListSheet extends StatelessWidget {
           Flexible(
             child: ListView.builder(
               shrinkWrap: true,
-              padding: const EdgeInsets.only(bottom: KugoSpacing.lg),
+              padding: const EdgeInsets.only(bottom: OvertoneSpacing.lg),
               itemCount: versions.length,
               itemBuilder: (context, index) {
                 final v = versions[index];
@@ -1166,8 +1166,8 @@ class _VersionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
-    final titleColor = selected ? kugo.primary : kugo.textPrimary;
+    final theme = OvertoneTheme.of(context);
+    final titleColor = selected ? theme.primary : theme.textPrimary;
     final meta = <String>[
       if (version.artist.trim().isNotEmpty &&
           version.artist.trim() != version.displayTitle)
@@ -1182,25 +1182,25 @@ class _VersionTile extends StatelessWidget {
     ];
     return Material(
       color: selected
-          ? kugo.primary.withValues(alpha: 0.12)
+          ? theme.primary.withValues(alpha: 0.12)
           : Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: KugoSpacing.lg,
-            vertical: KugoSpacing.sm,
+            horizontal: OvertoneSpacing.lg,
+            vertical: OvertoneSpacing.sm,
           ),
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(KugoRadius.chip),
+                borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                 child: SizedBox(
                   width: 80,
                   height: 48,
                   child: version.coverUrl.isEmpty
                       ? ColoredBox(
-                          color: kugo.primary.withValues(alpha: 0.15),
+                          color: theme.primary.withValues(alpha: 0.15),
                           child: const Icon(
                             Icons.music_video,
                             size: 20,
@@ -1211,12 +1211,12 @@ class _VersionTile extends StatelessWidget {
                           version.coverUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => ColoredBox(
-                            color: kugo.primary.withValues(alpha: 0.15),
+                            color: theme.primary.withValues(alpha: 0.15),
                           ),
                         ),
                 ),
               ),
-              const SizedBox(width: KugoSpacing.md),
+              const SizedBox(width: OvertoneSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1225,7 +1225,7 @@ class _VersionTile extends StatelessWidget {
                       version.displayTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.body.copyWith(
+                      style: theme.body.copyWith(
                         color: titleColor,
                         fontWeight: selected ? FontWeight.w600 : null,
                       ),
@@ -1236,28 +1236,28 @@ class _VersionTile extends StatelessWidget {
                         meta.join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.caption.copyWith(color: kugo.textSecondary),
+                        style: theme.caption.copyWith(color: theme.textSecondary),
                       ),
                     ],
                     if (version.isRecommend || version.tags.isNotEmpty) ...[
-                      const SizedBox(height: KugoSpacing.xs),
+                      const SizedBox(height: OvertoneSpacing.xs),
                       Wrap(
-                        spacing: KugoSpacing.xs,
-                        runSpacing: KugoSpacing.xs,
+                        spacing: OvertoneSpacing.xs,
+                        runSpacing: OvertoneSpacing.xs,
                         children: [
                           if (version.isRecommend)
-                            _VersionChip(label: '官方推荐', color: kugo.primary),
+                            _VersionChip(label: '官方推荐', color: theme.primary),
                           for (final tag in version.tags.take(2))
-                            _VersionChip(label: tag, color: kugo.textSecondary),
+                            _VersionChip(label: tag, color: theme.textSecondary),
                         ],
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: KugoSpacing.sm),
+              const SizedBox(width: OvertoneSpacing.sm),
               if (selected)
-                Icon(Icons.check_circle, size: 18, color: kugo.primary)
+                Icon(Icons.check_circle, size: 18, color: theme.primary)
               else
                 const SizedBox(width: 18),
             ],
@@ -1351,7 +1351,7 @@ class _PlayPauseButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(KugoSpacing.lg),
+          padding: const EdgeInsets.all(OvertoneSpacing.lg),
           child: Icon(
             playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
             color: Colors.white,
@@ -1385,7 +1385,7 @@ class _StatsLine extends StatelessWidget {
     ];
     if (parts.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: KugoSpacing.xs),
+      padding: const EdgeInsets.only(top: OvertoneSpacing.xs),
       child: Text(
         parts.join(' · '),
         maxLines: 1,
@@ -1424,7 +1424,7 @@ class _MvDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final stats = <(String, String)>[
       if (playCountLabel.isNotEmpty) ('播放', playCountLabel),
       if (collectionCountLabel.isNotEmpty) ('收藏', collectionCountLabel),
@@ -1439,10 +1439,10 @@ class _MvDetailSheet extends StatelessWidget {
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(
-          KugoSpacing.xl,
-          KugoSpacing.md,
-          KugoSpacing.xl,
-          KugoSpacing.xl,
+          OvertoneSpacing.xl,
+          OvertoneSpacing.md,
+          OvertoneSpacing.xl,
+          OvertoneSpacing.xl,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1452,26 +1452,26 @@ class _MvDetailSheet extends StatelessWidget {
               child: Container(
                 width: 36,
                 height: 4,
-                margin: const EdgeInsets.only(bottom: KugoSpacing.lg),
+                margin: const EdgeInsets.only(bottom: OvertoneSpacing.lg),
                 decoration: BoxDecoration(
-                  color: kugo.divider,
+                  color: theme.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            Text(name, style: kugo.section),
+            Text(name, style: theme.section),
             if (artist.isNotEmpty) ...[
-              const SizedBox(height: KugoSpacing.xs),
+              const SizedBox(height: OvertoneSpacing.xs),
               Text(
                 artist,
-                style: kugo.body.copyWith(color: kugo.textSecondary),
+                style: theme.body.copyWith(color: theme.textSecondary),
               ),
             ],
             if (stats.isNotEmpty) ...[
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               Wrap(
-                spacing: KugoSpacing.md,
-                runSpacing: KugoSpacing.sm,
+                spacing: OvertoneSpacing.md,
+                runSpacing: OvertoneSpacing.sm,
                 children: [
                   for (final (label, value) in stats)
                     _StatChip(label: label, value: value),
@@ -1479,13 +1479,13 @@ class _MvDetailSheet extends StatelessWidget {
               ),
             ],
             if (description.trim().isNotEmpty) ...[
-              const SizedBox(height: KugoSpacing.lg),
-              Text('简介', style: kugo.body),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.lg),
+              Text('简介', style: theme.body),
+              const SizedBox(height: OvertoneSpacing.sm),
               Text(
                 description.trim(),
-                style: kugo.body.copyWith(
-                  color: kugo.textSecondary,
+                style: theme.body.copyWith(
+                  color: theme.textSecondary,
                   height: 1.5,
                 ),
               ),
@@ -1512,19 +1512,19 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: KugoSpacing.md,
-        vertical: KugoSpacing.sm,
+        horizontal: OvertoneSpacing.md,
+        vertical: OvertoneSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: kugo.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
+        color: theme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(OvertoneRadius.chip),
       ),
       child: Text(
         '$label $value',
-        style: kugo.caption.copyWith(color: kugo.textPrimary),
+        style: theme.caption.copyWith(color: theme.textPrimary),
       ),
     );
   }
@@ -1558,18 +1558,18 @@ class _ErrorOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(KugoSpacing.xl),
+        padding: const EdgeInsets.all(OvertoneSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.videocam_off, color: Colors.white54, size: 40),
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             Text(
               message.isEmpty ? '视频加载失败' : message,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             FilledButton(onPressed: onRetry, child: const Text('重试')),
           ],
         ),
@@ -1601,7 +1601,7 @@ class _QualityButton extends StatelessWidget {
                   const Icon(Icons.check, size: 16, color: Colors.white70)
                 else
                   const SizedBox(width: 16),
-                const SizedBox(width: KugoSpacing.sm),
+                const SizedBox(width: OvertoneSpacing.sm),
                 Text(
                   s.label + (s.codec.isNotEmpty ? ' ${s.codec}' : ''),
                   style: const TextStyle(color: Colors.white),
@@ -1674,7 +1674,7 @@ class _MvProgressBarState extends State<_MvProgressBar> {
                         fontSize: 11,
                       ),
                     ),
-                    const SizedBox(width: KugoSpacing.sm),
+                    const SizedBox(width: OvertoneSpacing.sm),
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -1723,7 +1723,7 @@ class _MvProgressBarState extends State<_MvProgressBar> {
                         },
                       ),
                     ),
-                    const SizedBox(width: KugoSpacing.sm),
+                    const SizedBox(width: OvertoneSpacing.sm),
                     Text(
                       _fmt((dur - current).clamp(0, dur)),
                       style: const TextStyle(
@@ -1865,7 +1865,7 @@ class _SpeedButton extends StatelessWidget {
                   const Icon(Icons.check, size: 16, color: Colors.white70)
                 else
                   const SizedBox(width: 16),
-                const SizedBox(width: KugoSpacing.sm),
+                const SizedBox(width: OvertoneSpacing.sm),
                 Text(
                   r == 1.0 ? '正常' : '${r}x',
                   style: const TextStyle(color: Colors.white),
@@ -1876,8 +1876,8 @@ class _SpeedButton extends StatelessWidget {
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: KugoSpacing.sm,
-          vertical: KugoSpacing.xs,
+          horizontal: OvertoneSpacing.sm,
+          vertical: OvertoneSpacing.xs,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1970,12 +1970,12 @@ class _SeekHint extends StatelessWidget {
             ),
             child: Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: KugoSpacing.lg,
-                vertical: KugoSpacing.sm,
+                horizontal: OvertoneSpacing.lg,
+                vertical: OvertoneSpacing.sm,
               ),
               decoration: BoxDecoration(
                 color: Colors.black54,
-                borderRadius: BorderRadius.circular(KugoRadius.chip),
+                borderRadius: BorderRadius.circular(OvertoneRadius.chip),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1985,7 +1985,7 @@ class _SeekHint extends StatelessWidget {
                     color: Colors.white,
                     size: 26,
                   ),
-                  const SizedBox(width: KugoSpacing.xs),
+                  const SizedBox(width: OvertoneSpacing.xs),
                   const Text(
                     '10 秒',
                     style: TextStyle(
@@ -2040,12 +2040,12 @@ class _ScrubOverlay extends StatelessWidget {
         alignment: const Alignment(0, -0.55),
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: KugoSpacing.md,
-            vertical: KugoSpacing.sm,
+            horizontal: OvertoneSpacing.md,
+            vertical: OvertoneSpacing.sm,
           ),
           decoration: BoxDecoration(
             color: Colors.black54,
-            borderRadius: BorderRadius.circular(KugoRadius.chip),
+            borderRadius: BorderRadius.circular(OvertoneRadius.chip),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -2055,7 +2055,7 @@ class _ScrubOverlay extends StatelessWidget {
                 color: Colors.white,
                 size: 20,
               ),
-              const SizedBox(width: KugoSpacing.xs),
+              const SizedBox(width: OvertoneSpacing.xs),
               Text(
                 '${forward ? '快进' : '快退'} ${_fmtDelta(deltaMs)} · '
                 '${_fmt(targetMs.clamp(0, durationMs))}',
@@ -2090,21 +2090,21 @@ class _VolumeOverlay extends StatelessWidget {
       child: Center(
         child: Container(
           width: 48,
-          padding: const EdgeInsets.symmetric(vertical: KugoSpacing.lg),
+          padding: const EdgeInsets.symmetric(vertical: OvertoneSpacing.lg),
           decoration: BoxDecoration(
             color: Colors.black54,
-            borderRadius: BorderRadius.circular(KugoRadius.chip),
+            borderRadius: BorderRadius.circular(OvertoneRadius.chip),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: Colors.white, size: 22),
-              const SizedBox(height: KugoSpacing.xs),
+              const SizedBox(height: OvertoneSpacing.xs),
               Text(
                 effective ? '静音' : '${volume.round()}%',
                 style: const TextStyle(color: Colors.white, fontSize: 11),
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               SizedBox(
                 width: 4,
                 height: 120,

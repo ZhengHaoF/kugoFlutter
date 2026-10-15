@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/mappers.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/shared/widgets/common.dart';
+import 'package:overtone/core/api/mappers.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/shared/widgets/common.dart';
 
 void main() {
   group('mapMobileSearchSong artistId', () {

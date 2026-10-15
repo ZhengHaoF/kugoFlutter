@@ -7,7 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'spike_lyric_window.dart';
 
 File get _logFile =>
-    File(r'C:\Users\zheng\kugo_spike.log');
+    File(r'C:\Users\zheng\overtone_spike.log');
 
 void _spikeLog(String msg) {
   try {

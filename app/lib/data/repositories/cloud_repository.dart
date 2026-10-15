@@ -17,9 +17,9 @@ import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/credential_transport.dart';
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_crypto.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_crypto.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart' show mapCloudCapacity, mapCloudTrack;
 import '../../core/models/cloud_models.dart';
 import '../../core/models/track.dart';
@@ -62,7 +62,7 @@ class CloudRepository {
 
     try {
       final body = await _postMcloud(
-        KugoEndpoints.cloudGetList,
+        KugouEndpoints.cloudGetList,
         dataMap: {
           'page': page,
           'pagesize': pageSize,
@@ -138,8 +138,8 @@ class CloudRepository {
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
       if (hasLogin) 'token': auth.token,
       if (hasLogin) 'userid': int.tryParse(auth.userId) ?? auth.userId,
@@ -148,23 +148,23 @@ class CloudRepository {
       'version': '20102',
       'ssl': 0,
       'album_audio_id': _intOf(source?.albumAudioId ?? track.mixSongId),
-      'pid': KugoEndpoints.cloudPid,
+      'pid': KugouEndpoints.cloudPid,
       'audio_id': _intOf(source?.audioId ?? ''),
       'kv_id': 2,
-      'key': KugoSign.signCloudKey(hash, KugoEndpoints.cloudPid),
+      'key': KugouSign.signCloudKey(hash, KugouEndpoints.cloudPid),
       'bucket': 'musicclound',
       'name': source?.name ?? track.name,
       'with_res_tag': 0,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params);
+    params['signature'] = KugouSign.signatureAndroidParams(params);
 
     try {
       final res = await _dio.get<dynamic>(
-        '${KugoEndpoints.gateway}${KugoEndpoints.cloudMusicUrl}',
+        '${KugouEndpoints.gateway}${KugouEndpoints.cloudMusicUrl}',
         queryParameters: params,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'dfid': device.dfid,
             'clienttime': '$clienttime',
             'mid': device.mid,
@@ -183,7 +183,7 @@ class CloudRepository {
         lastError = '网络网关拦截（URL过滤），无法访问酷狗';
         throw NetworkFailure(lastError, filtered: true);
       }
-      final decoded = decodeKugoBody(raw);
+      final decoded = decodeKugouBody(raw);
       if (decoded is! Map) {
         lastError = '云盘播放地址响应无法解析';
         throw UpstreamChanged(lastError);
@@ -265,7 +265,7 @@ class CloudRepository {
     };
 
     try {
-      final body = await _postMcloud(KugoEndpoints.cloudDelFiles, dataMap: dataMap);
+      final body = await _postMcloud(KugouEndpoints.cloudDelFiles, dataMap: dataMap);
       final status = _statusCode(body);
       if (status != 1) {
         lastError = _statusMessage(body, fallback: '删除云盘歌曲失败');
@@ -292,14 +292,14 @@ class CloudRepository {
     final device = await DeviceIdentity.ensure();
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final dataMap = <String, dynamic>{
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'clienttime': clienttime,
-      'clientver': int.parse(KugoSign.clientVer),
+      'clientver': int.parse(KugouSign.clientVer),
       'data': [
         {'hash': fileMd5.toLowerCase()},
       ],
       'dfid': device.dfid,
-      'key': KugoSign.signParamsKey('$clienttime'),
+      'key': KugouSign.signParamsKey('$clienttime'),
       'mid': device.mid,
       'show_privilege': 0,
       'show_author_alias': 0,
@@ -309,13 +309,13 @@ class CloudRepository {
 
     try {
       final res = await _dio.post<dynamic>(
-        '${KugoEndpoints.gateway}${KugoEndpoints.albumAudioLookup}',
+        '${KugouEndpoints.gateway}${KugouEndpoints.albumAudioLookup}',
         data: jsonEncode(dataMap),
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
-            'x-router': KugoEndpoints.kmrServiceRouter,
+            'x-router': KugouEndpoints.kmrServiceRouter,
             'Cookie': _cookieHeader(device, auth),
           },
           responseType: ResponseType.plain,
@@ -323,7 +323,7 @@ class CloudRepository {
       );
       final raw = res.data?.toString() ?? '';
       if (looksLikeUrlFilter(raw)) return null;
-      final decoded = decodeKugoBody(raw);
+      final decoded = decodeKugouBody(raw);
       if (decoded is! Map) return null;
       final map = Map<String, dynamic>.from(decoded);
       if (_statusCode(map) != 1) return null;
@@ -477,7 +477,7 @@ class CloudRepository {
 
       // ── 5. 写入云盘 ──
       await _postMcloud(
-        KugoEndpoints.cloudAddFiles,
+        KugouEndpoints.cloudAddFiles,
         dataMap: {
           'data': [
             {
@@ -518,32 +518,32 @@ class CloudRepository {
   }) async {
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final params = <String, dynamic>{
-      'bucket': KugoEndpoints.cloudBucket,
+      'bucket': KugouEndpoints.cloudBucket,
       'filename': filename,
       'method': 'POST',
       'loginType': 1,
-      'buVerifyCode': KugoSign.md5Hex(
-        '${KugoSign.appId}${KugoEndpoints.cloudBucket}8ae10344e9738dcb',
+      'buVerifyCode': KugouSign.md5Hex(
+        '${KugouSign.appId}${KugouEndpoints.cloudBucket}8ae10344e9738dcb',
       ),
       'extranet': 1,
       'userid': auth.userId,
       'token': auth.token,
-      'version': KugoSign.clientVer,
+      'version': KugouSign.clientVer,
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: '');
 
     final res = await _dio.get<dynamic>(
-      '${KugoEndpoints.gateway}${KugoEndpoints.cloudUploadAuth}',
+      '${KugouEndpoints.gateway}${KugouEndpoints.cloudUploadAuth}',
       queryParameters: params,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Cookie': _cookieHeader(device, auth),
         },
         responseType: ResponseType.plain,
@@ -571,29 +571,29 @@ class CloudRepository {
   }) async {
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final params = <String, dynamic>{
-      'bucket': KugoEndpoints.cloudBucket,
+      'bucket': KugouEndpoints.cloudBucket,
       'filename': filename,
       'ssl': 1,
       'extendname': extendname,
-      'version': KugoSign.clientVer,
+      'version': KugouSign.clientVer,
       'userid': auth.userId,
       'token': auth.token,
       'authorization': authorization,
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: '');
 
     final res = await _dio.post<dynamic>(
-      '${KugoEndpoints.bssulbig}${KugoEndpoints.cloudMultipartInit}',
+      '${KugouEndpoints.bssulbig}${KugouEndpoints.cloudMultipartInit}',
       queryParameters: params,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Authorization': authorization,
           'Cookie': _cookieHeader(device, auth),
         },
@@ -632,32 +632,32 @@ class CloudRepository {
   }) async {
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final params = <String, dynamic>{
-      'bucket': KugoEndpoints.cloudBucket,
+      'bucket': KugouEndpoints.cloudBucket,
       'authorization': authorization,
       'filename': filename,
       'partnumber': partNumber,
       'upload_id': uploadId,
       'body_empty': 1,
-      'version': KugoSign.clientVer,
+      'version': KugouSign.clientVer,
       'userid': auth.userId,
       'token': auth.token,
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: '');
 
     final base = secureKugouUploadBase(host);
     final res = await _dio.post<dynamic>(
-      '$base${KugoEndpoints.cloudMultipartUpload}',
+      '$base${KugouEndpoints.cloudMultipartUpload}',
       queryParameters: params,
       data: Uint8List.fromList(part),
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Authorization': authorization,
           'Content-Type': 'application/octet-stream',
           'Cookie': _cookieHeader(device, auth),
@@ -683,32 +683,32 @@ class CloudRepository {
   }) async {
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final params = <String, dynamic>{
-      'bucket': KugoEndpoints.cloudBucket,
+      'bucket': KugouEndpoints.cloudBucket,
       'authorization': authorization,
       'filename': filename,
       'partnumber': partCount,
       'upload_id': uploadId,
       'md5': filename,
-      'version': KugoSign.clientVer,
+      'version': KugouSign.clientVer,
       'userid': auth.userId,
       'token': auth.token,
       'if_id3': 1,
       'dfid': device.dfid,
       'mid': device.mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
-      'clientver': int.parse(KugoSign.clientVer),
+      'appid': int.parse(KugouSign.appId),
+      'clientver': int.parse(KugouSign.clientVer),
       'clienttime': clienttime,
     };
-    params['signature'] = KugoSign.signatureAndroidParams(params, data: '');
+    params['signature'] = KugouSign.signatureAndroidParams(params, data: '');
 
     final base = secureKugouUploadBase(host);
     final res = await _dio.post<dynamic>(
-      '$base${KugoEndpoints.cloudMultipartComplete}',
+      '$base${KugouEndpoints.cloudMultipartComplete}',
       queryParameters: params,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Authorization': authorization,
           'Cookie': _cookieHeader(device, auth),
         },
@@ -762,9 +762,9 @@ class CloudRepository {
   }) async {
     final auth = AuthTokenHolder.instance;
     final device = await DeviceIdentity.ensure();
-    final aes = KugoCrypto.playlistAesEncrypt(jsonEncode(dataMap));
+    final aes = KugouCrypto.playlistAesEncrypt(jsonEncode(dataMap));
     // userid 在 p 里用字符串（user_cloud.js 从 cookie 读出即 string）。
-    final p = KugoCrypto
+    final p = KugouCrypto
         .rsaEncryptPkcs1(
           jsonEncode({
             'aes': aes.key,
@@ -776,19 +776,19 @@ class CloudRepository {
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     final res = await _dio.post<dynamic>(
-      '${KugoEndpoints.mcloudService}$path',
+      '${KugouEndpoints.mcloudService}$path',
       queryParameters: {
         'clienttime': clienttime,
         'mid': device.mid,
-        'key': KugoSign.signParamsKey('$clienttime'),
-        'clientver': int.parse(KugoSign.clientVer),
-        'appid': int.parse(KugoSign.appId),
+        'key': KugouSign.signParamsKey('$clienttime'),
+        'clientver': int.parse(KugouSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
         'p': p,
       },
       data: Uint8List.fromList(base64.decode(aes.str)),
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'Cookie': _cookieHeader(device, auth),
           'KG-RC': '1',
@@ -821,7 +821,7 @@ class CloudRepository {
       throw NetworkFailure(lastError, filtered: true);
     }
 
-    final decrypted = KugoCrypto.playlistAesDecrypt(base64.encode(bytes), aes.key);
+    final decrypted = KugouCrypto.playlistAesDecrypt(base64.encode(bytes), aes.key);
     for (final candidate in [decrypted, rawText]) {
       if (candidate == null || candidate.isEmpty) continue;
       try {

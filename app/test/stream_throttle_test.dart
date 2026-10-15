@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/utils/stream_throttle.dart';
+import 'package:overtone/core/utils/stream_throttle.dart';
 
 void main() {
   test('leading edge is delivered immediately', () async {

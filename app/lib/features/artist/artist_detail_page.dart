@@ -10,14 +10,14 @@ import '../../core/models/track.dart';
 import '../../core/source/capabilities.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 class ArtistDetailPage extends ConsumerStatefulWidget {
@@ -324,19 +324,19 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     showDialog<void>(
       context: context,
       builder: (context) {
-        final kugo = KugoTheme.of(context);
+        final theme = OvertoneTheme.of(context);
         return AlertDialog(
-          backgroundColor: kugo.surface,
-          title: Text('歌手介绍', style: kugo.section),
+          backgroundColor: theme.surface,
+          title: Text('歌手介绍', style: theme.section),
           content: SizedBox(
             width: 480,
             child: SingleChildScrollView(
               child: Text(
                 intro,
-                style: kugo.caption.copyWith(
+                style: theme.caption.copyWith(
                   fontSize: 13,
                   height: 1.6,
-                  color: kugo.textSecondary,
+                  color: theme.textSecondary,
                 ),
               ),
             ),
@@ -377,7 +377,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final artist = _artist;
     final displayName = artist?.name ?? Uri.decodeComponent(widget.id);
@@ -397,7 +397,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
               icon: const Icon(Icons.arrow_back_rounded),
               tooltip: '返回',
             ),
-            backgroundColor: kugo.bg.withValues(alpha: 0.92),
+            backgroundColor: theme.bg.withValues(alpha: 0.92),
             flexibleSpace: FlexibleSpaceBar(
               background: _ArtistHero(
                 artist: artist,
@@ -430,7 +430,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
           if (_contents.isNotEmpty || _loadingContents || _contentsError.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(KugoSpacing.lg),
+                padding: const EdgeInsets.all(OvertoneSpacing.lg),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   const Text('合集 / 系列'),
                   for (final p in _contents) ListTile(
@@ -452,10 +452,10 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                KugoSpacing.lg,
-                KugoSpacing.lg,
-                KugoSpacing.lg,
-                KugoSpacing.sm,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.lg,
+                OvertoneSpacing.sm,
               ),
               child: _SongsToolbar(
                 sort: _songSort,
@@ -510,11 +510,11 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
               itemBuilder: (context, index) {
                 if (index >= displayed.length) {
                   return Padding(
-                    padding: const EdgeInsets.all(KugoSpacing.lg),
+                    padding: const EdgeInsets.all(OvertoneSpacing.lg),
                     child: Center(
                       child: Text(
                         _loadingMore ? '正在加载更多歌曲…' : '上拉或稍候加载更多',
-                        style: kugo.caption,
+                        style: theme.caption,
                       ),
                     ),
                   );
@@ -553,7 +553,7 @@ class _ArtistMvStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (loading && mvs.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: KugoSpacing.md),
+        padding: EdgeInsets.symmetric(vertical: OvertoneSpacing.md),
         child: Center(
           child: SizedBox(
             width: 20,
@@ -565,29 +565,29 @@ class _ArtistMvStrip extends StatelessWidget {
     }
     if (mvs.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: KugoSpacing.sm),
+      padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              KugoSpacing.sm,
-              KugoSpacing.lg,
-              KugoSpacing.sm,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.sm,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.sm,
             ),
-            child: Text('MV', style: KugoTheme.of(context).section),
+            child: Text('MV', style: OvertoneTheme.of(context).section),
           ),
           SizedBox(
             height: 132,
-            child: KugoHScroll(
+            child: OvertoneHScroll(
               builder: (context, controller, physics) => ListView.separated(
                 controller: controller,
                 scrollDirection: Axis.horizontal,
                 physics: physics,
-                padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
                 itemCount: mvs.length,
-                separatorBuilder: (_, _) => const SizedBox(width: KugoSpacing.md),
+                separatorBuilder: (_, _) => const SizedBox(width: OvertoneSpacing.md),
                 itemBuilder: (context, index) {
                   final mv = mvs[index];
                   return _MvCard(mv: mv, onTap: () => onOpen(mv));
@@ -609,7 +609,7 @@ class _MvCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return SizedBox(
       width: 168,
       child: GestureDetector(
@@ -622,7 +622,7 @@ class _MvCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CoverBox(seed: mv.coverUrl, size: 0, radius: KugoRadius.cover),
+                  CoverBox(seed: mv.coverUrl, size: 0, radius: OvertoneRadius.cover),
                   if (mv.durationLabel.isNotEmpty)
                     Positioned(
                       right: 6,
@@ -653,7 +653,7 @@ class _MvCard extends StatelessWidget {
               mv.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: kugo.caption.copyWith(color: kugo.textPrimary),
+              style: theme.caption.copyWith(color: theme.textPrimary),
             ),
           ],
         ),
@@ -683,7 +683,7 @@ class _ArtistHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final avatarSeed = artist?.avatarUrl ?? displayName;
 
     return Container(
@@ -692,8 +692,8 @@ class _ArtistHero extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            kugo.primary.withValues(alpha: 0.12),
-            kugo.bg,
+            theme.primary.withValues(alpha: 0.12),
+            theme.bg,
           ],
         ),
       ),
@@ -701,16 +701,16 @@ class _ArtistHero extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
             56,
-            KugoSpacing.lg,
-            KugoSpacing.lg,
+            OvertoneSpacing.lg,
+            OvertoneSpacing.lg,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               CoverHero(
-                tag: KugoHeroTags.artistAvatar(
+                tag: OvertoneHeroTags.artistAvatar(
                   artist?.id ?? displayName,
                 ),
                 seed: avatarSeed,
@@ -724,7 +724,7 @@ class _ArtistHero extends StatelessWidget {
                       )
                     : null,
               ),
-              const SizedBox(width: KugoSpacing.xl),
+              const SizedBox(width: OvertoneSpacing.xl),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,18 +737,18 @@ class _ArtistHero extends StatelessWidget {
                             displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.title.copyWith(fontSize: 28),
+                            style: theme.title.copyWith(fontSize: 28),
                           ),
                         ),
-                        const SizedBox(width: KugoSpacing.sm),
+                        const SizedBox(width: OvertoneSpacing.sm),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            border: Border.all(color: kugo.primary),
-                            borderRadius: BorderRadius.circular(KugoRadius.chip),
+                            border: Border.all(color: theme.primary),
+                            borderRadius: BorderRadius.circular(OvertoneRadius.chip),
                           ),
                           child: Text(
                             'ARTIST',
@@ -756,7 +756,7 @@ class _ArtistHero extends StatelessWidget {
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.8,
-                              color: kugo.primary,
+                              color: theme.primary,
                             ),
                           ),
                         ),
@@ -767,24 +767,24 @@ class _ArtistHero extends StatelessWidget {
                       statusLine,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.caption.copyWith(
+                      style: theme.caption.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: artist == null
-                            ? kugo.textSecondary
-                            : kugo.primary,
+                            ? theme.textSecondary
+                            : theme.primary,
                       ),
                     ),
                     if (metaLine.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
                         metaLine,
-                        style: kugo.caption.copyWith(
-                          color: kugo.textSecondary,
+                        style: theme.caption.copyWith(
+                          color: theme.textSecondary,
                         ),
                       ),
                     ],
-                    const SizedBox(height: KugoSpacing.lg),
+                    const SizedBox(height: OvertoneSpacing.lg),
                     Row(
                       children: [
                         FilledButton.icon(
@@ -792,7 +792,7 @@ class _ArtistHero extends StatelessWidget {
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: const Text('播放热门'),
                         ),
-                        const SizedBox(width: KugoSpacing.sm),
+                        const SizedBox(width: OvertoneSpacing.sm),
                         TextButton(
                           onPressed: onReload,
                           child: const Text('重新加载'),
@@ -818,24 +818,24 @@ class _IntroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.md,
-        KugoSpacing.lg,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.md,
+        OvertoneSpacing.lg,
         0,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('歌手介绍', style: kugo.section.copyWith(fontSize: 16)),
-          const SizedBox(height: KugoSpacing.sm),
+          Text('歌手介绍', style: theme.section.copyWith(fontSize: 16)),
+          const SizedBox(height: OvertoneSpacing.sm),
           Text(
             intro,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: kugo.caption.copyWith(height: 1.5),
+            style: theme.caption.copyWith(height: 1.5),
           ),
           TextButton(
             onPressed: onExpand,
@@ -845,10 +845,10 @@ class _IntroSection extends StatelessWidget {
             ),
             child: Text(
               '查看详情',
-              style: kugo.caption.copyWith(
+              style: theme.caption.copyWith(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: kugo.primary,
+                color: theme.primary,
               ),
             ),
           ),
@@ -877,13 +877,13 @@ class _SongsToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final heading = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('歌曲', style: kugo.section.copyWith(fontSize: 17)),
-        const SizedBox(width: KugoSpacing.sm),
-        Flexible(child: Text(countLabel, style: kugo.caption)),
+        Text('歌曲', style: theme.section.copyWith(fontSize: 17)),
+        const SizedBox(width: OvertoneSpacing.sm),
+        Flexible(child: Text(countLabel, style: theme.caption)),
       ],
     );
     final sortControl = SegmentedButton<ArtistSongSort>(
@@ -910,29 +910,29 @@ class _SongsToolbar extends StatelessWidget {
       child: TextField(
         controller: searchController,
         onChanged: onSearchChanged,
-        style: kugo.caption.copyWith(color: kugo.textPrimary),
+        style: theme.caption.copyWith(color: theme.textPrimary),
         decoration: InputDecoration(
           isDense: true,
           hintText: '搜索歌曲…',
-          hintStyle: kugo.caption,
+          hintStyle: theme.caption,
           prefixIcon: Icon(
             Icons.search_rounded,
             size: 18,
-            color: kugo.textTertiary,
+            color: theme.textTertiary,
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 10,
             vertical: 8,
           ),
           filled: true,
-          fillColor: kugo.surface,
+          fillColor: theme.surface,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(KugoRadius.tile),
-            borderSide: BorderSide(color: kugo.divider),
+            borderRadius: BorderRadius.circular(OvertoneRadius.tile),
+            borderSide: BorderSide(color: theme.divider),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(KugoRadius.tile),
-            borderSide: BorderSide(color: kugo.divider),
+            borderRadius: BorderRadius.circular(OvertoneRadius.tile),
+            borderSide: BorderSide(color: theme.divider),
           ),
         ),
       ),
@@ -941,7 +941,7 @@ class _SongsToolbar extends StatelessWidget {
       onPressed: onLocate,
       tooltip: '定位当前播放',
       icon: const Icon(Icons.my_location_rounded, size: 18),
-      color: kugo.textSecondary,
+      color: theme.textSecondary,
     );
 
     return LayoutBuilder(
@@ -961,7 +961,7 @@ class _SongsToolbar extends StatelessWidget {
                   sortControl,
                 ],
               ),
-              const SizedBox(height: KugoSpacing.sm),
+              const SizedBox(height: OvertoneSpacing.sm),
               Row(
                 children: [
                   Expanded(child: searchField),
@@ -976,7 +976,7 @@ class _SongsToolbar extends StatelessWidget {
             heading,
             const Spacer(),
             sortControl,
-            const SizedBox(width: KugoSpacing.sm),
+            const SizedBox(width: OvertoneSpacing.sm),
             // 之前写死 180 宽：窄屏撑破、宽屏又太挤。改成有上下限的弹性宽度，
             // 空间不足时优先让搜索框变窄而不是溢出。
             Flexible(
@@ -986,7 +986,7 @@ class _SongsToolbar extends StatelessWidget {
                 child: searchField,
               ),
             ),
-            const SizedBox(width: KugoSpacing.xs),
+            const SizedBox(width: OvertoneSpacing.xs),
             locateButton,
           ],
         );

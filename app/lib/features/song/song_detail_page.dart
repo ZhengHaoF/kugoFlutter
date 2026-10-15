@@ -12,8 +12,8 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../data/repositories/comment_repository.dart' show CommentRepository;
 import '../../features/player/player_controller.dart';
@@ -22,7 +22,7 @@ import '../../shared/widgets/comment_composer_sheet.dart';
 import '../../shared/widgets/comment_tile.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/cover_box.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// Route: /song?id=&platform=&name=&artist=&artistId=&album=&cover=&hash=&mixSongId=&duration=
@@ -505,7 +505,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final track = _track;
     final player = ref.watch(playerControllerProvider);
 
@@ -514,9 +514,9 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       body: DesktopContentConstraint.reading(
         child: SmoothListView(
         padding: const EdgeInsets.fromLTRB(
-          KugoSpacing.lg,
-          KugoSpacing.md,
-          KugoSpacing.lg,
+          OvertoneSpacing.lg,
+          OvertoneSpacing.md,
+          OvertoneSpacing.lg,
           40,
         ),
         children: [
@@ -526,23 +526,23 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                 CoverHero(
                   tag: track.id.isNotEmpty
                       ? 'player-cover-${track.id}'
-                      : KugoHeroTags.songCover(track.hash),
+                      : OvertoneHeroTags.songCover(track.hash),
                   seed: track.coverUrl,
                   size: 88,
-                  radius: KugoRadius.card,
+                  radius: OvertoneRadius.card,
                 )
               else
                 CoverBox(
                   seed: track.coverUrl,
                   size: 88,
-                  radius: KugoRadius.card,
+                  radius: OvertoneRadius.card,
                 ),
-              const SizedBox(width: KugoSpacing.lg),
+              const SizedBox(width: OvertoneSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(track.name, style: kugo.title),
+                    Text(track.name, style: theme.title),
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -551,7 +551,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                             track.artist.isEmpty ? '未知歌手' : track.artist,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: kugo.caption,
+                            style: theme.caption,
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -564,7 +564,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
                         track.album,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: kugo.caption.copyWith(color: kugo.textTertiary),
+                        style: theme.caption.copyWith(color: theme.textTertiary),
                       ),
                     ],
                   ],
@@ -572,7 +572,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               ),
             ],
           ),
-          const SizedBox(height: KugoSpacing.lg),
+          const SizedBox(height: OvertoneSpacing.lg),
           Row(
             children: [
               Expanded(
@@ -615,63 +615,63 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
           ),
           if (player.current?.id == track.id)
             Padding(
-              padding: const EdgeInsets.only(top: KugoSpacing.sm),
+              padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
               child: Text(
                 player.isPlaying ? '正在播放' : '已加入播放',
-                style: kugo.caption.copyWith(color: kugo.primary),
+                style: theme.caption.copyWith(color: theme.primary),
               ),
             ),
-          const SizedBox(height: KugoSpacing.xl),
+          const SizedBox(height: OvertoneSpacing.xl),
           Row(
             children: [
-              Text('评论', style: kugo.section),
+              Text('评论', style: theme.section),
               const SizedBox(width: 8),
               if (_comments.total > 0)
                 Text(
                   '${formatCount(_comments.total)}条',
-                  style: kugo.caption.copyWith(color: kugo.textTertiary),
+                  style: theme.caption.copyWith(color: theme.textTertiary),
                 ),
               const Spacer(),
               // 档位由源给出（首项即默认，UI 不解读语义），酷狗三档、网易三档。
               for (final o in _sortOptionsOf(_source))
-                _sortButton(kugo, o.id, o.label),
+                _sortButton(theme, o.id, o.label),
             ],
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           // 无写侧能力（网易）时**不渲染**「说点什么…」——
           // 渲染出来点了才 toast「不支持」是更差的做法。
-          if (_writer != null) _composerEntry(kugo),
+          if (_writer != null) _composerEntry(theme),
           // 分类 / 热词是酷狗独有的增强能力，无该能力（网易）时整行不出。
-          if (_extras != null && _isDefaultSort(_source)) _filterChipsRow(kugo),
+          if (_extras != null && _isDefaultSort(_source)) _filterChipsRow(theme),
           if (_featured.isNotEmpty) ...[
-            const SizedBox(height: KugoSpacing.md),
+            const SizedBox(height: OvertoneSpacing.md),
             Row(
               children: [
                 Icon(
                   Icons.local_fire_department_rounded,
                   size: 16,
-                  color: kugo.primary,
+                  color: theme.primary,
                 ),
                 const SizedBox(width: 6),
-                Text('精彩评论', style: kugo.section),
+                Text('精彩评论', style: theme.section),
               ],
             ),
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             for (final c in _featured) CommentTile(comment: c),
-            Divider(color: kugo.divider),
+            Divider(color: theme.divider),
           ],
-          const SizedBox(height: KugoSpacing.md),
+          const SizedBox(height: OvertoneSpacing.md),
           if (_loading)
             const Padding(
-              padding: EdgeInsets.all(KugoSpacing.xl),
+              padding: EdgeInsets.all(OvertoneSpacing.xl),
               child: Center(child: CircularProgressIndicator()),
             )
           else if (_comments.items.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(KugoSpacing.lg),
+              padding: const EdgeInsets.all(OvertoneSpacing.lg),
               child: Text(
                 _error.isEmpty ? '暂无评论' : _error,
-                style: kugo.caption,
+                style: theme.caption,
               ),
             )
           else ...[
@@ -695,8 +695,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
               )
             else
               Padding(
-                padding: const EdgeInsets.only(top: KugoSpacing.sm),
-                child: Center(child: Text('没有更多评论了', style: kugo.caption)),
+                padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
+                child: Center(child: Text('没有更多评论了', style: theme.caption)),
               ),
           ],
         ],
@@ -705,7 +705,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     );
   }
 
-  Widget _sortButton(KugoTheme kugo, String id, String label) {
+  Widget _sortButton(OvertoneTheme theme, String id, String label) {
     final selected = _sortIdOf(_source) == id;
     return TextButton(
       onPressed: () => _switchSort(id),
@@ -716,8 +716,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
       ),
       child: Text(
         label,
-        style: kugo.caption.copyWith(
-          color: selected ? kugo.primary : kugo.textTertiary,
+        style: theme.caption.copyWith(
+          color: selected ? theme.primary : theme.textTertiary,
           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
@@ -725,28 +725,28 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   }
 
   /// 「说点什么…」入口：未登录时点击直接引导登录。
-  Widget _composerEntry(KugoTheme kugo) {
+  Widget _composerEntry(OvertoneTheme theme) {
     return InkWell(
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(OvertoneRadius.card),
       onTap: () => _compose(),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: KugoSpacing.md,
+          horizontal: OvertoneSpacing.md,
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          color: kugo.surfaceElevated,
-          borderRadius: BorderRadius.circular(KugoRadius.card),
-          border: Border.all(color: kugo.divider),
+          color: theme.surfaceElevated,
+          borderRadius: BorderRadius.circular(OvertoneRadius.card),
+          border: Border.all(color: theme.divider),
         ),
         child: Row(
           children: [
-            Icon(Icons.edit_outlined, size: 16, color: kugo.textTertiary),
+            Icon(Icons.edit_outlined, size: 16, color: theme.textTertiary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 _isLoggedIn ? '说点什么…' : '登录后参与评论',
-                style: kugo.caption.copyWith(color: kugo.textTertiary),
+                style: theme.caption.copyWith(color: theme.textTertiary),
               ),
             ),
           ],
@@ -759,18 +759,18 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   ///
   /// 读的是页面状态里的选项（**不是** `_comments.classifyList`）——
   /// 否则点一下就整行消失。详见字段注释。
-  Widget _filterChipsRow(KugoTheme kugo) {
+  Widget _filterChipsRow(OvertoneTheme theme) {
     final options = <Widget>[
       for (final c in _classifyOptions)
         _chip(
-          kugo,
+          theme,
           label: c.count > 0 ? '${c.label} ${formatCount(c.count)}' : c.label,
           selected: _classifyId == c.id,
           onTap: () => _selectClassify(c.id),
         ),
       for (final w in _hotwordOptions)
         _chip(
-          kugo,
+          theme,
           label: '#${w.label}',
           selected: _hotword == w.id,
           onTap: () => _selectHotword(w.id),
@@ -778,8 +778,8 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
     ];
     if (options.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: KugoSpacing.sm),
-      child: KugoHScroll(
+      padding: const EdgeInsets.only(top: OvertoneSpacing.sm),
+      child: OvertoneHScroll(
         fadeEdges: false,
         builder: (context, controller, _) => SingleChildScrollView(
           controller: controller,
@@ -793,7 +793,7 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
   /// 一个筛选 chip。**选中态右侧带 ✕** —— 提示「再点一次即取消」，
   /// 否则用户看不出还能退出筛选（点整块任意处都算取消）。
   Widget _chip(
-    KugoTheme kugo, {
+    OvertoneTheme theme, {
     required String label,
     required bool selected,
     required VoidCallback onTap,
@@ -812,24 +812,24 @@ class _SongDetailPageState extends ConsumerState<SongDetailPage> {
           ),
           decoration: BoxDecoration(
             color: selected
-                ? kugo.primary.withValues(alpha: 0.14)
-                : kugo.surfaceElevated,
+                ? theme.primary.withValues(alpha: 0.14)
+                : theme.surfaceElevated,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: selected ? kugo.primary : kugo.divider),
+            border: Border.all(color: selected ? theme.primary : theme.divider),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 label,
-                style: kugo.caption.copyWith(
-                  color: selected ? kugo.primary : kugo.textSecondary,
+                style: theme.caption.copyWith(
+                  color: selected ? theme.primary : theme.textSecondary,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
               if (selected) ...[
                 const SizedBox(width: 4),
-                Icon(Icons.close_rounded, size: 14, color: kugo.primary),
+                Icon(Icons.close_rounded, size: 14, color: theme.primary),
               ],
             ],
           ),

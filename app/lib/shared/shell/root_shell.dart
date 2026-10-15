@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:window_manager/window_manager.dart' show windowManager;
 
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../core/theme/responsive.dart';
 import '../../features/player/player_controller.dart';
 import '../../shared/widgets/desktop_player_bar.dart';
@@ -160,7 +160,7 @@ class _RootShellState extends ConsumerState<RootShell>
   @override
   Widget build(BuildContext context) {
     // Rebuild dock/scaffold colors when MaterialApp theme flips.
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final isDesktop = isDesktopView(context);
 
     if (isDesktop) {
@@ -271,7 +271,7 @@ class _RootShellState extends ConsumerState<RootShell>
           child: Focus(
             autofocus: true,
             child: Scaffold(
-              backgroundColor: kugo.bg,
+              backgroundColor: theme.bg,
               body: Column(
                 children: [
                   DesktopTitleBar(
@@ -324,7 +324,7 @@ class _RootShellState extends ConsumerState<RootShell>
     );
 
     return Scaffold(
-      backgroundColor: kugo.bg,
+      backgroundColor: theme.bg,
       body: Column(
         children: [
           Expanded(
@@ -336,7 +336,7 @@ class _RootShellState extends ConsumerState<RootShell>
           ),
           // Keyed by brightness so const MiniPlayerBar remounts on theme flip.
           MiniPlayerBar(
-            key: ValueKey('mini-player-${kugo.palette.brightness.name}'),
+            key: ValueKey('mini-player-${theme.palette.brightness.name}'),
           ),
         ],
       ),
@@ -517,9 +517,9 @@ class _DockNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Container(
-      color: kugo.bg,
+      color: theme.bg,
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
       child: SafeArea(
         top: false,
@@ -567,7 +567,7 @@ class _DockItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -584,7 +584,7 @@ class _DockItem extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: 26,
-                    color: selected ? kugo.primary : kugo.textTertiary,
+                    color: selected ? theme.primary : theme.textTertiary,
                   ),
                 ),
               ),
@@ -593,10 +593,10 @@ class _DockItem extends StatelessWidget {
             Text(
               label,
               maxLines: 1,
-              style: kugo.caption.copyWith(
+              style: theme.caption.copyWith(
                 fontSize: 10,
                 height: 1.1,
-                color: selected ? kugo.primary : kugo.textTertiary,
+                color: selected ? theme.primary : theme.textTertiary,
               ),
             ),
           ],

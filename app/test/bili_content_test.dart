@@ -1,13 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/bili/bili_client.dart';
-import 'package:kugo/core/api/bili/bili_failures.dart';
-import 'package:kugo/core/models/catalog_models.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/sources/bili/bili_content.dart';
-import 'package:kugo/data/sources/bili/bili_source.dart';
-import 'fakes/fake_kugo_client.dart';
+import 'package:overtone/core/api/bili/bili_client.dart';
+import 'package:overtone/core/api/bili/bili_failures.dart';
+import 'package:overtone/core/models/catalog_models.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/sources/bili/bili_content.dart';
+import 'package:overtone/data/sources/bili/bili_source.dart';
+import 'fakes/fake_kugou_client.dart';
 
 Map<String, dynamic> ok(Object data) => {'code': 0, 'data': data};
 final nav = ok({

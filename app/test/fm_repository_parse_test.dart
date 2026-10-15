@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/mappers.dart';
-import 'package:kugo/data/repositories/fm_repository.dart';
+import 'package:overtone/core/api/mappers.dart';
+import 'package:overtone/data/repositories/fm_repository.dart';
 
 /// 截取自真实 `POST /v2/personal_recommend`（登录态，2026-09-22）的最小样本。
 const _fmBody = {

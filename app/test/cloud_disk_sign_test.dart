@@ -1,25 +1,25 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/kugo_crypto.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugou_crypto.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
 
 void main() {
-  group('KugoSign.signCloudKey', () {
+  group('KugouSign.signCloudKey', () {
     test('matches KuGouMusicApi signCloudKey formula', () {
       // md5("musicclound" + hash + pid + salt)
       final hash = 'aabbccddeeff00112233445566778899';
       const pid = 20026;
-      final expected = KugoSign.md5Hex(
+      final expected = KugouSign.md5Hex(
         'musicclound$hash$pid'
         'ebd1ac3134c880bda6a2194537843caa0162e2e7',
       );
-      expect(KugoSign.signCloudKey(hash, pid), expected);
+      expect(KugouSign.signCloudKey(hash, pid), expected);
     });
 
     test('is deterministic for same inputs', () {
-      final a = KugoSign.signCloudKey('abc', 20026);
-      final b = KugoSign.signCloudKey('abc', 20026);
+      final a = KugouSign.signCloudKey('abc', 20026);
+      final b = KugouSign.signCloudKey('abc', 20026);
       expect(a, b);
       expect(a.length, 32);
     });
@@ -32,9 +32,9 @@ void main() {
         'pagesize': 30,
         'getkmr': 1,
       };
-      final aes = KugoCrypto.playlistAesEncrypt(jsonEncode(dataMap));
+      final aes = KugouCrypto.playlistAesEncrypt(jsonEncode(dataMap));
       expect(aes.key.length, 6);
-      final decoded = KugoCrypto.playlistAesDecrypt(aes.str, aes.key);
+      final decoded = KugouCrypto.playlistAesDecrypt(aes.str, aes.key);
       expect(decoded, isNotNull);
       final map = jsonDecode(decoded!) as Map;
       expect(map['page'], 1);
@@ -43,7 +43,7 @@ void main() {
     });
 
     test('body is raw AES ciphertext (base64 of str)', () {
-      final aes = KugoCrypto.playlistAesEncrypt('{"page":1}');
+      final aes = KugouCrypto.playlistAesEncrypt('{"page":1}');
       final body = base64.decode(aes.str);
       expect(body, isNotEmpty);
       // Ciphertext must not be the plaintext JSON.
@@ -52,13 +52,13 @@ void main() {
 
     test('signParamsKey(clienttime) is md5(appid+salt+clientver+data)', () {
       const clienttime = '1700000000';
-      final expected = KugoSign.md5Hex(
-        '${KugoSign.appId}'
+      final expected = KugouSign.md5Hex(
+        '${KugouSign.appId}'
         'LnT6xpN3khm36zse0QzvmgTZ3waWdRSA'
-        '${KugoSign.clientVer}'
+        '${KugouSign.clientVer}'
         '$clienttime',
       );
-      expect(KugoSign.signParamsKey(clienttime), expected);
+      expect(KugouSign.signParamsKey(clienttime), expected);
     });
   });
 }

@@ -2,13 +2,13 @@
 
 ## 手动打包与发布
 
-入口为 [Android and Windows apps](https://github.com/ZhengHaoF/kugoFlutter/actions/workflows/apps.yml)，仅原仓库 `main` 主分支可以手动启动。推送、PR 和合并不触发；所有 job 继续检查仓库、分支和手动事件。
+入口为 [Android and Windows apps](https://github.com/ZhengHaoF/overtone/actions/workflows/apps.yml)，仅原仓库 `main` 主分支可以手动启动。推送、PR 和合并不触发；所有 job 继续检查仓库、分支和手动事件。
 
 在 Run workflow 中选择 `main`，填写 `version`（例如 `0.1.0`，只接受 `major.minor.patch`），默认不勾选 `publish`。构建编号使用递增的 Actions run number，并传给 Flutter 的 `--build-name` 和 `--build-number`，使包内版本与文件名一致；这两个参数的含义见 [Flutter 官方打包说明](https://docs.flutter.dev/deployment/android)。
 
-默认只生成 Actions 构建附件，成功后下载 `kugo-release-v<version>-<commit>` 可获得三种 APK、Windows 安装程序、绿色 ZIP、签名指纹、SHA-256 和构建来源。Actions Artifacts 仍保留 30 天；勾选 `publish` 才在完整验证成功后发布 `v<version>` 正式 GitHub Release，不再创建 `test-*` 标签或 prerelease。先上传 draft，再公开；拒绝覆盖已发布版本，也拒绝重用其他提交的同名 tag/draft。
+默认只生成 Actions 构建附件，成功后下载 `overtone-release-v<version>-<commit>` 可获得三种 APK、Windows 安装程序、绿色 ZIP、签名指纹、SHA-256 和构建来源。Actions Artifacts 仍保留 30 天；勾选 `publish` 才在完整验证成功后发布 `v<version>` 正式 GitHub Release，不再创建 `test-*` 标签或 prerelease。先上传 draft，再公开；拒绝覆盖已发布版本，也拒绝重用其他提交的同名 tag/draft。
 
-如果 Android 缺少签名配置，该 job 明确失败，聚合打包和发布不会进行。Windows job 不依赖 Android job，仍可单独完成并上传其安装程序和绿色 ZIP 到 `kugo-windows-x64-release-<commit>`，前提是质量和原生探针通过。
+如果 Android 缺少签名配置，该 job 明确失败，聚合打包和发布不会进行。Windows job 不依赖 Android job，仍可单独完成并上传其安装程序和绿色 ZIP 到 `overtone-windows-x64-release-<commit>`，前提是质量和原生探针通过。
 
 ## Android APK 与正式签名
 
@@ -18,7 +18,7 @@
 
 这三种架构对应 Flutter 官方支持的 Release 拆包输出；本轮使用 `flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64,android-x64`，不承诺不存在的 32 位 x86 Release 包。各 ABI 与输出文件名参见 [Flutter 官方文档](https://docs.flutter.dev/deployment/android)。
 
-文件名为 `kugo-<version>-android-<abi>.apk`，最低 Android 7.0 / API 24。每个 APK 都必须通过 apksigner 验证，拒绝默认 Android Debug 证书；三种 APK 的签名指纹必须一致，并记录在 `ANDROID-SIGNING.txt`。
+文件名为 `overtone-<version>-android-<abi>.apk`，最低 Android 7.0 / API 24。每个 APK 都必须通过 apksigner 验证，拒绝默认 Android Debug 证书；三种 APK 的签名指纹必须一致，并记录在 `ANDROID-SIGNING.txt`。
 
 仓库需要由拥有正式签名密钥的人在 Settings → Secrets and variables → Actions 安全配置以下 Secrets，不要通过邮件或提交文件发送密钥及密码：
 
@@ -39,8 +39,8 @@ CI 只把 keystore 解码到 runner 临时目录，通过环境变量给 Gradle 
 
 Windows 交付当前仍为 x64：
 
-- **安装程序**：`kugo-<version>-windows-x64-setup.exe`，使用 Inno Setup；按当前用户安装到 LocalAppData 下，创建开始菜单快捷方式，提供可选桌面快捷方式和卸载入口，不默认申请管理员权限。架构限制使用 `x64compatible`，指令含义见 [Inno Setup 文档](https://jrsoftware.org/ishelp/topic_setup_architecturesallowed.htm)。
-- **绿色版**：`kugo-<version>-windows-x64-portable.zip`，含完整 kugo.exe、Flutter 与插件 DLL、media_kit 原生库和 data/；解压后直接运行，不需要安装程序。不得只拿 EXE 分发。
+- **安装程序**：`overtone-<version>-windows-x64-setup.exe`，使用 Inno Setup；按当前用户安装到 LocalAppData 下，创建开始菜单快捷方式，提供可选桌面快捷方式和卸载入口，不默认申请管理员权限。架构限制使用 `x64compatible`，指令含义见 [Inno Setup 文档](https://jrsoftware.org/ishelp/topic_setup_architecturesallowed.htm)。
+- **绿色版**：`overtone-<version>-windows-x64-portable.zip`，含完整 overtone.exe、Flutter 与插件 DLL、media_kit 原生库和 data/；解压后直接运行，不需要安装程序。不得只拿 EXE 分发。
 - **构建隔离**：先保存正式主应用 Release 目录，再构建安全存储探针和 Debug 图标验收程序；安装程序及 ZIP 始终从保存目录取文件，不混入探针或 Debug EXE。
 - **安装验收**：Windows runner 静默安装到临时目录，核对全部文件 SHA-256，启动已安装程序并复核图标，然后卸载；缺任一验收记录，不允许聚合打包发布。
 

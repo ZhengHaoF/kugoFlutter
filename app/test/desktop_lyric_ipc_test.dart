@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/features/desktop_lyric/desktop_lyric_ipc.dart';
+import 'package:overtone/features/desktop_lyric/desktop_lyric_ipc.dart';
 
 void main() {
   group('LyricIpc codec', () {

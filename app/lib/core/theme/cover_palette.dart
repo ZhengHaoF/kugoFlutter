@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'kugo_tokens.dart';
+import 'overtone_tokens.dart';
 
 /// Cover-seeded gradients. The palette is passed in (never read from a
 /// global) so callers rebuild with the active theme.
 class CoverPalette {
-  static List<Color> fromSeed(String seed, KugoPalette palette) {
+  static List<Color> fromSeed(String seed, OvertonePalette palette) {
     final hash = seed.hashCode & 0xffffffff;
     final hue = (210 + (hash % 120)).toDouble() % 360;
     if (palette.isLight) {
@@ -21,7 +21,7 @@ class CoverPalette {
     return [a, b, c];
   }
 
-  static LinearGradient playerBackground(String coverSeed, KugoPalette p) {
+  static LinearGradient playerBackground(String coverSeed, OvertonePalette p) {
     if (p.isLight) {
       // Soft brand wash → page bg (no heavy cover tint).
       return LinearGradient(
@@ -48,7 +48,7 @@ class CoverPalette {
     );
   }
 
-  static Color accentFromSeed(String seed, KugoPalette palette) {
+  static Color accentFromSeed(String seed, OvertonePalette palette) {
     final hash = seed.hashCode & 0xffffffff;
     final hue = (210 + (hash % 120)).toDouble() % 360;
     return HSLColor.fromAHSL(

@@ -9,18 +9,18 @@ import '../../core/source/capabilities.dart';
 import '../../core/source/features.dart';
 import '../../core/source/music_platform.dart';
 import '../../core/source/registry.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/fm/fm_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/async_body.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/kugo_clickable.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_clickable.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import '../../features/rank/rank_list_page.dart'
     show rankCoverHeroTag, RankCardSurface, rankHeroFlightShuttle;
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 import '../../core/theme/responsive.dart';
 import 'quick_entries.dart';
 import '../../shared/widgets/smooth_scroll.dart';
@@ -217,7 +217,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final settings = ref.watch(settingsControllerProvider);
     final hour = DateTime.now().hour;
@@ -257,20 +257,20 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
-              KugoSpacing.xl,
-              KugoSpacing.lg,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.xl,
+              OvertoneSpacing.lg,
               // 底部交给 SectionHeader 顶距，避免与「为你推荐」叠出过松的空隙。
               0,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(greeting, style: kugo.greeting),
+                Text(greeting, style: theme.greeting),
                 const SizedBox(height: 4),
                 Text(
                   '发现好音乐 · 为你精选今日旋律',
-                  style: kugo.caption.copyWith(fontSize: 13),
+                  style: theme.caption.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: 6),
                 SourceLabel(
@@ -284,9 +284,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     horizontalPadding: 0,
                     onSelect: _switchTo,
                   ),
-                const SizedBox(height: KugoSpacing.lg),
+                const SizedBox(height: OvertoneSpacing.lg),
                 const _SearchPill(),
-                const SizedBox(height: KugoSpacing.md),
+                const SizedBox(height: OvertoneSpacing.md),
                 const QuickEntries(),
               ],
             ),
@@ -295,7 +295,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         if (_loading)
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(KugoSpacing.xxl),
+              padding: EdgeInsets.all(OvertoneSpacing.xxl),
               child: Center(child: CircularProgressIndicator()),
             ),
           )
@@ -483,10 +483,10 @@ class _RankStrip extends StatelessWidget {
       builder: (context, constraints) {
         final count = ranks.length;
         // 版心只留左边距；右侧留给渐隐贴边。
-        final available = constraints.maxWidth - KugoSpacing.lg;
+        final available = constraints.maxWidth - OvertoneSpacing.lg;
 
         var cardWidth = _baseCardWidth;
-        var side = KugoSpacing.lg;
+        var side = OvertoneSpacing.lg;
         var rightPad = 0.0;
         if (desktop && count > 0) {
           final fit = fitStripRow(
@@ -512,7 +512,7 @@ class _RankStrip extends StatelessWidget {
         return SizedBox(
           // 卡片等比缩放，高度跟着走，封面裁切与文字比例保持不变。
           height: cardWidth / _aspectRatio,
-          child: KugoHScroll(
+          child: OvertoneHScroll(
             // 不劫持竖向滚轮：横排嵌在竖滚页面里，滚轮应归页面（框架默认）。
             // 横滚走 Shift+滚轮 / 触控板两指横滑 / 鼠标按住拖拽。
             builder: (context, controller, physics) => ListView.separated(
@@ -547,11 +547,11 @@ class _RankingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 宽度由 [_RankStrip] 按可用空间给出，这里只负责视觉。
-    return KugoClickable(
+    return OvertoneClickable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(KugoRadius.card),
+      borderRadius: BorderRadius.circular(OvertoneRadius.card),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(KugoRadius.card),
+        borderRadius: BorderRadius.circular(OvertoneRadius.card),
         child: Hero(
           tag: rankCoverHeroTag(rank.id),
           flightShuttleBuilder: rankHeroFlightShuttle,
@@ -592,10 +592,10 @@ class _PlaylistStrip extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final count = playlists.length;
-        final available = constraints.maxWidth - KugoSpacing.lg;
+        final available = constraints.maxWidth - OvertoneSpacing.lg;
 
         var cardWidth = _baseCardWidth;
-        var side = KugoSpacing.lg;
+        var side = OvertoneSpacing.lg;
         var rightPad = 0.0;
         if (desktop && count > 0) {
           final fit = fitStripRow(
@@ -619,7 +619,7 @@ class _PlaylistStrip extends StatelessWidget {
 
         return SizedBox(
           height: cardWidth + _belowCover,
-          child: KugoHScroll(
+          child: OvertoneHScroll(
             // 不劫持竖向滚轮：横排嵌在竖滚页面里，滚轮应归页面（框架默认）。
             // 横滚走 Shift+滚轮 / 触控板两指横滑 / 鼠标按住拖拽。
             builder: (context, controller, physics) => ListView.separated(
@@ -652,23 +652,23 @@ class _SearchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Hero(
-      tag: KugoHeroTags.searchBar,
-      flightShuttleBuilder: KugoHeroTags.searchBarFlightShuttle,
+      tag: OvertoneHeroTags.searchBar,
+      flightShuttleBuilder: OvertoneHeroTags.searchBarFlightShuttle,
       child: Material(
-        color: kugo.surface,
-        borderRadius: BorderRadius.circular(KugoRadius.chip),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(OvertoneRadius.chip),
         child: InkWell(
           onTap: () => context.push('/search'),
-          borderRadius: BorderRadius.circular(KugoRadius.chip),
+          borderRadius: BorderRadius.circular(OvertoneRadius.chip),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             child: Row(
               children: [
-                Icon(Icons.search_rounded, color: kugo.textSecondary),
+                Icon(Icons.search_rounded, color: theme.textSecondary),
                 const SizedBox(width: 10),
-                Text('搜索歌曲、歌手、专辑', style: kugo.caption.copyWith(fontSize: 14)),
+                Text('搜索歌曲、歌手、专辑', style: theme.caption.copyWith(fontSize: 14)),
               ],
             ),
           ),

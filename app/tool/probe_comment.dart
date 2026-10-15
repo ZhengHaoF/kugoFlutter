@@ -1,9 +1,9 @@
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
-import 'package:kugo/core/models/comment.dart';
-import 'package:kugo/data/repositories/comment_repository.dart';
-import 'package:kugo/data/repositories/search_repository.dart';
-import 'package:kugo/data/storage/device_identity.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
+import 'package:overtone/core/models/comment.dart';
+import 'package:overtone/data/repositories/comment_repository.dart';
+import 'package:overtone/data/repositories/search_repository.dart';
+import 'package:overtone/data/storage/device_identity.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
 
 /// 手工探针：验证评论三类接口在本机网络下的行为（`flutter run -t tool/probe_comment.dart`）。
 Future<void> main() async {
@@ -69,8 +69,8 @@ Future<void> main() async {
     'dfid': device.dfid,
     'mid': device.mid,
     'uuid': '-',
-    'appid': int.parse(KugoSign.appId),
-    'clientver': int.parse(KugoSign.clientVer),
+    'appid': int.parse(KugouSign.appId),
+    'clientver': int.parse(KugouSign.clientVer),
     'clienttime': clienttime,
     'mixsongid': 920474385,
     'need_show_image': 1,
@@ -81,6 +81,6 @@ Future<void> main() async {
     'extdata': '0',
     'code': 'fc4be23b4e972707f36b8a828a93ba8a',
   };
-  params['signature'] = KugoSign.signatureAndroidParams(params);
+  params['signature'] = KugouSign.signatureAndroidParams(params);
   print('manual signature=${params['signature']} clienttime=$clienttime');
 }

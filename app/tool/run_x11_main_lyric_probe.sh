@@ -22,7 +22,7 @@ sleep 2
 import -window root "$out/settings.png"
 xdotool mousemove 1126 661 click 1
 sleep 3
-lyric=$(xdotool search --onlyvisible --name '^kugo X11 lyrics$' | head -1)
+lyric=$(xdotool search --onlyvisible --name '^overtone X11 lyrics$' | head -1)
 node - "$out/main.log" <<'JS'
 const fs=require('fs'),net=require('net');
 const log=fs.readFileSync(process.argv[2],'utf8');
@@ -37,7 +37,7 @@ socket.on('close',()=>{
   console.log('PASS production parent rejects invalid IPC token');
 });
 JS
-[[ "$(xdotool search --onlyvisible --name '^kugo X11 lyrics$' | head -1)" == "$lyric" ]]
+[[ "$(xdotool search --onlyvisible --name '^overtone X11 lyrics$' | head -1)" == "$lyric" ]]
 echo 'PASS invalid peer does not replace the existing lyric window'
 eval "$(xdotool getwindowgeometry --shell "$lyric")"
 xdotool mousemove "$((X+60))" "$((Y+20))" mousedown 1
@@ -63,13 +63,13 @@ import -window root "$out/main-with-lyrics.png"
 # Parent termination must close IPC and remove the child, not leave an orphan.
 kill "$main"; wait "$main" || true; main=
 sleep 2
-if xdotool search --onlyvisible --name '^kugo X11 lyrics$' >/dev/null 2>&1; then
+if xdotool search --onlyvisible --name '^overtone X11 lyrics$' >/dev/null 2>&1; then
   echo 'FAIL child survived parent'; exit 1
 fi
 echo 'PASS production child exits when parent stops'
 "$binary" > "$out/restarted-main.log" 2>&1 & main=$!
 sleep 25
-lyric=$(xdotool search --onlyvisible --name '^kugo X11 lyrics$' | head -1)
+lyric=$(xdotool search --onlyvisible --name '^overtone X11 lyrics$' | head -1)
 eval "$(xdotool getwindowgeometry --shell "$lyric")"
 [[ "$X" == "$old_x" && "$Y" == "$old_y" ]]
 echo 'PASS production restart restores saved lyric position and enabled setting'

@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:kugo/core/models/audio_quality.dart';
-import 'package:kugo/core/source/capabilities.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/core/source/quality_map.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/data/sources/bili/bili_source.dart';
-import 'package:kugo/data/sources/sources.dart';
-import 'package:kugo/features/profile/source_account.dart';
+import 'package:overtone/core/models/audio_quality.dart';
+import 'package:overtone/core/source/capabilities.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/core/source/quality_map.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/data/sources/bili/bili_source.dart';
+import 'package:overtone/data/sources/sources.dart';
+import 'package:overtone/features/profile/source_account.dart';
 
 import 'fakes/fake_music_source.dart';
 

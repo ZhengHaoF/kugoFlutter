@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/shared/tray/window_bounds_store.dart';
+import 'package:overtone/shared/tray/window_bounds_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 主窗尺寸 / 位置持久化（f7fec6f 引入，此前零测试）。

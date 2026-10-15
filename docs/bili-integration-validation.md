@@ -1,6 +1,6 @@
 # 哔哩哔哩接入实现与验收记录
 
-本次基于 `b133f99` 继续实现 B3/B4。仓库原有 B1 协议、B2 搜索/取流及 B5 装配；本次补充账号与只读内容，但尚不能标为端到端发布完成。原始阶段范围见 [仓库方案](https://github.com/ZhengHaoF/kugoFlutter/blob/b133f99/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E6%8E%A5%E5%85%A5%E6%96%B9%E6%A1%88.md)。
+本次基于 `b133f99` 继续实现 B3/B4。仓库原有 B1 协议、B2 搜索/取流及 B5 装配；本次补充账号与只读内容，但尚不能标为端到端发布完成。原始阶段范围见 [仓库方案](https://github.com/ZhengHaoF/overtone/blob/b133f99/%E5%93%94%E5%93%A9%E5%93%94%E5%93%A9%E6%8E%A5%E5%85%A5%E6%96%B9%E6%A1%88.md)。
 
 ## 本次实现
 
@@ -62,7 +62,7 @@ dart run tool/smoke_bili_content.dart
 
 ```bash
 git switch -c feat/bili-account-content
-git am /path/to/kugo-bilibili-integration.patch
+git am /path/to/overtone-bilibili-integration.patch
 cd app
 flutter pub get
 flutter analyze --no-pub

@@ -47,7 +47,7 @@ class DesktopCapabilities {
     if (kIsWeb || !Platform.isLinux) return;
     try {
       final backend = await const MethodChannel(
-        'kugo/linux_desktop',
+        'overtone/linux_desktop',
       ).invokeMethod<String>('getBackend').timeout(const Duration(seconds: 2));
       current = DesktopCapabilities.linux(backend ?? 'unknown');
     } catch (_) {

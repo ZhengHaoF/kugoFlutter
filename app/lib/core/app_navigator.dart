@@ -4,6 +4,6 @@ import 'package:flutter/widgets.dart';
 ///
 /// Widget-free layers (e.g. the desktop close prompt in `DesktopShell`) need to
 /// show a Flutter dialog above whatever route is on screen. They reach the root
-/// navigator through `kugoNavigatorKey.currentContext` instead of plumbing a
+/// navigator through `overtoneNavigatorKey.currentContext` instead of plumbing a
 /// `BuildContext` all the way down from the widget tree.
-final GlobalKey<NavigatorState> kugoNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> overtoneNavigatorKey = GlobalKey<NavigatorState>();

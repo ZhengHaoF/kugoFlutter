@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/kugo_tokens.dart';
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
 
 /// Loading / empty / error body shell used across list pages.
 class AsyncBody extends StatelessWidget {
@@ -95,10 +95,10 @@ class SkeletonList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(KugoSpacing.lg),
+      padding: const EdgeInsets.all(OvertoneSpacing.lg),
       itemCount: itemCount,
       itemBuilder: (_, _) => const Padding(
-        padding: EdgeInsets.only(bottom: KugoSpacing.md),
+        padding: EdgeInsets.only(bottom: OvertoneSpacing.md),
         child: _SkeletonRow(),
       ),
     );
@@ -127,20 +127,20 @@ class _SkeletonRowState extends State<_SkeletonRow>
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return FadeTransition(
       opacity: Tween(begin: 0.35, end: 0.8).animate(_controller),
       child: Row(
         children: [
-          _box(kugo, 52, 52, radius: KugoRadius.cover),
-          const SizedBox(width: KugoSpacing.md),
+          _box(theme, 52, 52, radius: OvertoneRadius.cover),
+          const SizedBox(width: OvertoneSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _box(kugo, double.infinity, 14),
+                _box(theme, double.infinity, 14),
                 const SizedBox(height: 8),
-                _box(kugo, 120, 12),
+                _box(theme, 120, 12),
               ],
             ),
           ),
@@ -149,12 +149,12 @@ class _SkeletonRowState extends State<_SkeletonRow>
     );
   }
 
-  Widget _box(KugoTheme kugo, double w, double h, {double radius = 8}) {
+  Widget _box(OvertoneTheme theme, double w, double h, {double radius = 8}) {
     return Container(
       width: w,
       height: h,
       decoration: BoxDecoration(
-        color: kugo.surfaceElevated,
+        color: theme.surfaceElevated,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -176,16 +176,16 @@ class _StatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 48, color: kugo.textTertiary),
-          const SizedBox(height: KugoSpacing.md),
-          Text(message, style: kugo.caption),
+          Icon(icon, size: 48, color: theme.textTertiary),
+          const SizedBox(height: OvertoneSpacing.md),
+          Text(message, style: theme.caption),
           if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: KugoSpacing.lg),
+            const SizedBox(height: OvertoneSpacing.lg),
             FilledButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ],

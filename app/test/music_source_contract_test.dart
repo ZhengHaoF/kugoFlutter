@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/search_result.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/core/source/quality_map.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/core/models/audio_quality.dart';
+import 'package:overtone/core/models/search_result.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/core/source/quality_map.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/core/models/audio_quality.dart';
 
 class _FakeSource implements MusicSource {
   _FakeSource(this.platform);

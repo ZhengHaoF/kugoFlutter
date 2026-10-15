@@ -13,7 +13,7 @@
 //   dart run tool/probe_cloud_disk.dart --suite del --fileid <KV_ID> --confirm
 //
 // Credentials (CLI overrides env):
-//   --token / KUGO_TOKEN, --userid / KUGO_USERID, --guid / KUGO_GUID, --dfid / KUGO_DFID
+//   --token / OVERTONE_TOKEN, --userid / OVERTONE_USERID, --guid / OVERTONE_GUID, --dfid / OVERTONE_DFID
 //
 // Dumps full JSON field trees so api-notes.md can record the real payload shape.
 import 'dart:convert';
@@ -22,8 +22,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
-import 'package:kugo/core/api/kugou/kugo_crypto.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
+import 'package:overtone/core/api/kugou/kugou_crypto.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
 
 const _mcloudBase = 'https://mcloudservice.kugou.com';
 const _gateway = 'https://gateway.kugou.com';
@@ -42,7 +42,7 @@ class Creds {
   final String guid;
   final String dfid;
 
-  String get mid => KugoSign.calculateMid(guid);
+  String get mid => KugouSign.calculateMid(guid);
 
   bool get hasLogin => token.isNotEmpty && userId.isNotEmpty && userId != '0';
 
@@ -52,18 +52,18 @@ class Creds {
         'dfid=$dfid',
         'KUGOU_API_MID=$mid',
         'KUGOU_API_GUID=$guid',
-        'KUGOU_API_DEV=kugoFlutter',
+        'KUGOU_API_DEV=overtoneFlutter',
       ].join(';');
 }
 
 void main(List<String> args) async {
   final opts = _parseArgs(args);
   final suite = opts['suite'] ?? 'all';
-  final token = opts['token'] ?? Platform.environment['KUGO_TOKEN'] ?? '';
-  final userId = opts['userid'] ?? Platform.environment['KUGO_USERID'] ?? '';
+  final token = opts['token'] ?? Platform.environment['OVERTONE_TOKEN'] ?? '';
+  final userId = opts['userid'] ?? Platform.environment['OVERTONE_USERID'] ?? '';
   final guid =
-      opts['guid'] ?? Platform.environment['KUGO_GUID'] ?? KugoSign.randomAlnum(32);
-  final dfid = opts['dfid'] ?? Platform.environment['KUGO_DFID'] ?? '-';
+      opts['guid'] ?? Platform.environment['OVERTONE_GUID'] ?? KugouSign.randomAlnum(32);
+  final dfid = opts['dfid'] ?? Platform.environment['OVERTONE_DFID'] ?? '-';
   final hash = (opts['hash'] ?? '').toLowerCase();
   final fileid = opts['fileid'] ?? '';
   final page = int.tryParse(opts['page'] ?? '1') ?? 1;
@@ -76,7 +76,7 @@ void main(List<String> args) async {
       '缺少登录凭证。用法示例：\n'
       '  dart run tool/probe_cloud_disk.dart --suite list '
       '--token <T> --userid <U>\n'
-      '或设置环境变量 KUGO_TOKEN / KUGO_USERID。'
+      '或设置环境变量 OVERTONE_TOKEN / OVERTONE_USERID。'
     );
     exit(2);
   }
@@ -170,9 +170,9 @@ Map<String, String> _parseArgs(List<String> args) {
   required Creds creds,
   required Map<String, dynamic> dataMap,
 }) {
-  final aes = KugoCrypto.playlistAesEncrypt(jsonEncode(dataMap));
+  final aes = KugouCrypto.playlistAesEncrypt(jsonEncode(dataMap));
   // userid 在 p 里用字符串（user_cloud.js 从 cookie 读出来就是 string）
-  final p = KugoCrypto
+  final p = KugouCrypto
       .rsaEncryptPkcs1(
         jsonEncode({'aes': aes.key, 'uid': creds.userId, 'token': creds.token}),
       )
@@ -181,9 +181,9 @@ Map<String, String> _parseArgs(List<String> args) {
   final query = <String, dynamic>{
     'clienttime': clienttime,
     'mid': creds.mid,
-    'key': KugoSign.signParamsKey('$clienttime'),
-    'clientver': int.parse(KugoSign.clientVer),
-    'appid': int.parse(KugoSign.appId),
+    'key': KugouSign.signParamsKey('$clienttime'),
+    'clientver': int.parse(KugouSign.clientVer),
+    'appid': int.parse(KugouSign.appId),
     'p': p,
   };
   return (
@@ -195,7 +195,7 @@ Map<String, String> _parseArgs(List<String> args) {
 
 Map<String, dynamic> decodeMcloudBody(List<int>? bytes, String aesKey) {
   if (bytes == null || bytes.isEmpty) return {'_error': 'empty body'};
-  final decrypted = KugoCrypto.playlistAesDecrypt(base64.encode(bytes), aesKey);
+  final decrypted = KugouCrypto.playlistAesDecrypt(base64.encode(bytes), aesKey);
   final raw = utf8.decode(bytes, allowMalformed: true);
   for (final candidate in [decrypted, raw]) {
     if (candidate == null || candidate.isEmpty) continue;
@@ -341,7 +341,7 @@ Future<Map<String, dynamic>> probeList(
       data: env.body,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'Cookie': creds.cookie,
           'KG-RC': '1',
@@ -372,8 +372,8 @@ Future<Map<String, dynamic>> probeUrl(
     'dfid': creds.dfid,
     'mid': creds.mid,
     'uuid': '-',
-    'appid': int.parse(KugoSign.appId),
-    'clientver': int.parse(KugoSign.clientVer),
+    'appid': int.parse(KugouSign.appId),
+    'clientver': int.parse(KugouSign.clientVer),
     'clienttime': clienttime,
     if (creds.hasLogin) 'token': creds.token,
     if (creds.hasLogin) 'userid': int.tryParse(creds.userId) ?? creds.userId,
@@ -386,12 +386,12 @@ Future<Map<String, dynamic>> probeUrl(
     'pid': pid,
     'audio_id': 0,
     'kv_id': 2,
-    'key': KugoSign.signCloudKey(h, pid),
+    'key': KugouSign.signCloudKey(h, pid),
     'bucket': 'musicclound',
     'name': '',
     'with_res_tag': 0,
   };
-  params['signature'] = KugoSign.signatureAndroidParams(params);
+  params['signature'] = KugouSign.signatureAndroidParams(params);
 
   try {
     final res = await dio.get<dynamic>(
@@ -399,7 +399,7 @@ Future<Map<String, dynamic>> probeUrl(
       queryParameters: params,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'dfid': creds.dfid,
           'clienttime': '$clienttime',
           'mid': creds.mid,
@@ -435,14 +435,14 @@ Future<Map<String, dynamic>> probeMatch(
   // user_cloud_match.js — kmr.service album_audio lookup by file-md5 / hash_std.
   final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final dataMap = <String, dynamic>{
-    'appid': int.parse(KugoSign.appId),
+    'appid': int.parse(KugouSign.appId),
     'clienttime': clienttime,
-    'clientver': int.parse(KugoSign.clientVer),
+    'clientver': int.parse(KugouSign.clientVer),
     'data': [
       {'hash': hash.toLowerCase()},
     ],
     'dfid': creds.dfid,
-    'key': KugoSign.signParamsKey('$clienttime'),
+    'key': KugouSign.signParamsKey('$clienttime'),
     'mid': creds.mid,
     'show_privilege': 0,
     'show_author_alias': 0,
@@ -456,7 +456,7 @@ Future<Map<String, dynamic>> probeMatch(
       data: jsonEncode(dataMap),
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'x-router': 'kmr.service.kugou.com',
           'Cookie': creds.cookie,
@@ -504,7 +504,7 @@ Future<Map<String, dynamic>> probeDel(
       data: env.body,
       options: Options(
         headers: {
-          'User-Agent': KugoSign.userAgent,
+          'User-Agent': KugouSign.userAgent,
           'Content-Type': 'application/json',
           'Cookie': creds.cookie,
           'KG-RC': '1',

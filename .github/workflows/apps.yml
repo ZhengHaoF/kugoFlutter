@@ -19,11 +19,11 @@ concurrency:
   group: apps-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 env:
-  KUGO_VERSION: ${{ inputs.version }}
-  KUGO_BUILD_NUMBER: ${{ github.run_number }}
+  OVERTONE_VERSION: ${{ inputs.version }}
+  OVERTONE_BUILD_NUMBER: ${{ github.run_number }}
 jobs:
   quality:
-    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate release version
         run: |
-          [[ "$KUGO_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+          [[ "$OVERTONE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
             echo "Version must be major.minor.patch"; exit 1;
           }
       - uses: actions/checkout@v4
@@ -53,17 +53,17 @@ jobs:
           bash tool/test_package_release.sh
   android:
     needs: quality
-    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
       run:
         working-directory: app
     env:
-      ORG_GRADLE_PROJECT_kugoAllowTestSigning: 'false'
-      KUGO_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
-      KUGO_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS }}
-      KUGO_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD }}
+      ORG_GRADLE_PROJECT_overtoneAllowTestSigning: 'false'
+      OVERTONE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+      OVERTONE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || secrets.KEY_ALIAS }}
+      OVERTONE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -82,21 +82,21 @@ jobs:
         run: bash tool/prepare_android_signing.sh
       - run: flutter pub get --enforce-lockfile
       - name: Build signed Release APKs for ARM32, ARM64 and x86_64
-        run: flutter build apk --release --no-pub --split-per-abi --target-platform android-arm,android-arm64,android-x64 --build-name "$KUGO_VERSION" --build-number "$KUGO_BUILD_NUMBER"
+        run: flutter build apk --release --no-pub --split-per-abi --target-platform android-arm,android-arm64,android-x64 --build-name "$OVERTONE_VERSION" --build-number "$OVERTONE_BUILD_NUMBER"
       - name: Verify production signatures and package each ABI
         run: bash tool/package_android_release.sh
       - name: Remove temporary keystore
         if: always()
-        run: rm -f "$RUNNER_TEMP/kugo-release-keystore.jks"
+        run: rm -f "$RUNNER_TEMP/overtone-release-keystore.jks"
       - uses: actions/upload-artifact@v4
         with:
-          name: kugo-android-release-${{ github.sha }}
+          name: overtone-android-release-${{ github.sha }}
           path: app/build/deliverables/android/
           overwrite: true
           if-no-files-found: error
           retention-days: 30
   windows-media-native:
-    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     timeout-minutes: 10
     defaults:
@@ -119,14 +119,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: kugo-native-media-${{ github.sha }}
+          name: overtone-native-media-${{ github.sha }}
           path: ${{ runner.temp }}/native-media.txt
           overwrite: true
           if-no-files-found: error
           retention-days: 30
   windows:
     needs: [quality, windows-media-native]
-    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     timeout-minutes: 45
     defaults:
@@ -144,17 +144,17 @@ jobs:
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get --enforce-lockfile
       - name: Build Windows x64 release bundle
-        run: flutter build windows --release --no-pub --build-name "$env:KUGO_VERSION" --build-number "$env:KUGO_BUILD_NUMBER"
+        run: flutter build windows --release --no-pub --build-name "$env:OVERTONE_VERSION" --build-number "$env:OVERTONE_BUILD_NUMBER"
       - name: Download native media acceptance report
         uses: actions/download-artifact@v4
         with:
-          name: kugo-native-media-${{ github.sha }}
+          name: overtone-native-media-${{ github.sha }}
           path: ${{ runner.temp }}
       - name: Verify embedded and running Windows release icons
         run: |
           $report = Join-Path $env:RUNNER_TEMP "release-icons.txt"
           ./tool/test_windows_app_icons.ps1 `
-            -Executable "build\windows\x64\runner\Release\kugo.exe" `
+            -Executable "build\windows\x64\runner\Release\overtone.exe" `
             -Report $report
       - name: Package complete portable application
         run: |
@@ -163,15 +163,15 @@ jobs:
           Copy-Item "build\windows\x64\runner\Release\*" $out -Recurse -Force
           Copy-Item (Join-Path $env:RUNNER_TEMP "release-icons.txt") "$out\NATIVE-ICONS.txt"
           Copy-Item (Join-Path $env:RUNNER_TEMP "native-media.txt") "$out\NATIVE-MEDIA.txt"
-          if (-not (Test-Path "$out\kugo.exe")) { throw "Missing application executable" }
+          if (-not (Test-Path "$out\overtone.exe")) { throw "Missing application executable" }
           @(
-            "kugo Windows x64 Release"
-            "version=$env:KUGO_VERSION"
-            "build=$env:KUGO_BUILD_NUMBER"
+            "泛音 Windows x64 Release"
+            "version=$env:OVERTONE_VERSION"
+            "build=$env:OVERTONE_BUILD_NUMBER"
             "commit=$env:GITHUB_SHA"
             "run=$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
             "Authenticode signing: unsigned"
-            "Extract the ENTIRE artifact before launching kugo.exe; keep DLLs and data next to it."
+            "Extract the ENTIRE artifact before launching overtone.exe; keep DLLs and data next to it."
             "If the VC++ runtime is missing, install the Microsoft Visual C++ 2015-2022 x64 Redistributable."
             "Physical-device and real-account acceptance remains pending."
           ) | Set-Content "$out\BUILD-INFO.txt" -Encoding utf8
@@ -181,7 +181,7 @@ jobs:
           flutter build windows --release --no-pub -t tool/native_credential_probe.dart
           if ($LASTEXITCODE -ne 0) { throw "Probe build failed" }
           $report = Join-Path $env:RUNNER_TEMP "native-credentials.txt"
-          $exe = (Resolve-Path "build\windows\x64\runner\Release\kugo.exe").Path
+          $exe = (Resolve-Path "build\windows\x64\runner\Release\overtone.exe").Path
           $p = Start-Process -FilePath $exe -ArgumentList "--probe-report=$report" -PassThru
           if (-not $p.WaitForExit(60000)) {
             Stop-Process -Id $p.Id -Force
@@ -202,7 +202,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Debug icon acceptance build failed" }
           $report = Join-Path $env:RUNNER_TEMP "debug-icons.txt"
           ./tool/test_windows_app_icons.ps1 `
-            -Executable "build\windows\x64\runner\Debug\kugo.exe" `
+            -Executable "build\windows\x64\runner\Debug\overtone.exe" `
             -Report $report
           Copy-Item $report "build\deliverables\windows\portable\DEBUG-ICONS.txt"
       - name: Build Windows installer from saved production bundle
@@ -223,19 +223,19 @@ jobs:
           $source = (Resolve-Path "build\deliverables\windows\portable").Path
           $output = Join-Path (Get-Location) "build\deliverables\windows\installer"
           New-Item -ItemType Directory -Force -Path $output | Out-Null
-          & $compiler "/DAppVersion=$env:KUGO_VERSION" "/DSourceDir=$source" "/DOutputDir=$output" "tool\windows_installer.iss"
+          & $compiler "/DAppVersion=$env:OVERTONE_VERSION" "/DSourceDir=$source" "/DOutputDir=$output" "tool\windows_installer.iss"
           if ($LASTEXITCODE -ne 0) { throw "Windows installer compilation failed" }
       - name: Verify installation, installed app startup and uninstall
         run: |
           ./tool/test_windows_installer.ps1 `
-            -Installer "build\deliverables\windows\installer\kugo-$env:KUGO_VERSION-windows-x64-setup.exe" `
+            -Installer "build\deliverables\windows\installer\overtone-$env:OVERTONE_VERSION-windows-x64-setup.exe" `
             -SourceDirectory "build\deliverables\windows\portable" `
             -Report "build\deliverables\windows\INSTALLER-TEST.txt"
       - name: Finalize Windows source identity and checksums
         run: |
           $out = "build\deliverables\windows"
           Copy-Item "$out\portable\BUILD-INFO.txt" "$out\BUILD-INFO.txt"
-          $zip = "$out\kugo-${env:KUGO_VERSION}-windows-x64-portable.zip"
+          $zip = "$out\overtone-${env:OVERTONE_VERSION}-windows-x64-portable.zip"
           7z a -tzip $zip "$out\portable\*"
           if ($LASTEXITCODE -ne 0) { throw "Portable ZIP creation failed" }
           7z t $zip
@@ -246,7 +246,7 @@ jobs:
           } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
-          name: kugo-windows-x64-release-${{ github.sha }}
+          name: overtone-windows-x64-release-${{ github.sha }}
           path: app/build/deliverables/windows/
           overwrite: true
           if-no-files-found: error
@@ -254,7 +254,7 @@ jobs:
   release:
     needs: [android, windows]
     # Packaging always runs; public publication requires the extra publish checkbox.
-    if: github.repository == 'ZhengHaoF/kugoFlutter' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'ZhengHaoF/overtone' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -265,17 +265,17 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y ripgrep zip unzip
       - uses: actions/download-artifact@v4
         with:
-          name: kugo-android-release-${{ github.sha }}
+          name: overtone-android-release-${{ github.sha }}
           path: release-inputs/android
       - uses: actions/download-artifact@v4
         with:
-          name: kugo-windows-x64-release-${{ github.sha }}
+          name: overtone-windows-x64-release-${{ github.sha }}
           path: release-inputs/windows
       - name: Verify and package release assets
         run: bash app/tool/package_release.sh release-inputs release-assets
       - uses: actions/upload-artifact@v4
         with:
-          name: kugo-release-v${{ inputs.version }}-${{ github.sha }}
+          name: overtone-release-v${{ inputs.version }}-${{ github.sha }}
           path: release-assets/
           overwrite: true
           if-no-files-found: error
@@ -286,13 +286,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="v$KUGO_VERSION"
+          tag="v$OVERTONE_VERSION"
           assets=(
-            "release-assets/kugo-$KUGO_VERSION-android-armeabi-v7a.apk"
-            "release-assets/kugo-$KUGO_VERSION-android-arm64-v8a.apk"
-            "release-assets/kugo-$KUGO_VERSION-android-x86_64.apk"
-            "release-assets/kugo-$KUGO_VERSION-windows-x64-setup.exe"
-            "release-assets/kugo-$KUGO_VERSION-windows-x64-portable.zip"
+            "release-assets/overtone-$OVERTONE_VERSION-android-armeabi-v7a.apk"
+            "release-assets/overtone-$OVERTONE_VERSION-android-arm64-v8a.apk"
+            "release-assets/overtone-$OVERTONE_VERSION-android-x86_64.apk"
+            "release-assets/overtone-$OVERTONE_VERSION-windows-x64-setup.exe"
+            "release-assets/overtone-$OVERTONE_VERSION-windows-x64-portable.zip"
             "release-assets/ANDROID-SIGNING.txt"
             "release-assets/SHA256SUMS.txt"
             "release-assets/BUILD-INFO.txt"
@@ -315,7 +315,7 @@ jobs:
             fi
             gh release create "$tag" "${assets[@]}" \
               --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --title "kugo $KUGO_VERSION" \
+              --title "Overtone $OVERTONE_VERSION" \
               --notes-file release-assets/RELEASE-NOTES.md \
               --draft --prerelease=false --latest=false
           fi

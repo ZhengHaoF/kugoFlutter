@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/repositories/comment_repository.dart';
-import 'package:kugo/data/storage/device_identity.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/repositories/comment_repository.dart';
+import 'package:overtone/data/storage/device_identity.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 按顺序吐预置响应体，并记录每次请求，供断言 URL / 参数。
@@ -411,7 +411,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('$ct${device.mid}$payload'),
+      KugouSign.signParamsKey('$ct${device.mid}$payload'),
     );
   });
 
@@ -497,7 +497,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('$ct${device.mid}'),
+      KugouSign.signParamsKey('$ct${device.mid}'),
     );
   });
 
@@ -607,6 +607,6 @@ void main() {
     expect(req.queryParameters['childrenid'], 20505418);
     expect(req.headers['x-router'], 'm.comment.service.kugou.com');
     final ct = req.queryParameters['clienttime'] as int;
-    expect(req.queryParameters['key'], KugoSign.signParamsKey('$ct'));
+    expect(req.queryParameters['key'], KugouSign.signParamsKey('$ct'));
   });
 }

@@ -1,5 +1,5 @@
 # Shared bounded teardown helpers. Only processes/paths owned by the probe are used.
-function Stop-KugoProbeProcess {
+function Stop-OvertoneProbeProcess {
   param(
     [object]$Process,
     [int]$TimeoutMilliseconds = 10000,
@@ -15,7 +15,7 @@ function Stop-KugoProbeProcess {
   }
 }
 
-function Remove-KugoProbeDirectory {
+function Remove-OvertoneProbeDirectory {
   param(
     [Parameter(Mandatory = $true)][string]$Path,
     [int]$Attempts = 40,

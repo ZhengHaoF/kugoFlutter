@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/source/capabilities.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 import 'bili_login_controller.dart';
 
@@ -41,7 +41,7 @@ class _BiliLoginPageState extends ConsumerState<BiliLoginPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('哔哩哔哩账号')),
       body: SmoothSingleChildScrollView(
-        padding: const EdgeInsets.all(KugoSpacing.xl),
+        padding: const EdgeInsets.all(OvertoneSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -61,7 +61,7 @@ class _BiliLoginPageState extends ConsumerState<BiliLoginPage> {
               ),
             ] else ...[
               const Text('打开哔哩哔哩 App 扫一扫，扫码后在手机上确认登录。'),
-              const SizedBox(height: KugoSpacing.xl),
+              const SizedBox(height: OvertoneSpacing.xl),
               if (state.loading)
                 const Center(child: CircularProgressIndicator()),
               if (state.session != null &&
@@ -77,7 +77,7 @@ class _BiliLoginPageState extends ConsumerState<BiliLoginPage> {
                     ),
                   ),
                 ),
-              const SizedBox(height: KugoSpacing.lg),
+              const SizedBox(height: OvertoneSpacing.lg),
               Text(switch (state.status) {
                 LoginQrStatus.scanned => '已扫码，请在手机上确认',
                 LoginQrStatus.expired => '二维码已过期，请刷新',
@@ -90,7 +90,7 @@ class _BiliLoginPageState extends ConsumerState<BiliLoginPage> {
                 child: const Text('刷新二维码'),
               ),
             ],
-            const SizedBox(height: KugoSpacing.xl),
+            const SizedBox(height: OvertoneSpacing.xl),
             const Text(
               '登录凭据仅存本机，退出登录即清除。游客仍可搜索与播放；'
               '登录后可读取收藏夹。B 站不提供云端红心歌曲，红心仅保存在本地。',

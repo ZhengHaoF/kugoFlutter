@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../features/player/player_controller.dart';
 import 'common.dart';
 
@@ -26,7 +26,7 @@ class SpeedChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final speed = ref.watch(playerControllerProvider).speed;
     final active = speed != 1.0;
 
@@ -43,15 +43,15 @@ class SpeedChip extends ConsumerWidget {
               Icon(
                 Icons.speed_outlined,
                 size: 16,
-                color: active ? kugo.primary : kugo.textSecondary,
+                color: active ? theme.primary : theme.textSecondary,
               ),
               if (active) ...[
                 const SizedBox(width: 2),
                 Text(
                   label(speed),
-                  style: kugo.caption.copyWith(
+                  style: theme.caption.copyWith(
                     fontSize: 10,
-                    color: kugo.primary,
+                    color: theme.primary,
                   ),
                 ),
               ],
@@ -66,7 +66,7 @@ class SpeedChip extends ConsumerWidget {
 /// 倍速选择底部弹层 — 与音质 / 歌词显示弹层并列，档位表
 /// [kSpeedPresets] 与 MV 播放器一致。
 Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
-  return showKugoBottomSheet<void>(
+  return showOvertoneBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (_) => const _SpeedSheetBody(),
@@ -78,16 +78,16 @@ class _SpeedSheetBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final speed = ref.watch(playerControllerProvider).speed;
     final controller = ref.read(playerControllerProvider.notifier);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        KugoSpacing.lg,
-        KugoSpacing.md,
-        KugoSpacing.lg,
-        KugoSpacing.lg,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.md,
+        OvertoneSpacing.lg,
+        OvertoneSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -97,9 +97,9 @@ class _SpeedSheetBody extends ConsumerWidget {
             child: Container(
               width: 36,
               height: 4,
-              margin: const EdgeInsets.only(bottom: KugoSpacing.md),
+              margin: const EdgeInsets.only(bottom: OvertoneSpacing.md),
               decoration: BoxDecoration(
-                color: kugo.divider,
+                color: theme.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -107,34 +107,34 @@ class _SpeedSheetBody extends ConsumerWidget {
           Text(
             '播放倍速',
             textAlign: TextAlign.center,
-            style: kugo.section.copyWith(fontSize: 16),
+            style: theme.section.copyWith(fontSize: 16),
           ),
           const SizedBox(height: 4),
           Text(
             '倍速不保留音调；进度、歌词与剩余时间随倍速一致变化',
             textAlign: TextAlign.center,
-            style: kugo.caption,
+            style: theme.caption,
           ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
           for (final preset in kSpeedPresets)
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(
                 SpeedChip.label(preset),
-                style: kugo.body.copyWith(
-                  color: speed == preset ? kugo.primary : kugo.textPrimary,
+                style: theme.body.copyWith(
+                  color: speed == preset ? theme.primary : theme.textPrimary,
                 ),
               ),
               trailing: speed == preset
-                  ? Icon(Icons.check_rounded, color: kugo.primary, size: 20)
+                  ? Icon(Icons.check_rounded, color: theme.primary, size: 20)
                   : null,
               onTap: () {
                 Navigator.of(context).maybePop();
                 controller.setSpeed(preset);
               },
             ),
-          const SizedBox(height: KugoSpacing.sm),
+          const SizedBox(height: OvertoneSpacing.sm),
         ],
       ),
     );

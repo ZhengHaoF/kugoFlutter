@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/data/repositories/device_repository.dart';
+import 'package:overtone/data/repositories/device_repository.dart';
 
-import 'fakes/fake_kugo_client.dart';
+import 'fakes/fake_kugou_client.dart';
 
 /// 设备注册 `/risk/v2/r_register_dev`。
 ///

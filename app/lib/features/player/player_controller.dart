@@ -185,7 +185,7 @@ class PlayerController extends Notifier<PlayerState> {
   /// in isolation instead of dragging the whole UI tree along every tick.
   final ValueNotifier<int> position = ValueNotifier(0);
 
-  KugoMediaBridge? _bridge;
+  OvertoneMediaBridge? _bridge;
   StreamSubscription<void>? _posSub;
   StreamSubscription<Duration>? _bufferedSub;
   StreamSubscription<Duration?>? _durationSub;
@@ -429,7 +429,7 @@ class PlayerController extends Notifier<PlayerState> {
     } catch (_) {}
   }
 
-  void attachBridge(KugoMediaBridge bridge) {
+  void attachBridge(OvertoneMediaBridge bridge) {
     _bridge = bridge;
     _syncBridge();
   }
@@ -1363,7 +1363,7 @@ class PlayerController extends Notifier<PlayerState> {
 }
 
 /// Bridge used by the platform media handler to push system UI updates.
-abstract class KugoMediaBridge {
+abstract class OvertoneMediaBridge {
   void sync({
     required bool playing,
     required AudioProcessingState processing,

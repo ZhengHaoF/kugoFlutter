@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/features/settings/settings_controller.dart';
-import 'package:kugo/shared/widgets/lyric_display_sheet.dart';
+import 'package:overtone/features/settings/settings_controller.dart';
+import 'package:overtone/shared/widgets/lyric_display_sheet.dart';
 
 class _FixedSettings extends SettingsController {
   _FixedSettings(this._initial);

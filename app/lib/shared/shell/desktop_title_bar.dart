@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../core/theme/kugo_theme.dart';
+import '../../core/theme/overtone_theme.dart';
 
 /// 自绘窗口标题栏（Windows）。
 ///
@@ -55,7 +55,7 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return SizedBox(
       height: 36,
       child: Row(
@@ -75,10 +75,10 @@ class _DesktopTitleBarState extends State<DesktopTitleBar> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'kugo',
-                    style: kugo.caption.copyWith(
+                    '泛音',
+                    style: theme.caption.copyWith(
                       fontSize: 12,
-                      color: kugo.textSecondary,
+                      color: theme.textSecondary,
                     ),
                   ),
                 ),
@@ -147,14 +147,14 @@ class _TitleBarButtonState extends State<_TitleBarButton> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final bg = _hovered
         ? (widget.hoverColor ??
-            kugo.textPrimary.withValues(alpha: kugo.isLight ? 0.08 : 0.16))
+            theme.textPrimary.withValues(alpha: theme.isLight ? 0.08 : 0.16))
         : Colors.transparent;
     final fg = _hovered
-        ? (widget.hoverForeground ?? kugo.textPrimary)
-        : kugo.textSecondary;
+        ? (widget.hoverForeground ?? theme.textPrimary)
+        : theme.textSecondary;
 
     return Tooltip(
       message: widget.tooltip,

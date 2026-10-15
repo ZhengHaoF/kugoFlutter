@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/diagnostics/startup_gate.dart';
+import 'package:overtone/core/diagnostics/startup_gate.dart';
 
 void main() {
   testWidgets('shell appears immediately before initialization completes', (
@@ -12,7 +12,7 @@ void main() {
     await tester.pumpWidget(
       StartupGate(initialize: () => ready.future, onError: (_, _) {}),
     );
-    expect(find.text('正在启动 kugo…'), findsOneWidget);
+    expect(find.text('正在启动泛音…'), findsOneWidget);
     ready.complete(const MaterialApp(home: Text('ready')));
     await tester.pumpAndSettle();
     expect(find.text('ready'), findsOneWidget);

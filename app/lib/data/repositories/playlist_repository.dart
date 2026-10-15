@@ -4,8 +4,8 @@ import 'package:dio/dio.dart';
 
 import '../../core/api/endpoints.dart';
 import '../../core/api/kugou/credential_transport.dart';
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/track.dart';
@@ -13,15 +13,15 @@ import '../../features/auth/auth_token_holder.dart';
 import '../storage/device_identity.dart';
 
 class PlaylistRepository {
-  PlaylistRepository({KugoClient? client, Dio? dio})
-      : _client = client ?? kugoClient,
+  PlaylistRepository({KugouClient? client, Dio? dio})
+      : _client = client ?? kugouClient,
         _dio = dio ?? _createDio() {
     installKugouCredentialGuard(_dio);
   }
 
   /// Wired from main() so signed gateway rank calls show up in network logs.
   
-  final KugoClient _client;
+  final KugouClient _client;
   final Dio _dio;
 
   static Dio _createDio() {
@@ -40,7 +40,7 @@ class PlaylistRepository {
   /// Public playlist metadata + tracks via mobile CDN.
   ///
   /// Uses the `special` endpoint family: the `playlist/*` paths are
-  /// Access-Denied on this network (see [KugoEndpoints.playlistInfo]).
+  /// Access-Denied on this network (see [KugouEndpoints.playlistInfo]).
   /// Metadata and tracks come from two separate calls.
   Future<({PlaylistBrief brief, List<Track> tracks})?> fetchPlaylist(
     String id, {
@@ -52,8 +52,8 @@ class PlaylistRepository {
 
     try {
       final infoUrl = buildUrl(
-        KugoEndpoints.mobileCdn,
-        KugoEndpoints.playlistInfo,
+        KugouEndpoints.mobileCdn,
+        KugouEndpoints.playlistInfo,
         {'specialid': numericId, 'format': 'json'},
       );
       final infoData = await _client.getJson(infoUrl);
@@ -64,8 +64,8 @@ class PlaylistRepository {
       final brief = mapPlaylistInfo(info);
 
       final songsUrl = buildUrl(
-        KugoEndpoints.mobileCdn,
-        KugoEndpoints.playlistSongs,
+        KugouEndpoints.mobileCdn,
+        KugouEndpoints.playlistSongs,
         {
           'specialid': numericId,
           'page': page,
@@ -102,8 +102,8 @@ class PlaylistRepository {
   Future<List<PlaylistBrief>> fetchSquare({int page = 1, int pageSize = 20}) async {
     try {
       final url = buildUrl(
-        KugoEndpoints.mobileCdn,
-        KugoEndpoints.playlistSquare,
+        KugouEndpoints.mobileCdn,
+        KugouEndpoints.playlistSquare,
         {'page': page, 'pagesize': pageSize, 'format': 'json'},
       );
       final data = await _client.getJson(url);
@@ -130,7 +130,7 @@ class PlaylistRepository {
 
   Future<List<PlaylistBrief>> fetchRankList() async {
     try {
-      final url = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.rankList, {
+      final url = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.rankList, {
         'format': 'json',
         'plat': 0,
       });
@@ -178,8 +178,8 @@ class PlaylistRepository {
 
     try {
       final infoUrl = buildUrl(
-        KugoEndpoints.mobileCdn,
-        KugoEndpoints.rankInfo,
+        KugouEndpoints.mobileCdn,
+        KugouEndpoints.rankInfo,
         {'rankid': id, 'plat': 0, 'format': 'json'},
       );
       final infoData = await _client.getJson(infoUrl);
@@ -211,8 +211,8 @@ class PlaylistRepository {
       // 2) Legacy public rank/song (often a short slice).
       try {
         final songsUrl = buildUrl(
-          KugoEndpoints.mobileCdn,
-          KugoEndpoints.rankSong,
+          KugouEndpoints.mobileCdn,
+          KugouEndpoints.rankSong,
           {
             'rankid': id,
             'page': page,
@@ -294,17 +294,17 @@ class PlaylistRepository {
         'dfid': device.dfid,
         'mid': device.mid,
         'uuid': '-',
-        'appid': int.parse(KugoSign.appId),
-        'clientver': int.parse(KugoSign.clientVer),
+        'appid': int.parse(KugouSign.appId),
+        'clientver': int.parse(KugouSign.clientVer),
         'clienttime': clienttime,
         if (useToken) 'token': auth.token,
         if (userIdNum != 0) 'userid': userIdNum,
       };
       params['signature'] =
-          KugoSign.signatureAndroidParams(params, data: bodyJson);
+          KugouSign.signatureAndroidParams(params, data: bodyJson);
 
       final headers = <String, dynamic>{
-        'User-Agent': KugoSign.userAgent,
+        'User-Agent': KugouSign.userAgent,
         'Content-Type': 'application/json',
         'dfid': device.dfid,
         'clienttime': '$clienttime',
@@ -326,7 +326,7 @@ class PlaylistRepository {
         ].join(';'),
       };
 
-      final url = '${KugoEndpoints.gateway}${KugoEndpoints.rankAudio}';
+      final url = '${KugouEndpoints.gateway}${KugouEndpoints.rankAudio}';
       final logId =
           '${DateTime.now().microsecondsSinceEpoch}-$url-$rankId-$page';
       _emit(
@@ -361,7 +361,7 @@ class PlaylistRepository {
       );
 
       if (looksLikeUrlFilter(raw)) return null;
-      final decoded = decodeKugoBody(res.data);
+      final decoded = decodeKugouBody(res.data);
       if (decoded is! Map) return null;
       final map = Map<String, dynamic>.from(decoded);
       final status = map['status'];

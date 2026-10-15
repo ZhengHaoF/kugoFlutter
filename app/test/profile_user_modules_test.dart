@@ -4,16 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:kugo/core/models/track.dart';
+import 'package:overtone/core/models/track.dart';
 import 'fakes/fake_audio_player.dart';
-import 'package:kugo/data/storage/kugo_db.dart';
-import 'package:kugo/data/storage/queue_store.dart';
-import 'package:kugo/features/history/history_page.dart';
-import 'package:kugo/features/likes/likes_controller.dart';
-import 'package:kugo/features/likes/likes_page.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/profile/profile_page.dart';
-import 'package:kugo/shared/widgets/common.dart';
+import 'package:overtone/data/storage/overtone_db.dart';
+import 'package:overtone/data/storage/queue_store.dart';
+import 'package:overtone/features/history/history_page.dart';
+import 'package:overtone/features/likes/likes_controller.dart';
+import 'package:overtone/features/likes/likes_page.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/profile/profile_page.dart';
+import 'package:overtone/shared/widgets/common.dart';
 
 Track _testTrack(String id, String name, String artist) {
   return Track(
@@ -30,11 +30,11 @@ Track _testTrack(String id, String name, String artist) {
 }
 
 void main() {
-  late KugoDb db;
+  late OvertoneDb db;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    db = KugoDb.forTesting(NativeDatabase.memory());
+    db = OvertoneDb.forTesting(NativeDatabase.memory());
     QueueStore.setDbForTesting(db);
   });
 

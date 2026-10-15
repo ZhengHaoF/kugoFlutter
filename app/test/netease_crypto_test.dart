@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/netease/netease_crypto.dart';
+import 'package:overtone/core/api/netease/netease_crypto.dart';
 
 void main() {
   test('randomKey is 16-char base62', () {

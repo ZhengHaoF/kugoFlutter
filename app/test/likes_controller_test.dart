@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/likes/likes_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/likes/likes_controller.dart';
 
 Track _t(String id) => Track(
       id: id,

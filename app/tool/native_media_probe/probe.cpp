@@ -42,9 +42,9 @@ int main() {
   WNDCLASSW wc{};
   wc.lpfnWndProc = Proc;
   wc.hInstance = ::GetModuleHandleW(nullptr);
-  wc.lpszClassName = L"KugoNativeMediaProbeOwner";
+  wc.lpszClassName = L"OvertoneNativeMediaProbeOwner";
   ::RegisterClassW(&wc);
-  HWND owner = ::CreateWindowW(wc.lpszClassName, L"kugo native media probe",
+  HWND owner = ::CreateWindowW(wc.lpszClassName, L"overtone native media probe",
                                WS_OVERLAPPEDWINDOW, 100, 100, 900, 640, nullptr,
                                nullptr, wc.hInstance, nullptr);
   Check(owner != nullptr, "owner window created");

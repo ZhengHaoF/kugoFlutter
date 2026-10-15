@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/bili/bili_qr_login.dart';
-import 'package:kugo/core/source/capabilities.dart';
+import 'package:overtone/core/api/bili/bili_qr_login.dart';
+import 'package:overtone/core/source/capabilities.dart';
 
 /// 扫码轮询码映射单测（纯函数，不联外网）。
 /// 码值口径对齐 NeriPlayer `BiliQrLoginActivity`：86101 等待 / 86090 已扫 /

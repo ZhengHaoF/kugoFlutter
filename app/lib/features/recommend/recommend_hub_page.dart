@@ -10,8 +10,8 @@ import '../../core/source/music_platform.dart';
 import '../../core/source/music_source.dart';
 import '../../core/source/registry.dart';
 import '../../core/theme/hero_tags.dart';
-import '../../core/theme/kugo_theme.dart';
-import '../../core/theme/kugo_tokens.dart';
+import '../../core/theme/overtone_theme.dart';
+import '../../core/theme/overtone_tokens.dart';
 import '../../core/theme/responsive.dart';
 import '../../data/repositories/recommend_repository.dart'
     show RecommendRepository;
@@ -19,8 +19,8 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/player/player_controller.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../shared/widgets/common.dart';
-import '../../shared/widgets/kugo_clickable.dart';
-import '../../shared/widgets/kugo_h_scroll.dart';
+import '../../shared/widgets/overtone_clickable.dart';
+import '../../shared/widgets/overtone_h_scroll.dart';
 import '../../shared/widgets/smooth_scroll.dart';
 
 /// 为你推荐聚合页（对齐 EchoMusic Home.vue「为您推荐」信息架构）。
@@ -334,7 +334,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final player = ref.watch(playerControllerProvider);
     final auth = ref.watch(authControllerProvider);
     final settings = ref.watch(settingsControllerProvider);
@@ -427,24 +427,24 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(
-                        KugoSpacing.lg,
-                        KugoSpacing.md,
-                        KugoSpacing.lg,
-                        KugoSpacing.sm,
+                        OvertoneSpacing.lg,
+                        OvertoneSpacing.md,
+                        OvertoneSpacing.lg,
+                        OvertoneSpacing.sm,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             auth.isLogged ? greeting : '为你推荐',
-                            style: kugo.greeting,
+                            style: theme.greeting,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '由此开启好心情 ~',
-                            style: kugo.caption.copyWith(fontSize: 13),
+                            style: theme.caption.copyWith(fontSize: 13),
                           ),
-                          const SizedBox(height: KugoSpacing.lg),
+                          const SizedBox(height: OvertoneSpacing.lg),
                           const _FeatureEntryRow(),
                         ],
                       ),
@@ -503,7 +503,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding:
-                            const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+                            const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Wrap(
@@ -574,10 +574,10 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              KugoSpacing.lg,
+              OvertoneSpacing.lg,
               0,
-              KugoSpacing.lg,
-              KugoSpacing.md,
+              OvertoneSpacing.lg,
+              OvertoneSpacing.md,
             ),
             child: Wrap(spacing: 8, runSpacing: 8, children: tags),
           ),
@@ -603,7 +603,7 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
       return [
         const SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.all(KugoSpacing.xl),
+            padding: EdgeInsets.all(OvertoneSpacing.xl),
             child: Center(child: CircularProgressIndicator()),
           ),
         ),
@@ -622,21 +622,21 @@ class _RecommendHubPageState extends ConsumerState<RecommendHubPage> {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+          padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final contentWidth = constraints.maxWidth.isFinite &&
                       constraints.maxWidth > 0
                   ? constraints.maxWidth
-                  : MediaQuery.sizeOf(context).width - KugoSpacing.lg * 2;
+                  : MediaQuery.sizeOf(context).width - OvertoneSpacing.lg * 2;
               final grid = coverGridDelegateForWidth(
                 context,
                 contentWidth,
                 preferredExtent: kDesktopCoverExtent,
                 mobileAspectRatio: 0.72,
                 desktopAspectRatio: 0.72,
-                mainAxisSpacing: KugoSpacing.lg,
-                crossAxisSpacing: KugoSpacing.lg,
+                mainAxisSpacing: OvertoneSpacing.lg,
+                crossAxisSpacing: OvertoneSpacing.lg,
                 maxColumns: 10,
               );
               return GridView.builder(
@@ -679,7 +679,7 @@ class _FeatureEntryRow extends StatelessWidget {
           child: _FeatureCard(
             key: const ValueKey('hub_daily_card'),
             badge: day,
-            heroTag: KugoHeroTags.dailyRecommendBadge,
+            heroTag: OvertoneHeroTags.dailyRecommendBadge,
             title: '每日推荐',
             subtitle: '为你量身定制',
             usePrimaryGradient: true,
@@ -722,25 +722,25 @@ class _FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     final gradient = usePrimaryGradient
         ? LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              kugo.primary,
-              Color.lerp(kugo.primary, kugo.secondary, 0.35)!,
+              theme.primary,
+              Color.lerp(theme.primary, theme.secondary, 0.35)!,
             ],
           )
         : LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              kugo.secondary,
-              Color.lerp(kugo.secondary, kugo.primary, 0.40)!,
+              theme.secondary,
+              Color.lerp(theme.secondary, theme.primary, 0.40)!,
             ],
           );
-    final accent = usePrimaryGradient ? kugo.primary : kugo.secondary;
+    final accent = usePrimaryGradient ? theme.primary : theme.secondary;
 
     final badgeContainer = Container(
       width: 40,
@@ -765,8 +765,8 @@ class _FeatureCard extends StatelessWidget {
     final badgeWidget = (heroTag != null && heroTag!.isNotEmpty)
         ? Hero(
             tag: heroTag!,
-            flightShuttleBuilder: heroTag == KugoHeroTags.dailyRecommendBadge
-                ? KugoHeroTags.dailyRecommendBadgeFlightShuttle
+            flightShuttleBuilder: heroTag == OvertoneHeroTags.dailyRecommendBadge
+                ? OvertoneHeroTags.dailyRecommendBadgeFlightShuttle
                 : null,
             child: Material(
               type: MaterialType.transparency,
@@ -776,9 +776,9 @@ class _FeatureCard extends StatelessWidget {
         : badgeContainer;
 
     return Material(
-      color: kugo.surface,
+      color: theme.surface,
       borderRadius: BorderRadius.circular(16),
-      child: KugoClickable(
+      child: OvertoneClickable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -786,7 +786,7 @@ class _FeatureCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kugo.divider),
+            border: Border.all(color: theme.divider),
           ),
           child: Row(
             children: [
@@ -801,7 +801,7 @@ class _FeatureCard extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.body.copyWith(
+                      style: theme.body.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -811,7 +811,7 @@ class _FeatureCard extends StatelessWidget {
                       subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: kugo.caption.copyWith(fontSize: 11),
+                      style: theme.caption.copyWith(fontSize: 11),
                     ),
                   ],
                 ),
@@ -875,11 +875,11 @@ class _StylePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
 
     if (loading && tracks.isEmpty && groups.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.all(KugoSpacing.xl),
+        padding: EdgeInsets.all(OvertoneSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -889,7 +889,7 @@ class _StylePanel extends StatelessWidget {
 
     final active = _active;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: KugoSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: OvertoneSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -897,21 +897,21 @@ class _StylePanel extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: kugo.surface,
-              borderRadius: BorderRadius.circular(KugoRadius.card),
-              border: Border.all(color: kugo.divider),
+              color: theme.surface,
+              borderRadius: BorderRadius.circular(OvertoneRadius.card),
+              border: Border.all(color: theme.divider),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.tune_rounded, size: 16, color: kugo.primary),
+                    Icon(Icons.tune_rounded, size: 16, color: theme.primary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         summary,
-                        style: kugo.caption.copyWith(fontSize: 12),
+                        style: theme.caption.copyWith(fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -922,7 +922,7 @@ class _StylePanel extends StatelessWidget {
                   const SizedBox(height: 10),
                   SizedBox(
                     height: 34,
-                    child: KugoHScroll(
+                    child: OvertoneHScroll(
                       fadeEdges: false,
                       builder: (context, controller, _) =>
                           ListView.separated(
@@ -963,11 +963,11 @@ class _StylePanel extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: KugoSpacing.md),
+          const SizedBox(height: OvertoneSpacing.md),
           if (loading && tracks.isEmpty)
             const Center(
               child: Padding(
-                padding: EdgeInsets.all(KugoSpacing.lg),
+                padding: EdgeInsets.all(OvertoneSpacing.lg),
                 child: CircularProgressIndicator(),
               ),
             )
@@ -1003,18 +1003,18 @@ class _SectionStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kugo = KugoTheme.of(context);
+    final theme = OvertoneTheme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: KugoSpacing.lg,
-        vertical: KugoSpacing.lg,
+        horizontal: OvertoneSpacing.lg,
+        vertical: OvertoneSpacing.lg,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(message, style: kugo.caption),
+          Text(message, style: theme.caption),
           if (onRetry != null) ...[
-            const SizedBox(height: KugoSpacing.sm),
+            const SizedBox(height: OvertoneSpacing.sm),
             TextButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),

@@ -90,14 +90,14 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.kugo" "\0"
-            VALUE "FileDescription", "kugo" "\0"
-            VALUE "InternalName", "kugo" "\0"
+            VALUE "CompanyName", "com.overtone" "\0"
+            VALUE "FileDescription", "泛音 Overtone" "\0"
+            VALUE "InternalName", "overtone" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.kugo. All rights reserved." "\0"
-            VALUE "OriginalFilename", "kugo.exe" "\0"
-            VALUE "ProductName", "kugo" "\0"
-            VALUE "AppIconVersion", KUGO_APP_ICON_SHA256 "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.overtone. All rights reserved." "\0"
+            VALUE "OriginalFilename", "overtone.exe" "\0"
+            VALUE "ProductName", "泛音 Overtone" "\0"
+            VALUE "AppIconVersion", OVERTONE_APP_ICON_SHA256 "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

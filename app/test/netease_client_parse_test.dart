@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/netease/netease_client.dart';
-import 'package:kugo/core/api/netease/netease_failures.dart';
-import 'package:kugo/core/api/netease/netease_mappers.dart';
-import 'package:kugo/core/source/music_platform.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/sources/netease/netease_source.dart';
+import 'package:overtone/core/api/netease/netease_client.dart';
+import 'package:overtone/core/api/netease/netease_failures.dart';
+import 'package:overtone/core/api/netease/netease_mappers.dart';
+import 'package:overtone/core/source/music_platform.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/sources/netease/netease_source.dart';
 
 void main() {
   test('parseProbeSongs reads ar/al/dt', () {

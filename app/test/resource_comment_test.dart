@@ -2,13 +2,13 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/api/kugou/kugo_sign.dart';
-import 'package:kugo/core/models/comment.dart';
-import 'package:kugo/core/source/music_source.dart';
-import 'package:kugo/data/repositories/comment_repository.dart';
-import 'package:kugo/data/sources/kugou/kugou_source.dart';
-import 'package:kugo/data/storage/device_identity.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
+import 'package:overtone/core/api/kugou/kugou_sign.dart';
+import 'package:overtone/core/models/comment.dart';
+import 'package:overtone/core/source/music_source.dart';
+import 'package:overtone/data/repositories/comment_repository.dart';
+import 'package:overtone/data/sources/kugou/kugou_source.dart';
+import 'package:overtone/data/storage/device_identity.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 按顺序吐预置响应体，并记录每次请求，供断言 URL / 参数。
@@ -246,7 +246,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('$ct${device.mid}{"data":{"content":"好听"}}'),
+      KugouSign.signParamsKey('$ct${device.mid}{"data":{"content":"好听"}}'),
     );
   });
 
@@ -281,7 +281,7 @@ void main() {
     final ct = req.queryParameters['clienttime'] as int;
     expect(
       req.queryParameters['key'],
-      KugoSign.signParamsKey('$ct${device.mid}'),
+      KugouSign.signParamsKey('$ct${device.mid}'),
     );
   });
 

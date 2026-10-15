@@ -6,15 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/core/source/registry.dart';
-import 'package:kugo/data/repositories/user_repository.dart';
-import 'package:kugo/data/sources/kugou/kugou_source.dart';
-import 'package:kugo/features/auth/auth_controller.dart';
-import 'package:kugo/features/auth/auth_token_holder.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/playlist/playlist_detail_page.dart';
-import 'package:kugo/features/profile/user_collections_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/core/source/registry.dart';
+import 'package:overtone/data/repositories/user_repository.dart';
+import 'package:overtone/data/sources/kugou/kugou_source.dart';
+import 'package:overtone/features/auth/auth_controller.dart';
+import 'package:overtone/features/auth/auth_token_holder.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/playlist/playlist_detail_page.dart';
+import 'package:overtone/features/profile/user_collections_controller.dart';
 import 'fakes/fake_audio_player.dart';
 
 class _FakeDioAdapter implements HttpClientAdapter {

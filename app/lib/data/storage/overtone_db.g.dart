@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'kugo_db.dart';
+part of 'overtone_db.dart';
 
 // ignore_for_file: type=lint
 class $QueueTracksTable extends QueueTracks
@@ -1855,9 +1855,9 @@ class HistoryTracksCompanion extends UpdateCompanion<HistoryTrack> {
   }
 }
 
-abstract class _$KugoDb extends GeneratedDatabase {
-  _$KugoDb(QueryExecutor e) : super(e);
-  $KugoDbManager get managers => $KugoDbManager(this);
+abstract class _$OvertoneDb extends GeneratedDatabase {
+  _$OvertoneDb(QueryExecutor e) : super(e);
+  $OvertoneDbManager get managers => $OvertoneDbManager(this);
   late final $QueueTracksTable queueTracks = $QueueTracksTable(this);
   late final $QueueMetaTable queueMeta = $QueueMetaTable(this);
   late final $HistoryTracksTable historyTracks = $HistoryTracksTable(this);
@@ -1908,7 +1908,7 @@ typedef $$QueueTracksTableUpdateCompanionBuilder =
     });
 
 class $$QueueTracksTableFilterComposer
-    extends Composer<_$KugoDb, $QueueTracksTable> {
+    extends Composer<_$OvertoneDb, $QueueTracksTable> {
   $$QueueTracksTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -1988,7 +1988,7 @@ class $$QueueTracksTableFilterComposer
 }
 
 class $$QueueTracksTableOrderingComposer
-    extends Composer<_$KugoDb, $QueueTracksTable> {
+    extends Composer<_$OvertoneDb, $QueueTracksTable> {
   $$QueueTracksTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -2068,7 +2068,7 @@ class $$QueueTracksTableOrderingComposer
 }
 
 class $$QueueTracksTableAnnotationComposer
-    extends Composer<_$KugoDb, $QueueTracksTable> {
+    extends Composer<_$OvertoneDb, $QueueTracksTable> {
   $$QueueTracksTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -2128,7 +2128,7 @@ class $$QueueTracksTableAnnotationComposer
 class $$QueueTracksTableTableManager
     extends
         RootTableManager<
-          _$KugoDb,
+          _$OvertoneDb,
           $QueueTracksTable,
           QueueTrack,
           $$QueueTracksTableFilterComposer,
@@ -2136,11 +2136,14 @@ class $$QueueTracksTableTableManager
           $$QueueTracksTableAnnotationComposer,
           $$QueueTracksTableCreateCompanionBuilder,
           $$QueueTracksTableUpdateCompanionBuilder,
-          (QueueTrack, BaseReferences<_$KugoDb, $QueueTracksTable, QueueTrack>),
+          (
+            QueueTrack,
+            BaseReferences<_$OvertoneDb, $QueueTracksTable, QueueTrack>,
+          ),
           QueueTrack,
           PrefetchHooks Function()
         > {
-  $$QueueTracksTableTableManager(_$KugoDb db, $QueueTracksTable table)
+  $$QueueTracksTableTableManager(_$OvertoneDb db, $QueueTracksTable table)
     : super(
         TableManagerState(
           db: db,
@@ -2219,7 +2222,7 @@ class $$QueueTracksTableTableManager
               .map(
                 (e) => (
                   e.readTable<$QueueTracksTable, QueueTrack>(table),
-                  BaseReferences<_$KugoDb, $QueueTracksTable, QueueTrack>(
+                  BaseReferences<_$OvertoneDb, $QueueTracksTable, QueueTrack>(
                     db,
                     table,
                     e,
@@ -2234,7 +2237,7 @@ class $$QueueTracksTableTableManager
 
 typedef $$QueueTracksTableProcessedTableManager =
     ProcessedTableManager<
-      _$KugoDb,
+      _$OvertoneDb,
       $QueueTracksTable,
       QueueTrack,
       $$QueueTracksTableFilterComposer,
@@ -2242,7 +2245,7 @@ typedef $$QueueTracksTableProcessedTableManager =
       $$QueueTracksTableAnnotationComposer,
       $$QueueTracksTableCreateCompanionBuilder,
       $$QueueTracksTableUpdateCompanionBuilder,
-      (QueueTrack, BaseReferences<_$KugoDb, $QueueTracksTable, QueueTrack>),
+      (QueueTrack, BaseReferences<_$OvertoneDb, $QueueTracksTable, QueueTrack>),
       QueueTrack,
       PrefetchHooks Function()
     >;
@@ -2260,7 +2263,7 @@ typedef $$QueueMetaTableUpdateCompanionBuilder =
     });
 
 class $$QueueMetaTableFilterComposer
-    extends Composer<_$KugoDb, $QueueMetaTable> {
+    extends Composer<_$OvertoneDb, $QueueMetaTable> {
   $$QueueMetaTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -2285,7 +2288,7 @@ class $$QueueMetaTableFilterComposer
 }
 
 class $$QueueMetaTableOrderingComposer
-    extends Composer<_$KugoDb, $QueueMetaTable> {
+    extends Composer<_$OvertoneDb, $QueueMetaTable> {
   $$QueueMetaTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -2310,7 +2313,7 @@ class $$QueueMetaTableOrderingComposer
 }
 
 class $$QueueMetaTableAnnotationComposer
-    extends Composer<_$KugoDb, $QueueMetaTable> {
+    extends Composer<_$OvertoneDb, $QueueMetaTable> {
   $$QueueMetaTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -2333,7 +2336,7 @@ class $$QueueMetaTableAnnotationComposer
 class $$QueueMetaTableTableManager
     extends
         RootTableManager<
-          _$KugoDb,
+          _$OvertoneDb,
           $QueueMetaTable,
           QueueMetaData,
           $$QueueMetaTableFilterComposer,
@@ -2343,12 +2346,12 @@ class $$QueueMetaTableTableManager
           $$QueueMetaTableUpdateCompanionBuilder,
           (
             QueueMetaData,
-            BaseReferences<_$KugoDb, $QueueMetaTable, QueueMetaData>,
+            BaseReferences<_$OvertoneDb, $QueueMetaTable, QueueMetaData>,
           ),
           QueueMetaData,
           PrefetchHooks Function()
         > {
-  $$QueueMetaTableTableManager(_$KugoDb db, $QueueMetaTable table)
+  $$QueueMetaTableTableManager(_$OvertoneDb db, $QueueMetaTable table)
     : super(
         TableManagerState(
           db: db,
@@ -2383,7 +2386,7 @@ class $$QueueMetaTableTableManager
               .map(
                 (e) => (
                   e.readTable<$QueueMetaTable, QueueMetaData>(table),
-                  BaseReferences<_$KugoDb, $QueueMetaTable, QueueMetaData>(
+                  BaseReferences<_$OvertoneDb, $QueueMetaTable, QueueMetaData>(
                     db,
                     table,
                     e,
@@ -2398,7 +2401,7 @@ class $$QueueMetaTableTableManager
 
 typedef $$QueueMetaTableProcessedTableManager =
     ProcessedTableManager<
-      _$KugoDb,
+      _$OvertoneDb,
       $QueueMetaTable,
       QueueMetaData,
       $$QueueMetaTableFilterComposer,
@@ -2406,7 +2409,10 @@ typedef $$QueueMetaTableProcessedTableManager =
       $$QueueMetaTableAnnotationComposer,
       $$QueueMetaTableCreateCompanionBuilder,
       $$QueueMetaTableUpdateCompanionBuilder,
-      (QueueMetaData, BaseReferences<_$KugoDb, $QueueMetaTable, QueueMetaData>),
+      (
+        QueueMetaData,
+        BaseReferences<_$OvertoneDb, $QueueMetaTable, QueueMetaData>,
+      ),
       QueueMetaData,
       PrefetchHooks Function()
     >;
@@ -2448,7 +2454,7 @@ typedef $$HistoryTracksTableUpdateCompanionBuilder =
     });
 
 class $$HistoryTracksTableFilterComposer
-    extends Composer<_$KugoDb, $HistoryTracksTable> {
+    extends Composer<_$OvertoneDb, $HistoryTracksTable> {
   $$HistoryTracksTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -2528,7 +2534,7 @@ class $$HistoryTracksTableFilterComposer
 }
 
 class $$HistoryTracksTableOrderingComposer
-    extends Composer<_$KugoDb, $HistoryTracksTable> {
+    extends Composer<_$OvertoneDb, $HistoryTracksTable> {
   $$HistoryTracksTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -2608,7 +2614,7 @@ class $$HistoryTracksTableOrderingComposer
 }
 
 class $$HistoryTracksTableAnnotationComposer
-    extends Composer<_$KugoDb, $HistoryTracksTable> {
+    extends Composer<_$OvertoneDb, $HistoryTracksTable> {
   $$HistoryTracksTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -2668,7 +2674,7 @@ class $$HistoryTracksTableAnnotationComposer
 class $$HistoryTracksTableTableManager
     extends
         RootTableManager<
-          _$KugoDb,
+          _$OvertoneDb,
           $HistoryTracksTable,
           HistoryTrack,
           $$HistoryTracksTableFilterComposer,
@@ -2678,12 +2684,12 @@ class $$HistoryTracksTableTableManager
           $$HistoryTracksTableUpdateCompanionBuilder,
           (
             HistoryTrack,
-            BaseReferences<_$KugoDb, $HistoryTracksTable, HistoryTrack>,
+            BaseReferences<_$OvertoneDb, $HistoryTracksTable, HistoryTrack>,
           ),
           HistoryTrack,
           PrefetchHooks Function()
         > {
-  $$HistoryTracksTableTableManager(_$KugoDb db, $HistoryTracksTable table)
+  $$HistoryTracksTableTableManager(_$OvertoneDb db, $HistoryTracksTable table)
     : super(
         TableManagerState(
           db: db,
@@ -2766,11 +2772,11 @@ class $$HistoryTracksTableTableManager
               .map(
                 (e) => (
                   e.readTable<$HistoryTracksTable, HistoryTrack>(table),
-                  BaseReferences<_$KugoDb, $HistoryTracksTable, HistoryTrack>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  BaseReferences<
+                    _$OvertoneDb,
+                    $HistoryTracksTable,
+                    HistoryTrack
+                  >(db, table, e),
                 ),
               )
               .toList(),
@@ -2781,7 +2787,7 @@ class $$HistoryTracksTableTableManager
 
 typedef $$HistoryTracksTableProcessedTableManager =
     ProcessedTableManager<
-      _$KugoDb,
+      _$OvertoneDb,
       $HistoryTracksTable,
       HistoryTrack,
       $$HistoryTracksTableFilterComposer,
@@ -2791,15 +2797,15 @@ typedef $$HistoryTracksTableProcessedTableManager =
       $$HistoryTracksTableUpdateCompanionBuilder,
       (
         HistoryTrack,
-        BaseReferences<_$KugoDb, $HistoryTracksTable, HistoryTrack>,
+        BaseReferences<_$OvertoneDb, $HistoryTracksTable, HistoryTrack>,
       ),
       HistoryTrack,
       PrefetchHooks Function()
     >;
 
-class $KugoDbManager {
-  final _$KugoDb _db;
-  $KugoDbManager(this._db);
+class $OvertoneDbManager {
+  final _$OvertoneDb _db;
+  $OvertoneDbManager(this._db);
   $$QueueTracksTableTableManager get queueTracks =>
       $$QueueTracksTableTableManager(_db, _db.queueTracks);
   $$QueueMetaTableTableManager get queueMeta =>

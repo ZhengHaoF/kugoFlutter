@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/features/profile/profile_page.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/features/profile/profile_page.dart';
 
 import 'fakes/fake_audio_player.dart';
 

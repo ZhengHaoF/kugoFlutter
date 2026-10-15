@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/desktop_lyric/lyric_window/karaoke_sweep_line.dart';
-import 'package:kugo/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/desktop_lyric/lyric_window/karaoke_sweep_line.dart';
+import 'package:overtone/features/desktop_lyric/lyric_window/lyric_window_controller.dart';
 
 /// 桌面歌词扫光的回归防线。
 ///

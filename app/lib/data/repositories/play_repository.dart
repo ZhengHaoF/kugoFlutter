@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
 import '../../core/api/kugou/credential_transport.dart';
 
-import '../../core/api/kugou/kugo_client.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_client.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/network_log.dart';
 import '../../core/models/audio_quality.dart';
 import '../../core/models/track.dart';
@@ -95,7 +95,7 @@ class PlayRepository {
           'format': 'json',
         },
       );
-      final decoded = decodeKugoBody(res.data?.toString() ?? '');
+      final decoded = decodeKugouBody(res.data?.toString() ?? '');
       if (decoded is! Map) return null;
       final map = Map<String, dynamic>.from(decoded);
       final data = map['data'];
@@ -203,7 +203,7 @@ class PlayRepository {
     String? ppageId,
   }) async {
     // song_url.js: cookie dfid = randomString(24)
-    final dfid = KugoSign.randomAlnum(24);
+    final dfid = KugouSign.randomAlnum(24);
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final hasToken = token.isNotEmpty;
     final uid = hasToken && userid.isNotEmpty && userid != '0'
@@ -219,7 +219,7 @@ class PlayRepository {
       'dfid': dfid,
       'mid': mid,
       'uuid': '-',
-      'appid': int.parse(KugoSign.appId),
+      'appid': int.parse(KugouSign.appId),
       'clientver': 11430,
       'clienttime': clienttime,
       if (hasToken) 'token': token,
@@ -244,14 +244,14 @@ class PlayRepository {
     };
 
     // encryptKey: true → signKey(hash, mid, userid, appid)
-    params['key'] = KugoSign.signKey(
+    params['key'] = KugouSign.signKey(
       hash,
       mid,
       userid: uid == 0 ? '0' : '$uid',
     );
 
     // notSign in song_url is a no-op; request.js uses notSignature → still signs.
-    params['signature'] = KugoSign.signatureAndroidParams(params);
+    params['signature'] = KugouSign.signatureAndroidParams(params);
 
     try {
       final res = await _dio.get<dynamic>(
@@ -259,7 +259,7 @@ class PlayRepository {
         queryParameters: params,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'dfid': dfid,
             'clienttime': '$clienttime',
             'mid': mid,
@@ -272,7 +272,7 @@ class PlayRepository {
         ),
       );
 
-      final decoded = decodeKugoBody(res.data?.toString() ?? '');
+      final decoded = decodeKugouBody(res.data?.toString() ?? '');
       if (decoded is! Map) {
         lastError = '播放地址响应无法解析';
         return null;

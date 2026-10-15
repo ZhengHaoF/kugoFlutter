@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../core/api/kugou/credential_transport.dart';
-import '../../core/api/kugou/kugo_crypto.dart';
-import '../../core/api/kugou/kugo_sign.dart';
+import '../../core/api/kugou/kugou_crypto.dart';
+import '../../core/api/kugou/kugou_sign.dart';
 import '../../core/api/mappers.dart' show normalizeCoverUrl;
 import '../../data/storage/device_identity.dart';
 import '../../features/auth/auth_token_holder.dart';
@@ -84,7 +84,7 @@ class LoginRepository {
     final auth = AuthTokenHolder.instance;
     final merged = <String, dynamic>{
       if (!skipDefaultParams)
-        ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+        ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
       ...?params,
     };
     if (auth.hasToken) merged['token'] = auth.token;
@@ -93,9 +93,9 @@ class LoginRepository {
     }
 
     if (webSign) {
-      merged['signature'] = KugoSign.signatureWebParams(merged);
+      merged['signature'] = KugouSign.signatureWebParams(merged);
     } else {
-      merged['signature'] = KugoSign.signatureAndroidParams(merged);
+      merged['signature'] = KugouSign.signatureAndroidParams(merged);
     }
 
     try {
@@ -104,7 +104,7 @@ class LoginRepository {
         queryParameters: merged,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'dfid': device.dfid,
             'mid': device.mid,
             'clienttime':
@@ -162,8 +162,8 @@ class LoginRepository {
         'type': 1,
         'plat': 4,
         'qrcode_txt':
-            'https://h5.kugou.com/apps/loginQRCode/html/index.html?appid=${KugoSign.appId}&',
-        'srcappid': KugoSign.srcAppId,
+            'https://h5.kugou.com/apps/loginQRCode/html/index.html?appid=${KugouSign.appId}&',
+        'srcappid': KugouSign.srcAppId,
       },
       webSign: true,
     );
@@ -195,8 +195,8 @@ class LoginRepository {
       'https://login-user.kugou.com/v2/get_userinfo_qrcode',
       params: {
         'plat': 4,
-        'appid': int.parse(KugoSign.appId),
-        'srcappid': KugoSign.srcAppId,
+        'appid': int.parse(KugouSign.appId),
+        'srcappid': KugouSign.srcAppId,
         'qrcode': key,
       },
       webSign: true,
@@ -228,10 +228,10 @@ class LoginRepository {
   Future<bool> sendSmsCode(String mobile) async {
     lastError = '';
     final device = await DeviceIdentity.ensure();
-    final query = KugoSign.defaultParams(dfid: device.dfid, mid: device.mid);
+    final query = KugouSign.defaultParams(dfid: device.dfid, mid: device.mid);
     final data = {'businessid': 5, 'mobile': mobile, 'plat': 3};
     final bodyJson = jsonEncode(data);
-    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
     try {
       final res = await _dio.post<dynamic>(
         'https://gateway.kugou.com/v7/send_mobile_code',
@@ -239,7 +239,7 @@ class LoginRepository {
         queryParameters: query,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
             'x-router': 'login.user.kugou.com',
             'mid': device.mid,
@@ -268,7 +268,7 @@ class LoginRepository {
     final device = await DeviceIdentity.ensure();
     final dateTime = DateTime.now().millisecondsSinceEpoch;
     final encrypt =
-        KugoCrypto.aesEncrypt(jsonEncode({'mobile': mobile, 'code': code}))
+        KugouCrypto.aesEncrypt(jsonEncode({'mobile': mobile, 'code': code}))
             as Map;
     final encKey = encrypt['key']! as String;
     final encStr = encrypt['str']! as String;
@@ -278,24 +278,24 @@ class LoginRepository {
     const t1Key = '5e4ef500e9597fe004bd09a46d8add98';
     const t1Iv = '04bd09a46d8add98';
     final t2 =
-        KugoCrypto.aesEncrypt(
+        KugouCrypto.aesEncrypt(
               '${device.guid}|0f607264fc6318a92b9e13c65db7cd3c|${device.mac}|${device.dev}|$dateTime',
               key: t2Key,
               iv: t2Iv,
             )
             as String;
     final t1 =
-        KugoCrypto.aesEncrypt('|$dateTime', key: t1Key, iv: t1Iv) as String;
+        KugouCrypto.aesEncrypt('|$dateTime', key: t1Key, iv: t1Iv) as String;
 
-    final pkRaw = KugoCrypto.rsaEncryptRaw(
+    final pkRaw = KugouCrypto.rsaEncryptRaw(
       jsonEncode({'clienttime_ms': dateTime, 'key': encKey}),
     );
 
     final mobileMasked =
         '${mobile.substring(0, 2)}*****${mobile.substring(mobile.length - 1)}';
 
-    final query = KugoSign.defaultParams(dfid: device.dfid, mid: device.mid);
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    final query = KugouSign.defaultParams(dfid: device.dfid, mid: device.mid);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
 
     final data = {
       'plat': 1,
@@ -304,7 +304,7 @@ class LoginRepository {
       't2': t2,
       'clienttime_ms': dateTime,
       'mobile': mobileMasked,
-      'key': KugoSign.signParamsKey('$dateTime'),
+      'key': KugouSign.signParamsKey('$dateTime'),
       'pk': pkRaw.toUpperCase(),
       'params': encStr,
       'dfid': device.dfid,
@@ -346,7 +346,7 @@ class LoginRepository {
     final device = await DeviceIdentity.ensure();
     final dateTime = DateTime.now().millisecondsSinceEpoch;
     final encrypt =
-        KugoCrypto.aesEncrypt(
+        KugouCrypto.aesEncrypt(
               jsonEncode({
                 'pwd': password,
                 'code': '',
@@ -356,12 +356,12 @@ class LoginRepository {
             as Map;
     final encKey = encrypt['key']! as String;
     final encStr = encrypt['str']! as String;
-    final pkRaw = KugoCrypto.rsaEncryptRaw(
+    final pkRaw = KugouCrypto.rsaEncryptRaw(
       jsonEncode({'clienttime_ms': dateTime, 'key': encKey}),
     );
 
-    final query = KugoSign.defaultParams(dfid: device.dfid, mid: device.mid);
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    final query = KugouSign.defaultParams(dfid: device.dfid, mid: device.mid);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
 
     final data = {
       'plat': 1,
@@ -385,7 +385,7 @@ class LoginRepository {
         queryParameters: query,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
             'x-router': 'login.user.kugou.com',
             'dfid': device.dfid,
@@ -419,7 +419,7 @@ class LoginRepository {
     var token = (map['token'] ?? '').toString();
     final secu = (map['secu_params'] ?? '').toString();
     if (token.isEmpty && secu.isNotEmpty) {
-      final plain = KugoCrypto.aesDecryptHex(secu, encKey);
+      final plain = KugouCrypto.aesDecryptHex(secu, encKey);
       if (plain != null && plain.isNotEmpty) {
         try {
           final decoded = jsonDecode(plain);
@@ -548,12 +548,12 @@ class LoginRepository {
     final device = await DeviceIdentity.ensure();
     final clienttime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     // JS object key order: { token, clienttime }
-    final pk = KugoCrypto.rsaEncryptRaw(
+    final pk = KugouCrypto.rsaEncryptRaw(
       jsonEncode({'token': token, 'clienttime': clienttime}),
     ).toUpperCase();
 
     final query = <String, dynamic>{
-      ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+      ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
       'plat': 1,
       'token': token,
       'userid': int.tryParse(userId) ?? 0,
@@ -565,7 +565,7 @@ class LoginRepository {
       'userid': int.tryParse(userId) ?? 0,
     };
     final bodyJson = jsonEncode(data);
-    query['signature'] = KugoSign.signatureAndroidParams(query, data: bodyJson);
+    query['signature'] = KugouSign.signatureAndroidParams(query, data: bodyJson);
 
     try {
       final res = await _dio.post<dynamic>(
@@ -574,7 +574,7 @@ class LoginRepository {
         queryParameters: query,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             'Content-Type': 'application/json',
             'x-router': 'usercenter.kugou.com',
             ..._authHeaders(device, token, userId, t1: t1),
@@ -603,12 +603,12 @@ class LoginRepository {
   }) async {
     final device = await DeviceIdentity.ensure();
     final query = <String, dynamic>{
-      ...KugoSign.defaultParams(dfid: device.dfid, mid: device.mid),
+      ...KugouSign.defaultParams(dfid: device.dfid, mid: device.mid),
       'busi_type': 'concept',
       'token': token,
       'userid': int.tryParse(userId) ?? 0,
     };
-    query['signature'] = KugoSign.signatureAndroidParams(query);
+    query['signature'] = KugouSign.signatureAndroidParams(query);
 
     try {
       final res = await _dio.get<dynamic>(
@@ -616,7 +616,7 @@ class LoginRepository {
         queryParameters: query,
         options: Options(
           headers: {
-            'User-Agent': KugoSign.userAgent,
+            'User-Agent': KugouSign.userAgent,
             ..._authHeaders(device, token, userId, t1: t1),
           },
         ),

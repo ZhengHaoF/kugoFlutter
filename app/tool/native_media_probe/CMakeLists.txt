@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(kugo_native_media_probe LANGUAGES CXX)
+project(overtone_native_media_probe LANGUAGES CXX)
 add_executable(native_media_probe
   probe.cpp ../../windows/runner/desktop_media_host.cpp)
 target_compile_features(native_media_probe PRIVATE cxx_std_17)

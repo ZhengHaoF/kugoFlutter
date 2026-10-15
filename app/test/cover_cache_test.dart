@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/cache/cover_cache.dart';
+import 'package:overtone/core/cache/cover_cache.dart';
 
-import 'fakes/fake_kugo_client.dart';
+import 'fakes/fake_kugou_client.dart';
 import 'fakes/fake_path_provider.dart';
 
 /// 封面缓存：防盗链 Referer 按 CDN 域名下发 + 内存/磁盘/网络三级。

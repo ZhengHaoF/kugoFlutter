@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../core/api/endpoints.dart';
-import '../../core/api/kugou/kugo_client.dart';
+import '../../core/api/kugou/kugou_client.dart';
 import '../../core/api/mappers.dart';
 import '../../core/models/search_result.dart';
 import '../../core/models/track.dart';
@@ -10,9 +10,9 @@ export '../../core/models/search_result.dart'
     show AlbumBrief, ArtistBrief, SearchPageResult, SearchType;
 
 class SearchRepository {
-  SearchRepository({KugoClient? client}) : _client = client ?? kugoClient;
+  SearchRepository({KugouClient? client}) : _client = client ?? kugouClient;
 
-  final KugoClient _client;
+  final KugouClient _client;
 
   /// `search/singer` has no artwork; cache `singer/info` avatars by id so
   /// re-search / pagination don't re-hit the same singers.
@@ -37,7 +37,7 @@ class SearchRepository {
     int page = 1,
     int pageSize = 30,
   }) async {
-    final body = await _get(KugoEndpoints.searchSong, keyword, page, pageSize);
+    final body = await _get(KugouEndpoints.searchSong, keyword, page, pageSize);
     final items = _list(body)
         .whereType<Map>()
         .map((e) => mapMobileSearchSong(Map<String, dynamic>.from(e)))
@@ -51,7 +51,7 @@ class SearchRepository {
     int page = 1,
     int pageSize = 30,
   }) async {
-    final body = await _get(KugoEndpoints.searchSpecial, keyword, page, pageSize);
+    final body = await _get(KugouEndpoints.searchSpecial, keyword, page, pageSize);
     final items = _list(body)
         .whereType<Map>()
         .map((e) => mapPlaylistInfo(Map<String, dynamic>.from(e)))
@@ -65,7 +65,7 @@ class SearchRepository {
     int page = 1,
     int pageSize = 30,
   }) async {
-    final body = await _get(KugoEndpoints.searchAlbum, keyword, page, pageSize);
+    final body = await _get(KugouEndpoints.searchAlbum, keyword, page, pageSize);
     final items = _list(body)
         .whereType<Map>()
         .map((e) => mapAlbumBrief(Map<String, dynamic>.from(e)))
@@ -79,7 +79,7 @@ class SearchRepository {
     int page = 1,
     int pageSize = 30,
   }) async {
-    final body = await _get(KugoEndpoints.searchSinger, keyword, page, pageSize);
+    final body = await _get(KugouEndpoints.searchSinger, keyword, page, pageSize);
     final items = _list(body)
         .whereType<Map>()
         .map((e) => mapArtistBrief(Map<String, dynamic>.from(e)))
@@ -123,7 +123,7 @@ class SearchRepository {
   Future<void> _fillAvatar(String singerId) async {
     if (_avatarCache[singerId]?.isNotEmpty == true) return;
     try {
-      final url = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.singerInfo, {
+      final url = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.singerInfo, {
         'singerid': singerId,
         'format': 'json',
       });
@@ -158,7 +158,7 @@ class SearchRepository {
     int page,
     int pageSize,
   ) async {
-    final url = buildUrl(KugoEndpoints.mobileCdn, path, {
+    final url = buildUrl(KugouEndpoints.mobileCdn, path, {
       'format': 'json',
       'keyword': keyword,
       'page': page,
@@ -169,7 +169,7 @@ class SearchRepository {
 
   Future<List<String>> hotKeywords({int count = 20}) async {
     try {
-      final url = buildUrl(KugoEndpoints.mobileCdn, KugoEndpoints.searchHot, {
+      final url = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.searchHot, {
         'format': 'json',
         'plat': 0,
         'count': count,
@@ -181,7 +181,7 @@ class SearchRepository {
           .map((e) => (e['keyword'] ?? e['word'] ?? '').toString())
           .where((s) => s.isNotEmpty)
           .toList();
-    } on KugoApiException {
+    } on KugouApiException {
       return const [];
     }
   }

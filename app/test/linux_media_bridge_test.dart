@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:dbus/dbus.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kugo/core/models/track.dart';
-import 'package:kugo/features/player/linux_media_bridge.dart';
-import 'package:kugo/features/player/player_controller.dart';
-import 'package:kugo/shared/tray/linux_tray_host.dart';
+import 'package:overtone/core/models/track.dart';
+import 'package:overtone/features/player/linux_media_bridge.dart';
+import 'package:overtone/features/player/player_controller.dart';
+import 'package:overtone/shared/tray/linux_tray_host.dart';
 
 Track track(String id) => Track(
   id: id,
@@ -84,13 +84,13 @@ void main() {
       );
       final object = LinuxMprisObject(
         h.actions,
-        artwork: (_) async => Uri.file('/tmp/kugo-cover'),
+        artwork: (_) async => Uri.file('/tmp/theme-cover'),
       );
       object.publish();
       await Future<void>.delayed(Duration.zero);
       final metadata = object.playerProperties['Metadata']!
           .asStringVariantDict();
-      expect(metadata['mpris:artUrl']!.asString(), 'file:///tmp/kugo-cover');
+      expect(metadata['mpris:artUrl']!.asString(), 'file:///tmp/theme-cover');
       expect(metadata.toString(), isNot(contains('token=private')));
     },
   );
@@ -248,7 +248,7 @@ void main() {
   test(
     'a real private D-Bus bus transports commands and distinguishes watcher from host',
     () async {
-      final directory = await Directory.systemTemp.createTemp('kugo-dbus-test');
+      final directory = await Directory.systemTemp.createTemp('overtone-dbus-test');
       final server = DBusServer();
       final address = await server.listenAddress(
         DBusAddress.unix(dir: directory),
@@ -263,12 +263,12 @@ void main() {
         bridge = await LinuxMediaBridge.start(
           h.actions,
           client: bridgeClient,
-          busName: '$mprisRoot.kugo.test',
+          busName: '$mprisRoot.overtone.test',
         );
         expect(bridge, isNotNull);
         final remote = DBusRemoteObject(
           remoteClient,
-          name: '$mprisRoot.kugo.test',
+          name: '$mprisRoot.overtone.test',
           path: DBusObjectPath('/org/mpris/MediaPlayer2'),
         );
         await remote.callMethod(mprisPlayer, 'Stop', []);
