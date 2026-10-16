@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart'
     show MultitouchDragStrategy, PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:flutter/services.dart' show LogicalKeyboardKey, SystemNavigator;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -378,6 +378,33 @@ class OvertoneApp extends ConsumerWidget {
           ? const _NoScrollbarScrollBehavior()
           : null,
       routerConfig: router,
+      // Android 13+ 预测性返回的“框架能否处理返回”旗标只能从这里上报：
+      // 引擎见到 false 就直接结束 Activity，返回事件根本到不了 go_router。
+      //
+      // 默认处理器（WidgetsApp._defaultOnNavigationNotification）只看**出事儿的
+      // 那个 Navigator** 的 canPop。从顶级路由（/player、/song、/login…）返回到
+      // shell 分支二级页时：根 Navigator 只剩 shell 一个页面、canPop=false，
+      // 于是上报 false；而真正还能 pop 的分支 Navigator 历史没变、压根不发通知，
+      // 它的能力从未被上报——紧接着下一次侧滑返回就退应用。
+      // （flutter/flutter#153672：StatefulShellRoute + 顶级路由的已知回归，
+      // Flutter 3.24 起；框架侧 PR #186705 只修了 PopScope 变体，修不了这个形态。）
+      //
+      // 用 go_router 自己的 canPop 兜底：它会递归进 StatefulShellBranch 判断
+      // （delegate.dart `GoRouterDelegate.canPop`），分支还能 pop 就上报 true，
+      // 返回事件于是能进 `GoRouterDelegate.popRoute`，由 `_findCurrentNavigator`
+      // 找到分支 Navigator 弹掉栈顶。notification.canHandlePop 保留默认语义，
+      // 继续覆盖 PopScope(canPop:false) 之类的路由级拦截。
+      onNavigationNotification: (notification) {
+        final lifecycle = WidgetsBinding.instance.lifecycleState;
+        if (lifecycle == null || lifecycle == AppLifecycleState.detached) {
+          // 与默认处理器一致：应用未就绪时不碰引擎旗标。
+          return true;
+        }
+        SystemNavigator.setFrameworkHandlesBack(
+          notification.canHandlePop || router.canPop(),
+        );
+        return true;
+      },
       builder: (context, child) {
         // Status/navigation bars follow the resolved theme, not the OS setting.
         applyOvertoneSystemUi(Theme.of(context).brightness);
