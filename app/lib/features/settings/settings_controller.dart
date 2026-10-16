@@ -66,6 +66,7 @@ class AppSettings {
     this.lyricSpacingScale = 1,
     this.mediaLyricSubtitle = false,
     this.mvBarrageEnabled = false,
+    this.mvAudioFallbackEnabled = false,
     this.mvBarrageConfig = BarrageConfig.defaults,
     this.themeMode = AppThemeMode.light,
     this.closeBehavior = CloseBehavior.ask,
@@ -75,7 +76,8 @@ class AppSettings {
     this.volume = 1.0,
     this.desktopLyricEnabled = false,
     this.desktopLyricLocked = false,
-    this.desktopLyricOffsetMs = 0,
+    this.lyricOffsetMs = 0,
+    this.lyricOffsetOverrides = const {},
     this.desktopLyricStyle = const DesktopLyricStyle(),
     this.defaultSource = MusicPlatform.kugou,
     // 新装开箱即用含 B 站（方案 §7.2）；存量用户不做迁移——
@@ -113,6 +115,12 @@ class AppSettings {
   /// MV 弹幕总开关（对齐 EchoMusic `mvBarrageEnabled`）。默认关。
   final bool mvBarrageEnabled;
 
+  /// 播放失败时借用关联曲库 MV 的音轨兜底（对齐 EchoMusic MV 音频兜底）。默认关。
+  ///
+  /// 兜底拿到的是 MV 的音轨，可能是现场版/剪辑版，歌词时间轴与时长都可能
+  /// 与歌曲对不上，因此默认关闭、由用户显式开启。
+  final bool mvAudioFallbackEnabled;
+
   /// MV 弹幕显示配置（透明度 / 字号 / 速度 / 区域 / 密度）。
   final BarrageConfig mvBarrageConfig;
 
@@ -136,7 +144,26 @@ class AppSettings {
   final bool desktopLyricLocked;
 
   /// 歌词时间偏移（ms），正 = 歌词提前。
-  final int desktopLyricOffsetMs;
+  ///
+  /// 全局默认值：应用内歌词视图与桌面歌词窗都用它，再叠加该曲的逐曲微调
+  /// （[lyricOffsetOverrides]）。
+  final int lyricOffsetMs;
+
+  /// 逐曲时间微调：`Track.identityKey` → ms（叠加在 [lyricOffsetMs] 上）。
+  ///
+  /// 只存「被用户调过的曲目」，缺省即 0；对齐 EchoMusic `timeOffsetMap`
+  /// + `globalTimeOffsetMs` 的叠加口径。
+  final Map<String, int> lyricOffsetOverrides;
+
+  /// 当前曲生效的歌词偏移：全局默认 + 该曲微调。
+  int lyricOffsetFor(String? trackKey) {
+    if (trackKey == null) return lyricOffsetMs;
+    return lyricOffsetMs + (lyricOffsetOverrides[trackKey] ?? 0);
+  }
+
+  /// 该曲是否被逐曲微调过（UI 据此显示「已微调 / 重置」）。
+  bool hasLyricOffsetOverride(String? trackKey) =>
+      trackKey != null && lyricOffsetOverrides.containsKey(trackKey);
 
   /// 桌面歌词外观：颜色 / 描边 / 背景深度 / 字重。
   final DesktopLyricStyle desktopLyricStyle;
@@ -224,6 +251,7 @@ class AppSettings {
     double? lyricSpacingScale,
     bool? mediaLyricSubtitle,
     bool? mvBarrageEnabled,
+    bool? mvAudioFallbackEnabled,
     BarrageConfig? mvBarrageConfig,
     AppThemeMode? themeMode,
     CloseBehavior? closeBehavior,
@@ -233,7 +261,8 @@ class AppSettings {
     double? volume,
     bool? desktopLyricEnabled,
     bool? desktopLyricLocked,
-    int? desktopLyricOffsetMs,
+    int? lyricOffsetMs,
+    Map<String, int>? lyricOffsetOverrides,
     DesktopLyricStyle? desktopLyricStyle,
     MusicPlatform? defaultSource,
     Set<MusicPlatform>? enabledSources,
@@ -250,6 +279,8 @@ class AppSettings {
       lyricSpacingScale: lyricSpacingScale ?? this.lyricSpacingScale,
       mediaLyricSubtitle: mediaLyricSubtitle ?? this.mediaLyricSubtitle,
       mvBarrageEnabled: mvBarrageEnabled ?? this.mvBarrageEnabled,
+      mvAudioFallbackEnabled:
+          mvAudioFallbackEnabled ?? this.mvAudioFallbackEnabled,
       mvBarrageConfig: mvBarrageConfig ?? this.mvBarrageConfig,
       themeMode: themeMode ?? this.themeMode,
       closeBehavior: closeBehavior ?? this.closeBehavior,
@@ -259,7 +290,9 @@ class AppSettings {
       volume: volume ?? this.volume,
       desktopLyricEnabled: desktopLyricEnabled ?? this.desktopLyricEnabled,
       desktopLyricLocked: desktopLyricLocked ?? this.desktopLyricLocked,
-      desktopLyricOffsetMs: desktopLyricOffsetMs ?? this.desktopLyricOffsetMs,
+      lyricOffsetMs: lyricOffsetMs ?? this.lyricOffsetMs,
+      lyricOffsetOverrides:
+          lyricOffsetOverrides ?? this.lyricOffsetOverrides,
       desktopLyricStyle: desktopLyricStyle ?? this.desktopLyricStyle,
       defaultSource: defaultSource ?? this.defaultSource,
       enabledSources: enabledSources ?? this.enabledSources,
@@ -279,6 +312,7 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kLyricSpacingScale = 'settings.lyricSpacingScale';
   static const _kMediaLyric = 'settings.mediaLyricSubtitle';
   static const _kMvBarrageEnabled = 'settings.mvBarrageEnabled';
+  static const _kMvAudioFallbackEnabled = 'settings.mvAudioFallbackEnabled';
   static const _kMvBarrageConfig = 'settings.mvBarrageConfig';
   static const _kThemeMode = 'settings.themeMode';
   static const _kCloseBehavior = 'settings.closeBehavior';
@@ -291,7 +325,11 @@ class SettingsController extends Notifier<AppSettings> {
   static const _kVolume = 'settings.volume';
   static const _kDesktopLyricEnabled = 'settings.desktopLyricEnabled';
   static const _kDesktopLyricLocked = 'settings.desktopLyricLocked';
-  static const _kDesktopLyricOffsetMs = 'settings.desktopLyricOffsetMs';
+
+  /// 全局歌词偏移的落盘键。键名沿用桌面歌词时代的 `desktopLyricOffsetMs`：
+  /// 改名会丢掉存量用户已存的偏移值，而这个偏移现在同时服务应用内歌词。
+  static const _kLyricOffsetMs = 'settings.desktopLyricOffsetMs';
+  static const _kLyricOffsetOverrides = 'settings.lyricOffsetOverrides';
   static const _kDesktopLyricStyle = 'settings.desktopLyricStyle';
   static const _kDefaultSource = 'settings.defaultSource';
   static const _kEnabledSources = 'settings.enabledSources';
@@ -344,6 +382,8 @@ class SettingsController extends Notifier<AppSettings> {
         ),
         mediaLyricSubtitle: prefs.getBool(_kMediaLyric) ?? false,
         mvBarrageEnabled: prefs.getBool(_kMvBarrageEnabled) ?? false,
+        mvAudioFallbackEnabled:
+            prefs.getBool(_kMvAudioFallbackEnabled) ?? false,
         mvBarrageConfig: BarrageConfig.decode(
           prefs.getString(_kMvBarrageConfig),
         ),
@@ -360,8 +400,8 @@ class SettingsController extends Notifier<AppSettings> {
             .clamp(0.0, 1.0),
         desktopLyricEnabled: prefs.getBool(_kDesktopLyricEnabled) ?? false,
         desktopLyricLocked: prefs.getBool(_kDesktopLyricLocked) ?? false,
-        desktopLyricOffsetMs:
-            (prefs.getInt(_kDesktopLyricOffsetMs) ?? 0).clamp(-10000, 10000),
+        lyricOffsetMs: _readInt(prefs, _kLyricOffsetMs).clamp(-10000, 10000),
+        lyricOffsetOverrides: _readLyricOffsetOverrides(prefs),
         desktopLyricStyle: _readDesktopLyricStyle(prefs),
         defaultSource: MusicPlatform.fromWire(
           prefs.getString(_kDefaultSource) ?? '',
@@ -370,6 +410,38 @@ class SettingsController extends Notifier<AppSettings> {
         disabledFeatures: _readDisabledFeatures(prefs),
       );
     } catch (_) {}
+  }
+
+  /// 读整数。兼容 [_save] 把非 bool 值统一按字符串写盘的旧数据
+  ///（历史上 `settings.desktopLyricOffsetMs` 正是这样存进去的，直接
+  /// `getInt` 读会永远拿到 null，偏移重启即归零）。
+  int _readInt(SharedPreferences prefs, String key, {int fallback = 0}) {
+    final raw = prefs.get(key);
+    if (raw is int) return raw;
+    return int.tryParse('$raw') ?? fallback;
+  }
+
+  /// 读取逐曲歌词偏移。存 JSON 对象字符串（对齐 mvBarrageConfig /
+  /// desktopLyricStyle）；缺失 / 脏数据 / 非法条目逐项丢弃。
+  Map<String, int> _readLyricOffsetOverrides(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString(_kLyricOffsetOverrides);
+      if (raw == null || raw.isEmpty) return const {};
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      final out = <String, int>{};
+      for (final entry in decoded.entries) {
+        final key = entry.key;
+        if (key is! String || key.isEmpty) continue;
+        final value = entry.value;
+        final ms = value is int ? value : int.tryParse('$value');
+        if (ms == null) continue;
+        out[key] = ms.clamp(-10000, 10000);
+      }
+      return out;
+    } catch (_) {
+      return const {};
+    }
   }
 
   /// 读取桌面歌词外观。存的是 JSON 字符串（对齐 mvBarrageConfig 的做法）；
@@ -502,6 +574,11 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kMvBarrageEnabled, v);
   }
 
+  Future<void> setMvAudioFallbackEnabled(bool v) async {
+    state = state.copyWith(mvAudioFallbackEnabled: v);
+    await _save(_kMvAudioFallbackEnabled, v);
+  }
+
   /// MV 弹幕配置。拖动滑块时传 `persist: false` 只改内存态做即时预览，
   /// 松手（`onChangeEnd`）再落盘 —— 语义同 [setLyricFontScale]。
   Future<void> setMvBarrageConfig(
@@ -561,11 +638,38 @@ class SettingsController extends Notifier<AppSettings> {
     await _save(_kDesktopLyricLocked, v);
   }
 
-  Future<void> setDesktopLyricOffsetMs(int v) async {
+  /// 全局歌词偏移（ms）。应用内歌词视图与桌面歌词窗共用的默认值。
+  Future<void> setLyricOffsetMs(int v) async {
     final next = v.clamp(-10000, 10000);
-    if (state.desktopLyricOffsetMs == next) return;
-    state = state.copyWith(desktopLyricOffsetMs: next);
-    await _save(_kDesktopLyricOffsetMs, next);
+    if (state.lyricOffsetMs == next) return;
+    state = state.copyWith(lyricOffsetMs: next);
+    await _save(_kLyricOffsetMs, next);
+  }
+
+  /// 逐曲歌词偏移微调（叠加在全局值之上）。
+  ///
+  /// [deltaMs]：相对当前微调值的增量（对齐 EchoMusic `adjustTimeOffset`）。
+  /// [reset]：清除该曲微调（回到只吃全局值）。
+  Future<void> adjustTrackLyricOffsetMs(
+    String trackKey, {
+    int deltaMs = 0,
+    bool reset = false,
+  }) async {
+    if (trackKey.isEmpty) return;
+    final next = Map<String, int>.from(state.lyricOffsetOverrides);
+    final current = next[trackKey] ?? 0;
+    if (reset) {
+      if (next.remove(trackKey) == null) return;
+    } else {
+      final adjusted = (current + deltaMs).clamp(-10000, 10000);
+      if (next[trackKey] == adjusted) return;
+      next[trackKey] = adjusted;
+    }
+    state = state.copyWith(lyricOffsetOverrides: Map.unmodifiable(next));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kLyricOffsetOverrides, jsonEncode(next));
+    } catch (_) {}
   }
 
   /// 桌面歌词外观。拖动滑块时传 persist: false 只改内存态做即时预览，

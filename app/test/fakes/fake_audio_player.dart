@@ -11,6 +11,9 @@ class FakeAudioPlayer implements AudioPlayerPort {
   String? lastUrl;
   bool playing = false;
 
+  /// `playUrl` 被调用的次数（断言「重新取流」这类重载行为）。
+  int playUrlCalls = 0;
+
   @override
   Stream<Duration> get positionStream => _pos.stream;
 
@@ -33,6 +36,7 @@ class FakeAudioPlayer implements AudioPlayerPort {
     bool play = true,
   }) async {
     lastUrl = url;
+    playUrlCalls += 1;
     // Real engines reset the cursor when a new source is set.
     position = Duration.zero;
     playing = play;

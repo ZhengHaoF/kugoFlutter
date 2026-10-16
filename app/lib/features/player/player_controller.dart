@@ -19,6 +19,9 @@ import '../../data/storage/queue_store.dart';
 import '../settings/settings_controller.dart';
 import 'audio_engine.dart';
 import 'audio_player_port.dart';
+import 'lyric_cache.dart';
+import 'mv_audio_fallback.dart';
+import 'stall_watchdog.dart';
 
 enum PlayerLoopMode { order, listLoop, shuffle, single }
 
@@ -48,6 +51,7 @@ class PlayerState {
     this.resolvedQuality,
     this.queueSource = PlaybackQueueSource.none,
     this.engineDurationMs = 0,
+    this.playingMvAudio = false,
   });
 
   final List<Track> queue;
@@ -71,6 +75,11 @@ class PlayerState {
   /// Preferred over [Track.durationMs] when > 0 — API metadata is often wrong
   /// or unit-mismatched on desktop play paths.
   final int engineDurationMs;
+
+  /// 当前音源是否来自「MV 音频兜底」（借用关联曲库 MV 的音轨）。
+  ///
+  /// 兜底后时长/歌词按 MV 走，与歌曲元数据不一致，UI 需据此标注。
+  final bool playingMvAudio;
 
   /// Last *discrete* cursor (seek / track load / stop). Live engine ticks do
   /// **not** land here — those go to [PlayerController.position] so progress
@@ -119,6 +128,7 @@ class PlayerState {
     AppQuality? Function()? resolvedQuality,
     PlaybackQueueSource? queueSource,
     int? engineDurationMs,
+    bool? playingMvAudio,
   }) {
     return PlayerState(
       queue: queue ?? this.queue,
@@ -136,18 +146,30 @@ class PlayerState {
           : this.resolvedQuality,
       queueSource: queueSource ?? this.queueSource,
       engineDurationMs: engineDurationMs ?? this.engineDurationMs,
+      playingMvAudio: playingMvAudio ?? this.playingMvAudio,
     );
   }
 }
 
 class PlayerController extends Notifier<PlayerState> {
-  PlayerController({AudioPlayerPort? engine, MusicSource? source})
-    : _engineOverride = engine,
-      _sourceOverride = source;
+  PlayerController({
+    AudioPlayerPort? engine,
+    MusicSource? source,
+    StallWatchdog? stallWatchdog,
+    LyricCache? lyricCache,
+  }) : _engineOverride = engine,
+       _sourceOverride = source,
+       _stallWatchdog = stallWatchdog ?? StallWatchdog(),
+       _lyricCache = lyricCache ?? LyricCache();
 
   final AudioPlayerPort? _engineOverride;
   final MusicSource? _sourceOverride;
   late final AudioPlayerPort _engine;
+  final StallWatchdog _stallWatchdog;
+
+  /// 已取到的歌词结果（LRU + 在途去重）。切回听过的曲目直接命中，不再重跑
+  /// 「搜候选 → 下载解密」这一串网络请求。
+  final LyricCache _lyricCache;
 
   /// 测试注入离线 [MusicSource]；生产按曲目平台取 Source。
   /// registry 未装配时退回 [_MissingSource]（快速失败，不打网络）。
@@ -175,6 +197,19 @@ class PlayerController extends Notifier<PlayerState> {
   bool _disposed = false;
   Future<void>? _engineLoadTail;
   int _failStreak = 0;
+
+  /// 已尝试过 MV 音频兜底的加载序号。一次播放请求（`seq`）只兜一次；
+  /// `seq` 单调递增，切歌/重载天然重置。
+  int _mvFallbackSeq = -1;
+
+  /// 停滞看门狗采样定时器。
+  Timer? _stallTick;
+
+  /// 自愈进行中：挡住看门狗重入，并把「自愈触发的重载」与用户触发的加载区分开。
+  bool _stallRecovering = false;
+
+  /// 当前曲目的自愈尝试次数；非自愈的新加载会清零。
+  int _stallAttempts = 0;
 
   /// 歌词请求身份：`id|hash`。用于去重与「曲目已变则丢弃过期结果」。
   String? _lyricsInFlightKey;
@@ -328,6 +363,7 @@ class PlayerController extends Notifier<PlayerState> {
       _demoTimer?.cancel();
       _sleepTimer?.cancel();
       _mediaTick?.cancel();
+      _stallTick?.cancel();
       _posSaveTimer?.cancel();
       _persistPosition();
       position.dispose();
@@ -558,7 +594,14 @@ class PlayerController extends Notifier<PlayerState> {
       display: PlayerDisplayState.loading,
       errorCode: '',
       engineDurationMs: 0,
+      playingMvAudio: false,
     );
+    // 非自愈的新加载（切歌 / 手动重载 / 换音质）才算「重新开始」：重置计数，
+    // 否则停滞自愈会在同一首上永久耗尽尝试次数。
+    if (!_stallRecovering) {
+      _stallWatchdog.reset();
+      _stallAttempts = 0;
+    }
     _syncBridge();
     // 歌词与起播解耦：URL resolve 失败也不该挡住歌词。
     unawaited(_ensureLyrics());
@@ -613,37 +656,80 @@ class PlayerController extends Notifier<PlayerState> {
       granted = result.grantedQuality;
     } on SourceFailure catch (e) {
       if (!_isCurrentLoad(seq)) return;
-      _onPlayError(message: e.message);
+      // 离线/超时再打 MV 接口只会拖长失败路径（EchoMusic 同口径：只兜
+      // 「没解析出地址」这类失败，不兜网络本身不通）。
+      await _failWithMvFallback(
+        seq: seq,
+        track: liveTrack,
+        message: e.message,
+        allow: e is! NetworkFailure,
+      );
       return;
     } catch (e) {
       if (!_isCurrentLoad(seq)) return;
-      _onPlayError(message: e.toString());
+      await _failWithMvFallback(
+        seq: seq,
+        track: liveTrack,
+        message: e.toString(),
+        allow: true,
+      );
       return;
     }
 
-    var ok = false;
-    Object? lastError;
-    for (final url in allUrls) {
-      if (!_isCurrentLoad(seq)) return;
-      try {
-        if (!await _playUrlForLoad(seq, url, playHeaders)) return;
-        ok = true;
-        break;
-      } catch (e) {
-        if (!_isCurrentLoad(seq)) return;
-        lastError = e;
-        continue;
-      }
-    }
-    if (!_isCurrentLoad(seq)) return;
-    if (!ok) {
-      final engineMsg = lastError?.toString().split('\n').first ?? '';
-      final msg = engineMsg.isEmpty
-          ? '播放失败：源不可播（VIP/防盗链/网络）'
-          : '播放失败：$engineMsg';
-      _onPlayError(message: msg);
+    final attempt = await _loadUrlsIntoEngine(seq, allUrls, playHeaders);
+    if (attempt.aborted) return;
+    final failed = attempt.errorMessage;
+    if (failed != null) {
+      await _failWithMvFallback(
+        seq: seq,
+        track: liveTrack,
+        message: failed,
+        allow: true,
+      );
       return;
     }
+    _applyLoadedSource(liveTrack, granted);
+  }
+
+  /// 依次把候选地址灌进引擎（主地址 → 备用地址）。
+  ///
+  /// `aborted = true`：本次加载已被更新的请求取代，或暂停意图已由引擎侧接管，
+  /// 调用方必须直接返回；`errorMessage` 非空：所有地址都试过且都失败。
+  Future<({bool aborted, String? errorMessage})> _loadUrlsIntoEngine(
+    int seq,
+    List<String> urls,
+    Map<String, String> headers,
+  ) async {
+    Object? lastError;
+    for (final url in urls) {
+      if (!_isCurrentLoad(seq)) return (aborted: true, errorMessage: null);
+      try {
+        if (!await _playUrlForLoad(seq, url, headers)) {
+          return (aborted: true, errorMessage: null);
+        }
+        return (aborted: false, errorMessage: null);
+      } catch (e) {
+        if (!_isCurrentLoad(seq)) return (aborted: true, errorMessage: null);
+        lastError = e;
+      }
+    }
+    final engineMsg = lastError?.toString().split('\n').first ?? '';
+    return (
+      aborted: false,
+      errorMessage: engineMsg.isEmpty
+          ? '播放失败：源不可播（VIP/防盗链/网络）'
+          : '播放失败：$engineMsg',
+    );
+  }
+
+  /// 加载成功后的收尾：起播/暂停态、封面桥接、进度保存。
+  ///
+  /// [mvAudio] 标记本次音源来自 MV 兜底（音质未知，时长按 MV 走）。
+  void _applyLoadedSource(
+    Track liveTrack,
+    AppQuality? granted, {
+    bool mvAudio = false,
+  }) {
     if (!_wantPlaying) {
       // The native tail already honored pause intent. Do not issue a second
       // pause outside that tail: it could overlap a newer song's native load.
@@ -652,6 +738,7 @@ class PlayerController extends Notifier<PlayerState> {
       state = state.copyWith(
         display: PlayerDisplayState.paused,
         resolvedQuality: () => granted,
+        playingMvAudio: mvAudio,
       );
       _syncBridge(track: liveTrack);
       return;
@@ -662,9 +749,62 @@ class PlayerController extends Notifier<PlayerState> {
     state = state.copyWith(
       display: PlayerDisplayState.playing,
       resolvedQuality: () => granted,
+      playingMvAudio: mvAudio,
     );
     _syncBridge(track: liveTrack);
     _startPosSave();
+    _ensureStallTick();
+  }
+
+  /// 起播后才需要看门狗：读取 UI 游标（它只前进，见 [_posSub]），因此引擎在
+  /// 缓冲时吐回旧样本不会掩盖真正的卡死。
+  ///
+  /// 与落盘定时器同生命周期：暂停时靠 [_checkStall] 的 `active` 闸门空转，
+  /// 只在控制器销毁时取消。
+  void _ensureStallTick() {
+    _stallTick ??= Timer.periodic(_stallWatchdog.tick, (_) => _checkStall());
+  }
+
+  /// 常规播放失败后的收口点：按设置与失败类型决定是否先试 MV 音频兜底。
+  ///
+  /// 开关默认关闭；一次请求（`seq`）只兜一次；兜底也失败时沿用**原始**失败
+  /// 信息走 [_onPlayError]（队列多首时表现仍是自动跳下一首，与既有行为一致）。
+  Future<void> _failWithMvFallback({
+    required int seq,
+    required Track track,
+    required String message,
+    required bool allow,
+  }) async {
+    if (!allow ||
+        track.isCloudTrack ||
+        _mvFallbackSeq == seq ||
+        !ref.read(settingsControllerProvider).mvAudioFallbackEnabled) {
+      _onPlayError(message: message);
+      return;
+    }
+    _mvFallbackSeq = seq;
+
+    final result = await resolveMvAudioFallback(
+      track,
+      isCurrent: () => _isCurrentLoad(seq),
+      onUnavailable: (reason) => debugPrint(
+        '[mv-audio-fallback] ${track.identityKey}: ${reason.message}',
+      ),
+    );
+    if (!_isCurrentLoad(seq)) return;
+    if (result == null) {
+      _onPlayError(message: message);
+      return;
+    }
+
+    final attempt = await _loadUrlsIntoEngine(seq, result.urls, result.headers);
+    if (attempt.aborted) return;
+    if (attempt.errorMessage != null) {
+      _onPlayError(message: message);
+      return;
+    }
+    debugPrint('[mv-audio-fallback] ${track.identityKey}: playing mv audio');
+    _applyLoadedSource(track, null, mvAudio: true);
   }
 
   bool _isCurrentLoad(int seq) => !_disposed && seq == _seq;
@@ -854,6 +994,7 @@ class PlayerController extends Notifier<PlayerState> {
   /// 保证「当前曲」的歌词已发起加载；与播放/起播成败无关。
   ///
   /// - 无曲 / 无 hash：直接给出 empty/idle 结论
+  /// - 结果缓存（[LyricCache]）命中：直接给 ready，不再打网络
   /// - 同一曲已有结论（ready 或 empty）：不重复请求
   /// - 同一曲已在飞：去重
   /// - 结果回来时若 current 已换成别的曲：丢弃，由新曲的 ensure 接管
@@ -883,6 +1024,20 @@ class PlayerController extends Notifier<PlayerState> {
 
     final key = _lyricsTrackKey(track);
     if (_lyricsLoadedKey == key) return;
+
+    // 结果缓存命中：直接给结论，不再打网络（「切回上一首」的常见路径）。
+    final cached = _lyricCache.get(key);
+    if (cached != null) {
+      _lyricsInFlightKey = null;
+      _lyricsLoadedKey = key;
+      state = state.copyWith(
+        lyrics: cached,
+        lyricsStatus: LyricsStatus.ready,
+      );
+      _maybeUpdateMediaSubtitle();
+      return;
+    }
+
     if (_lyricsInFlightKey == key) return;
 
     _lyricsInFlightKey = key;
@@ -893,8 +1048,11 @@ class PlayerController extends Notifier<PlayerState> {
 
     List<LyricLine> lines = const [];
     try {
-      final payload = await _sourceFor(track).fetchLyric(track);
-      lines = payload.lines;
+      // 走缓存层：同键在途请求合并（切歌瞬间多个调用点只会打一次网络）。
+      lines = await _lyricCache.load(key, () async {
+        final payload = await _sourceFor(track).fetchLyric(track);
+        return payload.lines;
+      });
     } catch (_) {}
 
     final current = state.current;
@@ -969,6 +1127,58 @@ class PlayerController extends Notifier<PlayerState> {
     );
     _syncBridge();
     await _loadCurrent(seq: seq);
+  }
+
+  /// 停滞自愈的最大尝试次数（按曲目计，非自愈的新加载会清零）。
+  static const int _kStallMaxAttempts = 3;
+
+  /// 看门狗每一拍：只在「此刻确实应该推进」时才判定停滞。
+  void _checkStall() {
+    if (_disposed) return;
+    final active =
+        _wantPlaying &&
+        _sourceReady &&
+        state.isPlaying &&
+        !_stallRecovering &&
+        !_isNearTrackEnd();
+    if (!_stallWatchdog.onTick(position.value, active: active)) return;
+    unawaited(_recoverFromStall(position.value));
+  }
+
+  /// 游标停在曲末是正常的，不能当成停滞。
+  bool _isNearTrackEnd() {
+    final duration = state.durationMs;
+    return duration > 0 && position.value >= duration - 1500;
+  }
+
+  /// 播放卡死自愈：重取地址 → 重建加载 → 从断点续播。
+  ///
+  /// 对齐 EchoMusic `recoverFromStall`：复用换音质那条 [_reloadCurrent]
+  /// （重新向音源取地址 + 按 `_resumeSeekMs` 回到断点，UI 游标不回零），
+  /// 并按曲目限制尝试次数；超限后交给 [_onPlayError] 走既有失败链路
+  /// （队列多首时表现即自动跳下一首）。
+  Future<void> _recoverFromStall(int atMs) async {
+    final track = state.current;
+    if (track == null || _stallRecovering || !_wantPlaying) return;
+
+    if (_stallAttempts >= _kStallMaxAttempts) {
+      _stallWatchdog.reset();
+      _onPlayError(message: '播放停滞：已重试 $_kStallMaxAttempts 次仍未恢复');
+      return;
+    }
+
+    _stallAttempts += 1;
+    _stallRecovering = true;
+    _stallWatchdog.reset();
+    debugPrint(
+      '[stall] ${track.identityKey} 停滞于 ${atMs}ms，'
+      '第 $_stallAttempts 次自愈',
+    );
+    try {
+      await _reloadCurrent(preservePlayback: true);
+    } finally {
+      _stallRecovering = false;
+    }
   }
 
   Future<void> next() async {
@@ -1296,8 +1506,12 @@ class PlayerController extends Notifier<PlayerState> {
   String _activeLyricText() {
     final lines = state.lyrics;
     if (lines.isEmpty) return '';
+    // 与歌词视图同源：都要加当前曲生效的偏移，否则系统副行会和界面对不上。
+    final offsetMs = ref
+        .read(settingsControllerProvider)
+        .lyricOffsetFor(state.current?.identityKey);
     // Binary search — this runs on every engine position sample.
-    final index = findLyricIndex(lines, position.value);
+    final index = findLyricIndex(lines, position.value + offsetMs);
     if (index < 0) return '';
     return lines[index].text.trim();
   }
@@ -1357,6 +1571,40 @@ class PlayerPositionBuilder extends ConsumerWidget {
     return ValueListenableBuilder<int>(
       valueListenable: listenable,
       builder: (context, ms, _) => builder(context, ms),
+    );
+  }
+}
+
+/// 当前曲生效的歌词时间偏移（ms，正 = 歌词提前）。
+///
+/// = 全局 [AppSettings.lyricOffsetMs] + 该曲的逐曲微调
+/// [AppSettings.lyricOffsetOverrides]。应用内歌词视图与桌面歌词窗共用同一个值
+/// （对齐 EchoMusic `globalTimeOffsetMs` + `timeOffsetMap` 的叠加口径）。
+final lyricTimeOffsetMsProvider = Provider<int>((ref) {
+  final trackKey = ref.watch(
+    playerControllerProvider.select((s) => s.current?.identityKey),
+  );
+  return ref.watch(
+    settingsControllerProvider.select((s) => s.lyricOffsetFor(trackKey)),
+  );
+});
+
+/// [PlayerPositionBuilder] 的歌词版：在实时游标上叠加当前曲的歌词偏移。
+///
+/// 只在渲染歌词时用——进度条 / 时间标签必须用 [PlayerPositionBuilder] 拿
+/// 原始游标，否则显示的播放进度会被偏移量带偏。
+class LyricPositionBuilder extends ConsumerWidget {
+  const LyricPositionBuilder({super.key, required this.builder});
+
+  final Widget Function(BuildContext context, int positionMs) builder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offsetMs = ref.watch(lyricTimeOffsetMsProvider);
+    final listenable = ref.watch(playerPositionProvider);
+    return ValueListenableBuilder<int>(
+      valueListenable: listenable,
+      builder: (context, ms, _) => builder(context, ms + offsetMs),
     );
   }
 }

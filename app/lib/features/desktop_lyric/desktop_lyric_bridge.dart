@@ -100,6 +100,9 @@ class DesktopLyricBridge {
           prev?.lyricRomanization != next.lyricRomanization ||
           prev?.lyricFontScale != next.lyricFontScale ||
           prev?.desktopLyricLocked != next.desktopLyricLocked ||
+          // 偏移即时生效：全局值或当前曲的逐曲微调任一变化都要重推。
+          prev?.lyricOffsetMs != next.lyricOffsetMs ||
+          !mapEquals(prev?.lyricOffsetOverrides, next.lyricOffsetOverrides) ||
           prev?.desktopLyricStyle != next.desktopLyricStyle) {
         unawaited(_pushSnapshot());
       }
@@ -444,7 +447,7 @@ class DesktopLyricBridge {
       romanization: s.lyricRomanization,
       fontScale: s.lyricFontScale,
       locked: s.desktopLyricLocked,
-      offsetMs: s.desktopLyricOffsetMs,
+      offsetMs: s.lyricOffsetFor(track?.identityKey),
       style: s.desktopLyricStyle,
     );
 

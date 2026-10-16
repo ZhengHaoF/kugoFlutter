@@ -184,6 +184,31 @@ void main() {
     expect(state.lyrics.single.text, 'fast-b');
   });
 
+  test('revisiting a track reuses the cached lyric result (no refetch)',
+      () async {
+    final engine = FakeAudioPlayer();
+    final source = FakeMusicSource()
+      ..lyricsByKey[_key('a')] = [const LyricLine(timeMs: 0, text: 'lyric-a')]
+      ..lyricsByKey[_key('b')] = [const LyricLine(timeMs: 0, text: 'lyric-b')];
+    final container = _container(engine: engine, source: source);
+    final controller = container.read(playerControllerProvider.notifier);
+
+    await controller.playQueue(
+      [_hashed('a', 'hash_a'), _hashed('b', 'hash_b')],
+      startIndex: 0,
+    );
+    await controller.next();
+    expect(source.requestedLyricKeys.length, 2);
+
+    // 回到 a：结果缓存命中，不应再打一次网络。
+    await controller.previous();
+    final state = container.read(playerControllerProvider);
+    expect(state.current?.id, 'a');
+    expect(state.lyrics.single.text, 'lyric-a');
+    expect(state.lyricsStatus, LyricsStatus.ready);
+    expect(source.requestedLyricKeys.length, 2);
+  });
+
   test('play-resolve failure path still surfaces lyrics for current track',
       () async {
     final engine = FakeAudioPlayer();

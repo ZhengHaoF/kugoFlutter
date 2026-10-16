@@ -40,6 +40,10 @@ class MvBrief {
     this.audioHash = '',
     this.tags = const [],
     this.isRecommend = false,
+    this.isPublish,
+    this.isUgc,
+    this.isShort,
+    this.isOther,
     this.platform = MusicPlatform.kugou,
   });
 
@@ -72,6 +76,28 @@ class MvBrief {
 
   /// 酷狗 `is_recommend`：官方推荐位。
   final bool isRecommend;
+
+  /// 酷狗 `is_publish`：曲库发布标记。`null` = 字段缺失。
+  ///
+  /// 以下四个标记用于「音频兜底」时筛掉非曲库版本，语义对齐 EchoMusic
+  /// `pickCatalogMv`：**必须存在且取到期望值**，缺失（`null`）一律不收。
+  final int? isPublish;
+
+  /// 酷狗 `is_ugc`：用户自传（饭制 / 翻唱）。
+  final int? isUgc;
+
+  /// 酷狗 `is_short`：平台标记的短视频。
+  final int? isShort;
+
+  /// 酷狗 `is_other`：其他版本（现场 / 剪辑…）。
+  final int? isOther;
+
+  /// 是否可作为「MV 音频兜底」的曲库 MV。
+  ///
+  /// 只有官方发布的完整曲库 MV 才允许借用其音轨：短视频、UGC、其他版本
+  /// 的时长与歌曲对不上，拿来做兜底只会得到错误的播放时长。
+  bool get isCatalogMv =>
+      isPublish == 1 && isUgc == 0 && isShort == 0 && isOther == 0;
 
   final MusicPlatform platform;
 

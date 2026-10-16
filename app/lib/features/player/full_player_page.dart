@@ -283,7 +283,7 @@ class FullPlayerPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         Expanded(
-                          child: PlayerPositionBuilder(
+                          child: LyricPositionBuilder(
                             builder: (context, positionMs) => LyricsView(
                               lines: player.lyrics,
                               positionMs: positionMs,
@@ -561,7 +561,7 @@ class PlayerLyricsPage extends ConsumerWidget {
                     ),
                   ),
                 Expanded(
-                  child: PlayerPositionBuilder(
+                  child: LyricPositionBuilder(
                     builder: (context, positionMs) => LyricsView(
                       lines: player.lyrics,
                       positionMs: positionMs,
@@ -934,7 +934,7 @@ class _CollapsedPlayerBody extends StatelessWidget {
               if (v < -200) onExpandLyrics();
             },
             child: ClipRect(
-              child: PlayerPositionBuilder(
+              child: LyricPositionBuilder(
                 builder: (context, positionMs) => LyricsView(
                   compact: true,
                   lines: player.lyrics,
@@ -1228,6 +1228,9 @@ class _PlayerQualityChip extends ConsumerWidget {
         ),
         const SizedBox(width: 4),
         const LyricDisplayButton(),
+        const SizedBox(width: 2),
+        // 逐曲时间微调：全局偏移在设置页，这里只调当前这首。
+        LyricOffsetButton(trackKey: track.identityKey),
       ],
     );
   }
