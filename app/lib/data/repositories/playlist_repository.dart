@@ -124,35 +124,61 @@ class PlaylistRepository {
   Future<List<PlaylistBrief>> fetchHomeCards({int take = 6}) async {
     final square = await fetchSquare(pageSize: take);
     if (square.isNotEmpty) return square.take(take).toList();
-    final ranks = await fetchRankList();
-    return ranks.take(take).toList();
+    try {
+      final ranks = await fetchRankList();
+      return ranks.take(take).toList();
+    } on KugouApiException {
+      // Hero cards are decorative; an unreachable rank list must not throw.
+      return const [];
+    }
   }
 
   Future<List<PlaylistBrief>> fetchRankList() async {
-    try {
-      final url = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.rankList, {
-        'format': 'json',
-        'plat': 0,
-      });
-      final data = await _client.getJson(url);
-      if (data is! Map) return const [];
-      final map = Map<String, dynamic>.from(data);
-      // `rank/list` nests the board list under `data.info` (not root `info`).
-      final dataNode = map['data'] is Map
-          ? Map<String, dynamic>.from(map['data'] as Map)
-          : map;
-      final list = dataNode['info'] ??
-          dataNode['list'] ??
-          map['info'] ??
-          map['list'];
-      if (list is! List) return const [];
-      return list
-          .whereType<Map>()
-          .map((e) => mapRankBrief(Map<String, dynamic>.from(e)))
-          .toList();
-    } catch (_) {
-      return const [];
+    final url = buildUrl(KugouEndpoints.mobileCdn, KugouEndpoints.rankList, {
+      'format': 'json',
+      'plat': 0,
+    });
+    for (var attempt = 0;; attempt++) {
+      try {
+        final data = await _client.getJson(url);
+        if (data is! Map) return const [];
+        final map = Map<String, dynamic>.from(data);
+        // `rank/list` nests the board list under `data.info` (not root `info`).
+        final dataNode = map['data'] is Map
+            ? Map<String, dynamic>.from(map['data'] as Map)
+            : map;
+        final list =
+            dataNode['info'] ?? dataNode['list'] ?? map['info'] ?? map['list'];
+        if (list is! List) return const [];
+        return list
+            .whereType<Map>()
+            .map((e) => mapRankBrief(Map<String, dynamic>.from(e)))
+            .toList();
+      } on KugouApiException catch (e) {
+        // Transport failures here are usually transient — Dart's HttpClient
+        // keep-alive pool occasionally hands out a connection the server has
+        // already closed ("Connection closed before full header was
+        // received"). Retry briefly, then rethrow so the UI shows an error +
+        // retry instead of a silently empty board wall.
+        if (attempt >= 2 || !_isTransientTransport(e)) rethrow;
+        await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+      } catch (_) {
+        return const [];
+      }
     }
+  }
+
+  /// Connection-level Dio failures are worth a retry; HTTP-level rejections
+  /// (URL过滤 / Access Deny / non-2xx) are deterministic and are not.
+  static bool _isTransientTransport(KugouApiException e) {
+    final cause = e.cause;
+    return cause is DioException &&
+        const {
+          DioExceptionType.connectionError,
+          DioExceptionType.connectionTimeout,
+          DioExceptionType.sendTimeout,
+          DioExceptionType.receiveTimeout,
+        }.contains(cause.type);
   }
 
   /// Rank board detail: signed `rank/audio` first, public `rank/song` fallback.
