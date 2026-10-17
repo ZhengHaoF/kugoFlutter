@@ -45,10 +45,14 @@ class LyricsView extends ConsumerStatefulWidget {
 
 class _LyricsViewState extends ConsumerState<LyricsView> {
   final _controller = ScrollController();
+
+  /// 活动行的 GlobalKey。换行后行高随内容变化，[_scrollToActive] 不能再按
+  /// `index × 行高` 推算偏移，改为直接拿活动行的渲染盒做精确居中。
+  final _activeKey = GlobalKey();
   int _lastActive = -1;
   double _lastViewport = 0;
 
-  /// 上次渲染时的行盒高度。字号/行间距倍率或副行开关变化都会改变它，
+  /// 上次渲染时的行盒最小高度。字号/行间距倍率或副行开关变化都会改变它，
   /// 此时需重新居中当前行——否则滚动偏移仍按旧行高算，当前行会跑偏。
   double _lastExtent = 0;
 
@@ -91,11 +95,14 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   bool _showTr(AppSettings s) => s.lyricTranslation;
   bool _showRo(AppSettings s) => s.lyricRomanization;
 
-  /// 行盒高度 = 基准 56（+ 副行加成）× 字号倍率 × 行间距倍率。
+  /// 行盒最小高度 = 基准 56（+ 副行加成）× 字号倍率 × 行间距倍率。
+  ///
+  /// 歌词超宽时换行、行高由内容撑高（ListView 不再固定 `itemExtent`），这里
+  /// 给出的是单行行盒的兜底高度——保证行间距倍率生效，短行不至于挤成一团。
   ///
   /// 行间距下限（0.4）可能把行盒压到比文字本身还矮，故取「文字实际高度」
   /// 兜底——否则 ListView 会连同文字一起裁掉上下边缘。
-  double _itemExtent({required bool desktop}) {
+  double _minExtent({required bool desktop}) {
     final s = ref.read(settingsControllerProvider);
     var base = 56.0;
     if (_showTr(s)) base += 18;
@@ -105,10 +112,10 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   }
 
   /// 单行（活动行 + 开启的副行）文字实际占位高度，按最大字号的档位算——
-  /// 活动行字号最大（18/22 w700），这就是行盒的物理下限。
+  /// 活动行字号最大（18/22 w700），这就是行盒最小高度的物理下限。
   ///
-  /// 不要改成按非活动行（15/16）算：行盒高度固定（ListView `itemExtent` +
-  /// `SizedBox`），活动行 24.3 的文字塞进更矮的盒子会 RenderFlex overflow。
+  /// 不要改成按非活动行（15/16）算：倍率把基准压到 0.4 时，下限会低于活动行
+  /// 文字高度，同一屏里活动行看起来比其它行更挤。
   double _contentHeight(AppSettings s, {required bool desktop}) {
     var h = (desktop ? 22.0 : 18.0) * 1.35 * s.lyricFontScale;
     if (_showTr(s)) h += 12 * 1.25 * s.lyricFontScale;
@@ -175,22 +182,53 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
   }
 
   /// Scroll so the **active line is vertically centered** in the viewport.
+  ///
+  /// 换行后行高随内容变化，不能再按 `index × 行高` 推算偏移：
+  /// - 活动行已构建 → `Scrollable.ensureVisible(alignment: 0.5)` 精确居中；
+  /// - 活动行未构建（切歌 / seek 到视口外）→ 先按最小行高估算跳过去，
+  ///   行构建出来后再精修一次，抹掉长句换行带来的估算偏差。
   void _scrollToActive({bool animated = true}) {
     if (!_controller.hasClients) return;
     if (_isManual && animated) return;
-    final pos = _controller.position;
-    final viewport = pos.viewportDimension;
-    final padTop = _verticalPad(viewport);
-    // 用上次布局的行盒高度（桌面/移动基准不同），保证与 ListView 实际一致。
-    final extent = _lastExtent;
-    final lineCenter = padTop + activeIndex * extent + extent / 2;
-    final target = (lineCenter - viewport / 2).clamp(0.0, pos.maxScrollExtent);
-    if (!animated || (target - pos.pixels).abs() < 0.5) {
-      _controller.jumpTo(target);
+    final context = _activeKey.currentContext;
+    if (context != null && context.mounted) {
+      _centerActiveRow(context, animated: animated);
       return;
     }
-    _controller.animateTo(
-      target,
+    final pos = _controller.position;
+    final viewport = pos.viewportDimension;
+    final extent = _lastExtent;
+    if (extent <= 0) return;
+    // 估算：假设每行都占最小行高（多数歌成立），先把视口送到大致位置。
+    final lineCenter = _verticalPad(viewport) + activeIndex * extent + extent / 2;
+    final target = (lineCenter - viewport / 2).clamp(0.0, pos.maxScrollExtent);
+    if (animated) {
+      _controller.animateTo(
+        target,
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      _controller.jumpTo(target);
+    }
+    // 下一帧目标行已布局：用真实行盒再做一次居中，纠正估算误差。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _activeKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      _centerActiveRow(ctx, animated: animated);
+    });
+  }
+
+  /// 把活动行的渲染盒居中到视口中央（ensureVisible 内部会 clamp 到滚动边界）。
+  void _centerActiveRow(BuildContext context, {required bool animated}) {
+    if (!animated) {
+      Scrollable.ensureVisible(context, alignment: 0.5, duration: Duration.zero);
+      return;
+    }
+    Scrollable.ensureVisible(
+      context,
+      alignment: 0.5,
       duration: const Duration(milliseconds: 360),
       curve: Curves.easeOutCubic,
     );
@@ -255,7 +293,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     }
 
     final desktop = isDesktopView(context);
-    final extent = _itemExtent(desktop: desktop);
+    final extent = _minExtent(desktop: desktop);
 
     // 此处已排除 lines 为空的情况（上方提前返回）。
     if ((extent - _lastExtent).abs() > 0.01) {
@@ -300,7 +338,6 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             horizontal: desktop ? OvertoneSpacing.xl : OvertoneSpacing.lg,
             vertical: vPad,
           ),
-          itemExtent: extent,
           itemCount: widget.lines.length,
           itemBuilder: (context, index) {
             final opacity = _lineOpacity(index, active);
@@ -318,7 +355,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                 showTr: showTr,
                 showRo: showRo,
                 theme: theme,
-                extent: extent,
+                minExtent: extent,
               );
               _rowCache[index] = _CachedRow(opacity, built);
               return built;
@@ -335,7 +372,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
               showTr: showTr,
               showRo: showRo,
               theme: theme,
-              extent: extent,
+              minExtent: extent,
             );
           },
         );
@@ -425,14 +462,17 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     required bool showTr,
     required bool showRo,
     required OvertoneTheme theme,
-    required double extent,
+    required double minExtent,
   }) {
     final line = widget.lines[index];
     return GestureDetector(
+      // 活动行挂 GlobalKey：居中定位直接拿它的渲染盒（行高换行后不固定）。
+      key: isActive ? _activeKey : null,
       onTap: widget.onTapLine == null ? null : () => widget.onTapLine!(line.timeMs),
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        height: extent,
+      // 最小高度承载行间距语义；内容更高（换行）时由 ConstrainedBox 放行。
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minExtent),
         child: Center(
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 220),
@@ -666,11 +706,10 @@ class _PrimaryLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (line.text.isEmpty) return const SizedBox.shrink();
+    // 不设 maxLines / overflow：超宽歌词换行显示，不再省略号截断。
     return Text(
       line.text,
       textAlign: TextAlign.center,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
       style: style,
     );
   }
@@ -785,13 +824,11 @@ class _ActiveLineState extends State<_ActiveLine>
     final text = widget.line.text;
     if (text.isEmpty) return const SizedBox.shrink();
 
-    // LRC（无逐字时间轴）：整行用活动样式，无逐字填充。
+    // LRC（无逐字时间轴）：整行用活动样式，无逐字填充。换行显示，不截断。
     if (!widget.line.hasCharTiming) {
       return Text(
         text,
         textAlign: TextAlign.center,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
         style: widget.style,
       );
     }
@@ -813,8 +850,6 @@ class _ActiveLineState extends State<_ActiveLine>
         ],
       ),
       textAlign: TextAlign.center,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -827,11 +862,10 @@ class _SecondaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 译文 / 罗马音同样换行：截断后副行就失去意义了。
     return Text(
       text,
       textAlign: TextAlign.center,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
       style: style,
     );
   }

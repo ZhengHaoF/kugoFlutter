@@ -64,9 +64,21 @@ Widget _harness({
   );
 }
 
-/// 列表行盒高度 = 歌词行间距（副行开关关闭时为基准 56 × 两个倍率）。
-double _rowExtent(WidgetTester tester) =>
-    tester.widget<ListView>(find.byType(ListView)).itemExtent!;
+/// 行盒最小高度 = 歌词行间距（副行开关关闭时为基准 56 × 两个倍率）。
+///
+/// 换行后行高不再固定（ListView 无 `itemExtent`），改为读行级
+/// `ConstrainedBox` 的 `minHeight`——即单行行盒的兜底高度。
+double _rowExtent(WidgetTester tester) {
+  final box = tester.widget<ConstrainedBox>(
+    find
+        .ancestor(
+          of: find.text('第一行'),
+          matching: find.byType(ConstrainedBox),
+        )
+        .first,
+  );
+  return box.constraints.minHeight;
+}
 
 /// 窄屏（宽 < 800 即 `isDesktopView` 为假），主行字号基准为 18/15 而非 22/16。
 /// 测试默认画布 800×600 会被判成桌面，故字号断言前先切到手机尺寸。
@@ -278,5 +290,52 @@ void main() {
     );
     // 倍率算出的 (56 + 18) × 0.4 = 29.6 会被文字高度 18×1.35 + 12×1.25 = 39.3 顶住。
     expect(_rowExtent(tester), closeTo(39.3, 0.001));
+  });
+
+  testWidgets('long lines wrap instead of showing an ellipsis', (tester) async {
+    _usePhoneView(tester);
+    // 420px 宽的屏幕放不下一行的长度（约 26 × 18px），必须换行而非截断。
+    const longText = '这是一句特别特别特别特别特别特别特别特别特别长的歌词';
+    const longTr = 'a very very very very very very very long translation';
+    final lines = [
+      const LyricLine(timeMs: 0, endMs: 1000, text: longText, translated: longTr),
+      const LyricLine(timeMs: 1000, endMs: 2000, text: '短行'),
+    ];
+    await tester.pumpWidget(
+      _harness(
+        translation: true,
+        romanization: false,
+        positionMs: 0,
+        lines: lines,
+      ),
+    );
+
+    // 活动行主歌词：不设 maxLines，且渲染高度超过单行（18 × 1.35 = 24.3）。
+    final primary = tester.widget<Text>(find.text(longText));
+    expect(primary.maxLines, isNull);
+    expect(primary.overflow, isNot(TextOverflow.ellipsis));
+    expect(tester.getSize(find.text(longText)).height, greaterThan(24.3));
+
+    // 副行译文：同样换行。
+    final tr = tester.widget<Text>(find.text(longTr));
+    expect(tr.maxLines, isNull);
+    expect(tr.overflow, isNot(TextOverflow.ellipsis));
+  });
+
+  testWidgets('active line is vertically centered after auto-scroll',
+      (tester) async {
+    // 回归：换行后行高不再固定，居中不能再按 index × 行高 推算；
+    // 800×600 桌面画布下视口高 600，活动行（第二行）应居中于 y = 300。
+    await tester.pumpWidget(
+      _harness(
+        translation: false,
+        romanization: false,
+        positionMs: 1500,
+        lines: _plainLines(),
+      ),
+    );
+    // jumpTo 发生在首帧的 post-frame 回调里，补一帧让滚动位置绘制出来。
+    await tester.pump();
+    expect(tester.getCenter(find.text('第二行')).dy, closeTo(300, 1.0));
   });
 }
