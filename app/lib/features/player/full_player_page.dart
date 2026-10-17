@@ -415,7 +415,9 @@ class FullPlayerPage extends ConsumerWidget {
                           )
                         : null,
                     onTap: () {
-                      controller.playQueue(player.queue, startIndex: index);
+                      // 队列内跳转：只动游标。走 playQueue 会在随机模式下
+                      // 把整队重新洗一遍，点一下歌顺序就变。
+                      controller.playAtIndex(index);
                       Navigator.of(sheetContext).pop();
                     },
                   );

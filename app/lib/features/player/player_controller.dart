@@ -21,6 +21,7 @@ import 'audio_engine.dart';
 import 'audio_player_port.dart';
 import 'lyric_cache.dart';
 import 'mv_audio_fallback.dart';
+import 'shuffle_order.dart';
 import 'stall_watchdog.dart';
 
 enum PlayerLoopMode { order, listLoop, shuffle, single }
@@ -283,6 +284,14 @@ class PlayerController extends Notifier<PlayerState> {
   int _lastPushedMs = -1;
   String _lastQueueSig = '';
 
+  /// 冷启动恢复时洗牌前的原始队列顺序。
+  ///
+  /// [restoreOrSeed] 在 `mode == shuffle` 时会重洗队列（旧实现留下的持久化
+  /// 数据可能是「显示随机、实则顺序播」）。若这条队列随后被 FM 会话认领
+  /// （随机对流没有意义），[markQueueSource] 用它回滚。洗牌时当前曲目钉在
+  /// 原位，回滚后 `currentIndex` 仍指向同一首，FM 会话无损。
+  List<Track>? _preShuffleOrder;
+
   @override
   PlayerState build() {
     _engine = _engineOverride ?? createAudioEngine();
@@ -411,6 +420,7 @@ class PlayerController extends Notifier<PlayerState> {
     _ignoreEnginePlayUntil = null;
     _lyricsInFlightKey = null;
     _lyricsLoadedKey = null;
+    _preShuffleOrder = null;
     _zeroCursor();
     state = const PlayerState();
   }
@@ -447,8 +457,18 @@ class PlayerController extends Notifier<PlayerState> {
           _resetMediaPosition(resumeAt);
           _resumeSeekMs = resumeAt;
         }
+        // 随机模式：冷启动就是一次新的随机会话，重洗一遍。顺带修掉旧实现
+        // 留下的「mode=shuffle 但队列从未洗过」的数据——不洗就会显示随机、
+        // 实则顺序播。原顺序留底：万一是 FM 流，markQueueSource(fm) 会回滚。
+        List<Track> queue = List.unmodifiable(tracks);
+        if (mode == PlayerLoopMode.shuffle && tracks.length > 1) {
+          _preShuffleOrder = tracks;
+          queue = List.unmodifiable(shuffledQueue(tracks, pinIndex: index));
+        } else {
+          _preShuffleOrder = null;
+        }
         state = state.copyWith(
-          queue: List.unmodifiable(tracks),
+          queue: queue,
           currentIndex: index,
           mode: mode,
           display: PlayerDisplayState.paused,
@@ -517,6 +537,16 @@ class PlayerController extends Notifier<PlayerState> {
   }) async {
     if (tracks.isEmpty) return;
     final index = startIndex.clamp(0, tracks.length - 1);
+    // 随机模式的不变量是「队列顺序即播放顺序」：新队列进来就地洗牌，点中的
+    // 那首钉在 startIndex。FM 流除外——顺序就是推荐序，洗了会破坏续流/回退。
+    // 队列被整体替换，冷启动留底的原始顺序随之作废。
+    _preShuffleOrder = null;
+    var queue = tracks;
+    if (state.mode == PlayerLoopMode.shuffle &&
+        source != PlaybackQueueSource.fm &&
+        tracks.length > 1) {
+      queue = shuffledQueue(tracks, pinIndex: index);
+    }
     final seq = ++_seq;
     _sourceReady = false;
     _wantPlaying = true;
@@ -527,7 +557,7 @@ class PlayerController extends Notifier<PlayerState> {
     _lyricsLoadedKey = null;
     _zeroCursor();
     state = state.copyWith(
-      queue: List.unmodifiable(tracks),
+      queue: List.unmodifiable(queue),
       currentIndex: index,
       display: PlayerDisplayState.loading,
       positionMs: 0,
@@ -550,13 +580,40 @@ class PlayerController extends Notifier<PlayerState> {
   /// 由 FM 会话用自己的标记判断「恢复出来的队列就是 FM 流」后回填。
   void markQueueSource(PlaybackQueueSource source) {
     if (state.queue.isEmpty || state.queueSource == source) return;
-    state = state.copyWith(queueSource: source);
+    var queue = state.queue;
+    var mode = state.mode;
+    var persist = false;
+    if (source == PlaybackQueueSource.fm) {
+      // FM 是流：顺序即推荐序，随机没有意义。冷启动若为 shuffle 洗过牌，
+      // 回滚原顺序（当前曲目钉在原位，currentIndex 不变仍指同一首）并把
+      // mode 降级成列表循环，落盘，避免下次冷启动再洗一遍。
+      final original = _preShuffleOrder;
+      _preShuffleOrder = null;
+      if (original != null) {
+        persist = true;
+        if (original.length == queue.length) {
+          queue = List.unmodifiable(original);
+        }
+      }
+      if (mode == PlayerLoopMode.shuffle) {
+        mode = PlayerLoopMode.listLoop;
+        persist = true;
+      }
+    }
+    state = state.copyWith(queueSource: source, queue: queue, mode: mode);
     _syncBridge();
+    if (persist) {
+      unawaited(
+        _store?.saveQueue(state.queue, state.currentIndex, state.mode.name),
+      );
+    }
   }
 
   /// 往活动队列尾部追加，不动游标（FM 续流用：边播边补）。
   Future<void> appendToQueue(List<Track> tracks) async {
     if (tracks.isEmpty) return;
+    // 追加后队列变长，冷启动留底的原始顺序不再对得上，作废。
+    _preShuffleOrder = null;
     state = state.copyWith(
       queue: List.unmodifiable([...state.queue, ...tracks]),
     );
@@ -1236,16 +1293,20 @@ class PlayerController extends Notifier<PlayerState> {
         _syncBridge();
         return;
       }
-      if (state.mode == PlayerLoopMode.shuffle) {
-        index = _randomIndex(state.queue.length, exclude: state.currentIndex);
-      } else {
-        index = 0;
+      if (state.mode == PlayerLoopMode.shuffle && state.queue.length > 1) {
+        // 随机列表整队播完：重洗一份新的随机顺序从头再来，且刚播完那首不许
+        // 落在 0 号位（否则等于立即重播）。洗牌即重排，next 始终是 +1。
+        state = state.copyWith(
+          queue: List.unmodifiable(
+            shuffledQueue(state.queue, avoidFirst: state.current),
+          ),
+          currentIndex: 0,
+        );
+        _syncBridge();
       }
-    } else if (state.mode == PlayerLoopMode.shuffle &&
-        state.queue.length > 1 &&
-        state.queueSource != PlaybackQueueSource.fm) {
-      index = _randomIndex(state.queue.length, exclude: state.currentIndex);
+      index = 0;
     }
+    // 随机模式下队列本身就是播放顺序，与顺序播放同路：+1 到底再环绕。
     await _jumpTo(index);
   }
 
@@ -1338,8 +1399,27 @@ class PlayerController extends Notifier<PlayerState> {
 
   void setMode(PlayerLoopMode mode) {
     if (state.mode == mode) return;
-    state = state.copyWith(mode: mode);
+    // FM 是流：顺序即推荐序，随机没有意义（见 PlaybackQueueSource.fm）。
+    if (mode == PlayerLoopMode.shuffle &&
+        state.queueSource == PlaybackQueueSource.fm) {
+      return;
+    }
+    // 切入随机：就地洗牌，当前曲目钉在原位——不跳歌、currentIndex 不变，
+    // 之后 next() 与顺序播放同路（+1），整队播完再重洗。
+    final shuffleNow = mode == PlayerLoopMode.shuffle && state.queue.length > 1;
+    var queue = state.queue;
+    if (shuffleNow) {
+      queue = List.unmodifiable(
+        shuffledQueue(queue, pinIndex: state.currentIndex),
+      );
+      _preShuffleOrder = null;
+    }
+    state = state.copyWith(mode: mode, queue: queue);
     unawaited(_persistQueue());
+    if (shuffleNow) {
+      // 队列顺序变了：推一份新的给系统媒体会话，别让 OS 的队列 UI 停在旧序。
+      _syncBridge();
+    }
   }
 
   void cycleMode() {
@@ -1419,17 +1499,6 @@ class PlayerController extends Notifier<PlayerState> {
   void _stopDemoTick() {
     _demoTimer?.cancel();
     _demoTimer = null;
-  }
-
-  int _randomIndex(int length, {required int exclude}) {
-    if (length <= 1) return 0;
-    var idx = exclude;
-    var guard = 0;
-    while (idx == exclude && guard++ < 8) {
-      idx = DateTime.now().microsecondsSinceEpoch % length;
-    }
-    if (idx == exclude) idx = (exclude + 1) % length;
-    return idx;
   }
 
   void _syncBridge({Track? track}) {
