@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:overtone/features/settings/settings_controller.dart';
 import 'package:overtone/shared/widgets/lyric_display_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FixedSettings extends SettingsController {
   _FixedSettings(this._initial);
@@ -153,5 +154,66 @@ void main() {
     await tester.tap(find.byType(LyricDisplayButton));
     await tester.pumpAndSettle();
     expect(find.text('歌词显示'), findsOneWidget);
+  });
+
+  testWidgets('offset sheet微调当前曲并从全局值叠加', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    late WidgetRef captured;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: Consumer(
+                  builder: (context, ref, _) {
+                    captured = ref;
+                    return TextButton(
+                      onPressed: () => showLyricOffsetSheet(
+                        context,
+                        ref,
+                        trackKey: 'kugou:a',
+                      ),
+                      child: const Text('open'),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('歌词偏移（当前歌曲）'), findsOneWidget);
+    // 未微调过 → 「重置本曲微调」置灰。
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, '重置本曲微调'))
+          .onPressed,
+      isNull,
+    );
+
+    // 全局先偏 0.5s，再给本曲补 0.5s → 合计 1.0s。
+    await captured
+        .read(settingsControllerProvider.notifier)
+        .setLyricOffsetMs(500);
+    await tester.tap(find.text('+0.5s'));
+    await tester.pumpAndSettle();
+
+    final settings = captured.read(settingsControllerProvider);
+    expect(settings.lyricOffsetOverrides['kugou:a'], 500);
+    expect(settings.lyricOffsetFor('kugou:a'), 1000);
+    expect(find.textContaining('合计生效 +1.0s'), findsOneWidget);
+
+    await tester.tap(find.text('重置本曲微调'));
+    await tester.pumpAndSettle();
+    expect(
+      captured.read(settingsControllerProvider).lyricOffsetOverrides,
+      isEmpty,
+    );
+    expect(find.textContaining('本曲微调 0.0s'), findsOneWidget);
   });
 }

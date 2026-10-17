@@ -105,19 +105,40 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     _ensureTab(index);
   }
 
+  /// Tab 懒加载。**失败过一次就不再自动重发**：本方法由 TabController 的
+  /// 每一帧通知驱动（切 Tab 动画期间每帧都会进来），而失败（尤其被凭据
+  /// 守卫同步拒绝）是瞬时完成的——`*Loading` 一秒变回 false、列表仍空，
+  /// 不判 error 就会在动画期间连环重发同一请求。重试一律走用户点的
+  /// 「重试」按钮（`_gridSliver` / `_songSliver` 的 `onRetry`）。
   void _ensureTab(int index) {
     switch (index) {
       case 0:
-        if (!_tagsLoaded && !_playlistsLoading) _loadPlaylists();
+        if (!_tagsLoaded &&
+            !_playlistsLoading &&
+            _playlistsError.isEmpty) {
+          _loadPlaylists();
+        }
       case 1:
         // 排行榜 Tab 自己加载（RankBoardsGrid），这里不用管。
         break;
       case 2:
-        if (_albums.isEmpty && !_albumsLoading) _loadAlbums();
+        if (_albums.isEmpty &&
+            !_albumsLoading &&
+            _albumsError.isEmpty) {
+          _loadAlbums();
+        }
       case 3:
-        if (_newSongs.isEmpty && !_newSongsLoading) _loadNewSongs();
+        if (_newSongs.isEmpty &&
+            !_newSongsLoading &&
+            _newSongsError.isEmpty) {
+          _loadNewSongs();
+        }
       case 4:
-        if (_artists.isEmpty && !_artistsLoading) _loadArtists();
+        if (_artists.isEmpty &&
+            !_artistsLoading &&
+            _artistsError.isEmpty) {
+          _loadArtists();
+        }
     }
   }
 

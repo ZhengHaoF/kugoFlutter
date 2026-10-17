@@ -1,8 +1,11 @@
 /// Kugou public mobile endpoints used for research/learning client.
 /// These endpoints can change without notice; keep isolated here.
 ///
-/// Network note (2026-09): this LAN blocks HTTPS to kugou and most
-/// play/stream hosts, but HTTP `mobilecdn` search + `lyrics` work.
+/// Network note (2026-10): HTTPS verified for `musicadservice` / `lyrics`;
+/// public `mobilecdn` must stay HTTP (its TLS certificate does not cover
+/// the SNI name). Credential-bearing requests (Cookie/token) must always
+/// be HTTPS — the guard in `credential_transport.dart` fails closed on
+/// plaintext hosts.
 abstract final class KugouEndpoints {
   static const mobileCdn = 'http://mobilecdn.kugou.com';
   static const wwwApi = 'http://wwwapi.kugou.com';
@@ -114,7 +117,12 @@ abstract final class KugouEndpoints {
   static const specialRecommendRouter = 'specialrec.service.kugou.com';
 
   /// Editorial picks (KuGouMusicApi top_ip.js).
-  static const musicAdService = 'http://musicadservice.kugou.com';
+  ///
+  /// HTTPS, not HTTP: every `_signedRequest` / `_signedGatewayPost` attaches
+  /// a Cookie header (device ids at minimum), and the credential guard in
+  /// `credential_transport.dart` rejects plaintext targets that carry
+  /// credentials — which silently broke 新碟上架 / 新歌速递 / 编辑精选.
+  static const musicAdService = 'https://musicadservice.kugou.com';
   static const topIp = '/v1/daily_recommend';
 
   /// Discovery tabs (KuGouMusicApi top_song / top_album / artist_lists / playlist_tags).

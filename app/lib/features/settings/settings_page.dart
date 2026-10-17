@@ -202,12 +202,13 @@ class SettingsPage extends ConsumerWidget {
                   onTap: () => showDesktopLyricStyleSheet(context, ref),
                 ),
                 ListTile(
-                  title: Text('歌词偏移', style: theme.body),
+                  title: Text('歌词偏移（全局）', style: theme.body),
                   subtitle: Text(
-                    settings.desktopLyricOffsetMs == 0
-                        ? '与系统时间对齐'
-                        : '${settings.desktopLyricOffsetMs > 0 ? '+' : ''}'
-                            '${(settings.desktopLyricOffsetMs / 1000).toStringAsFixed(1)}s',
+                    settings.lyricOffsetMs == 0
+                        ? '与系统时间对齐；播放页「歌词显示」里可按当前歌曲再微调'
+                        : '${settings.lyricOffsetMs > 0 ? '+' : ''}'
+                            '${(settings.lyricOffsetMs / 1000).toStringAsFixed(1)}s'
+                            '（全局，按歌曲的微调会再叠加）',
                     style: theme.caption,
                   ),
                   trailing: Row(
@@ -216,20 +217,20 @@ class SettingsPage extends ConsumerWidget {
                       IconButton(
                         tooltip: '提前 0.5s',
                         icon: const Icon(Icons.remove_rounded, size: 20),
-                        onPressed: () => controller.setDesktopLyricOffsetMs(
-                          settings.desktopLyricOffsetMs - 500,
+                        onPressed: () => controller.setLyricOffsetMs(
+                          settings.lyricOffsetMs - 500,
                         ),
                       ),
                       IconButton(
                         tooltip: '延后 0.5s',
                         icon: const Icon(Icons.add_rounded, size: 20),
-                        onPressed: () => controller.setDesktopLyricOffsetMs(
-                          settings.desktopLyricOffsetMs + 500,
+                        onPressed: () => controller.setLyricOffsetMs(
+                          settings.lyricOffsetMs + 500,
                         ),
                       ),
                     ],
                   ),
-                  onTap: () => controller.setDesktopLyricOffsetMs(0),
+                  onTap: () => controller.setLyricOffsetMs(0),
                 ),
                 ListTile(
                   title: Text('重置歌词位置', style: theme.body),
@@ -282,6 +283,15 @@ class SettingsPage extends ConsumerWidget {
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => showSleepPicker(context, ref),
+              ),
+              SwitchListTile(
+                title: Text('失败时尝试 MV 音频', style: theme.body),
+                subtitle: Text(
+                  '音源不可用时借用歌曲关联曲库 MV 的音轨；音质未知，歌词与时长可能不同步',
+                  style: theme.caption,
+                ),
+                value: settings.mvAudioFallbackEnabled,
+                onChanged: controller.setMvAudioFallbackEnabled,
               ),
             ],
           ),

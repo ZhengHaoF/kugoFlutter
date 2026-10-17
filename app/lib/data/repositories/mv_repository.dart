@@ -536,7 +536,22 @@ class MvRepository {
       isRecommend: m['is_recommend'] == 1 ||
           m['is_recommend'] == true ||
           m['is_recommend'] == '1',
+      isPublish: _intFlag(m['is_publish']),
+      isUgc: _intFlag(m['is_ugc']),
+      isShort: _intFlag(m['is_short']),
+      isOther: _intFlag(m['is_other']),
     );
+  }
+
+  /// 把上游 0/1 标记解析成 `int?`；**缺失或不可解析一律 `null`**。
+  ///
+  /// 不能回落成 0：MV 音频兜底依赖「字段存在且为 0」判定非 UGC/非短视频
+  /// （对齐 EchoMusic `pickCatalogMv` 的 `raw.is_ugc != null` 显式判空）。
+  static int? _intFlag(Object? value) {
+    if (value == null) return null;
+    if (value is bool) return value ? 1 : 0;
+    if (value is num) return value.toInt();
+    return int.tryParse('$value'.trim());
   }
 
   /// 从嵌套 / 扁平 hash 里推最高清晰度标签；有 `quality_*` 标注时优先。

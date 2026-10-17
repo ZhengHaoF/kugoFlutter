@@ -78,6 +78,22 @@ class _QualitySheetBody extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: theme.caption,
           ),
+          if (player.playingMvAudio) ...[
+            const SizedBox(height: OvertoneSpacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.videocam_outlined,
+                  size: 14,
+                  color: theme.textTertiary,
+                ),
+                const SizedBox(width: 4),
+                Text('当前播放 MV 音频 · 歌词可能不同步', style: theme.caption),
+              ],
+            ),
+          ],
           const SizedBox(height: OvertoneSpacing.sm),
           for (final q in AppQuality.values)
             _QualityRow(

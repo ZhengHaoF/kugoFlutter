@@ -32,6 +32,7 @@ class _DiscoveryFake extends FakeMusicSource
     this.newSongItems = const [],
     this.albumItems = const [],
     this.artistItems = const [],
+    this.albumFailure,
     this.albumRegions = const [
       (id: 'all', label: '全部'),
       (id: 'chn', label: '华语'),
@@ -55,6 +56,9 @@ class _DiscoveryFake extends FakeMusicSource
   final List<Track> newSongItems;
   final List<AlbumBrief> albumItems;
   final List<ArtistBrief> artistItems;
+
+  /// 非空时 `newAlbums` 立即抛它（模拟即时失败，如凭据守卫同步拒绝）。
+  final Object? albumFailure;
 
   @override
   final List<({String id, String label})> albumRegions;
@@ -91,6 +95,7 @@ class _DiscoveryFake extends FakeMusicSource
   }) async {
     newAlbumCalls += 1;
     requestedRegions.add(region);
+    if (albumFailure != null) throw albumFailure!;
     return albumItems;
   }
 
@@ -351,6 +356,36 @@ void main() {
     expect(find.text('酷狗歌单'), findsOneWidget);
     expect(sources.kugou.playlistCalls, 1);
     expect(sources.netease.playlistCalls, 0);
+  });
+
+  testWidgets('新碟上架即时失败：Tab 动画期间只发一次，不连环重发', (tester) async {
+    final kugou = _DiscoveryFake(
+      platform: MusicPlatform.kugou,
+      albumFailure: StateError('scripted instant failure'),
+      tagGroups: [_group('流派')],
+      playlists: [_playlist('kg-1', '酷狗歌单', MusicPlatform.kugou)],
+    );
+    musicSourceRegistry = MusicSourceRegistry([kugou]);
+    final container = await containerWith({
+      'settings.enabledSources': ['kugou'],
+      'settings.defaultSource': 'kugou',
+    });
+
+    await pumpDiscovery(tester, container, size: const Size(900, 1000));
+    await tester.tap(find.text('新碟上架'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // 切 Tab 动画每一帧都会驱动 _ensureTab；即时失败（如被凭据守卫同步
+    // 拒绝）若不判 error，会在动画期间连环重发同一请求。
+    expect(kugou.newAlbumCalls, 1);
+    expect(find.textContaining('新碟加载失败'), findsOneWidget);
+
+    // 重试只走用户点击的「重试」按钮。
+    await tester.tap(find.widgetWithText(FilledButton, '重试'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(kugou.newAlbumCalls, 2);
   });
 
   testWidgets('网易源：新碟上架走 NewAlbumFeedSource，地区取值来自能力并原样回传', (tester) async {

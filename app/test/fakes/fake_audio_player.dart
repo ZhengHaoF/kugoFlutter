@@ -24,6 +24,9 @@ class FakeAudioPlayer implements AudioPlayerPort {
   /// （media_kit 在 open() 与 play() 之间 setRate），这是回归锚点。
   double? speedWhenPlaybackStarted;
 
+  /// `playUrl` 被调用的次数（断言「重新取流」这类重载行为）。
+  int playUrlCalls = 0;
+
   @override
   Stream<Duration> get positionStream => _pos.stream;
 
@@ -51,6 +54,7 @@ class FakeAudioPlayer implements AudioPlayerPort {
     // Real engines apply the rate during the load (media_kit: between open()
     // and its internal play()), so mirror that here.
     this.speed = speed;
+    playUrlCalls += 1;
     // Real engines reset the cursor when a new source is set.
     position = Duration.zero;
     playing = play;

@@ -82,7 +82,8 @@ class AndroidLyricBridge {
           prev?.lyricRomanization != next.lyricRomanization ||
           prev?.lyricFontScale != next.lyricFontScale ||
           prev?.desktopLyricLocked != next.desktopLyricLocked ||
-          prev?.desktopLyricOffsetMs != next.desktopLyricOffsetMs ||
+          prev?.lyricOffsetMs != next.lyricOffsetMs ||
+          !mapEquals(prev?.lyricOffsetOverrides, next.lyricOffsetOverrides) ||
           prev?.desktopLyricStyle != next.desktopLyricStyle) {
         unawaited(_pushSnapshot());
       }
@@ -235,7 +236,7 @@ class AndroidLyricBridge {
       romanization: s.lyricRomanization,
       fontScale: s.lyricFontScale,
       locked: s.desktopLyricLocked,
-      offsetMs: s.desktopLyricOffsetMs,
+      offsetMs: s.lyricOffsetFor(track?.identityKey),
       style: s.desktopLyricStyle,
     );
 

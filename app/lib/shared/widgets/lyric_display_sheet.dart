@@ -167,6 +167,160 @@ class _LyricDisplaySheetBody extends ConsumerWidget {
   }
 }
 
+/// 播放页「歌词偏移」入口。
+///
+/// 只微调**当前这首歌**的偏移；全局值在设置页里调，两者叠加生效
+/// （对齐 EchoMusic `adjustTimeOffset` + `globalTimeOffsetMs`）。
+class LyricOffsetButton extends ConsumerWidget {
+  const LyricOffsetButton({super.key, required this.trackKey});
+
+  final String? trackKey;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = OvertoneTheme.of(context);
+    final settings = ref.watch(settingsControllerProvider);
+    final overridden = settings.hasLyricOffsetOverride(trackKey);
+
+    return Tooltip(
+      message: '歌词偏移',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: trackKey == null
+            ? null
+            : () => showLyricOffsetSheet(context, ref, trackKey: trackKey!),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Icon(
+            Icons.swap_vert_rounded,
+            size: 16,
+            color: overridden ? theme.primary : theme.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 逐曲歌词偏移微调弹层。
+Future<void> showLyricOffsetSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String trackKey,
+}) {
+  return showOvertoneBottomSheet<void>(
+    context: context,
+    builder: (_) => _LyricOffsetSheetBody(trackKey: trackKey),
+  );
+}
+
+class _LyricOffsetSheetBody extends ConsumerWidget {
+  const _LyricOffsetSheetBody({required this.trackKey});
+
+  final String trackKey;
+
+  /// 微调档位（ms）：细调 ±0.1s，粗调 ±0.5s。
+  static const _steps = [-500, -100, 100, 500];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = OvertoneTheme.of(context);
+    final settings = ref.watch(settingsControllerProvider);
+    final controller = ref.read(settingsControllerProvider.notifier);
+    final trackOffset = settings.lyricOffsetOverrides[trackKey] ?? 0;
+    final total = settings.lyricOffsetFor(trackKey);
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          OvertoneSpacing.lg,
+          OvertoneSpacing.md,
+          OvertoneSpacing.lg,
+          OvertoneSpacing.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: OvertoneSpacing.md),
+                decoration: BoxDecoration(
+                  color: theme.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              '歌词偏移（当前歌曲）',
+              textAlign: TextAlign.center,
+              style: theme.section.copyWith(fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '只微调这一首；正数 = 歌词提前，负数 = 歌词延后',
+              textAlign: TextAlign.center,
+              style: theme.caption,
+            ),
+            const SizedBox(height: OvertoneSpacing.sm),
+            Text(
+              '本曲微调 ${_fmt(trackOffset)}　'
+              '全局 ${_fmt(settings.lyricOffsetMs)}　'
+              '合计生效 ${_fmt(total)}',
+              textAlign: TextAlign.center,
+              style: theme.body,
+            ),
+            const SizedBox(height: OvertoneSpacing.sm),
+            // Wrap 而非 Row：桌面侧边弹层只有 ~368px 宽，四个按钮一行会溢出。
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final step in _steps)
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    onPressed: () => controller.adjustTrackLyricOffsetMs(
+                      trackKey,
+                      deltaMs: step,
+                    ),
+                    child: Text(
+                      '${step > 0 ? '+' : '−'}'
+                      '${(step.abs() / 1000).toStringAsFixed(1)}s',
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: OvertoneSpacing.sm),
+            Center(
+              child: TextButton(
+                onPressed: settings.hasLyricOffsetOverride(trackKey)
+                    ? () => controller.adjustTrackLyricOffsetMs(
+                        trackKey,
+                        reset: true,
+                      )
+                    : null,
+                child: const Text('重置本曲微调'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 偏移读数，如 `+0.5s` / `-0.1s` / `0.0s`。
+  static String _fmt(int ms) {
+    final sign = ms > 0 ? '+' : (ms < 0 ? '-' : '');
+    return '$sign${(ms.abs() / 1000).toStringAsFixed(1)}s';
+  }
+}
+
 /// 倍率滑块行：左侧名称 + 右侧百分比读数，下行滑杆。
 class _LyricScaleSlider extends StatelessWidget {
   const _LyricScaleSlider({
